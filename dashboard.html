@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UV Servicios | Dashboard Elite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --pbi-red: #800000;
+            --card-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+        
+        body { background: #F0F2F5; margin: 0; padding: 0; display: block; overflow: auto; min-height: 100vh; font-family: 'Inter', sans-serif; }
+        
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: var(--sidebar-width) 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar - Elite Cyber-Industrial HUD */
+        .sidebar {
+            background: linear-gradient(180deg, #050b18 0%, #000000 100%);
+            color: white;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 35px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            border-right: 1px solid rgba(59, 130, 246, 0.1);
+            z-index: 1000;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+        }
+        
+        .sidebar-logo {
+            width: 140px;
+            margin: 0 auto;
+            display: block;
+            filter: brightness(0) invert(1) drop-shadow(0 0 12px rgba(59, 130, 246, 0.3));
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .sidebar-logo:hover { transform: scale(1.08) rotate(-2deg); }
+
+        .sidebar nav {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .nav-link {
+            padding: 16px 20px;
+            border-radius: 14px;
+            color: #4B5563;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid transparent;
+            position: relative;
+        }
+        .nav-link:hover { 
+            color: white; 
+            background: rgba(255, 255, 255, 0.05); 
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .nav-link.active { 
+            color: #60A5FA; 
+            background: rgba(37, 99, 235, 0.1); 
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.1), 0 0 20px rgba(37, 99, 235, 0.2);
+            text-shadow: 0 0 8px rgba(96, 165, 250, 0.5);
+        }
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            left: -20px;
+            width: 4px;
+            height: 24px;
+            background: #60A5FA;
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 0 15px #60A5FA;
+        }
+
+        #logout-btn {
+            margin-top: auto;
+            color: #EF4444;
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 14px;
+            justify-content: center;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        #logout-btn:hover {
+            background: rgba(239, 68, 68, 0.8);
+            color: white;
+            border-color: #EF4444;
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-report-toggle {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            background: var(--pbi-red);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 50px;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            box-shadow: 0 10px 25px rgba(128,0,0,0.4);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        .btn-report-toggle:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(128,0,0,0.5);
+            background: #a00000;
+        }
+
+        .main-container { padding: 30px 40px; }
+
+        .filter-section {
+            background: white;
+            padding: 20px 25px;
+            border-radius: 18px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            margin-bottom: 30px;
+            box-shadow: var(--card-shadow);
+        }
+        .filter-item { flex: 1; }
+        .filter-item label { display: block; font-size: 0.75rem; font-weight: 800; color: #1F2937; text-transform: uppercase; margin-bottom: 8px; }
+        .filter-item select, .filter-item input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #E5E7EB;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            background: #F9FAFB;
+        }
+
+        /* BRUTAL GRID SYSTEM */
+        .brutal-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .elite-card {
+            background: white;
+            border-radius: 18px;
+            padding: 25px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid #F3F4F6;
+        }
+
+        .card-header-industrial {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #F3F4F6;
+        }
+        .card-header-industrial h3 {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #1F2937;
+            text-transform: uppercase;
+            margin: 0;
+            flex: 1;
+            text-align: center;
+        }
+        .header-dot { width: 8px; height: 8px; border-radius: 50%; background: #EF4444; }
+
+        /* Card Sizing Logic */
+        .col-4 { grid-column: span 4; }
+        .col-2 { grid-column: span 2; }
+        .col-1 { grid-column: span 1; }
+
+        .kpi-range-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: #9CA3AF;
+            text-transform: uppercase;
+            margin-top: -10px;
+            padding: 0 10px;
+        }
+
+        .chart-space { min-height: 180px; }
+        .trend-space { min-height: 450px; }
+
+        /* RESPONSIVE DESIGN */
+        @media (max-width: 1400px) {
+            .brutal-grid { grid-template-columns: repeat(2, 1fr); }
+            .col-4, .col-2, .col-1 { grid-column: span 2; }
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-layout { grid-template-columns: 1fr; }
+            .sidebar { 
+                position: fixed; top: 0; width: 100%; height: auto; 
+                flex-direction: row; align-items: center; justify-content: space-between; 
+                padding: 10px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            .sidebar img { width: 80px; margin-bottom: 0; }
+            .sidebar nav { flex-direction: row; gap: 10px; flex-wrap: wrap; }
+            .btn-report-toggle { margin-top: 0; padding: 10px; font-size: 0.7rem; }
+            .main-container { padding: 90px 15px 20px 15px; }
+            .filter-section { flex-direction: column; align-items: stretch; }
+            .filter-actions { flex-direction: column; }
+        }
+
+        /* Comparison Panel */
+        .comparison-panel {
+            background: #F9FAFB;
+            border: 1.5px dashed #E5E7EB;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .comparison-panel.active { display: grid; }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+        }
+        .checkbox-item input { width: auto; }
+        
+        .filter-actions { display: flex; gap: 10px; }
+        .btn-secondary {
+            padding: 12px 20px;
+            background: white;
+            color: #374151;
+            border: 1.5px solid #E5E7EB;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: #F3F4F6; }
+        .btn-secondary.active { background: #111827; color: white; border-color: #111827; }
+
+        @media (max-width: 640px) {
+            .brutal-grid { grid-template-columns: 1fr; }
+            .col-4, .col-2, .col-1 { grid-column: span 1; }
+            .sidebar nav { display: none; } /* Hide nav on very small mobile for space */
+        }
+
+        /* View Modes */
+        .view-mode-standard .report-only { display: none !important; }
+        .view-mode-report .standard-only { display: none !important; }
+    </style>
+</head>
+<body class="view-mode-standard">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <img src="img/uvservicioslogo.png" alt="Logo" class="sidebar-logo">
+            <nav>
+                <a href="dashboard.html" class="nav-link active">📊 Dashboard</a>
+                <a href="dashboard-data.html" class="nav-link">⚙️ Gestión</a>
+            </nav>
+            <button id="main-view-toggle" class="btn-report-toggle">
+                <span>📋 VER REPORTE</span>
+            </button>
+            <button id="logout-btn" class="nav-link">🚪 Salir</button>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-container">
+            <header style="margin-bottom: 30px;">
+                <h1 style="font-size: 1.6rem; font-weight: 800; color: #111827; margin: 0;">Panel de Operación BES</h1>
+                <p style="color: #6B7280; font-size: 0.9rem; margin: 5px 0 0 0;">Análisis técnico en tiempo real.</p>
+            </header>
+
+            <!-- Filters -->
+            <section class="filter-section">
+                <div class="filter-item" id="single-pozo-container">
+                    <label>Pozo</label>
+                    <select id="filter-pozo"></select>
+                </div>
+                
+                <div class="filter-item">
+                    <label>Fecha de Análisis</label>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <button id="btn-prev-day" class="btn-secondary" style="padding: 10px; min-width: 40px;">◀</button>
+                        <input type="date" id="filter-start" style="flex: 1;">
+                        <input type="date" id="filter-end" style="display: none;"> <!-- Hidden but kept for logic compatibility -->
+                        <button id="btn-next-day" class="btn-secondary" style="padding: 10px; min-width: 40px;">▶</button>
+                    </div>
+                </div>
+
+                <div class="filter-actions">
+                    <label class="checkbox-item" style="margin-right: 15px;">
+                        <input type="checkbox" id="check-historical"> 📜 Historial
+                    </label>
+                    <button id="btn-toggle-compare" class="btn-secondary">🔄 COMPARAR</button>
+                    <button id="apply-filters" style="padding: 12px 24px; background: #111827; color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer;">REFRESCAR</button>
+                </div>
+            </section>
+
+            <!-- Comparison Selector Panel (Hidden by default) -->
+            <div id="comparison-panel" class="comparison-panel">
+                <!-- Checkboxes will be injected here -->
+            </div>
+
+            <!-- GRID BRUTAL -->
+            <div class="brutal-grid standard-only">
+                <!-- KPIs -->
+                <div class="elite-card col-1">
+                    <div class="card-header-industrial"><h3>Frecuencia</h3></div>
+                    <div id="gauge-frecuencia" class="chart-space"></div>
+                    <div class="kpi-range-labels">
+                        <span>Min: 0</span>
+                        <span>Max: 60</span>
+                    </div>
+                </div>
+                <div class="elite-card col-1">
+                    <div class="card-header-industrial"><h3>Presión PIP</h3></div>
+                    <div id="gauge-pip" class="chart-space"></div>
+                    <div class="kpi-range-labels">
+                        <span>Min: 0</span>
+                        <span>Max: 5000</span>
+                    </div>
+                </div>
+                <div class="elite-card col-1">
+                    <div class="card-header-industrial"><h3>Temp. TM</h3></div>
+                    <div id="gauge-tm" class="chart-space"></div>
+                    <div class="kpi-range-labels">
+                        <span>Min: 0</span>
+                        <span>Max: 450</span>
+                    </div>
+                </div>
+                <div class="elite-card col-1">
+                    <div class="card-header-industrial"><h3>Estatus BES</h3></div>
+                    <div id="donut-status" class="chart-space"></div>
+                </div>
+
+                <!-- Main Trend -->
+                <div class="elite-card col-4">
+                    <div class="card-header-industrial"><div class="header-dot"></div><h3>Tendencia: Frecuencia y Motor</h3></div>
+                    <div id="trend-freq-curr" class="trend-space"></div>
+                </div>
+
+                <!-- Secondary Trends -->
+                <div class="elite-card col-2">
+                    <div class="card-header-industrial"><h3>Presiones (PSI)</h3></div>
+                    <div id="chart-pressure" class="trend-space"></div>
+                </div>
+                <div class="elite-card col-2">
+                    <div class="card-header-industrial"><h3>Corrientes VSD</h3></div>
+                    <div id="trend-vsd" class="trend-space"></div>
+                </div>
+
+                <!-- Bitácora -->
+                <div class="elite-card col-4">
+                    <div class="card-header-industrial"><h3>Bitácora de Observaciones</h3></div>
+                    <div style="max-height: 150px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                            <tbody id="obs-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="report-only"><p>Generando vista de reporte PBI...</p></div>
+        </main>
+    </div>
+
+    <script type="module" src="js/charts.js"></script>
+    <script>
+        document.getElementById('main-view-toggle').addEventListener('click', () => {
+            document.body.classList.toggle('view-mode-standard');
+            document.body.classList.toggle('view-mode-report');
+            const btn = document.getElementById('main-view-toggle');
+            btn.querySelector('span').textContent = document.body.classList.contains('view-mode-standard') ? '📋 VER REPORTE' : '📊 VOLVER AL PANEL';
+            window.dispatchEvent(new Event('resize'));
+        });
+    </script>
+</body>
+</html>

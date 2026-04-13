@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UV Servicios | Portal de Acceso Corporativo</title>
+    <!-- Premium Fonts: Inter for unmatched clarity -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-page">
+    <!-- Dynamic background layer -->
+    <div class="bg-container"></div>
+
+    <div class="login-wrapper">
+        <main class="login-card">
+            <header class="login-header">
+                <img src="img/uvservicioslogo.png" alt="UV Servicios" class="brand-logo">
+                <h1>Monitoreo Inteligente</h1>
+                <p>Ingrese sus credenciales corporativas para continuar.</p>
+            </header>
+
+            <form id="login-form" class="login-form">
+                <div id="error-container" class="error-box hidden">
+                    <p id="error-message"></p>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Correo Electrónico</label>
+                    <div class="input-wrapper">
+                        <input type="email" id="email" required autocomplete="email" placeholder="nombre@empresa.com">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn" class="btn-submit">
+                    <span class="btn-text">Iniciar Sesión</span>
+                    <div class="loader"></div>
+                </button>
+            </form>
+        </main>
+
+        <footer class="login-footer">
+            <p>© 2026 Unión Venezuela Servicios C.A. | Seguridad y Confianza.</p>
+        </footer>
+    </div>
+
+    <!-- Modular JS -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
