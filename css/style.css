@@ -27,7 +27,7 @@ body {
     min-height: 100vh;
 }
 
-/* 🏢 FORM SECTION (Left - Technical White) */
+/* 🏢 FORM SECTION (Technical White) */
 .form-section {
     flex: 0 0 42%;
     display: flex;
@@ -80,6 +80,15 @@ body {
     font-size: 0.95rem;
     color: var(--text-muted);
     font-weight: 500;
+}
+
+.login-footer {
+    margin-top: 60px; /* FIXED: Added more space between button and footer */
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    padding-top: 25px;
+    line-height: 1.6;
 }
 
 /* Form Styles */
