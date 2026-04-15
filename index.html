@@ -11,49 +11,66 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="auth-page">
-    <!-- Dynamic background layer -->
-    <div class="bg-container"></div>
+    <!-- Premium Loader Overlay -->
+    <div id="premium-loader" class="premium-loader-overlay">
+        <img src="img/uvservicioslogo.png" alt="Cargando..." class="loader-logo-pulse">
+    </div>
 
-    <div class="login-wrapper">
-        <main class="login-card">
-            <header class="login-header">
-                <img src="img/uvservicioslogo.png" alt="UV Servicios" class="brand-logo">
-                <h1>Monitoreo Inteligente</h1>
-                <p>Ingrese sus credenciales corporativas para continuar.</p>
-            </header>
+    <div class="split-container">
+        <!-- Layout Part 1: Executive Form Section -->
+        <main class="form-section">
+            <div class="form-content-wrapper">
+                <header class="login-header">
+                    <img src="img/uvservicioslogo.png" alt="UV Servicios" class="brand-logo">
+                    <h1>Monitoreo Inteligente</h1>
+                    <p>Ingrese sus credenciales corporativas para la gestión de pozos.</p>
+                </header>
 
-            <form id="login-form" class="login-form">
-                <div id="error-container" class="error-box hidden">
-                    <p id="error-message"></p>
-                </div>
-
-                <div class="form-group">
-                    <label for="email">Correo Electrónico</label>
-                    <div class="input-wrapper">
-                        <input type="email" id="email" required autocomplete="email" placeholder="nombre@empresa.com">
+                <form id="login-form" class="login-form">
+                    <div id="error-container" class="error-box hidden">
+                        <p id="error-message"></p>
                     </div>
-                </div>
 
-                <div class="form-group">
-                    <label for="password">Contraseña</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
+                    <div class="form-group">
+                        <label for="email">Correo Electrónico</label>
+                        <div class="input-wrapper">
+                            <input type="email" id="email" required autocomplete="email" placeholder="usuario@uvservicios.com">
+                        </div>
                     </div>
-                </div>
 
-                <button type="submit" id="submit-btn" class="btn-submit">
-                    <span class="btn-text">Iniciar Sesión</span>
-                    <div class="loader"></div>
-                </button>
-            </form>
+                    <div class="form-group">
+                        <label for="password">Contraseña</label>
+                        <div class="input-wrapper password-group">
+                            <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
+                            <button type="button" id="toggle-password" class="btn-toggle-eye" title="Mostrar/Ocultar contraseña">
+                                <svg class="eye-open" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                <svg class="eye-closed hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057-5.064-7-9.542-7 4.477 0 8.268 2.943 9.542 7 0 .504-.037 1.001-.108 1.485M9.88 9.88l4.24 4.24M21 21l-6-6m1.125-1.125a9 9 0 01-9.75 9.75M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="btn-submit">
+                        <span class="btn-text">Iniciar Sesión</span>
+                        <div class="loader"></div>
+                    </button>
+                </form>
+
+                <footer class="login-footer">
+                    <p>© 2026 Unión Venezuela Servicios C.A.<br>Seguridad y Confianza en el Campo.</p>
+                </footer>
+            </div>
         </main>
 
-        <footer class="login-footer">
-            <p>© 2026 Unión Venezuela Servicios C.A. | Seguridad y Confianza.</p>
-        </footer>
+        <!-- Layout Part 2: Cinematic Image Section -->
+        <aside class="image-section">
+            <div class="image-overlay"></div>
+            <!-- Interactive telemetry background -->
+            <canvas id="telemetry-bg"></canvas>
+        </aside>
     </div>
 
     <!-- Modular JS -->
+    <script type="module" src="js/bg-animation.js"></script>
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -381,22 +381,78 @@
         .view-mode-report .standard-only { display: none !important; }
         
         /* Report Mode Transformation CSS */
-        .view-mode-report { background: white; }
+        .view-mode-report { background: white !important; color: #111827 !important; }
         .view-mode-report .sidebar { display: none !important; }
         .view-mode-report .filter-section { display: none !important; }
         .view-mode-report .dashboard-layout { grid-template-columns: 1fr; }
-        .view-mode-report .main-container { padding: 10px 40px; }
-        .view-mode-report .elite-card { border: none; box-shadow: none; border-bottom: 2px solid #F3F4F6; padding: 15px 0; border-radius: 0; }
-        .view-mode-report header { margin-bottom: 10px !important; }
+        .view-mode-report .main-container { padding: 40px; }
+        .view-mode-report .elite-card { border: none !important; box-shadow: none !important; border-bottom: 2px solid #F3F4F6 !important; padding: 20px 0; border-radius: 0; }
+        .view-mode-report .card-header-industrial { background: transparent; padding-left: 0; }
+        .view-mode-report .btn-report-toggle { display: none !important; }
         
+        /* Report Print Header */
+        .report-header-print {
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #1E293B;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .view-mode-report .report-header-print { display: flex; }
+
+        .btn-back-report {
+            display: none;
+            padding: 10px 20px;
+            background: #F1F5F9;
+            color: #475569;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            margin-bottom: 20px;
+            align-items: center;
+            gap: 8px;
+        }
+        .view-mode-report .btn-back-report { display: inline-flex; }
+        .btn-back-report:hover { background: #E2E8F0; }
+
         @media print {
-            .btn-report-toggle { display: none !important; }
-            .report-only { display: block !important; }
-            .elite-card { page-break-inside: avoid; }
+            body { background: white !important; color: black !important; }
+            .split-container, .sidebar, .filter-section, .btn-report-toggle, .btn-back-report, #theme-toggle, #logout-btn { display: none !important; }
+            .main-container { padding: 0 !important; width: 100% !important; margin: 0 !important; }
+            .view-mode-report .report-header-print { display: flex !important; margin-bottom: 40px; }
+            .elite-card { page-break-inside: avoid; border: none !important; border-bottom: 1px solid #EEE !important; }
+            .card-header-industrial { border: none !important; }
+            
+            /* Force Light Mode Print Overrides */
+            :root {
+                --bg-main: #FFFFFF !important;
+                --bg-card: #FFFFFF !important;
+                --bg-header: #FFFFFF !important;
+                --text-title: #000000 !important;
+                --text-body: #333333 !important;
+                --text-muted: #666666 !important;
+                --border-color: #EEEEEE !important;
+            }
         }
     </style>
 </head>
 <body class="view-mode-standard">
+    <!-- Premium Loader Overlay -->
+    <div id="premium-loader" class="premium-loader-overlay">
+        <img src="img/uvservicioslogo.png" alt="Cargando..." class="loader-logo-pulse">
+    </div>
+
+    <!-- Immediate Loader Suppression (Prevents flicker) -->
+    <script>
+        if (sessionStorage.getItem('dashboard-visited')) {
+            document.getElementById('premium-loader').classList.add('hidden');
+        }
+    </script>
+
     <div class="dashboard-layout">
         <!-- Sidebar -->
         <aside class="sidebar">
@@ -426,6 +482,27 @@
 
         <!-- Main Workspace -->
         <main class="main-container">
+            <!-- Navigation for Report Mode -->
+            <button id="btn-back-from-report" class="btn-back-report">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Volver al Panel
+            </button>
+
+            <!-- Corporate Print Header -->
+            <div class="report-header-print">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <img src="img/uvservicioslogo.png" alt="UV Logo" style="width: 120px;">
+                    <div>
+                        <h2 style="font-size: 1.4rem; font-weight: 800; color: #1E293B; margin: 0;">Reporte Operativo BES</h2>
+                        <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Unión Venezuela Servicios C.A. | División de Ingeniería</p>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <p style="font-size: 0.8rem; font-weight: 700; color: #1E293B; margin: 0;" id="print-report-well">POZO: --</p>
+                    <p style="font-size: 0.75rem; color: #64748B; margin: 0;" id="print-report-date">FECHA: --</p>
+                </div>
+            </div>
+
             <header style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;">
                 <div>
                     <h1 style="font-size: 1.6rem; font-weight: 800; color: var(--text-title); margin: 0;">Panel de Operación BES</h1>
@@ -563,23 +640,42 @@
 
     <script type="module" src="js/charts.js"></script>
     <script>
-        document.getElementById('main-view-toggle').addEventListener('click', () => {
-            const isStandard = document.body.classList.contains('view-mode-standard');
+        const toggleReportMode = (enable) => {
+            const body = document.body;
+            const toggleBtnSpan = document.getElementById('main-view-toggle').querySelector('span');
             
-            if (isStandard) {
-                document.body.classList.replace('view-mode-standard', 'view-mode-report');
-                document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER AL PANEL';
+            if (enable) {
+                body.classList.replace('view-mode-standard', 'view-mode-report');
+                toggleBtnSpan.textContent = 'VOLVER AL PANEL';
                 
+                // Set Header Data for Print
+                const pozoNombre = document.getElementById('filter-pozo').options[document.getElementById('filter-pozo').selectedIndex]?.text || '--';
+                const fechaAnalisis = document.getElementById('filter-start').value || new Date().toLocaleDateString();
+                document.getElementById('print-report-well').textContent = `POZO: ${pozoNombre}`;
+                document.getElementById('print-report-date').textContent = `FECHA DE REPORTE: ${fechaAnalisis}`;
+
                 // Force ApexCharts to resize, then open the Print dialog automatically
                 setTimeout(() => { 
                     window.dispatchEvent(new Event('resize')); 
-                    setTimeout(() => { window.print(); }, 800); // Wait 800ms for animations to finish before printing
+                    
+                    // IF THE USER IS NOT IN DARK MODE, WE JUST PRINT. 
+                    // IF THEY ARE, THE CSS @MEDIA PRINT ALREADY FORCES COLORS.
+                    setTimeout(() => { window.print(); }, 800); 
                 }, 100);
             } else {
-                document.body.classList.replace('view-mode-report', 'view-mode-standard');
-                document.getElementById('main-view-toggle').querySelector('span').textContent = 'EXPORTAR REPORTE';
+                body.classList.replace('view-mode-report', 'view-mode-standard');
+                toggleBtnSpan.textContent = 'EXPORTAR REPORTE';
                 setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
             }
+        };
+
+        document.getElementById('main-view-toggle').addEventListener('click', () => {
+            const isStandard = document.body.classList.contains('view-mode-standard');
+            toggleReportMode(isStandard);
+        });
+
+        document.getElementById('btn-back-from-report').addEventListener('click', () => {
+            toggleReportMode(false);
         });
     </script>
 </body>

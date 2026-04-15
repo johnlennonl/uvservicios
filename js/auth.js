@@ -44,6 +44,7 @@ export async function login(email, password) {
  * Signs out the current user.
  */
 export async function logout() {
+    sessionStorage.removeItem('dashboard-visited');
     const { error } = await supabase.auth.signOut();
     if (error) console.error('Sign out error:', error);
     window.location.href = 'index.html';

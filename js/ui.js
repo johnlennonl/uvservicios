@@ -7,7 +7,8 @@ const elements = {
     form: document.getElementById('login-form'),
     submitBtn: document.getElementById('submit-btn'),
     errorContainer: document.getElementById('error-container'),
-    errorMessage: document.getElementById('error-message')
+    errorMessage: document.getElementById('error-message'),
+    premiumLoader: document.getElementById('premium-loader')
 };
 
 /**
@@ -22,6 +23,42 @@ export function setLoading(isLoading) {
         elements.submitBtn.disabled = false;
         elements.submitBtn.classList.remove('loading');
     }
+}
+
+/**
+ * Shows the fullscreen preloader.
+ */
+export function showFullLoader() {
+    if (elements.premiumLoader) {
+        elements.premiumLoader.classList.remove('hidden');
+    }
+}
+
+/**
+ * Hides the fullscreen preloader with a fade effect.
+ */
+export function hideFullLoader() {
+    if (elements.premiumLoader) {
+        elements.premiumLoader.classList.add('hidden');
+    }
+}
+
+/**
+ * Sets up the password visibility toggle functionality.
+ */
+export function setupPasswordToggle() {
+    const toggleBtn = document.getElementById('toggle-password');
+    const passwordInput = document.getElementById('password');
+    if (!toggleBtn || !passwordInput) return;
+
+    toggleBtn.addEventListener('click', () => {
+        const isPassword = passwordInput.getAttribute('type') === 'password';
+        passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+        
+        // Toggle icon visibility
+        toggleBtn.querySelector('.eye-open').classList.toggle('hidden', !isPassword);
+        toggleBtn.querySelector('.eye-closed').classList.toggle('hidden', isPassword);
+    });
 }
 
 /**
@@ -50,12 +87,15 @@ export function clearError() {
  * Redirects to the dashboard.
  */
 export function redirectToDashboard() {
-    // Add a final fade out effect before redirecting
+    showFullLoader(); // Activate loader before leaving
+    
+    // Smooth fade transition
     document.body.style.opacity = '0';
-    document.body.style.transition = 'opacity 0.5s ease';
+    document.body.style.transition = 'opacity 0.6s ease';
+    
     setTimeout(() => {
         window.location.href = 'dashboard.html';
-    }, 500);
+    }, 600);
 }
 
 // Global styles for JS-driven animations

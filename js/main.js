@@ -9,11 +9,20 @@ import * as ui from './ui.js';
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Initial State: Check for existing session
     const session = await getSession();
+    
+    // Setup UI features
+    ui.setupPasswordToggle();
+
     if (session) {
         console.log('Session detected, redirecting...');
         ui.redirectToDashboard();
         return; // Stop further execution
     }
+
+    // Hide loader if no session, showing the login form
+    setTimeout(() => {
+        ui.hideFullLoader();
+    }, 800);
 
     const loginForm = document.getElementById('login-form');
     if (!loginForm) return;

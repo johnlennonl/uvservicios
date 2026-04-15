@@ -5,6 +5,7 @@
 
 import { logout, getSession } from './auth.js';
 import { getMonitoringData, getUniquePozos, getLatestDate, getNeighborRecords } from './data-service.js';
+import { hideFullLoader, showFullLoader } from './ui.js';
 
 let charts = {};
 let isComparisonMode = false;
@@ -16,6 +17,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = 'index.html';
         return;
     }
+
+    const isFirstEntry = !sessionStorage.getItem('dashboard-visited');
 
     // 0. Initialize Theme
     if (isDarkMode) {
@@ -79,6 +82,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 2. Initial Data Load
     await updateDashboard();
+
+    // Hide the premium loader after initial data is rendered (only if it was shown)
+    if (isFirstEntry) {
+        setTimeout(() => {
+            hideFullLoader();
+            sessionStorage.setItem('dashboard-visited', 'true');
+        }, 1000);
+    }
 
     // 3. Event Binding
     const applyBtn = document.getElementById('apply-filters');
@@ -243,6 +254,9 @@ function createEliteGauge(id, value, min, max, unit, color) {
     const val = Number(value) || 0;
     const percentage = Math.min(100, Math.max(0, ((val - min) / (max - min)) * 100));
     
+    const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
+    const isReport = document.body.classList.contains('view-mode-report');
+    
     const options = {
         series: [Number(percentage.toFixed(1))],
         chart: { 
@@ -250,14 +264,14 @@ function createEliteGauge(id, value, min, max, unit, color) {
             height: 200, 
             sparkline: { enabled: true },
         },
-        theme: { mode: isDarkMode ? 'dark' : 'light' },
+        theme: { mode: effectiveMode },
         plotOptions: {
             radialBar: {
                 startAngle: -115,
                 endAngle: 115,
                 hollow: { size: '68%', background: 'transparent' },
                 track: { 
-                    background: isDarkMode ? '#1E293B' : '#E2E8F0', 
+                    background: effectiveMode === 'dark' ? '#1E293B' : '#E2E8F0', 
                     strokeWidth: '97%', 
                     dropShadow: { enabled: true, top: 0, left: 0, blur: 3, opacity: 0.1 } 
                 },
@@ -268,7 +282,7 @@ function createEliteGauge(id, value, min, max, unit, color) {
                         fontSize: '28px',
                         fontFamily: 'Inter, sans-serif',
                         fontWeight: '900',
-                        color: isDarkMode ? '#F8FAFC' : '#1E293B',
+                        color: effectiveMode === 'dark' ? '#F8FAFC' : '#1E293B',
                         formatter: () => `${val.toFixed(1)} ${unit}`
                     }
                 }
@@ -296,15 +310,17 @@ function renderStatusDonut(data) {
     const runCount = data.filter(d => d.estatus === 'RUN').length;
     const offCount = data.filter(d => d.estatus === 'OFF').length;
 
+    const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
+    
     const options = {
         series: [runCount, offCount],
         labels: ['RUN', 'OFF'],
         chart: { type: 'donut', height: 180 },
-        theme: { mode: isDarkMode ? 'dark' : 'light' },
+        theme: { mode: effectiveMode },
         colors: ['#10B981', '#F43F5E'],
         dataLabels: { enabled: false },
-        plotOptions: { pie: { donut: { size: '75%', labels: { show: true, total: { show: true, label: 'Registros', color: isDarkMode ? '#94A3B8' : '#64748B', formatter: () => data.length } } } } },
-        legend: { position: 'bottom', labels: { colors: isDarkMode ? '#94A3B8' : '#6B7280' } }
+        plotOptions: { pie: { donut: { size: '75%', labels: { show: true, total: { show: true, label: 'Registros', color: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', formatter: () => data.length } } } } },
+        legend: { position: 'bottom', labels: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#6B7280' } }
     };
     renderOrUpdate('donut-status', options);
 }
@@ -326,6 +342,8 @@ function renderCoreTrends(timeline, requestedPozos, isHistorical = false) {
     const TECH_CYAN = '#06B6D4';
     const TECH_PURPLE = '#7C3AED';
 
+    const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
+
     // Helper for shared options
     const getBaseOptions = (title, color, unit) => ({
         chart: {
@@ -336,7 +354,7 @@ function renderCoreTrends(timeline, requestedPozos, isHistorical = false) {
             animations: { enabled: true, easing: 'easeinout', speed: 800 },
             background: 'transparent'
         },
-        theme: { mode: isDarkMode ? 'dark' : 'light' },
+        theme: { mode: effectiveMode },
         stroke: { curve: 'smooth', width: 2, connectNulls: true },
         fill: {
             type: 'gradient',
@@ -350,11 +368,11 @@ function renderCoreTrends(timeline, requestedPozos, isHistorical = false) {
         markers: {
             size: 4,
             strokeWidth: 2,
-            strokeColors: isDarkMode ? '#0F172A' : '#fff',
+            strokeColors: effectiveMode === 'dark' ? '#0F172A' : '#fff',
             hover: { size: 6 }
         },
         grid: {
-            borderColor: isDarkMode ? '#1E293B' : '#F1F5F9',
+            borderColor: effectiveMode === 'dark' ? '#1E293B' : '#F1F5F9',
             strokeDashArray: 4,
             xaxis: { lines: { show: false } },
             yaxis: { lines: { show: true } }
@@ -363,19 +381,19 @@ function renderCoreTrends(timeline, requestedPozos, isHistorical = false) {
             type: 'datetime',
             labels: { 
                 datetimeUTC: false,
-                style: { colors: isDarkMode ? '#94A3B8' : '#64748B', fontSize: '11px', fontWeight: 600 },
+                style: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', fontSize: '11px', fontWeight: 600 },
                 format: isComparisonMode ? 'dd MMM' : 'HH:mm'
             }
         },
         yaxis: {
-            title: { text: title, style: { color: isDarkMode ? '#E2E8F0' : '#475569', fontWeight: 700 } },
+            title: { text: title, style: { color: effectiveMode === 'dark' ? '#E2E8F0' : '#475569', fontWeight: 700 } },
             labels: { 
-                style: { colors: isDarkMode ? '#94A3B8' : '#64748B', fontWeight: 600 },
+                style: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', fontWeight: 600 },
                 formatter: (v) => v ? v.toFixed(1) + ' ' + unit : v
             }
         },
         colors: Array.isArray(color) ? color : [color, REPSOL_RED, TECH_BLUE, TECH_CYAN, TECH_PURPLE],
-        tooltip: { theme: isDarkMode ? 'dark' : 'light', x: { format: 'dd MMM HH:mm' } }
+        tooltip: { theme: effectiveMode, x: { format: 'dd MMM HH:mm' } }
     });
 
     const makeSeries = (nameSuffix, field, pozo) => ({
