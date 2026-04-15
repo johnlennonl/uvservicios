@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
             --sidebar-width: 260px;
@@ -32,92 +33,88 @@
             min-height: 100vh;
         }
 
-        /* Sidebar - Elite Cyber-Industrial HUD */
+        /* Sidebar - Premium Corporate Matte */
         .sidebar {
-            background: linear-gradient(180deg, #050b18 0%, #000000 100%);
-            color: white;
-            padding: 40px 20px;
+            background: #0F172A;
+            color: #94A3B8;
+            padding: 35px 20px;
             display: flex;
             flex-direction: column;
-            gap: 35px;
+            gap: 40px;
             position: sticky;
             top: 0;
             height: 100vh;
-            border-right: 1px solid rgba(59, 130, 246, 0.1);
+            border-right: 1px solid #1E293B;
             z-index: 1000;
-            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
         }
         
         .sidebar-logo {
             width: 140px;
             margin: 0 auto;
             display: block;
-            filter: brightness(0) invert(1) drop-shadow(0 0 12px rgba(59, 130, 246, 0.3));
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            filter: brightness(0) invert(1);
+            transition: opacity 0.3s ease;
         }
-        .sidebar-logo:hover { transform: scale(1.08) rotate(-2deg); }
+        .sidebar-logo:hover { opacity: 0.8; }
 
         .sidebar nav {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 6px;
         }
 
         .nav-link {
-            padding: 16px 20px;
-            border-radius: 14px;
-            color: #4B5563;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #94A3B8;
             text-decoration: none;
-            font-size: 0.95rem;
-            font-weight: 700;
-            transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
+            transition: all 0.2s ease;
             border: 1px solid transparent;
-            position: relative;
+        }
+        .nav-link svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2;
+            color: currentColor;
+            opacity: 0.7;
         }
         .nav-link:hover { 
-            color: white; 
-            background: rgba(255, 255, 255, 0.05); 
-            border-color: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            color: #F8FAFC; 
+            background: #1E293B; 
         }
         .nav-link.active { 
-            color: #60A5FA; 
-            background: rgba(37, 99, 235, 0.1); 
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.1), 0 0 20px rgba(37, 99, 235, 0.2);
-            text-shadow: 0 0 8px rgba(96, 165, 250, 0.5);
+            color: #FFFFFF; 
+            background: #1E293B; 
+            border: 1px solid #334155;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        .nav-link.active::after {
-            content: '';
-            position: absolute;
-            left: -20px;
-            width: 4px;
-            height: 24px;
-            background: #60A5FA;
-            border-radius: 0 4px 4px 0;
-            box-shadow: 0 0 15px #60A5FA;
-        }
+        .nav-link.active svg { opacity: 1; color: #38BDF8; }
 
         #logout-btn {
             margin-top: auto;
-            color: #EF4444;
-            background: rgba(239, 68, 68, 0.05);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            border-radius: 14px;
+            color: #F87171;
+            font-weight: 600;
+            background: transparent;
+            border: 1px solid #334155;
+            border-radius: 8px;
             justify-content: center;
-            font-size: 0.9rem;
-            letter-spacing: 1px;
+            padding: 14px 0;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
         }
+        #logout-btn svg { width: 18px; height: 18px; opacity: 1; }
         #logout-btn:hover {
-            background: rgba(239, 68, 68, 0.8);
+            background: #7F1D1D;
             color: white;
-            border-color: #EF4444;
-            box-shadow: 0 0 25px rgba(239, 68, 68, 0.5);
-            transform: translateY(-2px);
+            border-color: #991B1B;
         }
 
         .main-container { padding: 30px 40px; }
@@ -132,6 +129,10 @@
             grid-template-columns: 1fr 300px;
             gap: 20px;
             align-items: stretch;
+            min-width: 0;
+        }
+        @media (max-width: 1200px) {
+            .top-row { grid-template-columns: 1fr; }
         }
         .form-card {
             background: white;
@@ -139,15 +140,16 @@
             border-radius: 12px;
             border: 1px solid #E2E8F0;
             box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            min-width: 0;
         }
         .compact-form-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Auto-flowing grid */
             gap: 12px 20px;
         }
-        .full-width { grid-column: span 4; }
+        .full-width { grid-column: 1 / -1; }
         .section-header {
-            grid-column: span 4;
+            grid-column: 1 / -1;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -246,10 +248,23 @@
         <aside class="sidebar">
             <img src="img/uvservicioslogo.png" alt="Logo" class="sidebar-logo">
             <nav>
-                <a href="dashboard.html" class="nav-link">📊 Dashboard</a>
-                <a href="dashboard-data.html" class="nav-link active">⚙️ Gestión</a>
+                <a href="dashboard.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> 
+                    Dashboard
+                </a>
+                <a href="dashboard-data.html" class="nav-link active">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    Gestión
+                </a>
+                <a href="data.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+                    Data
+                </a>
             </nav>
-            <button id="logout-btn" class="nav-link">🚪 Salir</button>
+            <button id="logout-btn" class="nav-link">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                Salir
+            </button>
         </aside>
 
         <!-- Main Workspace -->
@@ -320,6 +335,14 @@
                                 <input type="number" step="0.01" id="vsd_a" required>
                             </div>
                             <div class="form-group">
+                                <label>VSD B (AMP)</label>
+                                <input type="number" step="0.01" id="vsd_b" required>
+                            </div>
+                            <div class="form-group">
+                                <label>VSD C (AMP)</label>
+                                <input type="number" step="0.01" id="vsd_c" required>
+                            </div>
+                            <div class="form-group">
                                 <label>Estatus</label>
                                 <select id="estatus">
                                     <option value="RUN">🟢 RUN</option>
@@ -356,39 +379,21 @@
                 </section>
             </div>
 
-            <!-- Recent History Table -->
-            <section class="history-card">
-                <div style="padding: 16px; border-bottom: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center;">
-                    <h2 style="font-size: 1rem; font-weight: 700; color: var(--primary-dark);">Historial Reciente (Últimos 20 registros)</h2>
+            <!-- Last Record Confirmation Widget -->
+            <section class="form-card" style="margin-top: 10px; background: #ECFDF5; border: 1px solid #34D399; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h3 style="margin: 0; font-size: 0.85rem; color: #065F46; font-weight: 800;">Último Registro Sincronizado</h3>
+                    <p id="last-record-display" style="margin: 4px 0 0 0; font-size: 1rem; color: #047857; font-weight: 600;">--</p>
                 </div>
-                <div style="overflow-x: auto;">
-                    <table class="history-table">
-                        <thead>
-                            <tr>
-                                <th>Fecha/Hora</th>
-                                <th>Pozo</th>
-                                <th>Frecuencia</th>
-                                <th>I. Motor</th>
-                                <th>PIP</th>
-                                <th>VSD A</th>
-                                <th>Estatus</th>
-                                <th style="text-align: right;">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-body">
-                            <!-- Rows loaded via JS -->
-                        </tbody>
-                    </table>
-                </div>
+                <div style="font-size: 2rem;">✅</div>
             </section>
         </main>
     </div>
 
     <script type="module">
         import { logout, getSession } from './js/auth.js';
-        import { getMonitoringData, insertRecord, updateRecord, deleteRecord } from './js/data-service.js';
+        import { getMonitoringData, insertRecord, updateRecord, bulkInsertRecords } from './js/data-service.js';
 
-        let currentRecords = [];
         let isEditing = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -405,72 +410,13 @@
         async function refreshHistory() {
             try {
                 const data = await getMonitoringData();
-                currentRecords = data.slice(0, 20);
-                renderHistory();
+                if (data && data.length > 0) {
+                    const latest = data[0];
+                    document.getElementById('last-record-display').innerHTML = `<b>${latest.pozo_name}</b> - ${latest.fecha} ${latest.hora}`;
+                }
             } catch (err) {
                 console.error('History load error:', err);
             }
-        }
-
-        function renderHistory() {
-            const tbody = document.getElementById('history-body');
-            tbody.innerHTML = '';
-            
-            currentRecords.forEach(record => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><b>${record.fecha}</b> <br> <span style="font-size:0.75rem; color:#64748B;">${record.hora}</span></td>
-                    <td>${record.pozo_name}</td>
-                    <td>${record.frecuencia} Hz</td>
-                    <td>${record.corriente_motor} A</td>
-                    <td>${record.pip} PSI</td>
-                    <td>${record.vsd_a} A</td>
-                    <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}">${record.estatus}</span></td>
-                    <td style="text-align: right;">
-                        <button class="btn-action btn-edit" data-id="${record.id}">Editar</button>
-                        <button class="btn-action btn-delete" data-id="${record.id}">Borrar</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            // Bind Actions
-            document.querySelectorAll('.btn-edit').forEach(btn => btn.addEventListener('click', () => handleEdit(btn.dataset.id)));
-            document.querySelectorAll('.btn-delete').forEach(btn => btn.addEventListener('click', () => handleDelete(btn.dataset.id)));
-        }
-
-        function handleEdit(id) {
-            const record = currentRecords.find(r => r.id === id);
-            if (!record) return;
-
-            isEditing = true;
-            document.getElementById('edit-id').value = record.id;
-            document.getElementById('pozo_name').value = record.pozo_name;
-            document.getElementById('campo').value = record.campo;
-            document.getElementById('fecha').value = record.fecha;
-            document.getElementById('hora').value = record.hora;
-            document.getElementById('frecuencia').value = record.frecuencia;
-            document.getElementById('corriente_motor').value = record.corriente_motor;
-            document.getElementById('pip').value = record.pip;
-            document.getElementById('tm').value = record.tm;
-            document.getElementById('presion_thp').value = record.presion_thp;
-            document.getElementById('presion_chp').value = record.presion_chp;
-            document.getElementById('vsd_a').value = record.vsd_a;
-            document.getElementById('estatus').value = record.estatus;
-            document.getElementById('observaciones').value = record.observaciones || '';
-
-            document.getElementById('form-title').textContent = '📝 Editando Registro';
-            document.getElementById('submit-btn').querySelector('.btn-text').textContent = 'Actualizar Registro';
-            document.getElementById('cancel-edit').style.display = 'block';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        async function handleDelete(id) {
-            if (!confirm('¿Seguro que deseas eliminar este registro?')) return;
-            try {
-                await deleteRecord(id);
-                await refreshHistory();
-            } catch (err) { alert('Error al borrar'); }
         }
 
         document.getElementById('cancel-edit').addEventListener('click', resetForm);
@@ -504,6 +450,8 @@
                 presion_thp: parseFloat(document.getElementById('presion_thp').value) || 0,
                 presion_chp: parseFloat(document.getElementById('presion_chp').value) || 0,
                 vsd_a: parseFloat(document.getElementById('vsd_a').value) || 0,
+                vsd_b: parseFloat(document.getElementById('vsd_b').value) || 0,
+                vsd_c: parseFloat(document.getElementById('vsd_c').value) || 0,
                 estatus: document.getElementById('estatus').value,
                 observaciones: document.getElementById('observaciones').value,
             };
@@ -511,15 +459,15 @@
             try {
                 if (isEditing) {
                     await updateRecord(document.getElementById('edit-id').value, record);
-                    alert('Registro actualizado');
+                    Swal.fire({ icon: 'success', title: 'Registro Actualizado', text: 'Los datos han sido modificados correctamente.', timer: 2000, showConfirmButton: false });
                 } else {
                     await insertRecord(record);
-                    alert('Registro creado');
+                    Swal.fire({ icon: 'success', title: 'Sincronizado', text: 'El registro técnico ha sido guardado exitosamente.', timer: 2000, showConfirmButton: false });
                 }
                 resetForm();
                 await refreshHistory();
             } catch (err) { 
-                alert('Error al guardar: ' + err.message); 
+                Swal.fire({ icon: 'error', title: 'Fallo de Sincronización', text: err.message });
             } finally {
                 btn.classList.remove('loading');
                 btn.disabled = false;
@@ -544,10 +492,17 @@
                     try {
                         statusDiv.style.display = 'block';
                         statusText.textContent = 'Subiendo...';
-                        await bulkInsertRecords(results.data);
+                        
+                        // Sanitize data to avoid empty row errors
+                        const cleanData = results.data.filter(r => r.pozo_name && r.fecha);
+                        
+                        await bulkInsertRecords(cleanData);
                         statusText.textContent = '✅ Finalizado';
                         await refreshHistory();
-                    } catch (err) { statusText.textContent = '❌ Error'; }
+                    } catch (err) { 
+                        statusText.textContent = '❌ Error: ' + err.message; 
+                        console.error("CSV Upload Error:", err);
+                    }
                 }
             });
         }

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UV Servicios | Base de Datos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --pbi-red: #800000;
+        }
+        body { background: #F0F2F5; margin: 0; padding: 0; display: block; min-height: 100vh; font-family: 'Inter', sans-serif; }
+        .dashboard-layout { display: grid; grid-template-columns: var(--sidebar-width) 1fr; min-height: 100vh; }
+        
+        .btn-report-toggle {
+            position: fixed; right: 20px; bottom: 20px; background: var(--pbi-red);
+            color: white; border: none; padding: 16px 24px; border-radius: 50px;
+            font-weight: 800; cursor: pointer; font-size: 0.9rem; transition: all 0.3s;
+            box-shadow: 0 10px 25px rgba(128,0,0,0.4); z-index: 2000;
+        }
+        .btn-report-toggle:hover { background: #a00000; transform: translateY(-5px); }
+
+        /* Report Mode Transformation CSS */
+        .view-mode-report { background: white; }
+        .view-mode-report .sidebar, .view-mode-report .tools-section, .view-mode-report .btn-action { display: none !important; }
+        .view-mode-report .dashboard-layout { grid-template-columns: 1fr; }
+        .view-mode-report .main-container { padding: 10px 40px; }
+        .view-mode-report .history-card { border: none; box-shadow: none; border-bottom: 2px solid #F3F4F6; padding: 15px 0; border-radius: 0; }
+        
+        @media print {
+            .btn-report-toggle { display: none !important; }
+            .history-card { page-break-inside: avoid; }
+        }
+        
+        /* Sidebar - Premium Corporate Matte */
+        .sidebar {
+            background: #0F172A;
+            color: #94A3B8;
+            padding: 35px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            border-right: 1px solid #1E293B;
+            z-index: 1000;
+        }
+        
+        .sidebar-logo {
+            width: 140px;
+            margin: 0 auto;
+            display: block;
+            filter: brightness(0) invert(1);
+            transition: opacity 0.3s ease;
+        }
+        .sidebar-logo:hover { opacity: 0.8; }
+
+        .sidebar nav {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .nav-link {
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #94A3B8;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+        .nav-link svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2;
+            color: currentColor;
+            opacity: 0.7;
+        }
+        .nav-link:hover { 
+            color: #F8FAFC; 
+            background: #1E293B; 
+        }
+        .nav-link.active { 
+            color: #FFFFFF; 
+            background: #1E293B; 
+            border: 1px solid #334155;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .nav-link.active svg { opacity: 1; color: #38BDF8; }
+
+        #logout-btn {
+            margin-top: auto;
+            color: #F87171;
+            font-weight: 600;
+            background: transparent;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            justify-content: center;
+            padding: 14px 0;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #logout-btn svg { width: 18px; height: 18px; opacity: 1; }
+        #logout-btn:hover {
+            background: #7F1D1D;
+            color: white;
+            border-color: #991B1B;
+        }
+        
+        .main-container { padding: 30px 40px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        header h1 { margin: 0; font-size: 1.8rem; font-weight: 800; color: #111827; }
+        header p { margin: 5px 0 0 0; color: #6B7280; font-size: 0.95rem; }
+
+        .pozos-list {
+            display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 30px;
+        }
+        .btn-pozo {
+            background: white; border: 1.5px solid #E5E7EB; padding: 12px 24px; border-radius: 12px;
+            font-weight: 800; color: #374151; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .btn-pozo:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.05); border-color: #CBD5E1; }
+        .btn-pozo.active { background: #111827; color: white; border-color: #111827; box-shadow: 0 8px 20px rgba(17, 24, 39, 0.3); }
+
+        .history-card { background: white; border-radius: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #F3F4F6; overflow: hidden; }
+        .history-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .history-table th { background: #F8FAFC; padding: 16px; font-size: 0.75rem; text-transform: uppercase; color: #64748B; font-weight: 800; border-bottom: 2px solid #E2E8F0; }
+        .history-table td { padding: 16px; border-bottom: 1px solid #F1F5F9; font-size: 0.9rem; color: #334155; vertical-align: middle; }
+        .history-table tr:hover { background: #F8FAFC; }
+        
+        .btn-action { padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; cursor: pointer; border: none; transition: 0.2s; margin-left: 5px; }
+        .btn-delete { background: #FEE2E2; color: #DC2626; }
+        .btn-delete:hover { background: #FCA5A5; }
+
+        @media (max-width: 1024px) {
+            .dashboard-layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; height: auto; flex-direction: row; align-items: center; justify-content: space-between; padding: 10px 20px; }
+            .sidebar nav { flex-direction: row; flex-wrap: wrap; }
+            .sidebar-logo { width: 80px; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <img src="img/uvservicioslogo.png" alt="Logo" class="sidebar-logo">
+            <nav>
+                <a href="dashboard.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> 
+                    Dashboard
+                </a>
+                <a href="dashboard-data.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    Gestión
+                </a>
+                <a href="data.html" class="nav-link active">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+                    Data
+                </a>
+            </nav>
+            <button id="logout-btn" class="nav-link">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                Salir
+            </button>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-container">
+            <header>
+                <div>
+                    <h1>Base de Datos Histórica</h1>
+                    <p>Explorador maestro de registros técnicos por pozo.</p>
+                </div>
+            </header>
+
+            <div class="pozos-list" id="pozos-container">
+                <!-- Pozo buttons injected here -->
+                <p style="color: #9CA3AF; font-size: 0.9rem;">Cargando pozos...</p>
+            </div>
+
+            <!-- Dashboard Tools & Filters -->
+            <div class="tools-section" style="display: none; margin-bottom: 15px; justify-content: flex-end; gap: 10px;" id="tools-section">
+                <select id="filter-date" style="padding: 10px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; cursor: pointer; background: white;">
+                    <option value="30">Últimos 30 Días</option>
+                    <option value="7">Últimos 7 Días</option>
+                    <option value="ALL">Todos los tiempos</option>
+                </select>
+            </div>
+
+            <!-- Recent History Table -->
+            <section class="history-card" id="history-container" style="display: none;">
+                <div style="padding: 16px; border-bottom: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center;">
+                    <h2 id="table-title" style="margin:0; font-size: 1rem; font-weight: 800; color: #1F2937;">Historial</h2>
+                    <span id="record-count" style="font-size: 0.8rem; background: #E0E7FF; color: #4338CA; padding: 4px 10px; border-radius: 20px; font-weight: 700;">0 Registros</span>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha/Hora</th>
+                                <th>Frecuencia</th>
+                                <th>Corriente M.</th>
+                                <th>PIP / TM</th>
+                                <th>Presiones (THP/CHP)</th>
+                                <th>VSD A/B/C</th>
+                                <th>Estatus</th>
+                                <th style="text-align: right;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body">
+                            <!-- Rows injected -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            
+            <!-- Empty State -->
+            <div id="empty-state" style="text-align: center; padding: 80px 20px; background: white; border-radius: 18px; border: 2px dashed #E2E8F0;">
+                <svg style="width: 48px; height: 48px; color: #9CA3AF; margin-bottom: 15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <h2 style="margin: 0; color: #334155; font-size: 1.2rem; font-weight: 800;">Explorador de Datos</h2>
+                <p style="color: #9CA3AF; margin-top: 5px;">Selecciona un pozo de la parte superior para cargar sus registros.</p>
+            </div>
+            
+            <button id="main-view-toggle" class="btn-report-toggle">
+                <span>EXPORTAR REPORTE</span>
+            </button>
+        </main>
+    </div>
+
+    <script type="module">
+        import { logout, getSession } from './js/auth.js';
+        import { getUniquePozos, getMonitoringData, deleteRecord } from './js/data-service.js';
+
+        let activePozo = null;
+        let currentRecordData = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const session = await getSession();
+            if (!session) { window.location.href = 'index.html'; return; }
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            
+            await initPozos();
+        });
+
+        async function initPozos() {
+            try {
+                const pozos = await getUniquePozos();
+                const container = document.getElementById('pozos-container');
+                container.innerHTML = '';
+                
+                if (!pozos || pozos.length === 0) {
+                    container.innerHTML = '<p style="color: #EF4444;">No hay pozos registrados en la base de datos.</p>';
+                    return;
+                }
+
+                pozos.sort().forEach((pozo) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-pozo';
+                    btn.textContent = pozo;
+                    btn.addEventListener('click', () => selectPozo(pozo));
+                    container.appendChild(btn);
+                });
+            } catch (err) {
+                console.error("Error loading pozos:", err);
+                Swal.fire({ icon: 'error', title: 'Error de Lectura', text: 'No se pudieron cargar los pozos.' });
+            }
+        }
+
+        document.getElementById('filter-date').addEventListener('change', () => loadPozoData());
+
+        async function selectPozo(pozo) {
+            activePozo = pozo;
+            
+            // Switch UI states
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('history-container').style.display = 'block';
+            document.getElementById('tools-section').style.display = 'flex';
+            
+            // UI Update
+            document.querySelectorAll('.btn-pozo').forEach(b => b.classList.remove('active'));
+            const targetBtn = Array.from(document.querySelectorAll('.btn-pozo')).find(b => b.textContent === pozo);
+            if (targetBtn) targetBtn.classList.add('active');
+
+            document.getElementById('table-title').textContent = `Historial Técnico: ${pozo}`;
+            document.getElementById('history-body').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px;">Cargando datos...</td></tr>';
+            
+            await loadPozoData();
+        }
+
+        async function loadPozoData() {
+            if (!activePozo) return;
+            try {
+                // Gather date filter
+                const filterVal = document.getElementById('filter-date').value;
+                let startStr = null;
+                if (filterVal !== 'ALL') {
+                    const d = new Date();
+                    d.setDate(d.getDate() - parseInt(filterVal));
+                    startStr = d.toISOString().split('T')[0];
+                }
+
+                const data = await getMonitoringData([activePozo], startStr, null);
+                currentRecordData = data;
+                document.getElementById('record-count').textContent = `${data.length} Registros`;
+                renderTable();
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Error BD', text: err.message });
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('history-body');
+            tbody.innerHTML = '';
+
+            if (currentRecordData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay registros históricos</td></tr>';
+                return;
+            }
+
+            currentRecordData.forEach(record => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${record.fecha}</b> <br> <span style="font-size:0.75rem; color:#64748B;">${record.hora}</span></td>
+                    <td><b>${parseFloat(record.frecuencia).toFixed(1)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Hz</span></td>
+                    <td><b>${parseFloat(record.corriente_motor).toFixed(1)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Amp</span></td>
+                    <td><b>${record.pip}</b> <span style="color:#9CA3AF; font-size:0.7rem;">PSI</span> <br> <span style="color:#EF4444;">${record.tm}°F</span></td>
+                    <td><span style="color:#2563EB;">T: ${record.presion_thp}</span> / <span style="color:#06B6D4;">C: ${record.presion_chp}</span></td>
+                    <td style="font-family: monospace;">${record.vsd_a} / ${record.vsd_b || 0} / ${record.vsd_c || 0}</td>
+                    <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}; font-weight: 800;">${record.estatus}</span></td>
+                    <td style="text-align: right;">
+                        <button class="btn-action btn-delete" data-id="${record.id}">Borrar</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Bind delete with SweetAlert
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.id;
+                    const result = await Swal.fire({
+                        title: '¿Confirmar eliminación?',
+                        text: "Esta acción borrará el registro permanentemente.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#EF4444',
+                        cancelButtonColor: '#6B7280',
+                        confirmButtonText: 'Sí, borrar',
+                        cancelButtonText: 'Cancelar'
+                    });
+
+                    if (result.isConfirmed) {
+                        try {
+                            await deleteRecord(id);
+                            Swal.fire({icon: 'success', title: 'Borrado', showConfirmButton: false, timer: 1500});
+                            await loadPozoData();
+                        } catch (err) {
+                            Swal.fire({icon: 'error', title: 'Error', text: err.message});
+                        }
+                    }
+                });
+            });
+        }
+
+        // Toggling Print/Report view
+        document.getElementById('main-view-toggle').addEventListener('click', () => {
+            const isStandard = !document.body.classList.contains('view-mode-report');
+            if (isStandard) {
+                document.body.classList.add('view-mode-report');
+                document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER A LA WEB';
+                
+                // Open the Print (Save as PDF) dialog automatically
+                setTimeout(() => { window.print(); }, 500); 
+            } else {
+                document.body.classList.remove('view-mode-report');
+                document.getElementById('main-view-toggle').querySelector('span').textContent = 'EXPORTAR REPORTE';
+            }
+        });
+    </script>
+</body>
+</html>

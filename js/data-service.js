@@ -124,14 +124,14 @@ export async function getLatestDate(pozoName = null) {
 /**
  * Fetches the record immediately before and after a specific date for a well.
  */
-export async function getNeighborRecords(pozoName, currentDate) {
+export async function getNeighborRecords(pozoName, startDate, endDate) {
     if (!pozoName || pozoName === 'Todas') return [];
 
     const prev = await supabase
         .from('monitoreo_pozos')
         .select('*')
         .eq('pozo_name', pozoName)
-        .lt('fecha', currentDate)
+        .lt('fecha', startDate)
         .order('fecha', { ascending: false })
         .order('hora', { ascending: false })
         .limit(1);
@@ -140,7 +140,7 @@ export async function getNeighborRecords(pozoName, currentDate) {
         .from('monitoreo_pozos')
         .select('*')
         .eq('pozo_name', pozoName)
-        .gt('fecha', currentDate)
+        .gt('fecha', endDate)
         .order('fecha', { ascending: true })
         .order('hora', { ascending: true })
         .limit(1);
