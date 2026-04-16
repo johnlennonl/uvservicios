@@ -518,7 +518,16 @@
                 pozos.sort().forEach((pozo) => {
                     const btn = document.createElement('button');
                     btn.className = 'btn-pozo';
-                    btn.textContent = pozo;
+                    btn.innerHTML = `
+                        <svg style="width: 14px; height: 14px; opacity: 0.6;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>${pozo}</span>
+                    `;
+                    btn.style.display = 'flex';
+                    btn.style.alignItems = 'center';
+                    btn.style.gap = '8px';
                     btn.addEventListener('click', () => selectPozo(pozo));
                     container.appendChild(btn);
                 });
@@ -552,7 +561,7 @@
 
             // UI Update
             document.querySelectorAll('.btn-pozo').forEach(b => b.classList.remove('active'));
-            const targetBtn = Array.from(document.querySelectorAll('.btn-pozo')).find(b => b.textContent === pozo);
+            const targetBtn = Array.from(document.querySelectorAll('.btn-pozo')).find(b => b.innerText.includes(pozo));
             if (targetBtn) targetBtn.classList.add('active');
 
             document.getElementById('table-title').textContent = `Historial Técnico: ${pozo}`;
