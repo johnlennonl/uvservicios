@@ -22,11 +22,17 @@ body {
     font-family: var(--font-main);
     color: var(--text-main);
     background: #FFFFFF;
-    height: 100vh;
-    overflow: hidden; /* Evita scroll vertical */
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
-.split-container {
+.auth-page {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.auth-page .split-container {
     display: flex;
     width: 100%;
     height: 100vh;

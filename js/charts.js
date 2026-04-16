@@ -10,6 +10,7 @@ import { hideFullLoader, showFullLoader } from './ui.js';
 let charts = {};
 let isComparisonMode = false;
 let isDarkMode = localStorage.getItem('theme-uv') === 'dark';
+let resizeFrame = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await getSession();
@@ -61,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (pozoFilter) {
-            pozoFilter.innerHTML = '<option value="Todas">TODOS LOS POZOS</option>';
+            pozoFilter.innerHTML = '<option value="" selected>SELECCIONAR POZO</option>';
             pozos.sort().forEach(pozo => {
                 const option = document.createElement('option');
                 option.value = pozo; option.textContent = pozo;
@@ -80,8 +81,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (err) { console.error('Filter load error:', err); }
 
-    // 2. Initial Data Load
-    await updateDashboard();
+    // 2. Initial state: keep the brutal welcome view until a pozo is selected.
+    clearDashboard();
 
     // Hide the premium loader after initial data is rendered (only if it was shown)
     if (isFirstEntry) {
@@ -100,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (pozoFilter) {
         pozoFilter.addEventListener('change', async () => {
             const val = pozoFilter.value;
-            if (val && val !== 'Todas') {
+            if (val) {
                 const date = await getLatestDate(val);
                 if (date) {
                     document.getElementById('filter-start').value = date;
@@ -122,6 +123,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.addEventListener('click', logout);
+
+    const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
+    if (mobileLogoutBtn) mobileLogoutBtn.addEventListener('click', logout);
 
     // Toggle Comparison Mode
     const compareToggleBtn = document.getElementById('btn-toggle-compare');
@@ -150,9 +154,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-prev-day')?.addEventListener('click', () => shiftDate(-1));
     document.getElementById('btn-next-day')?.addEventListener('click', () => shiftDate(1));
     
-    // Global Resize Handler
+    // Mobile browsers fire resize during scroll when the address bar collapses.
+    // Re-calling render() duplicates ApexCharts SVG nodes, so only request a lightweight refresh.
     window.addEventListener('resize', () => {
-        Object.values(charts).forEach(c => c && c.render());
+        if (resizeFrame) cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(() => {
+            Object.values(charts).forEach(chart => {
+                if (chart) chart.updateOptions({}, false, false, false);
+            });
+        });
     });
 });
 
@@ -164,7 +174,18 @@ async function updateDashboard() {
         selectedPozos = Array.from(checkboxes).map(c => c.value);
     } else {
         const val = document.getElementById('filter-pozo').value;
-        if (val && val !== 'Todas') selectedPozos = [val];
+        if (val) selectedPozos = [val];
+    }
+
+    if (selectedPozos.length === 0) {
+        clearDashboard();
+
+        const title = document.querySelector('.main-container header p');
+        if (title) {
+            title.textContent = 'Selecciona un pozo para cargar las graficas y la telemetria.';
+        }
+
+        return;
     }
 
     const isHistorical = document.getElementById('check-historical')?.checked;

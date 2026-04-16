@@ -192,6 +192,51 @@
             padding: 30px 40px;
         }
 
+        .mobile-bottom-nav {
+            display: none;
+        }
+
+        .page-hero {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 30px;
+            padding: 24px 26px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(241, 245, 249, 0.9));
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            overflow: hidden;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto auto 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #0F172A, #2563EB 55%, transparent);
+        }
+
+        .page-hero::after {
+            content: '';
+            position: absolute;
+            top: -60px;
+            right: -40px;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.12), transparent 70%);
+            pointer-events: none;
+        }
+
+        .page-hero-copy {
+            position: relative;
+            z-index: 1;
+        }
+
         header {
             display: flex;
             justify-content: space-between;
@@ -301,28 +346,182 @@
             background: #FCA5A5;
         }
 
+        .pozos-list,
+        .tools-section,
+        .history-card,
+        .history-table,
+        .main-container {
+            min-width: 0;
+        }
+
+        .tools-section {
+            flex-wrap: wrap;
+        }
+
         @media (max-width: 1024px) {
             .dashboard-layout {
                 grid-template-columns: 1fr;
             }
 
             .sidebar {
-                position: static;
-                height: auto;
-                flex-direction: row;
+                display: none;
+            }
+
+            .btn-report-toggle {
+                display: none;
+            }
+
+            .main-container {
+                padding: 20px 15px 96px 15px;
+            }
+
+            .page-hero {
+                padding: 20px 18px;
+                border-radius: 20px;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .pozos-list {
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .btn-pozo {
+                flex: 1 1 calc(50% - 10px);
+                min-width: 0;
+                padding: 12px 16px;
+            }
+
+            .tools-section {
+                width: 100%;
+                justify-content: stretch !important;
+            }
+
+            #filter-date,
+            #input-specific-date,
+            #btn-delete-all {
+                width: 100%;
+            }
+
+            .history-table th,
+            .history-table td {
+                padding: 12px;
+            }
+
+            .mobile-bottom-nav {
+                position: fixed;
+                left: 12px;
+                right: 12px;
+                bottom: 12px;
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 8px;
+                padding: 10px;
+                background: rgba(255, 255, 255, 0.96);
+                border: 1px solid rgba(226, 232, 240, 0.95);
+                border-radius: 20px;
+                box-shadow: 0 16px 35px rgba(15, 23, 42, 0.14);
+                backdrop-filter: blur(14px);
+                -webkit-backdrop-filter: blur(14px);
+                z-index: 2100;
+            }
+
+            .mobile-nav-link,
+            .mobile-nav-action {
+                min-width: 0;
+                min-height: 58px;
+                border: 0;
+                border-radius: 14px;
+                background: transparent;
+                color: #64748B;
+                text-decoration: none;
+                display: flex;
+                flex-direction: column;
                 align-items: center;
-                justify-content: space-between;
-                padding: 10px 20px;
+                justify-content: center;
+                gap: 4px;
+                font-size: 0.64rem;
+                font-weight: 800;
+                letter-spacing: 0.02em;
+                cursor: pointer;
+                transition: all 0.2s ease;
             }
 
-            .sidebar nav {
-                flex-direction: row;
-                flex-wrap: wrap;
+            .mobile-nav-link svg,
+            .mobile-nav-action svg {
+                width: 20px;
+                height: 20px;
+                stroke-width: 2;
             }
 
-            .sidebar-logo {
-                width: 80px;
-                margin: 0;
+            .mobile-nav-link.active {
+                color: #0F172A;
+                background: #E0F2FE;
+                box-shadow: inset 0 0 0 1px #BAE6FD;
+            }
+
+            .mobile-nav-action.logout {
+                color: #B91C1C;
+                background: #FEF2F2;
+                box-shadow: inset 0 0 0 1px #FECACA;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .main-container {
+                padding: 16px 12px 92px 12px;
+            }
+
+            .page-hero {
+                padding: 18px 16px;
+                border-radius: 18px;
+            }
+
+            header h1 {
+                font-size: 1.6rem;
+            }
+
+            header p {
+                font-size: 0.9rem;
+            }
+
+            .btn-pozo {
+                flex: 1 1 100%;
+                width: 100%;
+                padding: 11px 16px;
+                font-size: 0.85rem;
+            }
+
+            .history-card {
+                border-radius: 16px;
+            }
+
+            .history-table {
+                font-size: 0.8rem;
+            }
+
+            .history-table th,
+            .history-table td {
+                padding: 10px;
+            }
+
+            .mobile-bottom-nav {
+                left: 10px;
+                right: 10px;
+                bottom: 10px;
+                padding: 8px;
+                gap: 6px;
+            }
+
+            .mobile-nav-link,
+            .mobile-nav-action {
+                min-height: 54px;
+                font-size: 0.6rem;
             }
         }
     </style>
@@ -367,8 +566,8 @@
 
         <!-- Main Content -->
         <main class="main-container">
-            <header>
-                <div>
+            <header class="page-hero">
+                <div class="page-hero-copy">
                     <h1>Base de Datos Histórica</h1>
                     <p>Explorador maestro de registros técnicos por pozo.</p>
                 </div>
@@ -489,6 +688,37 @@
         </main>
     </div>
 
+    <nav class="mobile-bottom-nav" aria-label="Navegacion movil principal">
+        <a href="dashboard.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+            </svg>
+            <span>Inicio</span>
+        </a>
+        <a href="dashboard-data.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            <span>Gestion</span>
+        </a>
+        <a href="data.html" class="mobile-nav-link active" aria-current="page">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+            </svg>
+            <span>Data</span>
+        </a>
+        <button type="button" id="mobile-logout-btn" class="mobile-nav-action logout">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Salir</span>
+        </button>
+    </nav>
+
     <script type="module">
         import { logout, getSession } from './js/auth.js';
         import { getUniquePozos, getMonitoringData, deleteRecord, deleteAllRecordsByPozo } from './js/data-service.js';
@@ -500,6 +730,7 @@
             const session = await getSession();
             if (!session) { window.location.href = 'index.html'; return; }
             document.getElementById('logout-btn').addEventListener('click', logout);
+            document.getElementById('mobile-logout-btn').addEventListener('click', logout);
 
             await initPozos();
         });

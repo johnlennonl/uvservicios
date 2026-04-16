@@ -138,6 +138,59 @@
             padding: 30px 40px;
         }
 
+        .mobile-bottom-nav {
+            display: none;
+        }
+
+        .page-hero {
+            position: relative;
+            margin-bottom: 30px;
+            padding: 24px 26px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(241, 245, 249, 0.9));
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto auto 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #2563EB, #60A5FA 55%, transparent);
+        }
+
+        .page-hero::after {
+            content: '';
+            position: absolute;
+            top: -60px;
+            right: -40px;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.12), transparent 70%);
+            pointer-events: none;
+        }
+
+        .page-hero h1 {
+            position: relative;
+            z-index: 1;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #111827;
+            margin: 0;
+        }
+
+        .page-hero p {
+            position: relative;
+            z-index: 1;
+            color: #6B7280;
+            font-size: 0.9rem;
+            margin: 5px 0 0 0;
+        }
+
         .management-layout {
             display: flex;
             flex-direction: column;
@@ -155,6 +208,180 @@
         @media (max-width: 1200px) {
             .top-row {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .main-container {
+                padding: 20px 15px 96px 15px;
+            }
+
+            .page-hero {
+                padding: 20px 18px;
+                border-radius: 20px;
+            }
+
+            .management-layout {
+                gap: 18px;
+            }
+
+            .form-card {
+                padding: 18px;
+            }
+
+            .compact-form-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+
+            .upload-mini-zone {
+                min-height: 160px;
+            }
+
+            .mobile-bottom-nav {
+                position: fixed;
+                left: 12px;
+                right: 12px;
+                bottom: 12px;
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 8px;
+                padding: 10px;
+                background: rgba(255, 255, 255, 0.96);
+                border: 1px solid rgba(226, 232, 240, 0.95);
+                border-radius: 20px;
+                box-shadow: 0 16px 35px rgba(15, 23, 42, 0.14);
+                backdrop-filter: blur(14px);
+                -webkit-backdrop-filter: blur(14px);
+                z-index: 2100;
+            }
+
+            .mobile-nav-link,
+            .mobile-nav-action {
+                min-width: 0;
+                min-height: 58px;
+                border: 0;
+                border-radius: 14px;
+                background: transparent;
+                color: #64748B;
+                text-decoration: none;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                font-size: 0.64rem;
+                font-weight: 800;
+                letter-spacing: 0.02em;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .mobile-nav-link svg,
+            .mobile-nav-action svg {
+                width: 20px;
+                height: 20px;
+                stroke-width: 2;
+            }
+
+            .mobile-nav-link.active {
+                color: #0F172A;
+                background: #E0F2FE;
+                box-shadow: inset 0 0 0 1px #BAE6FD;
+            }
+
+            .mobile-nav-action.logout {
+                color: #B91C1C;
+                background: #FEF2F2;
+                box-shadow: inset 0 0 0 1px #FECACA;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .main-container {
+                padding: 16px 12px 92px 12px;
+            }
+
+            .page-hero {
+                padding: 18px 16px;
+                border-radius: 18px;
+            }
+
+            .page-hero h1 {
+                font-size: 1.4rem;
+            }
+
+            .page-hero p {
+                font-size: 0.85rem;
+            }
+
+            .form-card {
+                padding: 16px;
+            }
+
+            .compact-form-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .section-header {
+                margin-top: 8px;
+            }
+
+            .form-group label {
+                white-space: normal;
+                overflow: visible;
+                text-overflow: clip;
+                min-height: 0;
+            }
+
+            #manual-data-form > div[style*='justify-content: flex-end'] {
+                justify-content: stretch !important;
+            }
+
+            #submit-btn {
+                width: 100% !important;
+                justify-content: center;
+                padding: 12px 18px !important;
+            }
+
+            #cancel-edit {
+                white-space: nowrap;
+            }
+
+            #last-record-display {
+                word-break: break-word;
+            }
+
+            .history-table {
+                font-size: 0.8rem;
+            }
+
+            .history-table th,
+            .history-table td {
+                padding: 10px 12px;
+            }
+
+            .mobile-bottom-nav {
+                left: 10px;
+                right: 10px;
+                bottom: 10px;
+                padding: 8px;
+                gap: 6px;
+            }
+
+            .mobile-nav-link,
+            .mobile-nav-action {
+                min-height: 54px;
+                font-size: 0.6rem;
             }
         }
 
@@ -314,6 +541,323 @@
             padding: 10px 12px;
             font-size: 0.85rem;
         }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                padding: 20px 15px 96px 15px;
+            }
+
+            .management-layout {
+                gap: 18px;
+            }
+
+            .form-card {
+                padding: 18px;
+            }
+
+            .compact-form-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+
+            .top-row {
+                gap: 16px;
+            }
+
+            .upload-mini-zone {
+                min-height: 160px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .main-container {
+                padding: 16px 12px 92px 12px;
+            }
+
+            .management-layout {
+                gap: 14px;
+            }
+
+            .form-card {
+                padding: 16px;
+                border-radius: 16px;
+            }
+
+            .top-row {
+                gap: 14px;
+            }
+
+            .compact-form-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .section-header {
+                margin-top: 8px;
+            }
+
+            .form-group label {
+                white-space: normal;
+                overflow: visible;
+                text-overflow: clip;
+                min-height: 0;
+            }
+
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                width: 100%;
+            }
+
+            #manual-data-form > div[style*='justify-content: flex-end'] {
+                justify-content: stretch !important;
+            }
+
+            #submit-btn {
+                width: 100% !important;
+                justify-content: center;
+                padding: 12px 18px !important;
+            }
+
+            #cancel-edit {
+                white-space: nowrap;
+            }
+
+            #last-record-display {
+                word-break: break-word;
+            }
+
+            .history-table {
+                font-size: 0.8rem;
+            }
+
+            .history-table th,
+            .history-table td {
+                padding: 10px 12px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .main-container {
+                padding: 14px 10px 118px 10px;
+            }
+
+            .form-card {
+                padding: 14px;
+                border-radius: 14px;
+            }
+
+            .compact-form-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .section-header,
+            .full-width {
+                grid-column: 1 / -1;
+            }
+
+            .form-group label {
+                font-size: 0.68rem;
+            }
+
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                padding: 9px 10px;
+                font-size: 0.8rem;
+                min-width: 0;
+            }
+
+            #submit-btn {
+                padding: 11px 16px !important;
+            }
+
+            .top-row {
+                gap: 12px;
+            }
+
+            .upload-mini-zone {
+                min-height: 120px;
+            }
+
+            .history-table {
+                font-size: 0.76rem;
+            }
+
+            .history-table th,
+            .history-table td {
+                padding: 9px 10px;
+            }
+
+            .mobile-bottom-nav {
+                left: 8px;
+                right: 8px;
+                bottom: 8px;
+            }
+        }
+
+        .top-row,
+        .compact-form-grid,
+        .form-group,
+        .form-card {
+            min-width: 0;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            display: block;
+        }
+
+        @media (max-width: 500px) {
+            .top-row {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .compact-form-grid {
+                display: flex !important;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .compact-form-grid > * {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .form-group,
+            .section-header,
+            .full-width {
+                width: 100%;
+                grid-column: 1 / -1 !important;
+            }
+
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box;
+            }
+
+            .form-card,
+            #manual-data-form,
+            .management-layout {
+                min-width: 0;
+                overflow-x: clip;
+            }
+
+            input[type="date"],
+            input[type="time"] {
+                min-height: 42px;
+            }
+        }
+
+        /* Final responsive normalization: keep this block last to win over duplicate rules above */
+        .main-container,
+        .management-layout,
+        .top-row,
+        .form-card,
+        #manual-data-form,
+        .compact-form-grid,
+        .compact-form-grid > *,
+        .form-group {
+            min-width: 0;
+        }
+
+        #manual-data-form .form-group input,
+        #manual-data-form .form-group select,
+        #manual-data-form .form-group textarea {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            display: block;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 640px) {
+            .dashboard-layout {
+                display: block;
+            }
+
+            .main-container {
+                width: 100%;
+                max-width: 100%;
+                padding: 16px 12px 112px !important;
+                overflow-x: hidden;
+            }
+
+            .management-layout {
+                display: flex;
+                flex-direction: column;
+                gap: 14px !important;
+            }
+
+            .top-row {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 14px !important;
+            }
+
+            .top-row > .form-card {
+                width: 100%;
+            }
+
+            #manual-data-form .compact-form-grid {
+                display: grid !important;
+                grid-template-columns: minmax(0, 1fr) !important;
+                gap: 10px !important;
+            }
+
+            #manual-data-form .section-header,
+            #manual-data-form .form-group,
+            #manual-data-form .full-width {
+                grid-column: 1 / -1 !important;
+                width: 100%;
+            }
+
+            #manual-data-form .form-group label {
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                min-height: 0 !important;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .main-container {
+                padding: 14px 10px 118px !important;
+            }
+
+            .form-card {
+                padding: 14px !important;
+                border-radius: 14px !important;
+            }
+
+            #manual-data-form .compact-form-grid {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 10px !important;
+            }
+
+            #manual-data-form .compact-form-grid > * {
+                width: 100%;
+            }
+
+            input[type="date"],
+            input[type="time"] {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-height: 42px;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+        }
     </style>
 </head>
 
@@ -356,10 +900,9 @@
 
         <!-- Main Workspace -->
         <main class="main-container">
-            <header style="margin-bottom: 30px;">
-                <h1 style="font-size: 1.6rem; font-weight: 800; color: #111827; margin: 0;">Gestión de Datos BES</h1>
-                <p style="color: #6B7280; font-size: 0.9rem; margin: 5px 0 0 0;">Control y administración del sistema.
-                </p>
+            <header class="page-hero">
+                <h1>Gestión de Datos BES</h1>
+                <p>Control y administración del sistema.</p>
             </header>
             <div class="management-layout">
                 <div class="top-row">
@@ -541,8 +1084,40 @@
                     </div>
                 </div>
             </section>
+            </div>
         </main>
     </div>
+
+    <nav class="mobile-bottom-nav" aria-label="Navegacion movil principal">
+        <a href="dashboard.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+            </svg>
+            <span>Inicio</span>
+        </a>
+        <a href="dashboard-data.html" class="mobile-nav-link active" aria-current="page">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            <span>Gestion</span>
+        </a>
+        <a href="data.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+            </svg>
+            <span>Data</span>
+        </a>
+        <button type="button" id="mobile-logout-btn" class="mobile-nav-action logout">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Salir</span>
+        </button>
+    </nav>
 
     <script type="module">
         import { logout, getSession } from './js/auth.js';
@@ -755,6 +1330,7 @@
 
         // Logout
         document.getElementById('logout-btn').addEventListener('click', logout);
+        document.getElementById('mobile-logout-btn').addEventListener('click', logout);
 
         // CSV Logic
         const dropZone = document.getElementById('drop-zone');
