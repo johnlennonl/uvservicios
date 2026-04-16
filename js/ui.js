@@ -70,10 +70,12 @@ export function showError(message) {
     elements.errorContainer.classList.remove('hidden');
     
     // Smooth shake for the card itself to signify rejection
-    const card = document.querySelector('.login-card');
-    card.style.animation = 'none';
-    card.offsetHeight; // trigger reflow
-    card.style.animation = 'softShake 0.4s ease-in-out';
+    const card = document.querySelector('.form-content-wrapper');
+    if (card) {
+        card.style.animation = 'none';
+        card.offsetHeight; // trigger reflow
+        card.style.animation = 'softShake 0.4s ease-in-out';
+    }
 }
 
 /**

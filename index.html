@@ -51,7 +51,35 @@
 
                     <button type="submit" id="submit-btn" class="btn-submit">
                         <span class="btn-text">Iniciar Sesión</span>
-                        <div class="loader"></div>
+                        <div class="loader-container">
+                            <svg viewBox="0 0 64 48" class="pumpjack-svg">
+                                <!-- Base Estructural (A-Frame) -->
+                                <path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                                
+                                <!-- Motor Trasero (Crank Assembly) -->
+                                <g class="crank-engine">
+                                    <circle cx="12" cy="38" r="6" fill="none" stroke="white" stroke-width="1" stroke-dasharray="2,2" opacity="0.2"/>
+                                    <g class="crank-arm">
+                                        <rect x="10" y="32" width="4" height="12" rx="2" fill="white" />
+                                        <circle cx="12" cy="38" r="1.5" fill="#0F172A" />
+                                    </g>
+                                </g>
+
+                                <!-- Ensamblaje de Viga Móvil -->
+                                <g class="pump-beam">
+                                    <!-- Viga Principal -->
+                                    <path d="M8 16 L52 16 L52 20 L8 20 Z" fill="white" />
+                                    <!-- Cabezal de Caballo -->
+                                    <path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z" fill="white" />
+                                    <!-- Varilla de Extracción -->
+                                    <line x1="62" y1="34" x2="62" y2="46" stroke="white" stroke-width="1.2" stroke-dasharray="1,1" />
+                                    <!-- Biela de Conexión (Pitman Arm) -->
+                                    <line x1="12" y1="20" x2="12" y2="34" stroke="white" stroke-width="2" stroke-linecap="round" />
+                                    <!-- Punto de Pivote Central -->
+                                    <circle cx="32" cy="18" r="2.8" fill="#0F172A"/> 
+                                </g>
+                            </svg>
+                        </div>
                     </button>
                 </form>
 

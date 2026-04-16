@@ -38,7 +38,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const passwordVal = document.getElementById('password').value;
 
         try {
-            const result = await login(emailVal, passwordVal);
+            // Ensure the loader stays for at least 2500ms for better UX
+            const [result] = await Promise.all([
+                login(emailVal, passwordVal),
+                new Promise(resolve => setTimeout(resolve, 2500))
+            ]);
 
             if (result.success) {
                 ui.redirectToDashboard();
