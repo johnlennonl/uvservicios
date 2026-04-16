@@ -4,7 +4,7 @@
  */
 
 import { logout, getSession } from './auth.js';
-import { getMonitoringData, getUniquePozos, getLatestDate, getNeighborRecords } from './data-service.js';
+import { getMonitoringData, getUniquePozos, getLatestDate, getNeighborRecords, getWellTechnicalData } from './data-service.js';
 import { hideFullLoader, showFullLoader } from './ui.js';
 
 let charts = {};
@@ -178,10 +178,31 @@ async function updateDashboard() {
     try {
         const data = await getMonitoringData(selectedPozos, start, end);
         
+        const welcomeView = document.getElementById('welcome-view');
+        const dataRibbon = document.getElementById('data-ribbon-elite');
+        const brutalGrid = document.getElementById('brutal-grid');
+
         if (!data || data.length === 0) {
             clearDashboard();
+            if (welcomeView) welcomeView.style.display = 'block';
+            if (dataRibbon) dataRibbon.style.display = 'none';
+            if (brutalGrid) brutalGrid.style.display = 'none';
+            
             chartContainers.forEach(el => el.parentElement.classList.remove('loading-skeleton'));
             return;
+        }
+
+        // Data found -> Show Dashboard
+        if (welcomeView) welcomeView.style.display = 'none';
+        if (dataRibbon) dataRibbon.style.display = 'grid';
+        if (brutalGrid) brutalGrid.style.display = 'grid';
+
+        // 🟢 NEW: Fetch and Update Technical Data Ribbon
+        if (selectedPozos.length === 1) {
+            const techData = await getWellTechnicalData(selectedPozos[0]);
+            updateDataRibbon(techData);
+        } else {
+            updateDataRibbon(null);
         }
 
         // AUTO-CONTEXT: Fetch neighbors to draw connecting lines point-to-point without needing Historical mode
@@ -226,9 +247,18 @@ function clearDashboard() {
     const chartIds = ['gauge-frecuencia', 'gauge-pip', 'gauge-tm', 'donut-status', 'chart-frecuencia', 'chart-pip', 'chart-tm', 'chart-superficie', 'chart-motor-curr', 'chart-vsd-triphase'];
     chartIds.forEach(id => {
         if (charts[id]) {
-            charts[id].updateOptions({ series: [], noData: { text: 'Sin datos para la selección' } });
+            charts[id].updateOptions({ series: [], noData: { text: 'Sin datos' } });
         }
     });
+
+    const welcomeView = document.getElementById('welcome-view');
+    const dataRibbon = document.getElementById('data-ribbon-elite');
+    const brutalGrid = document.getElementById('brutal-grid');
+    
+    if (welcomeView) welcomeView.style.display = 'block';
+    if (dataRibbon) dataRibbon.style.display = 'none';
+    if (brutalGrid) brutalGrid.style.display = 'none';
+
     const tbody = document.getElementById('obs-body');
     if (tbody) tbody.innerHTML = '<tr><td style="padding: 20px; text-align: center; color: var(--text-muted);">No hay registros</td></tr>';
 }
@@ -482,5 +512,32 @@ function renderOrUpdate(id, options) {
         charts[id] = new ApexCharts(el, options);
         charts[id].render();
     }
+}
+
+/**
+ * 4. ELITE DATA RIBBON UPDATE
+ */
+function updateDataRibbon(data) {
+    const fields = {
+        'rb-campo': data?.campo_name || '--',
+        'rb-pozo': data?.pozo_name || '--',
+        'rb-ef': data?.ef || '--',
+        'rb-fecha': data?.fecha || '--',
+        'rb-bbpd': data?.bbpd || '--',
+        'rb-ays': data?.ays_percentage ? `${data.ays_percentage}%` : '--',
+        'rb-bnpd': data?.bnpd || '--',
+        'rb-cat': data?.cat_number || '--'
+    };
+
+    Object.entries(fields).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = value;
+            // Add a small animation for the update
+            el.parentElement.style.animation = 'none';
+            void el.parentElement.offsetWidth; // trigger reflow
+            el.parentElement.style.animation = 'fadeIn 0.5s ease';
+        }
+    });
 }
 

@@ -238,7 +238,15 @@
         .nav-links a.active { color: var(--primary-blue); font-weight: 700; }
         
         /* Compact Inputs */
-        .form-group label { margin-bottom: 4px; font-size: 0.75rem; }
+        .form-group label { 
+            margin-bottom: 6px; 
+            font-size: 0.72rem; 
+            display: block; 
+            min-height: 14px; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .form-group input, .form-group select, .form-group textarea { padding: 10px 12px; font-size: 0.85rem; }
     </style>
 </head>
@@ -354,6 +362,32 @@
                                 <label>Observaciones</label>
                                 <input type="text" id="observaciones" placeholder="..." style="width: 100%;">
                             </div>
+
+                            <div class="section-header"><span>4. Producción Técnica</span></div>
+                            <div class="form-group">
+                                <label>⚡ Estación (EF)</label>
+                                <input type="text" id="ef_tech" placeholder="VLG-7-7">
+                            </div>
+                            <div class="form-group">
+                                <label>📉 BBPD (Brutos)</label>
+                                <input type="number" step="0.01" id="bbpd_tech" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>🧪 AYS (%)</label>
+                                <input type="number" step="0.01" id="ays_tech" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>📊 BNPD (Netos)</label>
+                                <input type="number" step="0.01" id="bnpd_tech" readonly style="background: #F1F5F9; font-weight: 700;" placeholder="Auto-cálculo">
+                            </div>
+                            <div class="form-group">
+                                <label>🏢 Categoría (CAT)</label>
+                                <select id="cat_tech">
+                                    <option value="1">CAT 1</option>
+                                    <option value="2">CAT 2</option>
+                                    <option value="3">CAT 3</option>
+                                </select>
+                            </div>
                         </div>
                         
                         <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
@@ -392,7 +426,7 @@
 
     <script type="module">
         import { logout, getSession } from './js/auth.js';
-        import { getMonitoringData, insertRecord, updateRecord, bulkInsertRecords } from './js/data-service.js';
+        import { getMonitoringData, insertRecord, updateRecord, bulkInsertRecords, upsertWellTechnicalData } from './js/data-service.js';
 
         let isEditing = false;
 
@@ -404,6 +438,22 @@
 
         async function initApp() {
             document.getElementById('fecha').valueAsDate = new Date();
+            
+            // Auto-calculation logic for BNPD
+            const bbpdInput = document.getElementById('bbpd_tech');
+            const aysInput = document.getElementById('ays_tech');
+            const bnpdInput = document.getElementById('bnpd_tech');
+
+            const calculateBNPD = () => {
+                const bbpd = parseFloat(bbpdInput.value) || 0;
+                const ays = parseFloat(aysInput.value) || 0;
+                const bnpd = bbpd * (1 - (ays / 100));
+                bnpdInput.value = bnpd.toFixed(2);
+            };
+
+            bbpdInput.addEventListener('input', calculateBNPD);
+            aysInput.addEventListener('input', calculateBNPD);
+
             await refreshHistory();
         }
 
@@ -461,8 +511,28 @@
                     await updateRecord(document.getElementById('edit-id').value, record);
                     Swal.fire({ icon: 'success', title: 'Registro Actualizado', text: 'Los datos han sido modificados correctamente.', timer: 2000, showConfirmButton: false });
                 } else {
+                    // 1. Save Telemetry
                     await insertRecord(record);
-                    Swal.fire({ icon: 'success', title: 'Sincronizado', text: 'El registro técnico ha sido guardado exitosamente.', timer: 2000, showConfirmButton: false });
+
+                    // 2. Sync Technical Production if fields are filled
+                    const techEF = document.getElementById('ef_tech').value;
+                    const techBBPD = parseFloat(document.getElementById('bbpd_tech').value);
+                    
+                    if (techEF || !isNaN(techBBPD)) {
+                        const techData = {
+                            pozo_name: record.pozo_name,
+                            campo_name: record.campo,
+                            ef: techEF,
+                            fecha: record.fecha,
+                            bbpd: techBBPD || 0,
+                            ays_percentage: parseFloat(document.getElementById('ays_tech').value) || 0,
+                            bnpd: parseFloat(document.getElementById('bnpd_tech').value) || 0,
+                            cat_number: parseInt(document.getElementById('cat_tech').value) || 1
+                        };
+                        await upsertWellTechnicalData(techData);
+                    }
+
+                    Swal.fire({ icon: 'success', title: 'Sincronización Total', text: 'Telemetría y Datos de Producción guardados exitosamente.', timer: 2500, showConfirmButton: false });
                 }
                 resetForm();
                 await refreshHistory();
@@ -493,11 +563,48 @@
                         statusDiv.style.display = 'block';
                         statusText.textContent = 'Subiendo...';
                         
-                        // Sanitize data to avoid empty row errors
-                        const cleanData = results.data.filter(r => r.pozo_name && r.fecha);
+                        // 1. Limpieza inicial: Quitamos filas vacías
+                        const cleanData = results.data.filter(r => r.pozo_name && (r.fecha || r.FECHA));
+
+                        // 2. Filtro Inteligente: Seleccionamos solo columnas de monitoreo para la tabla de telemetría
+                        const telemetryColumns = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c', 'estatus', 'observaciones', 'user_id'];
                         
-                        await bulkInsertRecords(cleanData);
-                        statusText.textContent = '✅ Finalizado';
+                        const telemetryData = cleanData.map(r => {
+                            let obj = {};
+                            telemetryColumns.forEach(col => {
+                                if (r[col] !== undefined) obj[col] = r[col];
+                            });
+                            return obj;
+                        });
+
+                        await bulkInsertRecords(telemetryData);
+
+                        // 2. Extraer y subir Datos Técnicos (Cinta de Opciones)
+                        // Tomamos el registro más reciente por cada pozo único en el CSV
+                        const uniquePozos = [...new Set(cleanData.map(r => r.pozo_name))];
+                        
+                        for (const pozo of uniquePozos) {
+                            const pozoRecords = cleanData.filter(r => r.pozo_name === pozo);
+                            const latest = pozoRecords[0]; // El primero suele ser el más reciente o representativo
+
+                            // Si el CSV trae columnas técnicas, las sincronizamos
+                            if (latest.bbpd !== undefined || latest.ef !== undefined) {
+                                const techData = {
+                                    pozo_name: latest.pozo_name,
+                                    campo_name: latest.campo || latest.campo_name,
+                                    ef: latest.ef || 'N/A',
+                                    fecha: latest.fecha,
+                                    bbpd: parseFloat(latest.bbpd) || 0,
+                                    ays_percentage: parseFloat(latest.ays) || parseFloat(latest.ays_percentage) || 0,
+                                    bnpd: parseFloat(latest.bnpd) || 0,
+                                    cat_number: parseInt(latest.cat) || parseInt(latest.cat_number) || 1
+                                };
+                                await upsertWellTechnicalData(techData);
+                            }
+                        }
+
+                        statusText.textContent = '✅ Sincronización Total Finalizada';
+                        Swal.fire({ icon: 'success', title: 'Importación Exitosa', text: 'Se han sincronizado los gráficos y la tabla técnica.' });
                         await refreshHistory();
                     } catch (err) { 
                         statusText.textContent = '❌ Error: ' + err.message; 

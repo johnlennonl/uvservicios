@@ -67,6 +67,9 @@ export async function updateRecord(id, record) {
  * @param {string} id 
  */
 export async function deleteRecord(id) {
+    if (!id || id === 'undefined') {
+        throw new Error('No se puede eliminar: El registro no tiene un ID válido asociado.');
+    }
     const { error } = await supabase
         .from('monitoreo_pozos')
         .delete()
@@ -149,4 +152,67 @@ export async function getNeighborRecords(pozoName, startDate, endDate) {
     if (prev.data && prev.data[0]) results.push(prev.data[0]);
     if (next.data && next.data[0]) results.push(next.data[0]);
     return results;
+}
+
+/**
+ * Fetches specific technical production data for the Data Ribbon.
+ * @param {string} pozoName 
+ */
+export async function getWellTechnicalData(pozoName) {
+    if (!pozoName || pozoName === 'Todas') return null;
+
+    const { data, error } = await supabase
+        .from('well_production')
+        .select('*')
+        .eq('pozo_name', pozoName)
+        .order('fecha', { ascending: false })
+        .limit(1);
+    
+    if (error) {
+        console.error('Error fetching well technical data:', error);
+        return null;
+    }
+    
+    return data && data.length > 0 ? data[0] : null;
+}
+
+/**
+ * Inserts or updates technical production data for a well.
+ * @param {object} data 
+ */
+export async function upsertWellTechnicalData(data) {
+    const { pozo_name } = data;
+    if (!pozo_name) throw new Error('Nombre del pozo es requerido para sincronizar datos técnicos.');
+
+    const { data: result, error } = await supabase
+        .from('well_production')
+        .upsert(data, { onConflict: 'pozo_name' });
+    
+    if (error) throw error;
+    return result;
+}
+
+/**
+ * Deletes all telemetry records for a specific well name.
+ * @param {string} pozoName 
+ */
+export async function deleteAllRecordsByPozo(pozoName) {
+    if (!pozoName || pozoName === 'Todas') return 0;
+    
+    // 1. Borrado en la tabla de monitoreo (con búsqueda flexible para espacios o mayúsculas)
+    const { count: countTele, error: errorTele } = await supabase
+        .from('monitoreo_pozos')
+        .delete({ count: 'exact' })
+        .ilike('pozo_name', `%${pozoName.trim()}%`);
+    
+    // 2. Borrado en la tabla técnica (well_production)
+    const { error: errorTech } = await supabase
+        .from('well_production')
+        .delete()
+        .ilike('pozo_name', `%${pozoName.trim()}%`);
+    
+    if (errorTele) throw errorTele;
+    if (errorTech) throw errorTech;
+
+    return countTele || 0;
 }
