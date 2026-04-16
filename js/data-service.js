@@ -33,6 +33,21 @@ export async function getMonitoringData(pozos = [], startDate = null, endDate = 
     return data;
 }
 
+/**
+ * Fetches a single record by its ID.
+ * @param {string} id 
+ */
+export async function getRecordById(id) {
+    const { data, error } = await supabase
+        .from('monitoreo_pozos')
+        .select('*')
+        .eq('id', id)
+        .single();
+    
+    if (error) throw error;
+    return data;
+}
+
 
 /**
  * Inserts a single record into the database.

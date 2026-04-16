@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,16 +16,16 @@
             --sidebar-width: 260px;
             --primary-blue: #2563EB;
             --primary-dark: #1F2937;
-            --card-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
         }
 
-        body { 
-            background: #F0F2F5; 
-            margin: 0; 
-            padding: 0; 
-            display: block; 
-            min-height: 100vh; 
-            font-family: 'Inter', sans-serif; 
+        body {
+            background: #F0F2F5;
+            margin: 0;
+            padding: 0;
+            display: block;
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
         }
 
         .dashboard-layout {
@@ -47,15 +48,18 @@
             border-right: 1px solid #1E293B;
             z-index: 1000;
         }
-        
+
         .sidebar-logo {
-            width: 140px;
+            width: 180px;
             margin: 0 auto;
             display: block;
             filter: brightness(0) invert(1);
             transition: opacity 0.3s ease;
         }
-        .sidebar-logo:hover { opacity: 0.8; }
+
+        .sidebar-logo:hover {
+            opacity: 0.8;
+        }
 
         .sidebar nav {
             display: flex;
@@ -76,6 +80,7 @@
             transition: all 0.2s ease;
             border: 1px solid transparent;
         }
+
         .nav-link svg {
             width: 20px;
             height: 20px;
@@ -83,17 +88,23 @@
             color: currentColor;
             opacity: 0.7;
         }
-        .nav-link:hover { 
-            color: #F8FAFC; 
-            background: #1E293B; 
+
+        .nav-link:hover {
+            color: #F8FAFC;
+            background: #1E293B;
         }
-        .nav-link.active { 
-            color: #FFFFFF; 
-            background: #1E293B; 
+
+        .nav-link.active {
+            color: #FFFFFF;
+            background: #1E293B;
             border: 1px solid #334155;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        .nav-link.active svg { opacity: 1; color: #38BDF8; }
+
+        .nav-link.active svg {
+            opacity: 1;
+            color: #38BDF8;
+        }
 
         #logout-btn {
             margin-top: auto;
@@ -110,20 +121,29 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        #logout-btn svg { width: 18px; height: 18px; opacity: 1; }
+
+        #logout-btn svg {
+            width: 18px;
+            height: 18px;
+            opacity: 1;
+        }
+
         #logout-btn:hover {
             background: #7F1D1D;
             color: white;
             border-color: #991B1B;
         }
 
-        .main-container { padding: 30px 40px; }
+        .main-container {
+            padding: 30px 40px;
+        }
 
         .management-layout {
             display: flex;
             flex-direction: column;
             gap: 24px;
         }
+
         .top-row {
             display: grid;
             grid-template-columns: 1fr 300px;
@@ -131,23 +151,33 @@
             align-items: stretch;
             min-width: 0;
         }
+
         @media (max-width: 1200px) {
-            .top-row { grid-template-columns: 1fr; }
+            .top-row {
+                grid-template-columns: 1fr;
+            }
         }
+
         .form-card {
             background: white;
             padding: 24px;
             border-radius: 12px;
             border: 1px solid #E2E8F0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
             min-width: 0;
         }
+
         .compact-form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Auto-flowing grid */
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            /* Auto-flowing grid */
             gap: 12px 20px;
         }
-        .full-width { grid-column: 1 / -1; }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
         .section-header {
             grid-column: 1 / -1;
             display: flex;
@@ -157,6 +187,7 @@
             padding-bottom: 5px;
             border-bottom: 1px solid #F1F5F9;
         }
+
         .section-header span {
             font-size: 0.7rem;
             font-weight: 800;
@@ -164,7 +195,7 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
-        
+
         .upload-mini-zone {
             border: 2px dashed #CBD5E0;
             border-radius: 12px;
@@ -177,8 +208,12 @@
             justify-content: center;
             height: 100%;
         }
-        .upload-mini-zone:hover { border-color: var(--primary-blue); background: #F1F5F9; }
-        
+
+        .upload-mini-zone:hover {
+            border-color: var(--primary-blue);
+            background: #F1F5F9;
+        }
+
         /* History Table Styling */
         .history-card {
             background: white;
@@ -186,11 +221,13 @@
             border: 1px solid #E2E8F0;
             overflow: hidden;
         }
+
         .history-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.85rem;
         }
+
         .history-table th {
             background: #F8FAFC;
             text-align: left;
@@ -199,12 +236,16 @@
             color: #64748B;
             border-bottom: 2px solid #E2E8F0;
         }
+
         .history-table td {
             padding: 12px 16px;
             border-bottom: 1px solid #F1F5F9;
         }
-        .history-table tr:hover { background: #F8FAFC; }
-        
+
+        .history-table tr:hover {
+            background: #F8FAFC;
+        }
+
         .btn-action {
             padding: 6px 12px;
             border-radius: 6px;
@@ -215,10 +256,24 @@
             transition: all 0.2s;
             margin-right: 4px;
         }
-        .btn-edit { background: #EBF8FF; color: #2B6CB0; }
-        .btn-edit:hover { background: #BEE3F8; }
-        .btn-delete { background: #FFF5F5; color: #C53030; }
-        .btn-delete:hover { background: #FED7D7; }
+
+        .btn-edit {
+            background: #EBF8FF;
+            color: #2B6CB0;
+        }
+
+        .btn-edit:hover {
+            background: #BEE3F8;
+        }
+
+        .btn-delete {
+            background: #FFF5F5;
+            color: #C53030;
+        }
+
+        .btn-delete:hover {
+            background: #FED7D7;
+        }
 
         .navbar {
             background: white;
@@ -228,6 +283,7 @@
             justify-content: space-between;
             align-items: center;
         }
+
         .nav-links a {
             text-decoration: none;
             color: #64748B;
@@ -235,42 +291,65 @@
             margin-left: 20px;
             font-size: 0.9rem;
         }
-        .nav-links a.active { color: var(--primary-blue); font-weight: 700; }
-        
+
+        .nav-links a.active {
+            color: var(--primary-blue);
+            font-weight: 700;
+        }
+
         /* Compact Inputs */
-        .form-group label { 
-            margin-bottom: 6px; 
-            font-size: 0.72rem; 
-            display: block; 
-            min-height: 14px; 
+        .form-group label {
+            margin-bottom: 6px;
+            font-size: 0.72rem;
+            display: block;
+            min-height: 14px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .form-group input, .form-group select, .form-group textarea { padding: 10px 12px; font-size: 0.85rem; }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px 12px;
+            font-size: 0.85rem;
+        }
     </style>
 </head>
+
 <body style="display: block;">
     <div class="dashboard-layout">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <img src="img/uvservicioslogo.png" alt="Logo" class="sidebar-logo">
+            <img src="img/UV SERVICES - Logo vectorial sin fondo.png" alt="Logo" class="sidebar-logo">
             <nav>
                 <a href="dashboard.html" class="nav-link">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> 
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                    </svg>
                     Dashboard
                 </a>
                 <a href="dashboard-data.html" class="nav-link active">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
                     Gestión
                 </a>
                 <a href="data.html" class="nav-link">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
                     Data
                 </a>
             </nav>
             <button id="logout-btn" class="nav-link">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
                 Salir
             </button>
         </aside>
@@ -279,154 +358,195 @@
         <main class="main-container">
             <header style="margin-bottom: 30px;">
                 <h1 style="font-size: 1.6rem; font-weight: 800; color: #111827; margin: 0;">Gestión de Datos BES</h1>
-                <p style="color: #6B7280; font-size: 0.9rem; margin: 5px 0 0 0;">Control y administración del sistema.</p>
+                <p style="color: #6B7280; font-size: 0.9rem; margin: 5px 0 0 0;">Control y administración del sistema.
+                </p>
             </header>
-        <div class="management-layout">
-            <div class="top-row">
-                <!-- Data Entry Form -->
-                <section class="form-card">
-                    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h2 id="form-title" style="font-size: 1.1rem; font-weight: 700; color: var(--primary-dark);">Entrada de Parámetros</h2>
-                        <button id="cancel-edit" style="display: none; background: #64748B; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">Cancelar Edición</button>
-                    </header>
-                    
-                    <form id="manual-data-form" class="login-form">
-                        <input type="hidden" id="edit-id">
-                        <div class="compact-form-grid">
-                            <div class="section-header"><span>1. Contexto</span></div>
-                            <div class="form-group">
-                                <label>Pozo</label>
-                                <input type="text" id="pozo_name" required placeholder="BES-XX">
-                            </div>
-                            <div class="form-group">
-                                <label>Campo</label>
-                                <input type="text" id="campo" required value="TOMOPOR">
-                            </div>
-                            <div class="form-group">
-                                <label>Fecha</label>
-                                <input type="date" id="fecha" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Hora</label>
-                                <input type="time" id="hora" required>
+            <div class="management-layout">
+                <div class="top-row">
+                    <!-- Data Entry Form -->
+                    <section class="form-card">
+                        <header
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 id="form-title"
+                                style="font-size: 1.1rem; font-weight: 700; color: var(--primary-dark);">Entrada de
+                                Parámetros</h2>
+                            <button id="cancel-edit"
+                                style="display: none; background: #64748B; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">Cancelar
+                                Edición</button>
+                        </header>
+
+                        <form id="manual-data-form" class="login-form">
+                            <input type="hidden" id="edit-id">
+                            <div class="compact-form-grid">
+                                <div class="section-header"><span>1. Contexto</span></div>
+                                <div class="form-group">
+                                    <label>Pozo</label>
+                                    <input type="text" id="pozo_name" required placeholder="BES-XX">
+                                </div>
+                                <div class="form-group">
+                                    <label>Campo</label>
+                                    <input type="text" id="campo" required value="TOMOPOR">
+                                </div>
+                                <div class="form-group">
+                                    <label>Fecha</label>
+                                    <input type="date" id="fecha" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Hora</label>
+                                    <input type="time" id="hora" required>
+                                </div>
+
+                                <div class="section-header"><span>2. Parámetros Críticos</span></div>
+                                <div class="form-group">
+                                    <label>Frecuencia (Hz)</label>
+                                    <input type="number" step="0.01" id="frecuencia" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>I. Motor (AMP)</label>
+                                    <input type="number" step="0.01" id="corriente_motor" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>PIP (PSI)</label>
+                                    <input type="number" step="0.01" id="pip" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Temp. TM [F]</label>
+                                    <input type="number" step="0.01" id="tm" required>
+                                </div>
+
+                                <div class="section-header"><span>3. Presiones y VSD</span></div>
+                                <div class="form-group">
+                                    <label>THP (PSI)</label>
+                                    <input type="number" step="0.01" id="presion_thp" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>CHP (PSI)</label>
+                                    <input type="number" step="0.01" id="presion_chp" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>VSD A (AMP)</label>
+                                    <input type="number" step="0.01" id="vsd_a" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>VSD B (AMP)</label>
+                                    <input type="number" step="0.01" id="vsd_b" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>VSD C (AMP)</label>
+                                    <input type="number" step="0.01" id="vsd_c" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Estatus</label>
+                                    <select id="estatus">
+                                        <option value="RUN">🟢 RUN</option>
+                                        <option value="OFF">🔴 OFF</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group full-width" style="margin-top: 5px;">
+                                    <label>Observaciones</label>
+                                    <input type="text" id="observaciones" placeholder="..." style="width: 100%;">
+                                </div>
+
+                                <div class="section-header"><span>4. Producción Técnica</span></div>
+                                <div class="form-group">
+                                    <label>⚡ Estación (EF)</label>
+                                    <input type="text" id="ef_tech" placeholder="VLG-7-7">
+                                </div>
+                                <div class="form-group">
+                                    <label>📉 BBPD (Brutos)</label>
+                                    <input type="number" step="0.01" id="bbpd_tech" placeholder="0.00">
+                                </div>
+                                <div class="form-group">
+                                    <label>🧪 AYS (%)</label>
+                                    <input type="number" step="0.01" id="ays_tech" placeholder="0.00">
+                                </div>
+                                <div class="form-group">
+                                    <label>📊 BNPD (Netos)</label>
+                                    <input type="number" step="0.01" id="bnpd_tech" readonly
+                                        style="background: #F1F5F9; font-weight: 700;" placeholder="Auto-cálculo">
+                                </div>
+                                <div class="form-group">
+                                    <label>🏢 Categoría (CAT)</label>
+                                    <select id="cat_tech">
+                                        <option value="1">CAT 1</option>
+                                        <option value="2">CAT 2</option>
+                                        <option value="3">CAT 3</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div class="section-header"><span>2. Parámetros Críticos</span></div>
-                            <div class="form-group">
-                                <label>Frecuencia (Hz)</label>
-                                <input type="number" step="0.01" id="frecuencia" required>
+                            <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+                                <button type="submit" id="submit-btn" class="btn-submit"
+                                    style="margin: 0; width: auto; padding: 12px 40px;">
+                                    <span class="btn-text">Sincronizar Datos</span>
+                                    <div class="loader"></div>
+                                </button>
                             </div>
-                            <div class="form-group">
-                                <label>I. Motor (AMP)</label>
-                                <input type="number" step="0.01" id="corriente_motor" required>
-                            </div>
-                            <div class="form-group">
-                                <label>PIP (PSI)</label>
-                                <input type="number" step="0.01" id="pip" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Temp. TM [F]</label>
-                                <input type="number" step="0.01" id="tm" required>
-                            </div>
+                        </form>
+                    </section>
 
-                            <div class="section-header"><span>3. Presiones y VSD</span></div>
-                            <div class="form-group">
-                                <label>THP (PSI)</label>
-                                <input type="number" step="0.01" id="presion_thp" required>
-                            </div>
-                            <div class="form-group">
-                                <label>CHP (PSI)</label>
-                                <input type="number" step="0.01" id="presion_chp" required>
-                            </div>
-                            <div class="form-group">
-                                <label>VSD A (AMP)</label>
-                                <input type="number" step="0.01" id="vsd_a" required>
-                            </div>
-                            <div class="form-group">
-                                <label>VSD B (AMP)</label>
-                                <input type="number" step="0.01" id="vsd_b" required>
-                            </div>
-                            <div class="form-group">
-                                <label>VSD C (AMP)</label>
-                                <input type="number" step="0.01" id="vsd_c" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Estatus</label>
-                                <select id="estatus">
-                                    <option value="RUN">🟢 RUN</option>
-                                    <option value="OFF">🔴 OFF</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group full-width" style="margin-top: 5px;">
-                                <label>Observaciones</label>
-                                <input type="text" id="observaciones" placeholder="..." style="width: 100%;">
-                            </div>
-
-                            <div class="section-header"><span>4. Producción Técnica</span></div>
-                            <div class="form-group">
-                                <label>⚡ Estación (EF)</label>
-                                <input type="text" id="ef_tech" placeholder="VLG-7-7">
-                            </div>
-                            <div class="form-group">
-                                <label>📉 BBPD (Brutos)</label>
-                                <input type="number" step="0.01" id="bbpd_tech" placeholder="0.00">
-                            </div>
-                            <div class="form-group">
-                                <label>🧪 AYS (%)</label>
-                                <input type="number" step="0.01" id="ays_tech" placeholder="0.00">
-                            </div>
-                            <div class="form-group">
-                                <label>📊 BNPD (Netos)</label>
-                                <input type="number" step="0.01" id="bnpd_tech" readonly style="background: #F1F5F9; font-weight: 700;" placeholder="Auto-cálculo">
-                            </div>
-                            <div class="form-group">
-                                <label>🏢 Categoría (CAT)</label>
-                                <select id="cat_tech">
-                                    <option value="1">CAT 1</option>
-                                    <option value="2">CAT 2</option>
-                                    <option value="3">CAT 3</option>
-                                </select>
-                            </div>
+                    <!-- Small Sidebar for CSV -->
+                    <section class="form-card" style="display: flex; flex-direction: column;">
+                        <h2 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 15px;">Importar</h2>
+                        <div class="upload-mini-zone" id="drop-zone">
+                            <div style="font-size: 1.5rem; margin-bottom: 8px;">📊</div>
+                            <p style="font-weight: 600; font-size: 0.75rem;">Archivo CSV</p>
+                            <input type="file" id="file-input" accept=".csv" style="display: none;">
                         </div>
-                        
-                        <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
-                            <button type="submit" id="submit-btn" class="btn-submit" style="margin: 0; width: auto; padding: 12px 40px;">
-                                <span class="btn-text">Sincronizar Datos</span>
-                                <div class="loader"></div>
-                            </button>
+                        <div id="upload-status" style="margin-top: 10px; display: none;">
+                            <p id="status-text" style="font-size: 0.7rem; font-weight: 700; color: #38A169;"></p>
                         </div>
-                    </form>
-                </section>
-
-                <!-- Small Sidebar for CSV -->
-                <section class="form-card" style="display: flex; flex-direction: column;">
-                    <h2 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 15px;">Importar</h2>
-                    <div class="upload-mini-zone" id="drop-zone">
-                        <div style="font-size: 1.5rem; margin-bottom: 8px;">📊</div>
-                        <p style="font-weight: 600; font-size: 0.75rem;">Archivo CSV</p>
-                        <input type="file" id="file-input" accept=".csv" style="display: none;">
-                    </div>
-                    <div id="upload-status" style="margin-top: 10px; display: none;">
-                        <p id="status-text" style="font-size: 0.7rem; font-weight: 700; color: #38A169;"></p>
-                    </div>
-                </section>
-            </div>
-
-            <!-- Last Record Confirmation Widget -->
-            <section class="form-card" style="margin-top: 10px; background: #ECFDF5; border: 1px solid #34D399; display: flex; align-items: center; justify-content: space-between;">
-                <div>
-                    <h3 style="margin: 0; font-size: 0.85rem; color: #065F46; font-weight: 800;">Último Registro Sincronizado</h3>
-                    <p id="last-record-display" style="margin: 4px 0 0 0; font-size: 1rem; color: #047857; font-weight: 600;">--</p>
+                    </section>
                 </div>
-                <div style="font-size: 2rem;">✅</div>
+
+                <!-- Last Record Confirmation Widget -->
+                <section class="form-card"
+                    style="margin-top: 10px; background: #ECFDF5; border: 1px solid #34D399; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 0.85rem; color: #065F46; font-weight: 800;">Último Registro
+                            Sincronizado</h3>
+                        <p id="last-record-display"
+                            style="margin: 4px 0 0 0; font-size: 1rem; color: #047857; font-weight: 600;">--</p>
+                    </div>
+                    <div style="font-size: 2rem;">✅</div>
+                </section>
+                <!-- Historial Reciente de Registros -->
+            <section class="form-card" style="margin-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="font-size: 0.95rem; font-weight: 700; color: var(--primary-dark); margin: 0;">Registros Recientes</h2>
+                    <span id="history-loading" style="display: none; font-size: 0.75rem; color: #64748B;">Cargando...</span>
+                </div>
+                <div class="history-card" style="border: none; box-shadow: none;">
+                    <div style="overflow-x: auto;">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Pozo</th>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                    <th>Freq</th>
+                                    <th>I. Mot</th>
+                                    <th>PIP</th>
+                                    <th>Estatus</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-history-body">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; color: #94A3B8; padding: 20px;">No hay registros recientes disponibles.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </section>
         </main>
     </div>
 
     <script type="module">
         import { logout, getSession } from './js/auth.js';
-        import { getMonitoringData, insertRecord, updateRecord, bulkInsertRecords, upsertWellTechnicalData } from './js/data-service.js';
+        import { getMonitoringData, insertRecord, updateRecord, bulkInsertRecords, upsertWellTechnicalData, getRecordById, deleteRecord } from './js/data-service.js';
 
         let isEditing = false;
 
@@ -439,6 +559,13 @@
         async function initApp() {
             document.getElementById('fecha').valueAsDate = new Date();
             
+            // 1. Check for Edit ID in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const editId = urlParams.get('edit');
+            if (editId) {
+                loadAndFillForm(editId);
+            }
+
             // Auto-calculation logic for BNPD
             const bbpdInput = document.getElementById('bbpd_tech');
             const aysInput = document.getElementById('ays_tech');
@@ -460,12 +587,94 @@
         async function refreshHistory() {
             try {
                 const data = await getMonitoringData();
+                const historyBody = document.getElementById('recent-history-body');
+                
                 if (data && data.length > 0) {
                     const latest = data[0];
                     document.getElementById('last-record-display').innerHTML = `<b>${latest.pozo_name}</b> - ${latest.fecha} ${latest.hora}`;
+                    
+                    // Render Recent Records (Top 10)
+                    historyBody.innerHTML = '';
+                    data.slice(0, 10).forEach(record => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="font-weight: 700;">${record.pozo_name}</td>
+                            <td>${record.fecha}</td>
+                            <td>${record.hora}</td>
+                            <td>${record.frecuencia}</td>
+                            <td>${record.corriente_motor}</td>
+                            <td>${record.pip}</td>
+                            <td><span style="color: ${record.estatus === 'RUN' ? '#059669' : '#DC2626'}">● ${record.estatus}</span></td>
+                            <td>
+                                <button class="btn-action btn-edit" data-id="${record.id}">Editar</button>
+                                <button class="btn-action btn-delete" data-id="${record.id}">Borrar</button>
+                            </td>
+                        `;
+                        historyBody.appendChild(tr);
+                    });
+
+                    // Bind actions
+                    document.querySelectorAll('.btn-edit').forEach(btn => {
+                        btn.onclick = () => loadAndFillForm(btn.getAttribute('data-id'));
+                    });
+                    document.querySelectorAll('.btn-delete').forEach(btn => {
+                        btn.onclick = () => handleDelete(btn.getAttribute('data-id'));
+                    });
+
+                } else {
+                    historyBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #94A3B8; padding: 20px;">No hay registros disponibles.</td></tr>';
                 }
             } catch (err) {
                 console.error('History load error:', err);
+            }
+        }
+
+        async function loadAndFillForm(id) {
+            try {
+                Swal.fire({ title: 'Cargando datos...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                const record = await getRecordById(id);
+                Swal.close();
+
+                isEditing = true;
+                const form = document.getElementById('manual-data-form');
+                document.getElementById('edit-id').value = id;
+                document.getElementById('form-title').textContent = `Editando Pozo: ${record.pozo_name}`;
+                document.getElementById('submit-btn').querySelector('.btn-text').textContent = 'Guardar Cambios';
+                document.getElementById('cancel-edit').style.display = 'inline-block';
+
+                // Map fields
+                const fields = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'pip', 'tm', 'presion_thp', 'presion_chp', 'vsd_a', 'vsd_b', 'vsd_c', 'estatus', 'observaciones'];
+                fields.forEach(f => {
+                    const el = document.getElementById(f);
+                    if (el) el.value = record[f] || '';
+                });
+
+                // Smooth scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el registro para editar.' });
+            }
+        }
+
+        async function handleDelete(id) {
+            const result = await Swal.fire({
+                title: '¿Estás seguro?',
+                text: "Esta acción no se puede deshacer.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Sí, borrarlo'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    await deleteRecord(id);
+                    Swal.fire('Borrado', 'El registro ha sido eliminado.', 'success');
+                    await refreshHistory();
+                } catch (err) {
+                    Swal.fire('Error', err.message, 'error');
+                }
             }
         }
 
@@ -517,7 +726,7 @@
                     // 2. Sync Technical Production if fields are filled
                     const techEF = document.getElementById('ef_tech').value;
                     const techBBPD = parseFloat(document.getElementById('bbpd_tech').value);
-                    
+
                     if (techEF || !isNaN(techBBPD)) {
                         const techData = {
                             pozo_name: record.pozo_name,
@@ -536,7 +745,7 @@
                 }
                 resetForm();
                 await refreshHistory();
-            } catch (err) { 
+            } catch (err) {
                 Swal.fire({ icon: 'error', title: 'Fallo de Sincronización', text: err.message });
             } finally {
                 btn.classList.remove('loading');
@@ -558,17 +767,17 @@
             if (!file) return;
             Papa.parse(file, {
                 header: true, dynamicTyping: true, skipEmptyLines: true,
-                complete: async function(results) {
+                complete: async function (results) {
                     try {
                         statusDiv.style.display = 'block';
                         statusText.textContent = 'Subiendo...';
-                        
+
                         // 1. Limpieza inicial: Quitamos filas vacías
                         const cleanData = results.data.filter(r => r.pozo_name && (r.fecha || r.FECHA));
 
                         // 2. Filtro Inteligente: Seleccionamos solo columnas de monitoreo para la tabla de telemetría
                         const telemetryColumns = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c', 'estatus', 'observaciones', 'user_id'];
-                        
+
                         const telemetryData = cleanData.map(r => {
                             let obj = {};
                             telemetryColumns.forEach(col => {
@@ -582,7 +791,7 @@
                         // 2. Extraer y subir Datos Técnicos (Cinta de Opciones)
                         // Tomamos el registro más reciente por cada pozo único en el CSV
                         const uniquePozos = [...new Set(cleanData.map(r => r.pozo_name))];
-                        
+
                         for (const pozo of uniquePozos) {
                             const pozoRecords = cleanData.filter(r => r.pozo_name === pozo);
                             const latest = pozoRecords[0]; // El primero suele ser el más reciente o representativo
@@ -606,8 +815,8 @@
                         statusText.textContent = '✅ Sincronización Total Finalizada';
                         Swal.fire({ icon: 'success', title: 'Importación Exitosa', text: 'Se han sincronizado los gráficos y la tabla técnica.' });
                         await refreshHistory();
-                    } catch (err) { 
-                        statusText.textContent = '❌ Error: ' + err.message; 
+                    } catch (err) {
+                        statusText.textContent = '❌ Error: ' + err.message;
                         console.error("CSV Upload Error:", err);
                     }
                 }
@@ -615,4 +824,5 @@
         }
     </script>
 </body>
+
 </html>

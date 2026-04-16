@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body class="auth-page">
     <!-- Premium Loader Overlay -->
     <div id="premium-loader" class="premium-loader-overlay">
@@ -21,7 +23,7 @@
         <main class="form-section">
             <div class="form-content-wrapper">
                 <header class="login-header">
-                    <img src="img/uvservicioslogo.png" alt="UV Servicios" class="brand-logo">
+                    <img src="img/UV SERVICES - Logo vectorial sin fondo.png" alt="UV Servicios" class="brand-logo">
                     <h1>Monitoreo Inteligente</h1>
                     <p>Ingrese sus credenciales corporativas para la gestión de pozos.</p>
                 </header>
@@ -34,23 +36,30 @@
                     <div class="form-group">
                         <label for="email">Correo Electrónico</label>
                         <div class="input-wrapper">
-                            <input type="email" id="email" required autocomplete="email" placeholder="usuario@uvservicios.com">
+                            <input type="email" id="email" required autocomplete="email"
+                                placeholder="usuario@uvservicios.com">
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="password">Contraseña</label>
                         <div class="input-wrapper password-group">
-                            <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
-                            <button type="button" id="toggle-password" class="btn-toggle-eye" title="Mostrar/Ocultar contraseña">
+                            <input type="password" id="password" required autocomplete="current-password"
+                                placeholder="••••••••">
+                            <button type="button" id="toggle-password" class="btn-toggle-eye"
+                                title="Mostrar/Ocultar contraseña">
                                 <!-- Eye Open Icon -->
-                                <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                     <circle cx="12" cy="12" r="3"></circle>
                                 </svg>
                                 <!-- Eye Closed (Eye-Off) Icon -->
-                                <svg class="eye-closed hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <svg class="eye-closed hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path
+                                        d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
+                                    </path>
                                     <line x1="1" y1="1" x2="23" y2="23"></line>
                                 </svg>
                             </button>
@@ -62,11 +71,13 @@
                         <div class="loader-container">
                             <svg viewBox="0 0 64 48" class="pumpjack-svg">
                                 <!-- Base Estructural (A-Frame) -->
-                                <path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
-                                
+                                <path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="white"
+                                    stroke-width="2" stroke-linecap="round" />
+
                                 <!-- Motor Trasero (Crank Assembly) -->
                                 <g class="crank-engine">
-                                    <circle cx="12" cy="38" r="6" fill="none" stroke="white" stroke-width="1" stroke-dasharray="2,2" opacity="0.2"/>
+                                    <circle cx="12" cy="38" r="6" fill="none" stroke="white" stroke-width="1"
+                                        stroke-dasharray="2,2" opacity="0.2" />
                                     <g class="crank-arm">
                                         <rect x="10" y="32" width="4" height="12" rx="2" fill="white" />
                                         <circle cx="12" cy="38" r="1.5" fill="#0F172A" />
@@ -78,13 +89,16 @@
                                     <!-- Viga Principal -->
                                     <path d="M8 16 L52 16 L52 20 L8 20 Z" fill="white" />
                                     <!-- Cabezal de Caballo -->
-                                    <path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z" fill="white" />
+                                    <path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z"
+                                        fill="white" />
                                     <!-- Varilla de Extracción -->
-                                    <line x1="62" y1="34" x2="62" y2="46" stroke="white" stroke-width="1.2" stroke-dasharray="1,1" />
+                                    <line x1="62" y1="34" x2="62" y2="46" stroke="white" stroke-width="1.2"
+                                        stroke-dasharray="1,1" />
                                     <!-- Biela de Conexión (Pitman Arm) -->
-                                    <line x1="12" y1="20" x2="12" y2="34" stroke="white" stroke-width="2" stroke-linecap="round" />
+                                    <line x1="12" y1="20" x2="12" y2="34" stroke="white" stroke-width="2"
+                                        stroke-linecap="round" />
                                     <!-- Punto de Pivote Central -->
-                                    <circle cx="32" cy="18" r="2.8" fill="#0F172A"/> 
+                                    <circle cx="32" cy="18" r="2.8" fill="#0F172A" />
                                 </g>
                             </svg>
                         </div>
@@ -109,4 +123,5 @@
     <script type="module" src="js/bg-animation.js"></script>
     <script type="module" src="js/main.js"></script>
 </body>
+
 </html>

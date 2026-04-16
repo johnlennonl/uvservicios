@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,29 +13,81 @@
             --sidebar-width: 260px;
             --pbi-red: #800000;
         }
-        body { background: #F0F2F5; margin: 0; padding: 0; display: block; min-height: 100vh; font-family: 'Inter', sans-serif; }
-        .dashboard-layout { display: grid; grid-template-columns: var(--sidebar-width) 1fr; min-height: 100vh; }
-        
-        .btn-report-toggle {
-            position: fixed; right: 20px; bottom: 20px; background: var(--pbi-red);
-            color: white; border: none; padding: 16px 24px; border-radius: 50px;
-            font-weight: 800; cursor: pointer; font-size: 0.9rem; transition: all 0.3s;
-            box-shadow: 0 10px 25px rgba(128,0,0,0.4); z-index: 2000;
+
+        body {
+            background: #F0F2F5;
+            margin: 0;
+            padding: 0;
+            display: block;
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
         }
-        .btn-report-toggle:hover { background: #a00000; transform: translateY(-5px); }
+
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: var(--sidebar-width) 1fr;
+            min-height: 100vh;
+        }
+
+        .btn-report-toggle {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            background: var(--pbi-red);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 50px;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            box-shadow: 0 10px 25px rgba(128, 0, 0, 0.4);
+            z-index: 2000;
+        }
+
+        .btn-report-toggle:hover {
+            background: #a00000;
+            transform: translateY(-5px);
+        }
 
         /* Report Mode Transformation CSS */
-        .view-mode-report { background: white; }
-        .view-mode-report .sidebar, .view-mode-report .tools-section, .view-mode-report .btn-action { display: none !important; }
-        .view-mode-report .dashboard-layout { grid-template-columns: 1fr; }
-        .view-mode-report .main-container { padding: 10px 40px; }
-        .view-mode-report .history-card { border: none; box-shadow: none; border-bottom: 2px solid #F3F4F6; padding: 15px 0; border-radius: 0; }
-        
-        @media print {
-            .btn-report-toggle { display: none !important; }
-            .history-card { page-break-inside: avoid; }
+        .view-mode-report {
+            background: white;
         }
-        
+
+        .view-mode-report .sidebar,
+        .view-mode-report .tools-section,
+        .view-mode-report .btn-action {
+            display: none !important;
+        }
+
+        .view-mode-report .dashboard-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .view-mode-report .main-container {
+            padding: 10px 40px;
+        }
+
+        .view-mode-report .history-card {
+            border: none;
+            box-shadow: none;
+            border-bottom: 2px solid #F3F4F6;
+            padding: 15px 0;
+            border-radius: 0;
+        }
+
+        @media print {
+            .btn-report-toggle {
+                display: none !important;
+            }
+
+            .history-card {
+                page-break-inside: avoid;
+            }
+        }
+
         /* Sidebar - Premium Corporate Matte */
         .sidebar {
             background: #0F172A;
@@ -49,15 +102,18 @@
             border-right: 1px solid #1E293B;
             z-index: 1000;
         }
-        
+
         .sidebar-logo {
-            width: 140px;
+            width: 180px;
             margin: 0 auto;
             display: block;
             filter: brightness(0) invert(1);
             transition: opacity 0.3s ease;
         }
-        .sidebar-logo:hover { opacity: 0.8; }
+
+        .sidebar-logo:hover {
+            opacity: 0.8;
+        }
 
         .sidebar nav {
             display: flex;
@@ -78,6 +134,7 @@
             transition: all 0.2s ease;
             border: 1px solid transparent;
         }
+
         .nav-link svg {
             width: 20px;
             height: 20px;
@@ -85,17 +142,23 @@
             color: currentColor;
             opacity: 0.7;
         }
-        .nav-link:hover { 
-            color: #F8FAFC; 
-            background: #1E293B; 
+
+        .nav-link:hover {
+            color: #F8FAFC;
+            background: #1E293B;
         }
-        .nav-link.active { 
-            color: #FFFFFF; 
-            background: #1E293B; 
+
+        .nav-link.active {
+            color: #FFFFFF;
+            background: #1E293B;
             border: 1px solid #334155;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        .nav-link.active svg { opacity: 1; color: #38BDF8; }
+
+        .nav-link.active svg {
+            opacity: 1;
+            color: #38BDF8;
+        }
 
         #logout-btn {
             margin-top: auto;
@@ -112,68 +175,192 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        #logout-btn svg { width: 18px; height: 18px; opacity: 1; }
+
+        #logout-btn svg {
+            width: 18px;
+            height: 18px;
+            opacity: 1;
+        }
+
         #logout-btn:hover {
             background: #7F1D1D;
             color: white;
             border-color: #991B1B;
         }
-        
-        .main-container { padding: 30px 40px; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        header h1 { margin: 0; font-size: 1.8rem; font-weight: 800; color: #111827; }
-        header p { margin: 5px 0 0 0; color: #6B7280; font-size: 0.95rem; }
+
+        .main-container {
+            padding: 30px 40px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        header p {
+            margin: 5px 0 0 0;
+            color: #6B7280;
+            font-size: 0.95rem;
+        }
 
         .pozos-list {
-            display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 30px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
         }
-        .btn-pozo {
-            background: white; border: 1.5px solid #E5E7EB; padding: 12px 24px; border-radius: 12px;
-            font-weight: 800; color: #374151; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-        }
-        .btn-pozo:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.05); border-color: #CBD5E1; }
-        .btn-pozo.active { background: #111827; color: white; border-color: #111827; box-shadow: 0 8px 20px rgba(17, 24, 39, 0.3); }
 
-        .history-card { background: white; border-radius: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #F3F4F6; overflow: hidden; }
-        .history-table { width: 100%; border-collapse: collapse; text-align: left; }
-        .history-table th { background: #F8FAFC; padding: 16px; font-size: 0.75rem; text-transform: uppercase; color: #64748B; font-weight: 800; border-bottom: 2px solid #E2E8F0; }
-        .history-table td { padding: 16px; border-bottom: 1px solid #F1F5F9; font-size: 0.9rem; color: #334155; vertical-align: middle; }
-        .history-table tr:hover { background: #F8FAFC; }
-        
-        .btn-action { padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; cursor: pointer; border: none; transition: 0.2s; margin-left: 5px; }
-        .btn-delete { background: #FEE2E2; color: #DC2626; }
-        .btn-delete:hover { background: #FCA5A5; }
+        .btn-pozo {
+            background: white;
+            border: 1.5px solid #E5E7EB;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 800;
+            color: #374151;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        }
+
+        .btn-pozo:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+            border-color: #CBD5E1;
+        }
+
+        .btn-pozo.active {
+            background: #111827;
+            color: white;
+            border-color: #111827;
+            box-shadow: 0 8px 20px rgba(17, 24, 39, 0.3);
+        }
+
+        .history-card {
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            border: 1px solid #F3F4F6;
+            overflow: hidden;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .history-table th {
+            background: #F8FAFC;
+            padding: 16px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #64748B;
+            font-weight: 800;
+            border-bottom: 2px solid #E2E8F0;
+        }
+
+        .history-table td {
+            padding: 16px;
+            border-bottom: 1px solid #F1F5F9;
+            font-size: 0.9rem;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .history-table tr:hover {
+            background: #F8FAFC;
+        }
+
+        .btn-action {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            margin-left: 5px;
+        }
+
+        .btn-delete {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .btn-delete:hover {
+            background: #FCA5A5;
+        }
 
         @media (max-width: 1024px) {
-            .dashboard-layout { grid-template-columns: 1fr; }
-            .sidebar { position: static; height: auto; flex-direction: row; align-items: center; justify-content: space-between; padding: 10px 20px; }
-            .sidebar nav { flex-direction: row; flex-wrap: wrap; }
-            .sidebar-logo { width: 80px; margin: 0; }
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                height: auto;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 20px;
+            }
+
+            .sidebar nav {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .sidebar-logo {
+                width: 80px;
+                margin: 0;
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="dashboard-layout">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <img src="img/uvservicioslogo.png" alt="Logo" class="sidebar-logo">
+            <img src="img/UV SERVICES - Logo vectorial sin fondo.png" alt="Logo" class="sidebar-logo">
             <nav>
                 <a href="dashboard.html" class="nav-link">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> 
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                    </svg>
                     Dashboard
                 </a>
                 <a href="dashboard-data.html" class="nav-link">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
                     Gestión
                 </a>
                 <a href="data.html" class="nav-link active">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
                     Data
                 </a>
             </nav>
             <button id="logout-btn" class="nav-link">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
                 Salir
             </button>
         </aside>
@@ -193,23 +380,32 @@
             </div>
 
             <!-- Dashboard Tools & Filters -->
-            <div class="tools-section" style="display: none; margin-bottom: 15px; justify-content: flex-end; gap: 10px;" id="tools-section">
-                <select id="filter-date" style="padding: 10px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; cursor: pointer; background: white;">
+            <div class="tools-section" style="display: none; margin-bottom: 15px; justify-content: flex-end; gap: 10px;"
+                id="tools-section">
+                <select id="filter-date"
+                    style="padding: 10px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; cursor: pointer; background: white;">
                     <option value="30">Últimos 30 Días</option>
                     <option value="7">Últimos 7 Días</option>
                     <option value="ALL">Todos los tiempos</option>
                     <option value="SPECIFIC">Fecha Específica...</option>
                 </select>
-                <input type="date" id="input-specific-date" style="display: none; padding: 9px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; background: white;">
-                <button id="btn-delete-all" class="btn-action btn-delete" style="display: none; padding: 10px 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Limpiar Todo el Historial</button>
+                <input type="date" id="input-specific-date"
+                    style="display: none; padding: 9px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; background: white;">
+                <button id="btn-delete-all" class="btn-action btn-delete"
+                    style="display: none; padding: 10px 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Limpiar
+                    Todo el Historial</button>
             </div>
 
             <!-- Recent History Table -->
             <section class="history-card" id="history-container" style="display: none;">
-                <div style="padding: 16px; border-bottom: 1px solid #E2E8F0; display: flex; flex-direction: column; gap: 10px;">
+                <div
+                    style="padding: 16px; border-bottom: 1px solid #E2E8F0; display: flex; flex-direction: column; gap: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h2 id="table-title" style="margin:0; font-size: 1rem; font-weight: 800; color: #1F2937;">Historial</h2>
-                        <span id="record-count" style="font-size: 0.8rem; background: #E0E7FF; color: #4338CA; padding: 4px 10px; border-radius: 20px; font-weight: 700;">0 Registros</span>
+                        <h2 id="table-title" style="margin:0; font-size: 1rem; font-weight: 800; color: #1F2937;">
+                            Historial</h2>
+                        <span id="record-count"
+                            style="font-size: 0.8rem; background: #E0E7FF; color: #4338CA; padding: 4px 10px; border-radius: 20px; font-weight: 700;">0
+                            Registros</span>
                     </div>
                 </div>
                 <div style="overflow-x: auto;">
@@ -232,39 +428,61 @@
                     </table>
                 </div>
             </section>
-            
+
             <!-- Premium Empty State -->
-            <div id="empty-state" style="text-align: center; padding: 80px 20px; background: white; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #E2E8F0; margin-top: 20px;">
+            <div id="empty-state"
+                style="text-align: center; padding: 80px 20px; background: white; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #E2E8F0; margin-top: 20px;">
                 <div style="max-width: 600px; margin: 0 auto;">
                     <div style="margin-bottom: 30px;">
-                        <div style="width: 130px; height: 130px; background: rgba(37, 99, 235, 0.05); color: #2563EB; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; border: 2px dashed rgba(37, 99, 235, 0.2); animation: floatPulse 3s ease-in-out infinite;">
+                        <div
+                            style="width: 130px; height: 130px; background: rgba(37, 99, 235, 0.05); color: #2563EB; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; border: 2px dashed rgba(37, 99, 235, 0.2); animation: floatPulse 3s ease-in-out infinite;">
                             <!-- Oil Barrel SVG Icon -->
-                            <svg style="width: 65px; height: 65px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <svg style="width: 65px; height: 65px;" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="1.5">
                                 <ellipse cx="12" cy="5" rx="7" ry="3"></ellipse>
                                 <path d="M5 5v14c0 1.66 3.13 3 7 3s7-1.34 7-3V5"></path>
                                 <path d="M5 12c0 1.66 3.13 3 7 3s7-1.34 7-3"></path>
                             </svg>
                         </div>
                     </div>
-                    
-                    <h2 style="margin: 0; color: #1F2937; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.025em;">Consola UV Servicios</h2>
-                    <p style="color: #64748B; margin: 15px 0 30px 0; font-size: 1rem; line-height: 1.6;">Monitoreo de telemetría y producción BES. Selecciona un pozo de la lista superior para habilitar el análisis.</p>
-                    
-                    <a href="dashboard-data.html" style="display: inline-flex; align-items: center; gap: 10px; background: #2563EB; color: white; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 0.9rem; transition: all 0.2s; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
-                        <svg style="width: 20px; height: 20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+
+                    <h2
+                        style="margin: 0; color: #1F2937; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.025em;">
+                        Consola UV Servicios</h2>
+                    <p style="color: #64748B; margin: 15px 0 30px 0; font-size: 1rem; line-height: 1.6;">Monitoreo de
+                        telemetría y producción BES. Selecciona un pozo de la lista superior para habilitar el análisis.
+                    </p>
+
+                    <a href="dashboard-data.html"
+                        style="display: inline-flex; align-items: center; gap: 10px; background: #2563EB; color: white; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 0.9rem; transition: all 0.2s; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                        <svg style="width: 20px; height: 20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
                         Sincronizar Telemetría
                     </a>
                 </div>
             </div>
-            
+
             <style>
                 @keyframes floatPulse {
-                    0% { transform: translateY(0); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.2); }
-                    50% { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(37, 99, 235, 0.1); }
-                    100% { transform: translateY(0); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.2); }
+                    0% {
+                        transform: translateY(0);
+                        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.2);
+                    }
+
+                    50% {
+                        transform: translateY(-10px);
+                        box-shadow: 0 20px 40px rgba(37, 99, 235, 0.1);
+                    }
+
+                    100% {
+                        transform: translateY(0);
+                        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.2);
+                    }
                 }
             </style>
-            
+
             <button id="main-view-toggle" class="btn-report-toggle">
                 <span>EXPORTAR REPORTE</span>
             </button>
@@ -282,7 +500,7 @@
             const session = await getSession();
             if (!session) { window.location.href = 'index.html'; return; }
             document.getElementById('logout-btn').addEventListener('click', logout);
-            
+
             await initPozos();
         });
 
@@ -291,7 +509,7 @@
                 const pozos = await getUniquePozos();
                 const container = document.getElementById('pozos-container');
                 container.innerHTML = '';
-                
+
                 if (!pozos || pozos.length === 0) {
                     container.innerHTML = '<p style="color: #EF4444;">No hay pozos registrados en la base de datos.</p>';
                     return;
@@ -325,13 +543,13 @@
 
         async function selectPozo(pozo) {
             activePozo = pozo;
-            
+
             // Switch UI states
             document.getElementById('empty-state').style.display = 'none';
             document.getElementById('history-container').style.display = 'block';
             document.getElementById('tools-section').style.display = 'flex';
             document.getElementById('btn-delete-all').style.display = 'inline-block';
-            
+
             // UI Update
             document.querySelectorAll('.btn-pozo').forEach(b => b.classList.remove('active'));
             const targetBtn = Array.from(document.querySelectorAll('.btn-pozo')).find(b => b.textContent === pozo);
@@ -339,7 +557,7 @@
 
             document.getElementById('table-title').textContent = `Historial Técnico: ${pozo}`;
             document.getElementById('history-body').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px;">Cargando datos...</td></tr>';
-            
+
             await loadPozoData();
         }
 
@@ -349,7 +567,7 @@
                 // Gather date filter
                 const filterVal = document.getElementById('filter-date').value;
                 const specificDate = document.getElementById('input-specific-date').value;
-                
+
                 let startStr = null;
                 let endStr = null;
 
@@ -384,7 +602,7 @@
                 const tr = document.createElement('tr');
                 // We now know the ID field is definitely 'id'
                 const recordId = record.id || record.ID || null;
-                
+
                 if (!recordId) {
                     console.warn("ALERTA: Registro sin ID detectado. Campos:", Object.keys(record));
                 }
@@ -398,17 +616,26 @@
                     <td style="font-family: monospace;">${record.vsd_a} / ${record.vsd_b || 0} / ${record.vsd_c || 0}</td>
                     <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}; font-weight: 800;">${record.estatus}</span></td>
                     <td style="text-align: right;">
+                        <button class="btn-action btn-edit" data-id="${recordId}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
                         <button class="btn-action btn-delete" data-id="${recordId}">Borrar</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
 
+            // Bind Edit Actions
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.onclick = function() {
+                    const id = this.getAttribute('data-id');
+                    window.location.href = `dashboard-data.html?edit=${id}`;
+                };
+            });
+
             // Bind delete with SweetAlert
             document.querySelectorAll('.btn-delete').forEach(btn => {
-                btn.onclick = async function() {
+                btn.onclick = async function () {
                     const id = this.getAttribute('data-id');
-                    
+
                     if (!id || id === 'null') {
                         Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo leer el ID de este registro.' });
                         return;
@@ -427,10 +654,10 @@
                     if (result.isConfirmed) {
                         try {
                             await deleteRecord(id);
-                            Swal.fire({icon: 'success', title: 'Borrado', showConfirmButton: false, timer: 1500});
+                            Swal.fire({ icon: 'success', title: 'Borrado', showConfirmButton: false, timer: 1500 });
                             await loadPozoData();
                         } catch (err) {
-                            Swal.fire({icon: 'error', title: 'Error', text: err.message});
+                            Swal.fire({ icon: 'error', title: 'Error', text: err.message });
                         }
                     }
                 };
@@ -455,17 +682,17 @@
             if (result.isConfirmed) {
                 try {
                     Swal.fire({ title: 'Limpiando base de datos...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-                    
+
                     const deletedCount = await deleteAllRecordsByPozo(activePozo);
-                    
-                    Swal.fire({ 
-                        icon: 'success', 
-                        title: 'Historial Eliminado', 
-                        text: `Se han borrado ${deletedCount} registros de ${activePozo} con éxito.`, 
-                        timer: 3000, 
-                        showConfirmButton: true 
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Historial Eliminado',
+                        text: `Se han borrado ${deletedCount} registros de ${activePozo} con éxito.`,
+                        timer: 3000,
+                        showConfirmButton: true
                     });
-                    
+
                     // Force UI Reset
                     activePozo = null;
                     document.getElementById('pozos-container').innerHTML = '<p>Actualizando lista...</p>';
@@ -486,9 +713,9 @@
             if (isStandard) {
                 document.body.classList.add('view-mode-report');
                 document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER A LA WEB';
-                
+
                 // Open the Print (Save as PDF) dialog automatically
-                setTimeout(() => { window.print(); }, 500); 
+                setTimeout(() => { window.print(); }, 500);
             } else {
                 document.body.classList.remove('view-mode-report');
                 document.getElementById('main-view-toggle').querySelector('span').textContent = 'EXPORTAR REPORTE';
@@ -496,4 +723,5 @@
         });
     </script>
 </body>
+
 </html>
