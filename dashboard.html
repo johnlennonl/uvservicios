@@ -506,6 +506,21 @@
                 display: none;
             }
 
+            .btn-report-toggle {
+                right: 14px;
+                bottom: 88px;
+                padding: 12px 14px;
+                border-radius: 16px;
+                font-size: 0.74rem;
+                gap: 6px;
+                box-shadow: 0 12px 24px rgba(128, 0, 0, 0.28);
+            }
+
+            .btn-report-toggle svg {
+                width: 16px;
+                height: 16px;
+            }
+
             .main-container {
                 padding: 20px 15px 96px 15px;
             }
@@ -693,6 +708,19 @@
                 bottom: 10px;
                 padding: 8px;
                 gap: 6px;
+            }
+
+            .btn-report-toggle {
+                right: 10px;
+                bottom: 84px;
+                min-width: 44px;
+                min-height: 44px;
+                padding: 11px 12px;
+                border-radius: 14px;
+            }
+
+            .btn-report-toggle span {
+                display: none;
             }
 
             .mobile-nav-link,
@@ -1007,6 +1035,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="css/dashboard-page.css">
 </head>
 
 <body class="view-mode-standard">
@@ -1049,13 +1078,6 @@
                     Data
                 </a>
             </nav>
-            <button id="main-view-toggle" class="btn-report-toggle">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M9 17v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v8m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <span>Reporte</span>
-            </button>
             <button id="logout-btn" class="nav-link">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -1064,6 +1086,14 @@
                 Salir
             </button>
         </aside>
+
+        <button id="main-view-toggle" class="btn-report-toggle">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M9 17v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v8m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span>Reporte</span>
+        </button>
 
         <!-- Main Workspace -->
         <main class="main-container">

@@ -161,6 +161,7 @@
             align-items: center;
             gap: 8px;
             border: 2px solid rgba(255, 255, 255, 0.1);
+            z-index: 2205;
         }
 
         .btn-report-toggle svg {
@@ -492,6 +493,21 @@
                 display: none;
             }
 
+            .btn-report-toggle {
+                right: 14px;
+                bottom: 88px;
+                padding: 12px 14px;
+                border-radius: 16px;
+                font-size: 0.74rem;
+                gap: 6px;
+                box-shadow: 0 12px 24px rgba(128, 0, 0, 0.28);
+            }
+
+            .btn-report-toggle svg {
+                width: 16px;
+                height: 16px;
+            }
+
             .main-container {
                 padding: 20px 15px 96px 15px;
             }
@@ -679,6 +695,19 @@
                 bottom: 10px;
                 padding: 8px;
                 gap: 6px;
+            }
+
+            .btn-report-toggle {
+                right: 10px;
+                bottom: 84px;
+                min-width: 44px;
+                min-height: 44px;
+                padding: 11px 12px;
+                border-radius: 14px;
+            }
+
+            .btn-report-toggle span {
+                display: none;
             }
 
             .mobile-nav-link,
