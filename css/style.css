@@ -22,23 +22,24 @@ body {
     font-family: var(--font-main);
     color: var(--text-main);
     background: #FFFFFF;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden; /* Evita scroll vertical */
 }
 
 .split-container {
     display: flex;
     width: 100%;
-    min-height: 100vh;
+    height: 100vh;
 }
 
 /* 🏢 FORM SECTION (Technical White) */
 .form-section {
-    flex: 0 0 42%;
+    flex: 0 0 40%;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 60px;
+    padding: 5vh 40px; /* Reducido para mayor compactación */
     background: radial-gradient(circle at center, #FFFFFF 0%, #F8FAFC 100%);
     position: relative;
     z-index: 10;
@@ -69,17 +70,17 @@ body {
 }
 
 .brand-logo {
-    width: 180px;
+    width: 155px; /* Más pequeño para ahorrar espacio vertical */
     height: auto;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 }
 
 .login-header h1 {
-    font-size: 2.2rem;
+    font-size: 1.85rem; /* Escala reducida para que quepa todo */
     font-weight: 900;
     color: var(--primary-dark);
     letter-spacing: -0.04em;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     text-transform: uppercase;
 }
 
@@ -90,20 +91,19 @@ body {
 }
 
 .login-footer {
-    margin-top: 60px;
-    /* FIXED: Added more space between button and footer */
-    font-size: 0.85rem;
+    margin-top: auto; /* Empuja el footer al final sin forzar scroll */
+    font-size: 0.8rem;
     color: var(--text-muted);
     border-top: 1px solid rgba(0, 0, 0, 0.05);
-    padding-top: 25px;
-    line-height: 1.6;
+    padding-top: 20px;
+    line-height: 1.5;
 }
 
 /* Form Styles */
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px; /* Menos espacio entre inputs */
 }
 
 .form-group label {
@@ -122,8 +122,8 @@ body {
 
 .input-wrapper input {
     width: 100%;
-    padding: 15px 18px;
-    font-size: 1rem;
+    padding: 14px 18px; /* Ligeramente más compactos */
+    font-size: 0.95rem;
     background: var(--input-bg);
     border: 2px solid var(--border-color);
     border-radius: var(--radius-md);
@@ -172,8 +172,8 @@ body {
 .btn-submit {
     background: var(--uv-red);
     color: white;
-    padding: 18px;
-    font-size: 1rem;
+    padding: 15px; /* Más compacto verticalmente */
+    font-size: 0.95rem;
     font-weight: 700;
     border: none;
     border-radius: var(--radius-md);
@@ -275,19 +275,19 @@ body {
 .image-section {
     flex: 1;
     position: relative;
-    background-image: url('../img/banner2.jpeg');
+    background-image: url('../img/imagen2.png');
     /* High-res version */
     background-size: cover;
-    background-position: center;
+    background-position: center bottom; /* Aseguramos que el balancín se vea */
     background-repeat: no-repeat;
     display: flex;
     align-items: flex-end;
-    padding: 60px;
+    padding: 40px;
 }
 
 /* Force path fallback */
 .auth-page .image-section {
-    background-image: url('../img/banner2.jpeg') !important;
+    background-image: url('../img/imagen2.png') !important;
 }
 
 .image-overlay {
@@ -302,6 +302,8 @@ body {
 
 /* 🏆 COMMEMORATIVE CAPTION (Zumaque 1) */
 .image-caption {
+    display: none;
+    /* Oculto temporalmente a petición */
     position: absolute;
     bottom: 50px;
     left: 50px;
@@ -325,7 +327,8 @@ body {
     font-size: 0.65rem;
     font-weight: 800;
     letter-spacing: 0.15em;
-    color: #38BDF8; /* Sky Blue accent */
+    color: #38BDF8;
+    /* Sky Blue accent */
     margin-bottom: 8px;
     display: block;
 }
@@ -356,8 +359,15 @@ body {
 }
 
 @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 #telemetry-bg {
