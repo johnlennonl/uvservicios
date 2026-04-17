@@ -339,6 +339,12 @@
                 padding: 12px 18px !important;
             }
 
+            #tech-submit-btn {
+                width: 100% !important;
+                justify-content: center;
+                padding: 12px 18px !important;
+            }
+
             #cancel-edit {
                 white-space: nowrap;
             }
@@ -656,6 +662,10 @@
             }
 
             #submit-btn {
+                padding: 11px 16px !important;
+            }
+
+            #tech-submit-btn {
                 padding: 11px 16px !important;
             }
 

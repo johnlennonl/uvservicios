@@ -110,14 +110,19 @@ export async function bulkInsertRecords(records) {
  * Fetches unique well names for filters.
  */
 export async function getUniquePozos() {
-    const { data, error } = await supabase
-        .from('monitoreo_pozos')
-        .select('pozo_name');
-    
-    if (error) throw error;
-    
-// ... (getUniquePozos)
-    return [...new Set(data.map(item => item.pozo_name))];
+    const [monitoringResult, technicalResult] = await Promise.all([
+        supabase.from('monitoreo_pozos').select('pozo_name'),
+        supabase.from('well_production').select('pozo_name')
+    ]);
+
+    if (monitoringResult.error) throw monitoringResult.error;
+    if (technicalResult.error) throw technicalResult.error;
+
+    const allPozos = [...(monitoringResult.data || []), ...(technicalResult.data || [])]
+        .map(item => item?.pozo_name?.trim())
+        .filter(Boolean);
+
+    return [...new Set(allPozos)];
 }
 
 /**
@@ -189,6 +194,46 @@ export async function getWellTechnicalData(pozoName) {
     }
     
     return data && data.length > 0 ? data[0] : null;
+}
+
+export async function getWellRibbonData(pozoName) {
+    if (!pozoName || pozoName === 'Todas') return null;
+
+    const [latestMonitoringResult, latestTechnical] = await Promise.all([
+        supabase
+            .from('monitoreo_pozos')
+            .select('*')
+            .eq('pozo_name', pozoName)
+            .order('fecha', { ascending: false })
+            .order('hora', { ascending: false })
+            .limit(1),
+        getWellTechnicalData(pozoName)
+    ]);
+
+    if (latestMonitoringResult.error) {
+        console.error('Error fetching latest monitoring data for ribbon:', latestMonitoringResult.error);
+    }
+
+    const latestMonitoring = latestMonitoringResult.data && latestMonitoringResult.data.length > 0
+        ? latestMonitoringResult.data[0]
+        : null;
+
+    if (!latestMonitoring && !latestTechnical) return null;
+
+    const firstDefined = (...values) => values.find(value => value !== undefined && value !== null && `${value}`.trim() !== '');
+    const measurementDate = latestTechnical?.fecha || null;
+
+    return {
+        campo_name: firstDefined(latestMonitoring?.campo_name, latestMonitoring?.campo, latestTechnical?.campo_name),
+        pozo_name: firstDefined(latestMonitoring?.pozo_name, latestTechnical?.pozo_name, pozoName),
+        ef: firstDefined(latestMonitoring?.ef, latestMonitoring?.estacion, latestTechnical?.ef),
+        fecha: firstDefined(latestTechnical?.fecha, latestMonitoring?.fecha),
+        measurement_date: measurementDate,
+        bbpd: firstDefined(latestMonitoring?.bbpd, latestTechnical?.bbpd),
+        ays_percentage: firstDefined(latestMonitoring?.ays_percentage, latestMonitoring?.ays, latestTechnical?.ays_percentage),
+        bnpd: firstDefined(latestMonitoring?.bnpd, latestTechnical?.bnpd),
+        cat_number: firstDefined(latestMonitoring?.cat_number, latestMonitoring?.cat, latestTechnical?.cat_number)
+    };
 }
 
 /**

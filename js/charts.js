@@ -4,7 +4,7 @@
  */
 
 import { logout, getSession } from './auth.js';
-import { getMonitoringData, getUniquePozos, getLatestDate, getNeighborRecords, getWellTechnicalData } from './data-service.js';
+import { getMonitoringData, getUniquePozos, getLatestDate, getNeighborRecords, getWellRibbonData } from './data-service.js';
 import { hideFullLoader, showFullLoader } from './ui.js';
 
 let charts = {};
@@ -198,6 +198,9 @@ async function updateDashboard() {
 
     try {
         const data = await getMonitoringData(selectedPozos, start, end);
+        const ribbonData = selectedPozos.length === 1
+            ? await getWellRibbonData(selectedPozos[0])
+            : null;
         
         const welcomeView = document.getElementById('welcome-view');
         const dataRibbon = document.getElementById('data-ribbon-elite');
@@ -205,9 +208,25 @@ async function updateDashboard() {
 
         if (!data || data.length === 0) {
             clearDashboard();
-            if (welcomeView) welcomeView.style.display = 'block';
-            if (dataRibbon) dataRibbon.style.display = 'none';
+            if (dataRibbon && ribbonData) {
+                if (welcomeView) welcomeView.style.display = 'none';
+                dataRibbon.style.display = 'grid';
+                updateDataRibbon(ribbonData);
+            } else {
+                if (welcomeView) welcomeView.style.display = 'block';
+            }
+
+            if (!ribbonData && dataRibbon) {
+                dataRibbon.style.display = 'none';
+            }
             if (brutalGrid) brutalGrid.style.display = 'none';
+
+            const title = document.querySelector('.main-container header p');
+            if (title && selectedPozos.length === 1) {
+                title.textContent = ribbonData
+                    ? `Pozo ${selectedPozos[0]} sin telemetria para la fecha seleccionada. Mostrando Produccion Tecnica.`
+                    : `Pozo ${selectedPozos[0]} sin telemetria ni Produccion Tecnica disponible.`;
+            }
             
             chartContainers.forEach(el => el.parentElement.classList.remove('loading-skeleton'));
             return;
@@ -218,10 +237,9 @@ async function updateDashboard() {
         if (dataRibbon) dataRibbon.style.display = 'grid';
         if (brutalGrid) brutalGrid.style.display = 'grid';
 
-        // 🟢 NEW: Fetch and Update Technical Data Ribbon
+        // Use the latest well record first, then fall back to the technical table.
         if (selectedPozos.length === 1) {
-            const techData = await getWellTechnicalData(selectedPozos[0]);
-            updateDataRibbon(techData);
+            updateDataRibbon(ribbonData);
         } else {
             updateDataRibbon(null);
         }
@@ -543,7 +561,7 @@ function updateDataRibbon(data) {
         'rb-campo': data?.campo_name || '--',
         'rb-pozo': data?.pozo_name || '--',
         'rb-ef': data?.ef || '--',
-        'rb-fecha': data?.fecha || '--',
+        'rb-fecha': data?.measurement_date || data?.fecha || '--',
         'rb-bbpd': data?.bbpd || '--',
         'rb-ays': data?.ays_percentage ? `${data.ays_percentage}%` : '--',
         'rb-bnpd': data?.bnpd || '--',
