@@ -4,13 +4,181 @@
  */
 
 import { logout, getSession } from './auth.js';
-import { getMonitoringData, getUniquePozos, getLatestDate, getNeighborRecords, getWellRibbonData } from './data-service.js';
+import { getMonitoringData, getLatestDate, getNeighborRecords, getPozoRecordDates, getPozosHistorySummary, getWellRibbonData } from './data-service.js';
 import { hideFullLoader, showFullLoader } from './ui.js';
 
 let charts = {};
 let isComparisonMode = false;
 let isDarkMode = localStorage.getItem('theme-uv') === 'dark';
 let resizeFrame = null;
+let historicalRecordOptions = [];
+let pozoSummaries = [];
+const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
+
+function getStoredSelectedPozo() {
+    return sessionStorage.getItem(ACTIVE_POZO_STORAGE_KEY) || '';
+}
+
+function setStoredSelectedPozo(pozoName) {
+    if (pozoName) {
+        sessionStorage.setItem(ACTIVE_POZO_STORAGE_KEY, pozoName);
+    } else {
+        sessionStorage.removeItem(ACTIVE_POZO_STORAGE_KEY);
+    }
+}
+
+function getPozoSummary(pozoName) {
+    return pozoSummaries.find(item => item.pozo_name === pozoName) || null;
+}
+
+function renderPozoFilterOptions(ignoreSearch = false) {
+    const menu = document.getElementById('filter-pozo-menu');
+    const input = document.getElementById('filter-pozo-display');
+    const hiddenInput = document.getElementById('filter-pozo');
+    if (!menu || !input || !hiddenInput) return;
+
+    const searchTerm = ignoreSearch ? '' : input.value.trim().toLowerCase();
+    const filteredPozos = pozoSummaries.filter(item => {
+        if (!searchTerm) return true;
+        return item.pozo_name.toLowerCase().includes(searchTerm);
+    });
+
+    if (filteredPozos.length === 0) {
+        menu.innerHTML = '<div class="pozo-selector-empty">No hay pozos para esa busqueda.</div>';
+        return;
+    }
+
+    menu.innerHTML = filteredPozos.map(item => `
+        <button type="button" class="pozo-selector-option ${item.pozo_name === hiddenInput.value ? 'active' : ''}" data-pozo="${item.pozo_name}">
+            <span class="pozo-status-dot ${item.has_records ? 'active' : 'inactive'}"></span>
+            <span class="pozo-option-name">${item.pozo_name}</span>
+            <span class="pozo-option-state ${item.has_records ? 'active' : 'inactive'}">${item.has_records ? 'Con registros' : 'Sin registros'}</span>
+        </button>
+    `).join('');
+
+    menu.querySelectorAll('.pozo-selector-option').forEach(button => {
+        button.addEventListener('click', async () => {
+            await selectDashboardPozo(button.dataset.pozo);
+        });
+    });
+}
+
+function openPozoFilterMenu(ignoreSearch = false) {
+    const menu = document.getElementById('filter-pozo-menu');
+    if (!menu) return;
+    renderPozoFilterOptions(ignoreSearch);
+    menu.classList.add('active');
+}
+
+function closePozoFilterMenu() {
+    document.getElementById('filter-pozo-menu')?.classList.remove('active');
+}
+
+async function selectDashboardPozo(pozoName) {
+    const hiddenInput = document.getElementById('filter-pozo');
+    const displayInput = document.getElementById('filter-pozo-display');
+    if (!hiddenInput || !displayInput) return;
+
+    hiddenInput.value = pozoName || '';
+    displayInput.value = pozoName || '';
+    setStoredSelectedPozo(pozoName || '');
+    closePozoFilterMenu();
+
+    const latestDate = getPozoSummary(pozoName)?.latest_fecha || null;
+    document.getElementById('filter-start').value = latestDate || '';
+    document.getElementById('filter-end').value = latestDate || '';
+
+    await syncHistoricalRecordSelector(pozoName || '');
+    updateDashboard();
+}
+
+function closeHistoricalRecordMenu() {
+    document.getElementById('historical-record-menu')?.classList.remove('active');
+}
+
+function selectHistoricalRecord(dateValue) {
+    const input = document.getElementById('historical-record-input');
+    const startInput = document.getElementById('filter-start');
+    const endInput = document.getElementById('filter-end');
+
+    if (!input || !startInput || !endInput) return;
+
+    input.value = dateValue || '';
+    startInput.value = dateValue || '';
+    endInput.value = dateValue || '';
+
+    closeHistoricalRecordMenu();
+    updateDashboard();
+}
+
+function renderHistoricalRecordMenu() {
+    const menu = document.getElementById('historical-record-menu');
+    const input = document.getElementById('historical-record-input');
+    if (!menu || !input) return;
+
+    if (historicalRecordOptions.length === 0) {
+        menu.innerHTML = '<button type="button" class="historical-record-option" disabled>Sin registros disponibles</button>';
+        return;
+    }
+
+    menu.innerHTML = historicalRecordOptions
+        .map(option => `
+            <button type="button" class="historical-record-option ${option.value === input.value ? 'active' : ''}" data-value="${option.value}">
+                ${option.label}
+            </button>
+        `)
+        .join('');
+
+    menu.querySelectorAll('.historical-record-option[data-value]').forEach(button => {
+        button.addEventListener('click', () => selectHistoricalRecord(button.dataset.value));
+    });
+}
+
+async function syncHistoricalRecordSelector(pozoName, preserveSelection = false) {
+    const input = document.getElementById('historical-record-input');
+    const startInput = document.getElementById('filter-start');
+    const endInput = document.getElementById('filter-end');
+
+    if (!input || !startInput || !endInput) return;
+
+    const shouldEnable = Boolean(pozoName && !isComparisonMode);
+    input.disabled = !shouldEnable;
+
+    if (!shouldEnable) {
+        historicalRecordOptions = [];
+        input.value = '';
+        input.placeholder = !pozoName ? 'Selecciona un pozo' : 'No disponible en comparacion';
+        renderHistoricalRecordMenu();
+        closeHistoricalRecordMenu();
+        return;
+    }
+
+    const records = await getPozoRecordDates(pozoName);
+    const seenDates = new Set();
+
+    historicalRecordOptions = [];
+    records.forEach(record => {
+        if (!record?.fecha || seenDates.has(record.fecha)) return;
+        seenDates.add(record.fecha);
+        historicalRecordOptions.push({
+            value: record.fecha,
+            label: record.hora ? `${record.fecha} ${record.hora}` : record.fecha
+        });
+    });
+
+    const currentValueIsValid = historicalRecordOptions.some(option => option.value === input.value);
+    if (!preserveSelection || !currentValueIsValid) {
+        input.value = historicalRecordOptions[0]?.value || '';
+    }
+
+    if (input.value) {
+        startInput.value = input.value;
+        endInput.value = input.value;
+    }
+
+    input.placeholder = historicalRecordOptions.length > 0 ? 'Selecciona una fecha registrada' : 'Sin registros disponibles';
+    renderHistoricalRecordMenu();
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await getSession();
@@ -50,9 +218,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 1. Initialize Filters
     try {
-        const pozos = await getUniquePozos();
+        pozoSummaries = await getPozosHistorySummary();
+        const pozos = pozoSummaries.map(item => item.pozo_name);
         const pozoFilter = document.getElementById('filter-pozo');
+        const pozoFilterDisplay = document.getElementById('filter-pozo-display');
         const comparePanel = document.getElementById('comparison-panel');
+        const storedPozo = getStoredSelectedPozo();
 
         // Intelligent Initial Date: Fetch latest date in DB
         const latestDate = await getLatestDate();
@@ -62,12 +233,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (pozoFilter) {
-            pozoFilter.innerHTML = '<option value="" selected>SELECCIONAR POZO</option>';
-            pozos.sort().forEach(pozo => {
-                const option = document.createElement('option');
-                option.value = pozo; option.textContent = pozo;
-                pozoFilter.appendChild(option);
-            });
+            pozoFilter.value = '';
+            if (pozoFilterDisplay) {
+                pozoFilterDisplay.value = '';
+                pozoFilterDisplay.placeholder = 'Busca o selecciona un pozo';
+            }
+            renderPozoFilterOptions(true);
+
+            if (storedPozo && pozos.includes(storedPozo)) {
+                pozoFilter.value = storedPozo;
+                if (pozoFilterDisplay) pozoFilterDisplay.value = storedPozo;
+                const pozoDate = getPozoSummary(storedPozo)?.latest_fecha || await getLatestDate(storedPozo);
+                if (pozoDate) {
+                    document.getElementById('filter-start').value = pozoDate;
+                    document.getElementById('filter-end').value = pozoDate;
+                } else {
+                    document.getElementById('filter-start').value = '';
+                    document.getElementById('filter-end').value = '';
+                }
+                await syncHistoricalRecordSelector(storedPozo);
+            }
         }
 
         if (comparePanel) {
@@ -84,6 +269,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. Initial state: keep the brutal welcome view until a pozo is selected.
     clearDashboard();
 
+    if (document.getElementById('filter-pozo')?.value) {
+        updateDashboard();
+    }
+
     // Hide the premium loader after initial data is rendered (only if it was shown)
     if (isFirstEntry) {
         setTimeout(() => {
@@ -98,28 +287,88 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Auto-update on selection change
     const pozoFilter = document.getElementById('filter-pozo');
-    if (pozoFilter) {
-        pozoFilter.addEventListener('change', async () => {
-            const val = pozoFilter.value;
-            if (val) {
-                const date = await getLatestDate(val);
-                if (date) {
-                    document.getElementById('filter-start').value = date;
-                    document.getElementById('filter-end').value = date;
-                }
+    const pozoFilterDisplay = document.getElementById('filter-pozo-display');
+    const pozoFilterToggle = document.getElementById('filter-pozo-toggle');
+    if (pozoFilter && pozoFilterDisplay) {
+        pozoFilterDisplay.addEventListener('focus', () => {
+            if (pozoFilter.value && pozoFilterDisplay.value.trim() === pozoFilter.value) {
+                pozoFilterDisplay.select();
             }
-            updateDashboard();
+            openPozoFilterMenu(pozoFilter.value && pozoFilterDisplay.value.trim() === pozoFilter.value);
+        });
+
+        pozoFilterDisplay.addEventListener('input', async () => {
+            pozoFilter.value = '';
+            setStoredSelectedPozo('');
+            openPozoFilterMenu(false);
+        });
+
+        pozoFilterDisplay.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closePozoFilterMenu();
+            }
+        });
+    }
+
+    if (pozoFilterToggle) {
+        pozoFilterToggle.addEventListener('click', () => {
+            const menu = document.getElementById('filter-pozo-menu');
+            const shouldOpen = !menu?.classList.contains('active');
+            if (shouldOpen) {
+                openPozoFilterMenu(true);
+            } else {
+                closePozoFilterMenu();
+            }
         });
     }
     
     const startFilter = document.getElementById('filter-start');
-    if (startFilter) startFilter.addEventListener('change', updateDashboard);
+    if (startFilter) {
+        startFilter.addEventListener('change', () => {
+            const historicalRecordInput = document.getElementById('historical-record-input');
+            if (historicalRecordInput) historicalRecordInput.value = startFilter.value;
+            updateDashboard();
+        });
+    }
     
     const endFilter = document.getElementById('filter-end');
     if (endFilter) endFilter.addEventListener('change', updateDashboard);
 
-    const histCheck = document.getElementById('check-historical');
-    if (histCheck) histCheck.addEventListener('change', updateDashboard);
+    const historicalRecordInput = document.getElementById('historical-record-input');
+    if (historicalRecordInput) {
+        historicalRecordInput.addEventListener('click', () => {
+            if (historicalRecordInput.disabled) return;
+            renderHistoricalRecordMenu();
+            document.getElementById('historical-record-menu')?.classList.toggle('active');
+        });
+
+        historicalRecordInput.addEventListener('focus', () => {
+            if (historicalRecordInput.disabled) return;
+            renderHistoricalRecordMenu();
+            document.getElementById('historical-record-menu')?.classList.add('active');
+        });
+
+        historicalRecordInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeHistoricalRecordMenu();
+            }
+        });
+    }
+
+    document.addEventListener('click', (event) => {
+        const picker = document.querySelector('.historical-record-picker');
+        if (picker && !picker.contains(event.target)) {
+            closeHistoricalRecordMenu();
+        }
+
+        const pozoWrapper = document.querySelector('.dashboard-pozo-selector');
+        if (pozoWrapper && !pozoWrapper.contains(event.target)) {
+            closePozoFilterMenu();
+            if (pozoFilter && pozoFilterDisplay && pozoFilter.value && !pozoFilterDisplay.value.trim()) {
+                pozoFilterDisplay.value = pozoFilter.value;
+            }
+        }
+    });
     
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.addEventListener('click', logout);
@@ -135,19 +384,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('comparison-panel').classList.toggle('active', isComparisonMode);
             document.getElementById('single-pozo-container').style.display = isComparisonMode ? 'none' : 'block';
             compareToggleBtn.classList.toggle('active', isComparisonMode);
-            compareToggleBtn.textContent = isComparisonMode ? '✅ VISTA SIMPLE' : '🔄 COMPARAR';
+            compareToggleBtn.textContent = isComparisonMode ? 'VISTA SIMPLE' : 'COMPARAR';
+            compareToggleBtn.title = isComparisonMode ? 'Volver a vista simple' : 'Comparar pozos';
+            compareToggleBtn.setAttribute('aria-label', isComparisonMode ? 'Volver a vista simple' : 'Comparar pozos');
+            syncHistoricalRecordSelector(document.getElementById('filter-pozo')?.value || '', true);
         });
     }
 
     // Day Navigation Logic
     const shiftDate = (delta) => {
         const dateInput = document.getElementById('filter-start');
+        const historicalRecordInput = document.getElementById('historical-record-input');
         if (!dateInput.value) return;
         const currentDate = new Date(dateInput.value + 'T12:00:00'); // Use noon to avoid TZ issues
         currentDate.setDate(currentDate.getDate() + delta);
         const newStr = currentDate.toISOString().split('T')[0];
         dateInput.value = newStr;
         document.getElementById('filter-end').value = newStr;
+        if (historicalRecordInput) historicalRecordInput.value = newStr;
         updateDashboard();
     };
 
@@ -178,6 +432,9 @@ async function updateDashboard() {
     }
 
     if (selectedPozos.length === 0) {
+        if (!isComparisonMode) {
+            setStoredSelectedPozo('');
+        }
         clearDashboard();
 
         const title = document.querySelector('.main-container header p');
@@ -188,9 +445,8 @@ async function updateDashboard() {
         return;
     }
 
-    const isHistorical = document.getElementById('check-historical')?.checked;
-    const start = isHistorical ? null : (document.getElementById('filter-start').value || null);
-    const end = isHistorical ? null : (document.getElementById('filter-end').value || null);
+    const start = document.getElementById('filter-start').value || null;
+    const end = document.getElementById('filter-end').value || null;
     
     // Activate Skeletons
     const chartContainers = document.querySelectorAll('.chart-space, .trend-space');
@@ -246,7 +502,7 @@ async function updateDashboard() {
 
         // AUTO-CONTEXT: Fetch neighbors to draw connecting lines point-to-point without needing Historical mode
         let extendedData = [...data];
-        if (data.length > 0 && selectedPozos.length === 1 && !isHistorical) {
+        if (data.length > 0 && selectedPozos.length === 1 && !isComparisonMode) {
             // Find the oldest date in our current dataset (which might be just 'today')
             const oldestDate = data[data.length - 1].fecha; 
             // Find the newest date in our dataset
@@ -273,7 +529,7 @@ async function updateDashboard() {
 
         renderKPIs(data[0]);
         renderStatusDonut(data);
-        renderCoreTrends(timelineData, selectedPozos, isHistorical);
+        renderCoreTrends(timelineData, selectedPozos);
         renderObservations(filteredObs);
     } catch (err) {
         console.error('Update Fail:', err);
@@ -400,7 +656,7 @@ function renderStatusDonut(data) {
 /**
  * 3. TRENDS - REPSOL OVERHAUL
  */
-function renderCoreTrends(timeline, requestedPozos, isHistorical = false) {
+function renderCoreTrends(timeline, requestedPozos) {
     const pozosPresentes = [...new Set(timeline.map(d => d.pozo_name))];
     const isComparison = pozosPresentes.length > 1;
 

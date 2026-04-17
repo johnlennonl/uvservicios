@@ -246,37 +246,187 @@
             font-size: 0.95rem;
         }
 
-        .pozos-list {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-bottom: 30px;
+        .pozo-selector-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+            gap: 18px;
+            align-items: start;
+            margin-bottom: 28px;
         }
 
-        .btn-pozo {
+        .pozo-selector-main,
+        .pozo-selector-help {
             background: white;
-            border: 1.5px solid #E5E7EB;
-            padding: 12px 24px;
-            border-radius: 12px;
+            border: 1px solid #E2E8F0;
+            border-radius: 20px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+            padding: 18px;
+        }
+
+        .pozo-selector-main {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 220px;
+            gap: 14px;
+            align-items: end;
+            align-content: start;
+        }
+
+        .pozo-selector-field label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
             font-weight: 800;
-            color: #374151;
-            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: #334155;
+        }
+
+        .pozo-selector-field input,
+        .pozo-selector-field select {
+            width: 100%;
+            padding: 13px 14px;
+            border-radius: 12px;
+            border: 1.5px solid #D9E2EC;
+            background: #F8FAFC;
+            font-weight: 700;
+            color: #1F2937;
+            font-size: 0.92rem;
+            outline: none;
+        }
+
+        .pozo-selector-input-wrap {
+            position: relative;
+        }
+
+        .pozo-selector-input-wrap input {
+            padding-right: 52px;
+        }
+
+        .pozo-selector-toggle {
+            position: absolute;
+            top: 50%;
+            right: 12px;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: #64748B;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
         }
 
-        .btn-pozo:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
-            border-color: #CBD5E1;
+        .pozo-selector-toggle:hover {
+            background: #E2E8F0;
+            color: #0F172A;
         }
 
-        .btn-pozo.active {
-            background: #111827;
-            color: white;
-            border-color: #111827;
-            box-shadow: 0 8px 20px rgba(17, 24, 39, 0.3);
+        .pozo-selector-toggle svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .pozo-selector-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            display: none;
+            max-height: 320px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #E2E8F0;
+            border-radius: 16px;
+            box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
+            padding: 8px;
+            z-index: 50;
+        }
+
+        .pozo-selector-menu.active {
+            display: block;
+        }
+
+        .pozo-selector-option {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 14px minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+            padding: 12px 14px;
+            border: none;
+            border-radius: 12px;
+            background: transparent;
+            text-align: left;
+            cursor: pointer;
+            color: #1F2937;
+        }
+
+        .pozo-selector-option:hover,
+        .pozo-selector-option.active {
+            background: #EFF6FF;
+        }
+
+        .pozo-status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.12);
+        }
+
+        .pozo-status-dot.active {
+            background: #22C55E;
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+        }
+
+        .pozo-status-dot.inactive {
+            background: #94A3B8;
+        }
+
+        .pozo-option-name {
+            font-weight: 800;
+            color: #1E3A5F;
+        }
+
+        .pozo-option-state {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #64748B;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: #F1F5F9;
+        }
+
+        .pozo-option-state.active {
+            color: #15803D;
+            background: #DCFCE7;
+        }
+
+        .pozo-option-state.inactive {
+            color: #475569;
+            background: #E2E8F0;
+        }
+
+        .pozo-selector-empty {
+            padding: 18px 14px;
+            text-align: center;
+            color: #64748B;
+            font-weight: 700;
+        }
+
+        .pozo-selector-help h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #0F172A;
+        }
+
+        .pozo-selector-help p {
+            margin: 0 0 10px 0;
+            color: #64748B;
+            font-size: 0.88rem;
+            line-height: 1.5;
         }
 
         .history-card {
@@ -335,7 +485,7 @@
             background: #FCA5A5;
         }
 
-        .pozos-list,
+        .pozo-selector-card,
         .tools-section,
         .history-card,
         .history-table,
@@ -375,15 +525,13 @@
                 gap: 10px;
             }
 
-            .pozos-list {
-                gap: 10px;
+            .pozo-selector-card {
+                grid-template-columns: 1fr;
                 margin-bottom: 20px;
             }
 
-            .btn-pozo {
-                flex: 1 1 calc(50% - 10px);
-                min-width: 0;
-                padding: 12px 16px;
+            .pozo-selector-main {
+                grid-template-columns: 1fr;
             }
 
             .tools-section {
@@ -479,11 +627,10 @@
                 font-size: 0.9rem;
             }
 
-            .btn-pozo {
-                flex: 1 1 100%;
-                width: 100%;
-                padding: 11px 16px;
-                font-size: 0.85rem;
+            .pozo-selector-main,
+            .pozo-selector-help {
+                border-radius: 18px;
+                padding: 16px;
             }
 
             .history-card {

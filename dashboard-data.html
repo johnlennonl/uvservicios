@@ -81,6 +81,10 @@
                                     <label>Pozo</label>
                                     <input type="text" id="pozo_name" list="pozos-list" required placeholder="BES-XX">
                                     <datalist id="pozos-list"></datalist>
+                                    <div class="pozo-record-status" id="daily-pozo-status" aria-live="polite">
+                                        <span class="pozo-record-dot neutral"></span>
+                                        <span id="daily-pozo-status-text">Selecciona un pozo para ver su estado.</span>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Campo</label>
@@ -200,6 +204,10 @@
                                 <label>Pozo</label>
                                 <input type="text" id="tech_pozo_name" list="tech-pozos-list" required placeholder="BES-XX">
                                 <datalist id="tech-pozos-list"></datalist>
+                                <div class="pozo-record-status" id="technical-pozo-status" aria-live="polite">
+                                    <span class="pozo-record-dot neutral"></span>
+                                    <span id="technical-pozo-status-text">Selecciona un pozo para ver su estado.</span>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>Campo</label>
@@ -324,9 +332,46 @@
 
     <script type="module">
         import { logout, getSession } from './js/auth.js';
-        import { getMonitoringData, getUniquePozos, insertRecord, updateRecord, bulkInsertRecords, upsertWellTechnicalData, getRecordById, getWellTechnicalData, deleteRecord } from './js/data-service.js';
+        import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, upsertWellTechnicalData, getRecordById, getWellTechnicalData, deleteRecord } from './js/data-service.js';
 
         let isEditing = false;
+        let knownPozos = new Set();
+        const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
+
+        function getStoredSelectedPozo() {
+            return sessionStorage.getItem(ACTIVE_POZO_STORAGE_KEY) || '';
+        }
+
+        function setStoredSelectedPozo(pozoName) {
+            if (pozoName) {
+                sessionStorage.setItem(ACTIVE_POZO_STORAGE_KEY, pozoName);
+            } else {
+                sessionStorage.removeItem(ACTIVE_POZO_STORAGE_KEY);
+            }
+        }
+
+        async function updatePozoRecordStatus(pozoName, prefix) {
+            const statusText = document.getElementById(`${prefix}-pozo-status-text`);
+            const statusDot = document.querySelector(`#${prefix}-pozo-status .pozo-record-dot`);
+            if (!statusText || !statusDot) return;
+
+            statusDot.classList.remove('active', 'inactive');
+
+            if (!pozoName) {
+                statusText.textContent = 'Selecciona un pozo para ver su estado.';
+                return;
+            }
+
+            const latestDate = await getLatestDate(pozoName);
+            if (latestDate) {
+                statusDot.classList.add('active');
+                statusText.textContent = `Con registros. Ultimo dia cargado: ${latestDate}.`;
+                return;
+            }
+
+            statusDot.classList.add('inactive');
+            statusText.textContent = 'Sin registros de monitoreo cargados.';
+        }
 
         document.addEventListener('DOMContentLoaded', async () => {
             const session = await getSession();
@@ -338,6 +383,14 @@
             document.getElementById('fecha').valueAsDate = new Date();
             resetTechnicalForm();
             await refreshPozoLists();
+
+            const storedPozo = getStoredSelectedPozo();
+            if (storedPozo) {
+                document.getElementById('pozo_name').value = storedPozo;
+                await syncDailyPozoContext();
+            }
+            await updatePozoRecordStatus(document.getElementById('pozo_name').value.trim(), 'daily');
+            await updatePozoRecordStatus(document.getElementById('tech_pozo_name').value.trim(), 'technical');
             
             // 1. Check for Edit ID in URL
             const urlParams = new URLSearchParams(window.location.search);
@@ -368,6 +421,7 @@
 
         async function refreshPozoLists() {
             const pozos = (await getUniquePozos()).sort((a, b) => a.localeCompare(b));
+            knownPozos = new Set(pozos.map(pozo => pozo.trim().toUpperCase()));
             const dailyList = document.getElementById('pozos-list');
             const technicalList = document.getElementById('tech-pozos-list');
 
@@ -376,25 +430,48 @@
             technicalList.innerHTML = optionsMarkup;
         }
 
-        async function syncDailyPozoContext() {
-            const pozoName = document.getElementById('pozo_name').value.trim();
-            if (!pozoName) return;
+        async function ensureKnownPozo(pozoName, campoName = '') {
+            const normalizedPozo = pozoName.trim().toUpperCase();
+            if (!normalizedPozo || knownPozos.has(normalizedPozo)) return true;
 
-            const techData = await getWellTechnicalData(pozoName);
-            if (!techData) return;
+            const result = await Swal.fire({
+                icon: 'question',
+                title: 'Hay un nuevo pozo',
+                text: `El pozo ${pozoName} no existe en el catalogo. ¿Deseas registrarlo ahora en Produccion Tecnica?`,
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'Registrar ahora',
+                denyButtonText: 'Continuar manualmente',
+                cancelButtonText: 'Cancelar'
+            });
 
-            if (techData.campo_name) {
-                document.getElementById('campo').value = techData.campo_name;
+            if (result.isConfirmed) {
+                populateTechnicalForm(null, {
+                    pozo_name: pozoName,
+                    campo_name: campoName
+                });
+                window.scrollTo({ top: document.getElementById('technical-data-form').offsetTop - 80, behavior: 'smooth' });
+                document.getElementById('tech_pozo_name').focus();
+                return false;
             }
 
-            populateTechnicalForm(techData, {
-                pozo_name: pozoName,
-                campo_name: techData.campo_name || document.getElementById('campo').value
-            });
+            if (result.isDenied) {
+                return true;
+            }
+
+            return false;
+        }
+
+        async function syncDailyPozoContext() {
+            const pozoName = document.getElementById('pozo_name').value.trim();
+            setStoredSelectedPozo(pozoName);
+            await updatePozoRecordStatus(pozoName, 'daily');
         }
 
         async function syncTechnicalPozoContext() {
             const pozoName = document.getElementById('tech_pozo_name').value.trim();
+            setStoredSelectedPozo(pozoName);
+            await updatePozoRecordStatus(pozoName, 'technical');
             if (!pozoName) return;
 
             const techData = await getWellTechnicalData(pozoName);
@@ -410,6 +487,15 @@
             try {
                 const data = await getMonitoringData();
                 const historyBody = document.getElementById('recent-history-body');
+
+                const formatTelemetryNumber = (value, maxDecimals = 2) => {
+                    const numeric = Number(value);
+                    if (!Number.isFinite(numeric)) return '--';
+                    return new Intl.NumberFormat('es-ES', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: maxDecimals
+                    }).format(numeric);
+                };
                 
                 if (data && data.length > 0) {
                     const latest = data[0];
@@ -423,9 +509,9 @@
                             <td style="font-weight: 700;">${record.pozo_name}</td>
                             <td>${record.fecha}</td>
                             <td>${record.hora}</td>
-                            <td>${record.frecuencia}</td>
-                            <td>${record.corriente_motor}</td>
-                            <td>${record.pip}</td>
+                            <td>${formatTelemetryNumber(record.frecuencia)}</td>
+                            <td>${formatTelemetryNumber(record.corriente_motor)}</td>
+                            <td>${formatTelemetryNumber(record.pip)}</td>
                             <td><span style="color: ${record.estatus === 'RUN' ? '#059669' : '#DC2626'}">● ${record.estatus}</span></td>
                             <td>
                                 <button class="btn-action btn-edit" data-id="${record.id}">Editar</button>
@@ -515,6 +601,7 @@
         }
 
         function populateTechnicalForm(techData = null, context = {}) {
+            const pozoName = context.pozo_name || techData?.pozo_name || '';
             document.getElementById('tech_pozo_name').value = context.pozo_name || techData?.pozo_name || '';
             document.getElementById('tech_campo_name').value = context.campo_name || techData?.campo_name || '';
             document.getElementById('ef_tech').value = techData?.ef || '';
@@ -523,6 +610,7 @@
             document.getElementById('ays_tech').value = techData?.ays_percentage ?? '';
             document.getElementById('bnpd_tech').value = techData?.bnpd ?? '';
             document.getElementById('cat_tech').value = techData?.cat_number || '1';
+            setStoredSelectedPozo(pozoName);
         }
 
         function resetTechnicalForm() {
@@ -545,20 +633,25 @@
                 campo: document.getElementById('campo').value,
                 fecha: document.getElementById('fecha').value,
                 hora: document.getElementById('hora').value,
-                frecuencia: parseFloat(document.getElementById('frecuencia').value) || 0,
-                corriente_motor: parseFloat(document.getElementById('corriente_motor').value) || 0,
-                pip: parseFloat(document.getElementById('pip').value) || 0,
-                tm: parseFloat(document.getElementById('tm').value) || 0,
-                presion_thp: parseFloat(document.getElementById('presion_thp').value) || 0,
-                presion_chp: parseFloat(document.getElementById('presion_chp').value) || 0,
-                vsd_a: parseFloat(document.getElementById('vsd_a').value) || 0,
-                vsd_b: parseFloat(document.getElementById('vsd_b').value) || 0,
-                vsd_c: parseFloat(document.getElementById('vsd_c').value) || 0,
+                frecuencia: roundNumericValue(document.getElementById('frecuencia').value) ?? 0,
+                corriente_motor: roundNumericValue(document.getElementById('corriente_motor').value) ?? 0,
+                pip: roundNumericValue(document.getElementById('pip').value) ?? 0,
+                tm: roundNumericValue(document.getElementById('tm').value) ?? 0,
+                presion_thp: roundNumericValue(document.getElementById('presion_thp').value) ?? 0,
+                presion_chp: roundNumericValue(document.getElementById('presion_chp').value) ?? 0,
+                vsd_a: roundNumericValue(document.getElementById('vsd_a').value) ?? 0,
+                vsd_b: roundNumericValue(document.getElementById('vsd_b').value) ?? 0,
+                vsd_c: roundNumericValue(document.getElementById('vsd_c').value) ?? 0,
                 estatus: document.getElementById('estatus').value,
                 observaciones: document.getElementById('observaciones').value,
             };
 
             try {
+                if (!isEditing) {
+                    const canContinue = await ensureKnownPozo(record.pozo_name, record.campo);
+                    if (!canContinue) return;
+                }
+
                 if (isEditing) {
                     await updateRecord(document.getElementById('edit-id').value, record);
                     Swal.fire({ icon: 'success', title: 'Registro Actualizado', text: 'El registro diario fue actualizado correctamente.', timer: 2000, showConfirmButton: false });
@@ -620,8 +713,43 @@
                 .toLowerCase()
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[%()]/g, '')
-                .replace(/\s+/g, '_');
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '')
+                .replace(/_+/g, '_');
+        }
+
+        const DAILY_IMPORT_FIELD_ALIASES = {
+            pozo_name: ['pozo_name', 'pozo', 'well', 'well_name', 'nombre_pozo'],
+            campo: ['campo', 'campo_name', 'field', 'area'],
+            fecha: ['fecha', 'fecha_medicion', 'date', 'dia', 'fecha_registro'],
+            hora: ['hora', 'time', 'hora_medicion'],
+            frecuencia: ['frecuencia', 'frecuencia_hz', 'hz', 'freq', 'frequency'],
+            corriente_motor: ['corriente_motor', 'corriente_m', 'corriente_amp', 'i_motor_amp', 'i_motor', 'motor_amp', 'motor_current', 'amperaje_motor'],
+            pip: ['pip', 'pip_psi', 'presion_pip', 'pump_intake_pressure'],
+            tm: ['tm', 'temp_tm', 'temp_tm_f', 'temperatura_tm', 'temperatura_tm_f', 'temp_motor', 'motor_temp'],
+            presion_thp: ['presion_thp', 'thp', 'thp_psi', 'tubing_head_pressure'],
+            presion_chp: ['presion_chp', 'chp', 'chp_psi', 'casing_head_pressure'],
+            presion_lf: ['presion_lf', 'lf', 'lf_psi', 'line_pressure'],
+            vsd_a: ['vsd_a', 'vsd_a_amp', 'vsd_a_amperios', 'fase_a', 'a'],
+            vsd_b: ['vsd_b', 'vsd_b_amp', 'vsd_b_amperios', 'fase_b', 'b'],
+            vsd_c: ['vsd_c', 'vsd_c_amp', 'vsd_c_amperios', 'fase_c', 'c'],
+            estatus: ['estatus', 'status', 'estado', 'run_status'],
+            observaciones: ['observaciones', 'observacion', 'obs', 'comentario', 'comentarios', 'remarks']
+        };
+
+        function getFirstAliasValue(source, aliases) {
+            for (const alias of aliases) {
+                if (source[alias] !== undefined && source[alias] !== null && `${source[alias]}`.trim() !== '') {
+                    return source[alias];
+                }
+            }
+            return undefined;
+        }
+
+        function getDailyMatchedFields(source) {
+            return Object.entries(DAILY_IMPORT_FIELD_ALIASES)
+                .filter(([, aliases]) => getFirstAliasValue(source, aliases) !== undefined)
+                .map(([field]) => field);
         }
 
         async function parseTabularFile(file, options = {}) {
@@ -651,20 +779,110 @@
             throw new Error('Formato no soportado. Usa CSV, XLSX o XLS.');
         }
 
+        function getFileExtension(fileName = '') {
+            return (String(fileName).split('.').pop() || '').toLowerCase();
+        }
+
+        function excelColumnToIndex(columnLabel) {
+            return String(columnLabel || '')
+                .trim()
+                .toUpperCase()
+                .split('')
+                .reduce((accumulator, character) => (accumulator * 26) + (character.charCodeAt(0) - 64), 0) - 1;
+        }
+
+        function getExcelCellValue(row, columnLabel) {
+            const index = excelColumnToIndex(columnLabel);
+            return Array.isArray(row) ? row[index] : undefined;
+        }
+
+        function getFirstNonEmptyValue(values = []) {
+            for (const value of values) {
+                if (value !== undefined && value !== null && `${value}`.trim() !== '') {
+                    return value;
+                }
+            }
+            return undefined;
+        }
+
+        function collectExcelObservationText(row, startColumnLabel = 'EW') {
+            if (!Array.isArray(row)) return undefined;
+
+            const startIndex = excelColumnToIndex(startColumnLabel);
+            return row
+                .slice(startIndex)
+                .map(value => value === undefined || value === null ? '' : String(value).trim())
+                .filter(Boolean)
+                .join(' | ');
+        }
+
+        async function parseDailyExcelFile(file) {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+            const firstSheetName = workbook.SheetNames[0];
+            if (!firstSheetName) return [];
+
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], {
+                header: 1,
+                defval: '',
+                raw: true
+            });
+
+            return rows.slice(1).map(row => ({
+                pozo_name: getExcelCellValue(row, 'A'),
+                campo: getExcelCellValue(row, 'B'),
+                fecha: getExcelCellValue(row, 'C'),
+                hora: getFirstNonEmptyValue([getExcelCellValue(row, 'D'), getExcelCellValue(row, 'E')]),
+                estatus: getExcelCellValue(row, 'F'),
+                frecuencia: getExcelCellValue(row, 'G'),
+                corriente_motor: getExcelCellValue(row, 'J'),
+                vsd_a: getExcelCellValue(row, 'M'),
+                vsd_b: getExcelCellValue(row, 'N'),
+                vsd_c: getExcelCellValue(row, 'O'),
+                pip: getExcelCellValue(row, 'V'),
+                tm: getExcelCellValue(row, 'Y'),
+                presion_thp: getExcelCellValue(row, 'BH'),
+                presion_chp: getExcelCellValue(row, 'BI'),
+                observaciones: collectExcelObservationText(row, 'EW')
+            }));
+        }
+
         function normalizeImportedRow(row) {
             const normalizedRow = {};
             Object.entries(row || {}).forEach(([key, value]) => {
                 normalizedRow[normalizeCsvKey(key)] = value;
             });
 
-            if (!normalizedRow.pozo_name && normalizedRow.pozo) normalizedRow.pozo_name = normalizedRow.pozo;
-            if (!normalizedRow.campo && normalizedRow.campo_name) normalizedRow.campo = normalizedRow.campo_name;
-            if (!normalizedRow.fecha && normalizedRow.fecha_medicion) normalizedRow.fecha = normalizedRow.fecha_medicion;
+            Object.entries(DAILY_IMPORT_FIELD_ALIASES).forEach(([field, aliases]) => {
+                const aliasValue = getFirstAliasValue(normalizedRow, aliases);
+                if (aliasValue !== undefined) normalizedRow[field] = aliasValue;
+            });
+
             normalizedRow.fecha = toIsoDate(normalizedRow.fecha) || normalizedRow.fecha;
             normalizedRow.fecha_tech = toIsoDate(normalizedRow.fecha_tech) || normalizedRow.fecha_tech;
             normalizedRow.fecha_medicion = toIsoDate(normalizedRow.fecha_medicion) || normalizedRow.fecha_medicion;
+            normalizedRow.hora = toIsoTime(normalizedRow.hora) || '00:00:00';
 
             return normalizedRow;
+        }
+
+        function hasDailyTelemetryData(row) {
+            const telemetryFields = [
+                'frecuencia',
+                'corriente_motor',
+                'pip',
+                'tm',
+                'presion_thp',
+                'presion_chp',
+                'vsd_a',
+                'vsd_b',
+                'vsd_c'
+            ];
+
+            return telemetryFields.some(field => {
+                const value = row[field];
+                return value !== undefined && value !== null && `${value}`.trim() !== '';
+            });
         }
 
         function parseCsvNumber(value) {
@@ -681,8 +899,20 @@
             return Number.isFinite(parsed) ? parsed : fallback;
         }
 
+        function roundNumericValue(value, decimals = 2) {
+            if (value === undefined || value === null || value === '') return null;
+            const numeric = typeof value === 'number' ? value : parseFloat(String(value).trim().replace(',', '.'));
+            if (!Number.isFinite(numeric)) return null;
+            const factor = 10 ** decimals;
+            return Math.round(numeric * factor) / factor;
+        }
+
         function toIsoDate(value) {
             if (value === undefined || value === null || value === '') return null;
+
+            if (value instanceof Date && !Number.isNaN(value.getTime())) {
+                return value.toISOString().slice(0, 10);
+            }
 
             if (typeof value === 'number' && Number.isFinite(value)) {
                 const excelEpoch = new Date(Date.UTC(1899, 11, 30));
@@ -729,6 +959,48 @@
                 const yearNum = parseInt(match[3], 10);
                 const year = match[3].length === 2 ? (yearNum >= 50 ? `19${match[3]}` : `20${match[3]}`) : `${yearNum}`;
                 return `${year}-${month}-${day}`;
+            }
+
+            return null;
+        }
+
+        function toIsoTime(value) {
+            if (value === undefined || value === null || value === '') return null;
+
+            if (value instanceof Date && !Number.isNaN(value.getTime())) {
+                const hours = String(value.getHours()).padStart(2, '0');
+                const minutes = String(value.getMinutes()).padStart(2, '0');
+                const seconds = String(value.getSeconds()).padStart(2, '0');
+                return `${hours}:${minutes}:${seconds}`;
+            }
+
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                const totalSeconds = Math.round(value * 86400);
+                const hours = String(Math.floor(totalSeconds / 3600) % 24).padStart(2, '0');
+                const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+                const seconds = String(totalSeconds % 60).padStart(2, '0');
+                return `${hours}:${minutes}:${seconds}`;
+            }
+
+            const raw = String(value).trim();
+            if (!raw) return null;
+
+            let match = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+            if (match) {
+                const hours = match[1].padStart(2, '0');
+                const minutes = match[2];
+                const seconds = match[3] || '00';
+                return `${hours}:${minutes}:${seconds}`;
+            }
+
+            match = raw.match(/^(\d{1,2}):(\d{2})\s*([ap]m)$/i);
+            if (match) {
+                let hours = parseInt(match[1], 10);
+                const minutes = match[2];
+                const meridiem = match[3].toLowerCase();
+                if (meridiem === 'pm' && hours < 12) hours += 12;
+                if (meridiem === 'am' && hours === 12) hours = 0;
+                return `${String(hours).padStart(2, '0')}:${minutes}:00`;
             }
 
             return null;
@@ -801,30 +1073,51 @@
             if (!file) return;
 
             try {
-                const parsedRows = await parseTabularFile(file, { dynamicTyping: true });
+                const extension = getFileExtension(file.name);
+                const parsedRows = extension === 'xlsx' || extension === 'xls'
+                    ? await parseDailyExcelFile(file)
+                    : await parseTabularFile(file, { dynamicTyping: true });
                 statusDiv.style.display = 'block';
                 statusText.textContent = 'Subiendo...';
+
+                const firstRow = parsedRows[0] || {};
+                const normalizedHeaderKeys = Object.keys(firstRow).map(normalizeCsvKey).filter(Boolean);
+                const detectedDailyFields = getDailyMatchedFields(Object.fromEntries(normalizedHeaderKeys.map(key => [key, true])));
 
                 const cleanData = parsedRows
                     .map(normalizeImportedRow)
                     .filter(r => r.pozo_name && r.fecha);
 
+                const telemetryRows = cleanData.filter(hasDailyTelemetryData);
+
+                if (telemetryRows.length === 0) {
+                    const looksTechnicalFile = cleanData.some(row => row.ef || row.bbpd !== undefined || row.ays !== undefined || row.bnpd !== undefined || row.cat !== undefined || row.cat_number !== undefined);
+                    throw new Error(looksTechnicalFile
+                        ? 'Este archivo parece corresponder a Produccion Tecnica. Cargalo en la seccion tecnica, no en Entrada de Parametros.'
+                        : `No se encontraron columnas validas para monitoreo diario en el archivo importado. Detectadas: ${detectedDailyFields.join(', ') || 'ninguna'}.`);
+                }
+
                 const telemetryColumns = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c', 'estatus', 'observaciones', 'user_id'];
 
-                const telemetryData = cleanData.map(r => {
+                const telemetryData = telemetryRows.map(r => {
                     let obj = {};
                     telemetryColumns.forEach(col => {
-                        if (r[col] !== undefined) obj[col] = r[col];
+                        if (r[col] !== undefined) obj[col] = r[col] === '' ? null : r[col];
                     });
+
+                    ['frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c'].forEach(col => {
+                        if (obj[col] !== undefined) obj[col] = roundNumericValue(obj[col]);
+                    });
+
                     return obj;
                 });
 
-                await bulkInsertRecords(telemetryData);
+                const syncResult = await syncMonitoringRecords(telemetryData);
 
-                const uniquePozos = [...new Set(cleanData.map(r => r.pozo_name))];
+                const uniquePozos = [...new Set(telemetryRows.map(r => r.pozo_name))];
 
                 for (const pozo of uniquePozos) {
-                    const pozoRecords = cleanData.filter(r => r.pozo_name === pozo);
+                    const pozoRecords = telemetryRows.filter(r => r.pozo_name === pozo);
                     const latest = pozoRecords[0];
 
                     if (latest.bbpd !== undefined || latest.ef !== undefined) {
@@ -842,9 +1135,13 @@
                     }
                 }
 
-                statusText.textContent = '✅ Sincronización Total Finalizada';
+                statusText.textContent = `✅ Sincronizacion finalizada. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}.`;
                 await refreshPozoLists();
-                Swal.fire({ icon: 'success', title: 'Importación Exitosa', text: 'Se han sincronizado los gráficos y la tabla técnica.' });
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Importación Exitosa',
+                    text: `Monitoreo diario sincronizado. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}.`
+                });
                 await refreshHistory();
             } catch (err) {
                 statusText.textContent = '❌ Error: ' + err.message;

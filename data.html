@@ -58,19 +58,48 @@
                 </div>
             </header>
 
-            <div class="pozos-list" id="pozos-container">
-                <!-- Pozo buttons injected here -->
-                <p style="color: #9CA3AF; font-size: 0.9rem;">Cargando pozos...</p>
-            </div>
+            <section class="pozo-selector-card">
+                <div class="pozo-selector-main">
+                    <div class="pozo-selector-field">
+                        <label for="pozo-selector-input">Seleccionar Pozo</label>
+                        <div class="pozo-selector-input-wrap">
+                            <input type="text" id="pozo-selector-input" placeholder="Busca o selecciona un pozo">
+                            <button type="button" id="pozo-selector-toggle" class="pozo-selector-toggle" aria-label="Abrir lista de pozos" title="Abrir lista de pozos">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M6 9l6 6 6-6" />
+                                </svg>
+                            </button>
+                            <div class="pozo-selector-menu" id="pozo-selector-menu">
+                                <div class="pozo-selector-empty">Cargando pozos...</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pozo-selector-field pozo-selector-filter">
+                        <label for="pozo-activity-filter">Actividad Reciente</label>
+                        <select id="pozo-activity-filter">
+                            <option value="ALL">Todos los pozos</option>
+                            <option value="WITH_HISTORY">Con historial</option>
+                            <option value="7">Con registros en últimos 7 días</option>
+                            <option value="30">Con registros en últimos 30 días</option>
+                            <option value="90">Con registros en últimos 90 días</option>
+                        </select>
+                    </div>
+                </div>
+                <aside class="pozo-selector-help">
+                    <h3>Instrucciones</h3>
+                    <p>Selecciona un pozo desde el input. Punto verde: tiene historial. Punto gris: no tiene registros cargados.</p>
+                    <p>Usa Actividad Reciente para mostrar todos los pozos o filtrar solo los que registraron en los últimos 7, 30 o 90 días.</p>
+                </aside>
+            </section>
 
             <!-- Dashboard Tools & Filters -->
             <div class="tools-section" style="display: none; margin-bottom: 15px; justify-content: flex-end; gap: 10px;"
                 id="tools-section">
                 <select id="filter-date"
                     style="padding: 10px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; cursor: pointer; background: white;">
-                    <option value="30">Últimos 30 Días</option>
+                    <option value="ALL" selected>Todos los tiempos</option>
                     <option value="7">Últimos 7 Días</option>
-                    <option value="ALL">Todos los tiempos</option>
+                    <option value="30">Últimos 30 Días</option>
                     <option value="SPECIFIC">Fecha Específica...</option>
                 </select>
                 <input type="date" id="input-specific-date"
@@ -189,10 +218,11 @@
 
     <script type="module">
         import { logout, getSession } from './js/auth.js';
-        import { getUniquePozos, getMonitoringData, deleteRecord, deleteAllRecordsByPozo } from './js/data-service.js';
+        import { getPozosHistorySummary, getMonitoringData, deleteRecord, deleteAllRecordsByPozo } from './js/data-service.js';
 
         let activePozo = null;
         let currentRecordData = [];
+        let pozoSummaries = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             const session = await getSession();
@@ -205,35 +235,66 @@
 
         async function initPozos() {
             try {
-                const pozos = await getUniquePozos();
-                const container = document.getElementById('pozos-container');
-                container.innerHTML = '';
+                pozoSummaries = await getPozosHistorySummary();
+                renderPozoOptions();
 
-                if (!pozos || pozos.length === 0) {
-                    container.innerHTML = '<p style="color: #EF4444;">No hay pozos registrados en la base de datos.</p>';
+                if (!pozoSummaries || pozoSummaries.length === 0) {
+                    document.getElementById('pozo-selector-menu').innerHTML = '<div class="pozo-selector-empty">No hay pozos registrados en la base de datos.</div>';
                     return;
                 }
-
-                pozos.sort().forEach((pozo) => {
-                    const btn = document.createElement('button');
-                    btn.className = 'btn-pozo';
-                    btn.innerHTML = `
-                        <svg style="width: 14px; height: 14px; opacity: 0.6;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span>${pozo}</span>
-                    `;
-                    btn.style.display = 'flex';
-                    btn.style.alignItems = 'center';
-                    btn.style.gap = '8px';
-                    btn.addEventListener('click', () => selectPozo(pozo));
-                    container.appendChild(btn);
-                });
             } catch (err) {
                 console.error("Error loading pozos:", err);
                 Swal.fire({ icon: 'error', title: 'Error de Lectura', text: 'No se pudieron cargar los pozos.' });
             }
+        }
+
+        function isPozoRecent(latestFecha, days) {
+            if (!latestFecha) return false;
+            const cutoff = new Date();
+            cutoff.setHours(0, 0, 0, 0);
+            cutoff.setDate(cutoff.getDate() - Number(days));
+            return new Date(`${latestFecha}T00:00:00`) >= cutoff;
+        }
+
+        function getFilteredPozoSummaries(ignoreSearch = false) {
+            const searchTerm = ignoreSearch ? '' : document.getElementById('pozo-selector-input').value.trim().toLowerCase();
+            const activityFilter = document.getElementById('pozo-activity-filter').value;
+
+            return pozoSummaries.filter(item => {
+                const matchesSearch = !searchTerm || item.pozo_name.toLowerCase().includes(searchTerm);
+                if (!matchesSearch) return false;
+
+                if (activityFilter === 'ALL') return true;
+                if (activityFilter === 'WITH_HISTORY') return item.has_records;
+                return isPozoRecent(item.latest_fecha, activityFilter);
+            });
+        }
+
+        function renderPozoOptions(ignoreSearch = false) {
+            const menu = document.getElementById('pozo-selector-menu');
+            const filteredPozos = getFilteredPozoSummaries(ignoreSearch);
+
+            if (filteredPozos.length === 0) {
+                menu.innerHTML = '<div class="pozo-selector-empty">No hay pozos para ese filtro.</div>';
+                return;
+            }
+
+            menu.innerHTML = filteredPozos.map(item => `
+                <button type="button" class="pozo-selector-option ${item.pozo_name === activePozo ? 'active' : ''}" data-pozo="${item.pozo_name}">
+                    <span class="pozo-status-dot ${item.has_records ? 'active' : 'inactive'}"></span>
+                    <span class="pozo-option-name">${item.pozo_name}</span>
+                    <span class="pozo-option-state ${item.has_records ? 'active' : 'inactive'}">${item.has_records ? 'Con registros' : 'Sin registros'}</span>
+                </button>
+            `).join('');
+
+            menu.querySelectorAll('.pozo-selector-option').forEach(button => {
+                button.addEventListener('click', () => selectPozo(button.dataset.pozo));
+            });
+        }
+
+        function openPozoMenu(ignoreSearch = false) {
+            document.getElementById('pozo-selector-menu').classList.add('active');
+            renderPozoOptions(ignoreSearch);
         }
 
         document.getElementById('filter-date').addEventListener('change', (e) => {
@@ -248,20 +309,47 @@
         });
 
         document.getElementById('input-specific-date').addEventListener('change', () => loadPozoData());
+        document.getElementById('pozo-selector-input').addEventListener('focus', () => {
+            const input = document.getElementById('pozo-selector-input');
+            if (activePozo && input.value.trim() === activePozo) {
+                input.select();
+            }
+            openPozoMenu(activePozo && input.value.trim() === activePozo);
+        });
+        document.getElementById('pozo-selector-input').addEventListener('input', () => {
+            openPozoMenu(false);
+        });
+        document.getElementById('pozo-selector-toggle').addEventListener('click', () => {
+            const menu = document.getElementById('pozo-selector-menu');
+            const shouldOpen = !menu.classList.contains('active');
+            if (shouldOpen) {
+                openPozoMenu(true);
+            } else {
+                menu.classList.remove('active');
+            }
+        });
+        document.getElementById('pozo-activity-filter').addEventListener('change', renderPozoOptions);
+        document.addEventListener('click', (event) => {
+            const wrapper = document.querySelector('.pozo-selector-input-wrap');
+            if (wrapper && !wrapper.contains(event.target)) {
+                document.getElementById('pozo-selector-menu').classList.remove('active');
+                if (activePozo && !document.getElementById('pozo-selector-input').value.trim()) {
+                    document.getElementById('pozo-selector-input').value = activePozo;
+                }
+            }
+        });
 
         async function selectPozo(pozo) {
             activePozo = pozo;
+            document.getElementById('pozo-selector-input').value = pozo;
+            document.getElementById('pozo-selector-menu').classList.remove('active');
 
             // Switch UI states
             document.getElementById('empty-state').style.display = 'none';
             document.getElementById('history-container').style.display = 'block';
             document.getElementById('tools-section').style.display = 'flex';
             document.getElementById('btn-delete-all').style.display = 'inline-block';
-
-            // UI Update
-            document.querySelectorAll('.btn-pozo').forEach(b => b.classList.remove('active'));
-            const targetBtn = Array.from(document.querySelectorAll('.btn-pozo')).find(b => b.innerText.includes(pozo));
-            if (targetBtn) targetBtn.classList.add('active');
+            renderPozoOptions();
 
             document.getElementById('table-title').textContent = `Historial Técnico: ${pozo}`;
             document.getElementById('history-body').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px;">Cargando datos...</td></tr>';
@@ -301,6 +389,15 @@
             const tbody = document.getElementById('history-body');
             tbody.innerHTML = '';
 
+            const formatNumberCell = (value, decimals = 1) => {
+                const numeric = Number(value);
+                return Number.isFinite(numeric) ? numeric.toFixed(decimals) : '--';
+            };
+
+            const formatTextCell = (value, fallback = '--') => {
+                return value === undefined || value === null || value === '' ? fallback : value;
+            };
+
             if (currentRecordData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay registros históricos</td></tr>';
                 return;
@@ -316,12 +413,12 @@
                 }
 
                 tr.innerHTML = `
-                    <td><b>${record.fecha}</b> <br> <span style="font-size:0.75rem; color:#64748B;">${record.hora}</span></td>
-                    <td><b>${parseFloat(record.frecuencia).toFixed(1)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Hz</span></td>
-                    <td><b>${parseFloat(record.corriente_motor).toFixed(1)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Amp</span></td>
-                    <td><b>${record.pip}</b> <span style="color:#9CA3AF; font-size:0.7rem;">PSI</span> <br> <span style="color:#EF4444;">${record.tm}°F</span></td>
-                    <td><span style="color:#2563EB;">T: ${record.presion_thp}</span> / <span style="color:#06B6D4;">C: ${record.presion_chp}</span></td>
-                    <td style="font-family: monospace;">${record.vsd_a} / ${record.vsd_b || 0} / ${record.vsd_c || 0}</td>
+                    <td><b>${formatTextCell(record.fecha)}</b> <br> <span style="font-size:0.75rem; color:#64748B;">${formatTextCell(record.hora)}</span></td>
+                    <td><b>${formatNumberCell(record.frecuencia)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Hz</span></td>
+                    <td><b>${formatNumberCell(record.corriente_motor)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Amp</span></td>
+                    <td><b>${formatTextCell(record.pip)}</b> <span style="color:#9CA3AF; font-size:0.7rem;">PSI</span> <br> <span style="color:#EF4444;">${formatTextCell(record.tm)}°F</span></td>
+                    <td><span style="color:#2563EB;">T: ${formatTextCell(record.presion_thp)}</span> / <span style="color:#06B6D4;">C: ${formatTextCell(record.presion_chp)}</span></td>
+                    <td style="font-family: monospace;">${formatTextCell(record.vsd_a)} / ${formatTextCell(record.vsd_b, '0')} / ${formatTextCell(record.vsd_c, '0')}</td>
                     <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}; font-weight: 800;">${record.estatus}</span></td>
                     <td style="text-align: right;">
                         <button class="btn-action btn-edit" data-id="${recordId}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
@@ -403,7 +500,8 @@
 
                     // Force UI Reset
                     activePozo = null;
-                    document.getElementById('pozos-container').innerHTML = '<p>Actualizando lista...</p>';
+                    document.getElementById('pozo-selector-input').value = '';
+                    document.getElementById('pozo-selector-menu').innerHTML = '<div class="pozo-selector-empty">Actualizando lista...</div>';
                     await initPozos();
                     document.getElementById('empty-state').style.display = 'block';
                     document.getElementById('history-container').style.display = 'none';

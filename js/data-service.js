@@ -5,6 +5,13 @@
 
 import { supabase } from './supabaseClient.js';
 
+function buildMonitoringRecordKey(record = {}) {
+    const pozoName = String(record.pozo_name || '').trim().toUpperCase();
+    const fecha = String(record.fecha || '').trim();
+    const hora = String(record.hora || '00:00:00').trim() || '00:00:00';
+    return `${pozoName}|${fecha}|${hora}`;
+}
+
 /**
  * Fetches monitoring data with optional filters for Pozo and Date.
  * @param {string} pozoName 
@@ -107,6 +114,88 @@ export async function bulkInsertRecords(records) {
 }
 
 /**
+ * Synchronizes daily monitoring records by pozo + fecha + hora.
+ * Matching records are updated and new records are inserted.
+ * @param {Array} records
+ */
+export async function syncMonitoringRecords(records = []) {
+    const normalizedRecords = (Array.isArray(records) ? records : [])
+        .filter(record => record?.pozo_name && record?.fecha)
+        .map(record => ({
+            ...record,
+            pozo_name: String(record.pozo_name).trim(),
+            hora: String(record.hora || '00:00:00').trim() || '00:00:00'
+        }));
+
+    if (normalizedRecords.length === 0) {
+        return { inserted: 0, updated: 0, total: 0 };
+    }
+
+    const uniqueIncomingRecords = new Map();
+    normalizedRecords.forEach(record => {
+        uniqueIncomingRecords.set(buildMonitoringRecordKey(record), record);
+    });
+
+    const dedupedRecords = [...uniqueIncomingRecords.values()];
+    const pozoNames = [...new Set(dedupedRecords.map(record => record.pozo_name))];
+    const fechas = dedupedRecords.map(record => record.fecha).filter(Boolean).sort();
+
+    let existingQuery = supabase
+        .from('monitoreo_pozos')
+        .select('id, pozo_name, fecha, hora')
+        .in('pozo_name', pozoNames);
+
+    if (fechas[0]) existingQuery = existingQuery.gte('fecha', fechas[0]);
+    if (fechas[fechas.length - 1]) existingQuery = existingQuery.lte('fecha', fechas[fechas.length - 1]);
+
+    const { data: existingRecords, error: existingError } = await existingQuery;
+    if (existingError) throw existingError;
+
+    const existingByKey = new Map();
+    (existingRecords || []).forEach(record => {
+        const key = buildMonitoringRecordKey(record);
+        if (!existingByKey.has(key)) {
+            existingByKey.set(key, record.id);
+        }
+    });
+
+    const recordsToInsert = [];
+    const recordsToUpdate = [];
+
+    dedupedRecords.forEach(record => {
+        const existingId = existingByKey.get(buildMonitoringRecordKey(record));
+        if (existingId) {
+            recordsToUpdate.push({ id: existingId, record });
+        } else {
+            recordsToInsert.push(record);
+        }
+    });
+
+    for (const item of recordsToUpdate) {
+        const { error } = await supabase
+            .from('monitoreo_pozos')
+            .update(item.record)
+            .eq('id', item.id);
+
+        if (error) throw error;
+    }
+
+    if (recordsToInsert.length > 0) {
+        const { error } = await supabase
+            .from('monitoreo_pozos')
+            .insert(recordsToInsert);
+
+        if (error) throw error;
+    }
+
+    return {
+        inserted: recordsToInsert.length,
+        updated: recordsToUpdate.length,
+        total: dedupedRecords.length
+    };
+}
+
+/**
  * Fetches unique well names for filters.
  */
 export async function getUniquePozos() {
@@ -123,6 +212,35 @@ export async function getUniquePozos() {
         .filter(Boolean);
 
     return [...new Set(allPozos)];
+}
+
+export async function getPozosHistorySummary() {
+    const [pozos, monitoringResult] = await Promise.all([
+        getUniquePozos(),
+        supabase.from('monitoreo_pozos').select('pozo_name, fecha')
+    ]);
+
+    if (monitoringResult.error) throw monitoringResult.error;
+
+    const latestByPozo = new Map();
+    (monitoringResult.data || []).forEach(record => {
+        const pozoName = record?.pozo_name?.trim();
+        const fecha = record?.fecha || null;
+        if (!pozoName) return;
+
+        const currentLatest = latestByPozo.get(pozoName);
+        if (!currentLatest || (fecha && fecha > currentLatest)) {
+            latestByPozo.set(pozoName, fecha);
+        }
+    });
+
+    return pozos
+        .map(pozoName => ({
+            pozo_name: pozoName,
+            latest_fecha: latestByPozo.get(pozoName) || null,
+            has_records: latestByPozo.has(pozoName)
+        }))
+        .sort((a, b) => a.pozo_name.localeCompare(b.pozo_name));
 }
 
 /**
@@ -142,6 +260,20 @@ export async function getLatestDate(pozoName = null) {
     const { data, error } = await query;
     if (error) return null;
     return data && data.length > 0 ? data[0].fecha : null;
+}
+
+export async function getPozoRecordDates(pozoName) {
+    if (!pozoName || pozoName === 'Todas') return [];
+
+    const { data, error } = await supabase
+        .from('monitoreo_pozos')
+        .select('fecha, hora')
+        .eq('pozo_name', pozoName)
+        .order('fecha', { ascending: false })
+        .order('hora', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
 }
 
 /**

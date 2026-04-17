@@ -534,6 +534,36 @@
             font-size: 0.85rem;
         }
 
+        .pozo-record-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            min-height: 18px;
+            font-size: 0.74rem;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .pozo-record-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            background: #94A3B8;
+            box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.16);
+            flex: 0 0 auto;
+        }
+
+        .pozo-record-dot.active {
+            background: #16A34A;
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.16);
+        }
+
+        .pozo-record-dot.inactive {
+            background: #94A3B8;
+            box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.16);
+        }
+
         @media (max-width: 1024px) {
             .main-container {
                 padding: 20px 15px 96px 15px;

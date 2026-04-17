@@ -143,29 +143,43 @@
             <section class="filter-section">
                 <div class="filter-item" id="single-pozo-container">
                     <label>Pozo</label>
-                    <select id="filter-pozo"></select>
+                    <input type="hidden" id="filter-pozo">
+                    <div class="pozo-selector-input-wrap dashboard-pozo-selector">
+                        <input type="text" id="filter-pozo-display" placeholder="Busca o selecciona un pozo" autocomplete="off">
+                        <button type="button" id="filter-pozo-toggle" class="pozo-selector-toggle" aria-label="Abrir lista de pozos" title="Abrir lista de pozos">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M6 9l6 6 6-6" />
+                            </svg>
+                        </button>
+                        <div class="pozo-selector-menu" id="filter-pozo-menu">
+                            <div class="pozo-selector-empty">Cargando pozos...</div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="filter-item">
-                    <label>Fecha de Análisis</label>
-                    <div style="display: flex; gap: 5px; align-items: center;">
-                        <button id="btn-prev-day" class="btn-secondary"
-                            style="padding: 10px; min-width: 40px;">◀</button>
-                        <input type="date" id="filter-start" style="flex: 1;">
-                        <input type="date" id="filter-end" style="display: none;">
-                        <!-- Hidden but kept for logic compatibility -->
-                        <button id="btn-next-day" class="btn-secondary"
-                            style="padding: 10px; min-width: 40px;">▶</button>
+                <div class="filter-item historical-record-item" id="historical-record-container">
+                    <label>Registro Histórico</label>
+                    <div class="historical-record-picker">
+                        <button id="btn-prev-day" class="btn-secondary historical-nav-btn" type="button" title="Registro anterior" aria-label="Registro anterior">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M15 18l-6-6 6-6" />
+                            </svg>
+                        </button>
+                        <input type="text" id="historical-record-input" placeholder="Selecciona un pozo" readonly>
+                        <input type="date" id="filter-start" hidden>
+                        <input type="date" id="filter-end" hidden>
+                        <div class="historical-record-menu" id="historical-record-menu"></div>
+                        <button id="btn-next-day" class="btn-secondary historical-nav-btn" type="button" title="Registro siguiente" aria-label="Registro siguiente">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 18l6-6-6-6" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
 
                 <div class="filter-actions">
-                    <label class="checkbox-item" style="margin-right: 15px;">
-                        <input type="checkbox" id="check-historical"> Modo Histórico
-                    </label>
-                    <button id="btn-toggle-compare" class="btn-secondary">COMPARAR</button>
-                    <button id="apply-filters"
-                        style="padding: 12px 24px; background: #111827; color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer;">REFRESCAR</button>
+                    <button id="btn-toggle-compare" class="btn-text-action btn-secondary" type="button" title="Comparar pozos" aria-label="Comparar pozos">COMPARAR</button>
+                    <button id="apply-filters" class="btn-text-action btn-primary-action" type="button" title="Refrescar panel" aria-label="Refrescar panel">REFRESCAR</button>
                 </div>
             </section>
 
