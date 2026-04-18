@@ -301,23 +301,16 @@
                     </div>
                 </section>
 
-                <!-- Last Record Confirmation Widget -->
-                <section class="form-card"
-                    style="margin-top: 10px; background: #ECFDF5; border: 1px solid #34D399; display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <h3 style="margin: 0; font-size: 0.85rem; color: #065F46; font-weight: 800;">Último Registro
-                            Sincronizado</h3>
-                        <p id="last-record-display"
-                            style="margin: 4px 0 0 0; font-size: 1rem; color: #047857; font-weight: 600;">--</p>
-                    </div>
-                    <div style="font-size: 2rem;">✅</div>
-                </section>
                 <!-- Historial Reciente de Registros -->
             <section class="form-card" style="margin-top: 10px;">
                 <div class="recent-records-header">
                     <div>
                         <h2 style="font-size: 0.95rem; font-weight: 700; color: var(--primary-dark); margin: 0;">Actividad Reciente por Pozo</h2>
                         <p id="recent-records-caption" class="recent-records-caption">Se muestra el último registro operativo cargado de cada pozo.</p>
+                        <div class="recent-records-highlight">
+                            <span class="recent-records-highlight-label">Último registro sincronizado</span>
+                            <p id="last-record-display" class="recent-records-highlight-value">--</p>
+                        </div>
                     </div>
                     <div class="recent-records-actions">
                         <div class="recent-records-toggle" id="recent-records-toggle">

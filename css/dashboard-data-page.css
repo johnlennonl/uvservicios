@@ -1142,6 +1142,47 @@
             line-height: 1.45;
         }
 
+        .recent-records-highlight {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid #BBF7D0;
+            background: linear-gradient(135deg, #F0FDF4, #FFFFFF);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+        }
+
+        .recent-records-highlight-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.72rem;
+            font-weight: 900;
+            color: #047857;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .recent-records-highlight-label::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: #22C55E;
+            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.14);
+            flex: 0 0 auto;
+        }
+
+        .recent-records-highlight-value {
+            margin: 0;
+            font-size: 0.98rem;
+            font-weight: 800;
+            color: #065F46;
+            letter-spacing: -0.02em;
+        }
+
         .recent-records-actions {
             display: flex;
             align-items: center;
@@ -1360,6 +1401,11 @@
             .recent-records-actions {
                 width: 100%;
                 justify-content: space-between;
+            }
+
+            .recent-records-highlight {
+                display: flex;
+                width: 100%;
             }
         }
 

@@ -108,9 +108,6 @@
                 </select>
                 <input type="date" id="input-specific-date"
                     style="display: none; padding: 9px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; background: white;">
-                <button id="btn-delete-all" class="btn-action btn-delete"
-                    style="display: none; padding: 10px 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Limpiar
-                    Todo el Historial</button>
             </div>
 
             <!-- Recent History Table -->
@@ -222,7 +219,7 @@
 
     <script type="module">
         import { logout, getSession } from './js/auth.js';
-        import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord, deleteAllRecordsByPozo } from './js/data-service.js';
+        import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord } from './js/data-service.js';
 
         let activePozo = null;
         let currentRecordData = [];
@@ -234,11 +231,6 @@
 
             document.getElementById('btn-operational-history').classList.toggle('active', mode === 'operational');
             document.getElementById('btn-technical-history').classList.toggle('active', mode === 'technical');
-
-            const deleteAllBtn = document.getElementById('btn-delete-all');
-            if (deleteAllBtn) {
-                deleteAllBtn.style.display = activePozo && mode === 'operational' ? 'inline-block' : 'none';
-            }
 
             renderHistoryHead();
             if (activePozo) {
@@ -442,7 +434,6 @@
             document.getElementById('empty-state').style.display = 'none';
             document.getElementById('history-container').style.display = 'block';
             document.getElementById('tools-section').style.display = 'flex';
-            document.getElementById('btn-delete-all').style.display = activeHistoryMode === 'operational' ? 'inline-block' : 'none';
             renderPozoOptions();
 
             document.getElementById('table-title').textContent = activeHistoryMode === 'technical'
@@ -742,50 +733,6 @@
                 };
             });
         }
-
-        // --- BULK DELETE LOGIC ---
-        document.getElementById('btn-delete-all').addEventListener('click', async () => {
-            if (!activePozo) return;
-
-            const result = await Swal.fire({
-                title: `¿Borrar TODO el historial de ${activePozo}?`,
-                text: "Esta acción es irreversible y eliminará todos los registros que se ven en la tabla para este pozo.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#DC2626',
-                cancelButtonColor: '#6B7280',
-                confirmButtonText: 'SÍ, ELIMINAR TODO EL HISTORIAL',
-                cancelButtonText: 'No, cancelar'
-            });
-
-            if (result.isConfirmed) {
-                try {
-                    Swal.fire({ title: 'Limpiando base de datos...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
-                    const deletedCount = await deleteAllRecordsByPozo(activePozo);
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Historial Eliminado',
-                        text: `Se han borrado ${deletedCount} registros de ${activePozo} con éxito.`,
-                        timer: 3000,
-                        showConfirmButton: true
-                    });
-
-                    // Force UI Reset
-                    activePozo = null;
-                    document.getElementById('pozo-selector-input').value = '';
-                    document.getElementById('pozo-selector-menu').innerHTML = '<div class="pozo-selector-empty">Actualizando lista...</div>';
-                    await initPozos();
-                    document.getElementById('empty-state').style.display = 'block';
-                    document.getElementById('history-container').style.display = 'none';
-                    document.getElementById('tools-section').style.display = 'none';
-                    document.getElementById('btn-delete-all').style.display = 'none';
-                } catch (err) {
-                    Swal.fire({ icon: 'error', title: 'Error', text: err.message });
-                }
-            }
-        });
 
         // Toggling Print/Report view
         document.getElementById('main-view-toggle').addEventListener('click', () => {
