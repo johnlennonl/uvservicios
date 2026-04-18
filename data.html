@@ -73,6 +73,13 @@
                                 <div class="pozo-selector-empty">Cargando pozos...</div>
                             </div>
                         </div>
+                        <div class="pozo-selector-inline-note">
+                            <div class="pozo-selector-inline-note-copy">
+                                <h3>CÓMO USAR ESTA SECCIÓN</h3>
+                                <p>Usa este módulo para ubicar rápido un pozo y revisar su historial. Punto verde: tiene historial. Punto gris: no tiene registros cargados.</p>
+                                <p>Usa Actividad Reciente para mostrar todos los pozos o filtrar solo los que registraron en los últimos 7, 30 o 90 días.</p>
+                            </div>
+                        </div>
                     </div>
                     <div class="pozo-selector-field pozo-selector-filter">
                         <label for="pozo-activity-filter">Actividad Reciente</label>
@@ -85,11 +92,6 @@
                         </select>
                     </div>
                 </div>
-                <aside class="pozo-selector-help">
-                    <h3>Instrucciones</h3>
-                    <p>Selecciona un pozo desde el input. Punto verde: tiene historial. Punto gris: no tiene registros cargados.</p>
-                    <p>Usa Actividad Reciente para mostrar todos los pozos o filtrar solo los que registraron en los últimos 7, 30 o 90 días.</p>
-                </aside>
             </section>
 
             <!-- Dashboard Tools & Filters -->
@@ -639,7 +641,13 @@
                         </td>
                         <td>
                             <div class="technical-history-metric">
-                                <span class="technical-history-badge water">H2O</span>
+                                <span class="technical-history-badge water" aria-label="Contenido de agua" title="Contenido de agua">
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <path d="M12 3.8C9.4 6.9 7 9.9 7 13.2C7 16 9.24 18.2 12 18.2C14.76 18.2 17 16 17 13.2C17 9.9 14.6 6.9 12 3.8Z" fill="currentColor" fill-opacity="0.16" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                                        <path d="M14.9 13.9C14.45 15.05 13.39 15.88 12.15 16.05" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                                        <circle cx="15.65" cy="12.35" r="0.85" fill="currentColor"/>
+                                    </svg>
+                                </span>
                                 <div>
                                     <div class="technical-history-metric-value water">${formatNumberCell(record.ays_percentage, 2)}%</div>
                                     <div class="technical-history-metric-label">Contenido de agua</div>

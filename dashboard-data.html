@@ -213,24 +213,32 @@
                         </div>
                     </header>
 
-                    <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch; margin-bottom: 18px;">
-                        <div class="upload-mini-zone" id="tech-drop-zone" style="flex: 1 1 260px; min-height: 120px;">
-                            <div style="font-size: 1.5rem; margin-bottom: 8px;">🗂️</div>
-                            <p style="font-weight: 700; font-size: 0.8rem; margin: 0 0 4px 0;">Importar Producción Técnica</p>
-                            <p style="font-size: 0.72rem; color: #64748B; margin: 0;">CSV o Excel con columnas: CAMPO, POZO, EF, FECHA, BBPD, AYS, BNPD, CAT</p>
+                    <section class="technical-import-panel" aria-labelledby="technical-import-title">
+                        <div class="upload-mini-zone integrated-upload-zone technical-upload-zone" id="tech-drop-zone">
+                            <div class="integrated-upload-icon">🗂️</div>
+                            <div>
+                                <p class="integrated-upload-title">Archivo CSV o Excel técnico</p>
+                                <p class="integrated-upload-subtitle">Carga masiva con columnas: CAMPO, POZO, EF, FECHA, BBPD, AYS, BNPD, CAT.</p>
+                            </div>
                             <input type="file" id="tech-file-input" accept=".csv,.xlsx,.xls" style="display: none;">
                         </div>
-                        <div id="tech-upload-status" style="display: none; flex: 1 1 220px; align-self: center;">
+                        <div class="technical-import-copy">
+                            <h3 id="technical-import-title">Importar Producción Técnica</h3>
+                            <p>Sincroniza mediciones técnicas dentro del mismo flujo operativo, manteniendo el historial por pozo y fecha.</p>
+                        </div>
+                        <div id="tech-upload-status" class="integrated-upload-status technical-upload-status" style="display: none;">
                             <p id="tech-status-text" style="font-size: 0.75rem; font-weight: 700; color: #2563EB; margin: 0;"></p>
                         </div>
-                    </div>
+                    </section>
 
-                    <div class="technical-sync-note">
-                        <h3>Cómo funciona esta sincronización</h3>
-                        <p>Si el Excel trae una medición nueva para un pozo en una fecha distinta, se agrega al historial técnico.</p>
-                        <p>Si el Excel trae el mismo pozo con la misma fecha, esa medición se actualiza y no se duplica.</p>
-                        <p>Las mediciones viejas se conservan. Solo cambia la coincidencia exacta de pozo + fecha.</p>
-                    </div>
+                    <section class="manual-flow-note technical-flow-note" aria-label="Instrucciones de sincronización técnica">
+                        <div class="manual-flow-note-copy">
+                            <h3>Cómo funciona esta sincronización</h3>
+                            <p>Si el Excel trae una medición nueva para un pozo en una fecha distinta, se agrega al historial técnico.</p>
+                            <p>Si el Excel trae el mismo pozo con la misma fecha, esa medición se actualiza y no se duplica.</p>
+                            <p>Las mediciones viejas se conservan. Solo cambia la coincidencia exacta de pozo + fecha.</p>
+                        </div>
+                    </section>
 
                     <div class="technical-form-toggle-row">
                         <button type="button" id="btn-new-technical-measurement" class="btn-submit"
@@ -751,12 +759,37 @@
             document.getElementById('cancel-edit').style.display = 'none';
         }
 
+        function focusWithoutScroll(element) {
+            if (!element) return;
+            try {
+                element.focus({ preventScroll: true });
+            } catch (error) {
+                element.focus();
+            }
+        }
+
+        function togglePanelWithStableScroll(panel, isVisible, anchorElement) {
+            if (!panel) return;
+
+            const anchor = anchorElement || panel;
+            const beforeTop = anchor.getBoundingClientRect().top;
+            panel.classList.toggle('is-open', Boolean(isVisible));
+
+            requestAnimationFrame(() => {
+                const afterTop = anchor.getBoundingClientRect().top;
+                const delta = afterTop - beforeTop;
+                if (Math.abs(delta) > 1) {
+                    window.scrollBy(0, delta);
+                }
+            });
+        }
+
         function setManualFormVisibility(isVisible) {
             const panel = document.getElementById('manual-form-panel');
             const trigger = document.getElementById('btn-new-manual-entry');
             if (!panel || !trigger) return;
 
-            panel.classList.toggle('is-open', Boolean(isVisible));
+            togglePanelWithStableScroll(panel, isVisible, trigger);
             trigger.querySelector('.btn-text').textContent = isVisible
                 ? 'Agregar Otra Entrada de Parámetros Manual'
                 : 'Agregar Nueva Entrada de Parámetros Manual';
@@ -772,7 +805,7 @@
             document.getElementById('pozo_name').value = pozoName;
             document.getElementById('campo').value = campoName;
             document.getElementById('fecha').valueAsDate = new Date();
-            document.getElementById('pozo_name').focus();
+            focusWithoutScroll(document.getElementById('pozo_name'));
         }
 
         function populateTechnicalForm(techData = null, context = {}) {
@@ -801,7 +834,7 @@
             const trigger = document.getElementById('btn-new-technical-measurement');
             if (!panel || !trigger) return;
 
-            panel.classList.toggle('is-open', Boolean(isVisible));
+            togglePanelWithStableScroll(panel, isVisible, trigger);
             trigger.querySelector('.btn-text').textContent = isVisible
                 ? 'Agregar Otra Medición Técnica Manual'
                 : 'Agregar Nueva Medición Técnica Manual';
@@ -821,7 +854,7 @@
             document.getElementById('ef_tech').value = ef;
             document.getElementById('cat_tech').value = cat;
             document.getElementById('fecha_tech').valueAsDate = new Date();
-            document.getElementById('bbpd_tech').focus();
+            focusWithoutScroll(document.getElementById('bbpd_tech'));
         }
 
         const manualForm = document.getElementById('manual-data-form');

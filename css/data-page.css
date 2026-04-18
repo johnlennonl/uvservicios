@@ -247,10 +247,6 @@
         }
 
         .pozo-selector-card {
-            display: grid;
-            grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
-            gap: 18px;
-            align-items: start;
             margin-bottom: 28px;
         }
 
@@ -267,8 +263,12 @@
             display: grid;
             grid-template-columns: minmax(0, 1fr) 220px;
             gap: 14px;
-            align-items: end;
+            align-items: start;
             align-content: start;
+        }
+
+        .pozo-selector-field {
+            min-width: 0;
         }
 
         .pozo-selector-field label {
@@ -415,18 +415,31 @@
             font-weight: 700;
         }
 
-        .pozo-selector-help h3 {
-            margin: 0 0 10px 0;
-            font-size: 0.95rem;
-            font-weight: 800;
-            color: #0F172A;
+        .pozo-selector-inline-note {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 14px;
+            padding: 16px 18px;
+            border-radius: 18px;
+            border: 1px solid #DBEAFE;
+            background: linear-gradient(135deg, #F8FBFF, #EEF6FF);
         }
 
-        .pozo-selector-help p {
-            margin: 0 0 10px 0;
-            color: #64748B;
-            font-size: 0.88rem;
-            line-height: 1.5;
+        .pozo-selector-inline-note-copy h3 {
+            margin: 0;
+            font-size: 0.82rem;
+            font-weight: 900;
+            color: #1D4ED8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pozo-selector-inline-note-copy p {
+            margin: 6px 0 0 0;
+            font-size: 0.8rem;
+            line-height: 1.45;
+            color: #475569;
         }
 
         .history-card {
@@ -643,6 +656,12 @@
             font-weight: 900;
             letter-spacing: 0.04em;
             flex-shrink: 0;
+        }
+
+        .technical-history-badge svg {
+            width: 20px;
+            height: 20px;
+            display: block;
         }
 
         .technical-history-badge.barrel {
@@ -966,7 +985,6 @@
 
         @media (max-width: 640px) {
             .main-container {
-                padding: 16px 12px 92px 12px;
             }
 
             .page-hero {
@@ -982,10 +1000,14 @@
                 font-size: 0.9rem;
             }
 
-            .pozo-selector-main,
-            .pozo-selector-help {
+            .pozo-selector-main {
                 border-radius: 18px;
                 padding: 16px;
+            }
+
+            .pozo-selector-inline-note {
+                padding: 14px 15px;
+                border-radius: 16px;
             }
 
             .history-card {

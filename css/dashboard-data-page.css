@@ -480,6 +480,19 @@
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
+        .technical-import-panel {
+            display: grid;
+            grid-template-columns: minmax(280px, 1.35fr) minmax(220px, 0.95fr) minmax(180px, 0.7fr);
+            gap: 14px;
+            align-items: center;
+            margin: 0 0 20px 0;
+            padding: 16px 18px;
+            border-radius: 18px;
+            border: 1px solid #E2E8F0;
+            background: linear-gradient(135deg, #FFFFFF, #F8FBFF);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+
         .manual-import-copy h3 {
             margin: 0;
             font-size: 0.92rem;
@@ -489,6 +502,25 @@
         }
 
         .manual-import-copy p {
+            margin: 6px 0 0 0;
+            font-size: 0.78rem;
+            line-height: 1.45;
+            color: #64748B;
+        }
+
+        .technical-import-copy {
+            text-align: right;
+        }
+
+        .technical-import-copy h3 {
+            margin: 0;
+            font-size: 0.92rem;
+            font-weight: 800;
+            color: #0F172A;
+            letter-spacing: -0.02em;
+        }
+
+        .technical-import-copy p {
             margin: 6px 0 0 0;
             font-size: 0.78rem;
             line-height: 1.45;
@@ -506,6 +538,10 @@
             border-radius: 16px;
             background: linear-gradient(135deg, #FFFFFF, #F8FAFC);
             border: 1.5px dashed #93C5FD;
+        }
+
+        .technical-upload-zone {
+            justify-content: flex-start;
         }
 
         .integrated-upload-icon {
@@ -551,6 +587,11 @@
             line-height: 1.45;
         }
 
+        .technical-upload-status {
+            justify-content: flex-end;
+            min-height: 100%;
+        }
+
         .manual-flow-note {
             display: flex;
             justify-content: space-between;
@@ -561,6 +602,10 @@
             border-radius: 18px;
             border: 1px solid #DBEAFE;
             background: linear-gradient(135deg, #F8FBFF, #EEF6FF);
+        }
+
+        .technical-flow-note {
+            align-items: flex-start;
         }
 
         .manual-flow-note-copy h3 {
@@ -1019,34 +1064,6 @@
             background: #F1F5F9;
         }
 
-        .technical-sync-note {
-            margin: 0 0 18px 0;
-            padding: 14px 16px;
-            border-radius: 14px;
-            border: 1px solid #DBEAFE;
-            background: linear-gradient(135deg, #F8FBFF, #EEF6FF);
-        }
-
-        .technical-sync-note h3 {
-            margin: 0 0 8px 0;
-            font-size: 0.82rem;
-            font-weight: 800;
-            color: #1D4ED8;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .technical-sync-note p {
-            margin: 0;
-            font-size: 0.82rem;
-            line-height: 1.5;
-            color: #475569;
-        }
-
-        .technical-sync-note p + p {
-            margin-top: 6px;
-        }
-
         .technical-form-toggle-row {
             display: flex;
             justify-content: flex-start;
@@ -1389,9 +1406,17 @@
                 grid-template-columns: 1fr;
             }
 
+            .technical-import-panel {
+                grid-template-columns: 1fr;
+            }
+
             .manual-flow-note {
                 flex-direction: column;
                 align-items: stretch;
+            }
+
+            .technical-import-copy {
+                text-align: left;
             }
 
             .integrated-upload-zone {
@@ -1406,6 +1431,10 @@
             .recent-records-highlight {
                 display: flex;
                 width: 100%;
+            }
+
+            .technical-upload-status {
+                justify-content: flex-start;
             }
         }
 
@@ -1425,6 +1454,12 @@
 
             .top-row {
                 gap: 14px;
+            }
+
+            .manual-import-panel,
+            .technical-import-panel {
+                padding: 14px;
+                border-radius: 16px;
             }
 
             .compact-form-grid {
