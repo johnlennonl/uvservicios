@@ -12,6 +12,20 @@ function buildMonitoringRecordKey(record = {}) {
     return `${pozoName}|${fecha}|${hora}`;
 }
 
+function buildTechnicalRecordKey(record = {}) {
+    const pozoName = String(record.pozo_name || '').trim().toUpperCase();
+    const fecha = String(record.fecha || '').trim();
+    return `${pozoName}|${fecha}`;
+}
+
+function wrapTechnicalHistoryError(error) {
+    const message = String(error?.message || error || '');
+    if (/well_production_history/i.test(message)) {
+        return new Error('Falta crear la tabla de historial técnico en Supabase. Ejecuta el script supabase/well_production_history.sql y vuelve a intentar.');
+    }
+    return error instanceof Error ? error : new Error(message || 'Error desconocido en historial técnico.');
+}
+
 /**
  * Fetches monitoring data with optional filters for Pozo and Date.
  * @param {string} pozoName 
@@ -328,6 +342,233 @@ export async function getWellTechnicalData(pozoName) {
     return data && data.length > 0 ? data[0] : null;
 }
 
+export async function getRecentTechnicalMeasurements(limit = 10) {
+    const safeLimit = Number.isFinite(Number(limit)) ? Number(limit) : 10;
+
+    try {
+        const { data, error } = await supabase
+            .from('well_production_history')
+            .select('*')
+            .order('fecha', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(safeLimit);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            return data;
+        }
+
+        const fallback = await supabase
+            .from('well_production')
+            .select('*')
+            .order('fecha', { ascending: false })
+            .limit(safeLimit);
+
+        if (fallback.error) throw fallback.error;
+        return fallback.data || [];
+    } catch (error) {
+        const message = String(error?.message || error || '');
+        if (/well_production_history/i.test(message)) {
+            const fallback = await supabase
+                .from('well_production')
+                .select('*')
+                .order('fecha', { ascending: false })
+                .limit(safeLimit);
+
+            if (fallback.error) throw fallback.error;
+            return fallback.data || [];
+        }
+
+        throw error;
+    }
+}
+
+export async function getTechnicalHistory(pozoName, startDate = null, endDate = null) {
+    if (!pozoName || pozoName === 'Todas') return [];
+
+    try {
+        let query = supabase
+            .from('well_production_history')
+            .select('*')
+            .eq('pozo_name', pozoName)
+            .order('fecha', { ascending: false })
+            .order('created_at', { ascending: false });
+
+        if (startDate) query = query.gte('fecha', startDate);
+        if (endDate) query = query.lte('fecha', endDate);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            return data;
+        }
+
+        const latestTechnical = await getWellTechnicalData(pozoName);
+        if (!latestTechnical?.fecha) {
+            return [];
+        }
+
+        if (startDate && latestTechnical.fecha < startDate) {
+            return [];
+        }
+
+        if (endDate && latestTechnical.fecha > endDate) {
+            return [];
+        }
+
+        return [latestTechnical];
+    } catch (error) {
+        throw wrapTechnicalHistoryError(error);
+    }
+}
+
+async function refreshTechnicalSnapshot(pozoName) {
+    if (!pozoName) return null;
+
+    try {
+        const { data, error } = await supabase
+            .from('well_production_history')
+            .select('pozo_name, campo_name, ef, fecha, bbpd, ays_percentage, bnpd, cat_number')
+            .eq('pozo_name', pozoName)
+            .order('fecha', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (error) throw error;
+
+        const latestRecord = data && data.length > 0 ? data[0] : null;
+        if (!latestRecord) return null;
+
+        await upsertWellTechnicalData(latestRecord);
+        return latestRecord;
+    } catch (error) {
+        throw wrapTechnicalHistoryError(error);
+    }
+}
+
+export async function saveTechnicalMeasurement(data) {
+    const normalized = {
+        pozo_name: String(data?.pozo_name || '').trim(),
+        campo_name: String(data?.campo_name || '').trim(),
+        ef: String(data?.ef || '').trim(),
+        fecha: data?.fecha || null,
+        bbpd: data?.bbpd ?? 0,
+        ays_percentage: data?.ays_percentage ?? 0,
+        bnpd: data?.bnpd ?? 0,
+        cat_number: data?.cat_number ?? 1
+    };
+
+    if (!normalized.pozo_name) {
+        throw new Error('Nombre del pozo es requerido para guardar la medición técnica.');
+    }
+
+    if (!normalized.fecha) {
+        throw new Error('La fecha de la medición técnica es requerida.');
+    }
+
+    try {
+        const { error } = await supabase
+            .from('well_production_history')
+            .upsert(normalized, { onConflict: 'pozo_name,fecha' });
+
+        if (error) throw error;
+
+        await refreshTechnicalSnapshot(normalized.pozo_name);
+        return normalized;
+    } catch (error) {
+        throw wrapTechnicalHistoryError(error);
+    }
+}
+
+export async function syncTechnicalMeasurements(records = []) {
+    const normalizedRecords = (Array.isArray(records) ? records : [])
+        .filter(record => record?.pozo_name && record?.fecha)
+        .map(record => ({
+            pozo_name: String(record.pozo_name).trim(),
+            campo_name: String(record.campo_name || '').trim(),
+            ef: String(record.ef || '').trim(),
+            fecha: record.fecha,
+            bbpd: record.bbpd ?? 0,
+            ays_percentage: record.ays_percentage ?? 0,
+            bnpd: record.bnpd ?? 0,
+            cat_number: record.cat_number ?? 1
+        }));
+
+    if (normalizedRecords.length === 0) {
+        return { inserted: 0, updated: 0, total: 0 };
+    }
+
+    const uniqueIncomingRecords = new Map();
+    normalizedRecords.forEach(record => {
+        uniqueIncomingRecords.set(buildTechnicalRecordKey(record), record);
+    });
+
+    const dedupedRecords = [...uniqueIncomingRecords.values()];
+    const pozoNames = [...new Set(dedupedRecords.map(record => record.pozo_name))];
+    const fechas = dedupedRecords.map(record => record.fecha).filter(Boolean).sort();
+
+    try {
+        let existingQuery = supabase
+            .from('well_production_history')
+            .select('id, pozo_name, fecha')
+            .in('pozo_name', pozoNames);
+
+        if (fechas[0]) existingQuery = existingQuery.gte('fecha', fechas[0]);
+        if (fechas[fechas.length - 1]) existingQuery = existingQuery.lte('fecha', fechas[fechas.length - 1]);
+
+        const { data: existingRecords, error: existingError } = await existingQuery;
+        if (existingError) throw existingError;
+
+        const existingByKey = new Map();
+        (existingRecords || []).forEach(record => {
+            existingByKey.set(buildTechnicalRecordKey(record), record.id);
+        });
+
+        const recordsToInsert = [];
+        const recordsToUpdate = [];
+
+        dedupedRecords.forEach(record => {
+            const existingId = existingByKey.get(buildTechnicalRecordKey(record));
+            if (existingId) {
+                recordsToUpdate.push({ id: existingId, record });
+            } else {
+                recordsToInsert.push(record);
+            }
+        });
+
+        for (const item of recordsToUpdate) {
+            const { error } = await supabase
+                .from('well_production_history')
+                .update(item.record)
+                .eq('id', item.id);
+
+            if (error) throw error;
+        }
+
+        if (recordsToInsert.length > 0) {
+            const { error } = await supabase
+                .from('well_production_history')
+                .insert(recordsToInsert);
+
+            if (error) throw error;
+        }
+
+        for (const pozoName of pozoNames) {
+            await refreshTechnicalSnapshot(pozoName);
+        }
+
+        return {
+            inserted: recordsToInsert.length,
+            updated: recordsToUpdate.length,
+            total: dedupedRecords.length
+        };
+    } catch (error) {
+        throw wrapTechnicalHistoryError(error);
+    }
+}
+
 export async function getWellRibbonData(pozoName) {
     if (!pozoName || pozoName === 'Todas') return null;
 
@@ -353,7 +594,11 @@ export async function getWellRibbonData(pozoName) {
     if (!latestMonitoring && !latestTechnical) return null;
 
     const firstDefined = (...values) => values.find(value => value !== undefined && value !== null && `${value}`.trim() !== '');
-    const measurementDate = latestTechnical?.fecha || null;
+    const monitoringDate = latestMonitoring?.fecha || null;
+    const technicalDate = latestTechnical?.fecha || null;
+    const measurementDate = [monitoringDate, technicalDate]
+        .filter(Boolean)
+        .sort((a, b) => b.localeCompare(a))[0] || null;
 
     return {
         campo_name: firstDefined(latestMonitoring?.campo_name, latestMonitoring?.campo, latestTechnical?.campo_name),
@@ -391,20 +636,14 @@ export async function upsertWellTechnicalData(data) {
 export async function deleteAllRecordsByPozo(pozoName) {
     if (!pozoName || pozoName === 'Todas') return 0;
     
-    // 1. Borrado en la tabla de monitoreo (con búsqueda flexible para espacios o mayúsculas)
+    // Solo se elimina el historial operativo de monitoreo.
+    // La ficha técnica actual y el historial técnico se preservan.
     const { count: countTele, error: errorTele } = await supabase
         .from('monitoreo_pozos')
         .delete({ count: 'exact' })
         .ilike('pozo_name', `%${pozoName.trim()}%`);
-    
-    // 2. Borrado en la tabla técnica (well_production)
-    const { error: errorTech } = await supabase
-        .from('well_production')
-        .delete()
-        .ilike('pozo_name', `%${pozoName.trim()}%`);
-    
+
     if (errorTele) throw errorTele;
-    if (errorTech) throw errorTech;
 
     return countTele || 0;
 }

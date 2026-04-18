@@ -95,6 +95,10 @@
             <!-- Dashboard Tools & Filters -->
             <div class="tools-section" style="display: none; margin-bottom: 15px; justify-content: flex-end; gap: 10px;"
                 id="tools-section">
+                <div class="history-mode-toggle" id="history-mode-toggle">
+                    <button type="button" id="btn-operational-history" class="history-mode-btn active">Historial Operativo</button>
+                    <button type="button" id="btn-technical-history" class="history-mode-btn">Historial de Medición Técnica</button>
+                </div>
                 <select id="filter-date"
                     style="padding: 10px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; cursor: pointer; background: white;">
                     <option value="ALL" selected>Todos los tiempos</option>
@@ -123,7 +127,7 @@
                 </div>
                 <div style="overflow-x: auto;">
                     <table class="history-table">
-                        <thead>
+                        <thead id="history-table-head">
                             <tr>
                                 <th>Fecha/Hora</th>
                                 <th>Frecuencia</th>
@@ -218,17 +222,107 @@
 
     <script type="module">
         import { logout, getSession } from './js/auth.js';
-        import { getPozosHistorySummary, getMonitoringData, deleteRecord, deleteAllRecordsByPozo } from './js/data-service.js';
+        import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord, deleteAllRecordsByPozo } from './js/data-service.js';
 
         let activePozo = null;
         let currentRecordData = [];
         let pozoSummaries = [];
+        let activeHistoryMode = 'operational';
+
+        function setHistoryMode(mode) {
+            activeHistoryMode = mode;
+
+            document.getElementById('btn-operational-history').classList.toggle('active', mode === 'operational');
+            document.getElementById('btn-technical-history').classList.toggle('active', mode === 'technical');
+
+            const deleteAllBtn = document.getElementById('btn-delete-all');
+            if (deleteAllBtn) {
+                deleteAllBtn.style.display = activePozo && mode === 'operational' ? 'inline-block' : 'none';
+            }
+
+            renderHistoryHead();
+            if (activePozo) {
+                loadPozoData();
+            }
+        }
+
+        function renderHistoryHead() {
+            const thead = document.getElementById('history-table-head');
+            if (!thead) return;
+
+            if (activeHistoryMode === 'technical') {
+                thead.innerHTML = `
+                    <tr>
+                        <th>
+                            <span class="technical-history-head">
+                                <span class="technical-history-head-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                                        <path d="M16 2v4M8 2v4M3 10h18"></path>
+                                    </svg>
+                                </span>
+                                <span>Fecha Medición</span>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="technical-history-head">
+                                <span class="technical-history-head-icon barrel">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <ellipse cx="12" cy="5" rx="6" ry="2.5"></ellipse>
+                                        <path d="M6 5v14c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V5"></path>
+                                        <path d="M6 12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5"></path>
+                                    </svg>
+                                </span>
+                                <span>Barril Bruto</span>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="technical-history-head">
+                                <span class="technical-history-head-icon water">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M12 3C9 7 6 10.2 6 14a6 6 0 0012 0c0-3.8-3-7-6-11z"></path>
+                                    </svg>
+                                </span>
+                                <span>% Agua</span>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="technical-history-head">
+                                <span class="technical-history-head-icon net">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M4 15l4-4 4 4 8-8"></path>
+                                        <path d="M14 7h6v6"></path>
+                                    </svg>
+                                </span>
+                                <span>Barriles Netos</span>
+                            </span>
+                        </th>
+                    </tr>
+                `;
+                return;
+            }
+
+            thead.innerHTML = `
+                <tr>
+                    <th>Fecha/Hora</th>
+                    <th>Frecuencia</th>
+                    <th>Corriente M.</th>
+                    <th>PIP / TM</th>
+                    <th>Presiones (THP/CHP)</th>
+                    <th>VSD A/B/C</th>
+                    <th>Estatus</th>
+                    <th style="text-align: right;">Acciones</th>
+                </tr>
+            `;
+        }
 
         document.addEventListener('DOMContentLoaded', async () => {
             const session = await getSession();
             if (!session) { window.location.href = 'index.html'; return; }
             document.getElementById('logout-btn').addEventListener('click', logout);
             document.getElementById('mobile-logout-btn').addEventListener('click', logout);
+            document.getElementById('btn-operational-history').addEventListener('click', () => setHistoryMode('operational'));
+            document.getElementById('btn-technical-history').addEventListener('click', () => setHistoryMode('technical'));
 
             await initPozos();
         });
@@ -348,10 +442,12 @@
             document.getElementById('empty-state').style.display = 'none';
             document.getElementById('history-container').style.display = 'block';
             document.getElementById('tools-section').style.display = 'flex';
-            document.getElementById('btn-delete-all').style.display = 'inline-block';
+            document.getElementById('btn-delete-all').style.display = activeHistoryMode === 'operational' ? 'inline-block' : 'none';
             renderPozoOptions();
 
-            document.getElementById('table-title').textContent = `Historial Técnico: ${pozo}`;
+            document.getElementById('table-title').textContent = activeHistoryMode === 'technical'
+                ? `Historial de Medición Técnica: ${pozo}`
+                : `Historial Operativo: ${pozo}`;
             document.getElementById('history-body').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px;">Cargando datos...</td></tr>';
 
             await loadPozoData();
@@ -376,13 +472,128 @@
                     startStr = d.toISOString().split('T')[0];
                 }
 
-                const data = await getMonitoringData([activePozo], startStr, endStr);
+                const data = activeHistoryMode === 'technical'
+                    ? await getTechnicalHistory(activePozo, startStr, endStr)
+                    : await getMonitoringData([activePozo], startStr, endStr);
                 currentRecordData = data;
                 document.getElementById('record-count').textContent = `${data.length} Registros`;
+                document.getElementById('table-title').textContent = activeHistoryMode === 'technical'
+                    ? `Historial de Medición Técnica: ${activePozo}`
+                    : `Historial Operativo: ${activePozo}`;
                 renderTable();
             } catch (err) {
                 Swal.fire({ icon: 'error', title: 'Error BD', text: err.message });
             }
+        }
+
+        function openTechnicalRecordDetail(record) {
+            const formatNumberCell = (value, decimals = 2, suffix = '') => {
+                const numeric = Number(value);
+                return Number.isFinite(numeric) ? `${numeric.toFixed(decimals)}${suffix}` : '--';
+            };
+
+            const formatTextCell = (value, fallback = 'No disponible') => {
+                return value === undefined || value === null || value === '' ? fallback : value;
+            };
+
+            Swal.fire({
+                title: `Medición Técnica · ${formatTextCell(record.pozo_name, activePozo || 'Pozo')}`,
+                html: `
+                    <div class="technical-detail-modal">
+                        <div class="technical-detail-hero">
+                            <div class="technical-detail-hero-main">
+                                <div class="technical-detail-date">${formatTextCell(record.fecha)}</div>
+                                <div class="technical-detail-subtitle">Resumen completo de la medición técnica seleccionada</div>
+                            </div>
+                            <span class="technical-detail-cat">CAT ${formatTextCell(record.cat_number, '--')}</span>
+                        </div>
+
+                        <div class="technical-detail-grid">
+                            <div class="technical-detail-card">
+                                <div class="technical-detail-card-head">
+                                    <span class="technical-detail-icon pozo">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M12 3l7 4v10l-7 4-7-4V7l7-4z"></path>
+                                            <path d="M9 12h6"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="technical-detail-label">Pozo</span>
+                                </div>
+                                <strong>${formatTextCell(record.pozo_name, activePozo || '--')}</strong>
+                            </div>
+                            <div class="technical-detail-card">
+                                <div class="technical-detail-card-head">
+                                    <span class="technical-detail-icon campo">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M3 20h18"></path>
+                                            <path d="M6 20V9l6-4 6 4v11"></path>
+                                            <path d="M9 20v-4h6v4"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="technical-detail-label">Campo</span>
+                                </div>
+                                <strong>${formatTextCell(record.campo_name)}</strong>
+                            </div>
+                            <div class="technical-detail-card">
+                                <div class="technical-detail-card-head">
+                                    <span class="technical-detail-icon ef">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M12 2v20"></path>
+                                            <path d="M7 6h10"></path>
+                                            <path d="M7 12h8"></path>
+                                            <path d="M7 18h10"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="technical-detail-label">EF</span>
+                                </div>
+                                <strong>${formatTextCell(record.ef)}</strong>
+                            </div>
+                            <div class="technical-detail-card emphasis gross">
+                                <div class="technical-detail-card-head">
+                                    <span class="technical-detail-icon gross">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <ellipse cx="12" cy="5" rx="6" ry="2.5"></ellipse>
+                                            <path d="M6 5v14c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V5"></path>
+                                            <path d="M6 12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="technical-detail-label">Barril Bruto</span>
+                                </div>
+                                <strong>${formatNumberCell(record.bbpd)}</strong>
+                            </div>
+                            <div class="technical-detail-card emphasis water">
+                                <div class="technical-detail-card-head">
+                                    <span class="technical-detail-icon water">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M12 3C9 7 6 10.2 6 14a6 6 0 0012 0c0-3.8-3-7-6-11z"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="technical-detail-label">% Agua</span>
+                                </div>
+                                <strong>${formatNumberCell(record.ays_percentage, 2, '%')}</strong>
+                            </div>
+                            <div class="technical-detail-card emphasis net">
+                                <div class="technical-detail-card-head">
+                                    <span class="technical-detail-icon net">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M4 15l4-4 4 4 8-8"></path>
+                                            <path d="M14 7h6v6"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="technical-detail-label">Barriles Netos</span>
+                                </div>
+                                <strong>${formatNumberCell(record.bnpd)}</strong>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                width: 760,
+                confirmButtonText: 'Cerrar resumen',
+                confirmButtonColor: '#1D4ED8',
+                customClass: {
+                    popup: 'technical-detail-popup'
+                }
+            });
         }
 
         function renderTable() {
@@ -399,7 +610,70 @@
             };
 
             if (currentRecordData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay registros históricos</td></tr>';
+                const emptyColumns = activeHistoryMode === 'technical' ? 4 : 8;
+                tbody.innerHTML = `<tr><td colspan="${emptyColumns}" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay registros históricos</td></tr>`;
+                return;
+            }
+
+            if (activeHistoryMode === 'technical') {
+                currentRecordData.forEach(record => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'technical-history-row';
+                    tr.tabIndex = 0;
+                    tr.setAttribute('role', 'button');
+                    tr.setAttribute('aria-label', `Ver detalle de medicion tecnica ${formatTextCell(record.fecha)}`);
+                    tr.innerHTML = `
+                        <td>
+                            <div class="technical-history-date-cell">
+                                <span class="technical-history-date-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                                        <path d="M16 2v4M8 2v4M3 10h18"></path>
+                                    </svg>
+                                </span>
+                                <div>
+                                    <div class="technical-history-date-value">${formatTextCell(record.fecha)}</div>
+                                    <div class="technical-history-date-subtitle">Registro técnico</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="technical-history-metric">
+                                <span class="technical-history-badge barrel">BB</span>
+                                <div>
+                                    <div class="technical-history-metric-value">${formatNumberCell(record.bbpd, 2)}</div>
+                                    <div class="technical-history-metric-label">Barril bruto</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="technical-history-metric">
+                                <span class="technical-history-badge water">H2O</span>
+                                <div>
+                                    <div class="technical-history-metric-value water">${formatNumberCell(record.ays_percentage, 2)}%</div>
+                                    <div class="technical-history-metric-label">Contenido de agua</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="technical-history-metric">
+                                <span class="technical-history-badge net">BN</span>
+                                <div>
+                                    <div class="technical-history-metric-value">${formatNumberCell(record.bnpd, 2)}</div>
+                                    <div class="technical-history-metric-label">Barriles netos</div>
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                    tr.addEventListener('click', () => openTechnicalRecordDetail(record));
+                    tr.addEventListener('keydown', (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            openTechnicalRecordDetail(record);
+                        }
+                    });
+                    tbody.appendChild(tr);
+                });
                 return;
             }
 

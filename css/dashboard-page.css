@@ -655,6 +655,10 @@
             min-height: 450px;
         }
 
+        .trend-space-wide {
+            min-height: 260px;
+        }
+
         @keyframes pulseRing {
             0% {
                 transform: scale(1);
@@ -704,13 +708,53 @@
         /* RESPONSIVE DESIGN */
         @media (max-width: 1400px) {
             .brutal-grid {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(4, minmax(180px, 1fr));
+                gap: 18px;
+            }
+
+            .elite-card {
+                padding: 16px;
+                border-radius: 14px;
+            }
+
+            .card-header-industrial {
+                margin: -16px -16px 16px -16px;
+                padding: 12px 16px;
+            }
+
+            .chart-space {
+                min-height: 160px;
+            }
+
+            .trend-space-wide {
+                min-height: 240px;
+            }
+
+            .col-4 {
+                grid-column: span 4;
+            }
+
+            .col-2 {
+                grid-column: span 2;
+            }
+
+            .col-1 {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 1180px) {
+            .brutal-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .col-4,
-            .col-2,
-            .col-1 {
+            .col-2 {
                 grid-column: span 2;
+            }
+
+            .col-1 {
+                grid-column: span 1;
             }
         }
 
