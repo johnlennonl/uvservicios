@@ -69,7 +69,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round"
                     d="M9 17v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v8m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            <span>Reporte</span>
+            <span id="report-toggle-label">Generar reporte</span>
         </button>
 
         <!-- Main Workspace -->
@@ -85,19 +85,28 @@
 
             <!-- Corporate Print Header -->
             <div class="report-header-print">
-                <div style="display: flex; align-items: center; gap: 20px;">
-                    <img src="img/uvservicioslogo.png" alt="UV Logo" style="width: 120px;">
-                    <div>
-                        <h2 style="font-size: 1.4rem; font-weight: 800; color: #1E293B; margin: 0;">Reporte Operativo
-                            BES</h2>
-                        <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Unión Venezuela Servicios C.A. |
-                            División de Ingeniería</p>
+                <div class="report-brand-block">
+                    <img src="img/uvservicioslogo.png" alt="UV Logo" class="report-brand-logo">
+                    <div class="report-brand-copy">
+                        <p class="report-brand-kicker">Resumen técnico para exportación</p>
+                        <h2>Reporte Operativo BES</h2>
+                        <p>Unión Venezuela Servicios C.A. | División de Ingeniería</p>
+                        <p id="print-report-summary" class="report-summary-text">Analisis tecnico consolidado del pozo seleccionado.</p>
                     </div>
                 </div>
-                <div style="text-align: right;">
-                    <p style="font-size: 0.8rem; font-weight: 700; color: #1E293B; margin: 0;" id="print-report-well">
-                        POZO: --</p>
-                    <p style="font-size: 0.75rem; color: #64748B; margin: 0;" id="print-report-date">FECHA: --</p>
+                <div class="report-meta-grid">
+                    <div class="report-meta-card">
+                        <span>Pozo seleccionado</span>
+                        <strong id="print-report-well">POZO: --</strong>
+                    </div>
+                    <div class="report-meta-card">
+                        <span>Fecha de corte</span>
+                        <strong id="print-report-date">FECHA: --</strong>
+                    </div>
+                    <div class="report-meta-card">
+                        <span>Emitido</span>
+                        <strong id="print-report-generated">--</strong>
+                    </div>
                 </div>
             </div>
 
@@ -119,7 +128,7 @@
                     </button>
 
                     <!-- System Status Widget -->
-                    <div
+                    <div class="system-status-widget"
                         style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 12px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                         <div style="display: flex; flex-direction: column; align-items: flex-end;">
                             <span
@@ -460,17 +469,25 @@
     <script>
         const toggleReportMode = (enable) => {
             const body = document.body;
-            const toggleBtnSpan = document.getElementById('main-view-toggle').querySelector('span');
+            const toggleBtnLabel = document.getElementById('report-toggle-label');
 
             if (enable) {
                 body.classList.replace('view-mode-standard', 'view-mode-report');
-                toggleBtnSpan.textContent = 'Panel';
+                toggleBtnLabel.textContent = 'Volver al panel';
 
                 // Set Header Data for Print
-                const pozoNombre = document.getElementById('filter-pozo').options[document.getElementById('filter-pozo').selectedIndex]?.text || '--';
-                const fechaAnalisis = document.getElementById('filter-start').value || new Date().toLocaleDateString();
+                const pozoValue = document.getElementById('filter-pozo')?.value?.trim();
+                const pozoDisplayValue = document.getElementById('filter-pozo-display')?.value?.trim();
+                const pozoNombre = pozoValue || pozoDisplayValue || '--';
+                const historicalLabel = document.getElementById('historical-record-input')?.value?.trim();
+                const hiddenStartDate = document.getElementById('filter-start')?.value?.trim();
+                const fechaAnalisis = historicalLabel || hiddenStartDate || new Date().toLocaleDateString();
+                const resumen = document.getElementById('header-dynamic-subtitle').textContent?.trim() || 'Analisis tecnico consolidado del pozo seleccionado.';
+                const emitido = new Date().toLocaleString();
                 document.getElementById('print-report-well').textContent = `POZO: ${pozoNombre}`;
                 document.getElementById('print-report-date').textContent = `FECHA DE REPORTE: ${fechaAnalisis}`;
+                document.getElementById('print-report-summary').textContent = resumen;
+                document.getElementById('print-report-generated').textContent = emitido;
 
                 // Force ApexCharts to resize, then open the Print dialog automatically
                 setTimeout(() => {
@@ -482,7 +499,7 @@
                 }, 100);
             } else {
                 body.classList.replace('view-mode-report', 'view-mode-standard');
-                toggleBtnSpan.textContent = 'Reporte';
+                toggleBtnLabel.textContent = 'Generar reporte';
                 setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
             }
         };
