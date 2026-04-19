@@ -115,8 +115,15 @@
                                 <div class="section-header section-context"><span>1. Contexto</span></div>
                                 <div class="form-group">
                                     <label>Pozo</label>
-                                    <input type="text" id="pozo_name" list="pozos-list" required placeholder="BES-XX">
-                                    <datalist id="pozos-list"></datalist>
+                                    <div class="management-pozo-selector">
+                                        <input type="text" id="pozo_name" required placeholder="BES-XX" autocomplete="off">
+                                        <button type="button" id="pozo_name_toggle" class="management-pozo-toggle" aria-label="Abrir lista de pozos" title="Abrir lista de pozos">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <path d="M6 9l6 6 6-6" />
+                                            </svg>
+                                        </button>
+                                        <div class="management-pozo-menu" id="pozo_name_menu"></div>
+                                    </div>
                                     <div class="pozo-record-status" id="daily-pozo-status" aria-live="polite">
                                         <span class="pozo-record-dot neutral"></span>
                                         <span id="daily-pozo-status-text">Selecciona un pozo para ver su estado.</span>
@@ -254,8 +261,15 @@
                             <div class="section-header section-technical"><span>4. Producción Técnica</span></div>
                             <div class="form-group">
                                 <label>Pozo</label>
-                                <input type="text" id="tech_pozo_name" list="tech-pozos-list" required placeholder="BES-XX">
-                                <datalist id="tech-pozos-list"></datalist>
+                                <div class="management-pozo-selector">
+                                    <input type="text" id="tech_pozo_name" required placeholder="BES-XX" autocomplete="off">
+                                    <button type="button" id="tech_pozo_name_toggle" class="management-pozo-toggle" aria-label="Abrir lista de pozos" title="Abrir lista de pozos">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M6 9l6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                    <div class="management-pozo-menu" id="tech_pozo_name_menu"></div>
+                                </div>
                                 <div class="pozo-record-status" id="technical-pozo-status" aria-live="polite">
                                     <span class="pozo-record-dot neutral"></span>
                                     <span id="technical-pozo-status-text">Selecciona un pozo para ver su estado.</span>
@@ -306,6 +320,70 @@
                             </button>
                         </div>
                     </form>
+                    </div>
+                </section>
+
+                <section class="form-card well-management-card">
+                    <header class="well-management-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap;">
+                        <div>
+                            <h2 style="font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); margin: 0;">Gestión de Pozos</h2>
+                            <p style="margin: 6px 0 0 0; font-size: 0.82rem; color: #64748B;">Configura el tipo de bomba BES por pozo para que aparezca en Dashboard, Data y reportes.</p>
+                        </div>
+                    </header>
+
+                    <section class="manual-flow-note well-management-note" aria-label="Instrucciones de gestión de pozos">
+                        <div class="manual-flow-note-copy">
+                            <h3>Cómo usar esta sección</h3>
+                            <p>Selecciona un pozo y registra manualmente su tipo de bomba. Este dato se mantendrá como referencia maestra del pozo.</p>
+                            <p>Solo hace falta actualizarlo cuando cambie realmente el equipo instalado.</p>
+                        </div>
+                    </section>
+
+                    <div class="manual-form-toggle-row">
+                        <button type="button" id="btn-new-pump-profile" class="btn-submit"
+                            style="margin: 0; width: auto; padding: 12px 22px; background: #0F172A; box-shadow: none;">
+                            <span class="btn-text">Configurar Tipo de Bomba</span>
+                            <div class="loader"></div>
+                        </button>
+                    </div>
+
+                    <div id="pump-profile-panel" class="pump-profile-panel">
+                        <form id="pump-profile-form" class="login-form polished-form technical-polished-form">
+                            <div class="compact-form-grid pump-profile-grid">
+                                <div class="section-header section-technical"><span>5. Gestión de Pozos</span></div>
+                                <div class="form-group">
+                                    <label>Pozo</label>
+                                    <div class="management-pozo-selector">
+                                        <input type="text" id="pump_pozo_name" required placeholder="BES-XX" autocomplete="off">
+                                        <button type="button" id="pump_pozo_name_toggle" class="management-pozo-toggle" aria-label="Abrir lista de pozos" title="Abrir lista de pozos">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <path d="M6 9l6 6 6-6" />
+                                            </svg>
+                                        </button>
+                                        <div class="management-pozo-menu" id="pump_pozo_name_menu"></div>
+                                    </div>
+                                    <div class="pozo-record-status" id="pump-pozo-status" aria-live="polite">
+                                        <span class="pozo-record-dot neutral"></span>
+                                        <span id="pump-pozo-status-text">Selecciona un pozo para consultar su configuración actual.</span>
+                                    </div>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Tipo de Bomba</label>
+                                    <input type="text" id="pump_type" required placeholder="Ej: REDA DN1750 / Centrilift / Baker Hughes">
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 20px; display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap;">
+                                <button type="button" id="btn-close-pump-profile" class="technical-form-close-btn">
+                                    Ocultar formulario
+                                </button>
+                                <button type="submit" id="pump-submit-btn" class="btn-submit"
+                                    style="margin: 0; width: auto; padding: 12px 40px;">
+                                    <span class="btn-text">Guardar Tipo de Bomba</span>
+                                    <div class="loader"></div>
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </section>
 
@@ -389,12 +467,17 @@
 
     <script type="module">
         import { logout, getSession } from './js/auth.js';
-        import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, saveTechnicalMeasurement, syncTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord } from './js/data-service.js';
+        import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, saveTechnicalMeasurement, syncTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile } from './js/data-service.js';
 
         let isEditing = false;
         let knownPozos = new Set();
         let activeRecentHistoryMode = 'operational';
         const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
+        const MANAGEMENT_POZO_SELECTORS = [
+            { inputId: 'pozo_name', menuId: 'pozo_name_menu', toggleId: 'pozo_name_toggle' },
+            { inputId: 'tech_pozo_name', menuId: 'tech_pozo_name_menu', toggleId: 'tech_pozo_name_toggle' },
+            { inputId: 'pump_pozo_name', menuId: 'pump_pozo_name_menu', toggleId: 'pump_pozo_name_toggle' }
+        ];
 
         function getStoredSelectedPozo() {
             return sessionStorage.getItem(ACTIVE_POZO_STORAGE_KEY) || '';
@@ -406,6 +489,103 @@
             } else {
                 sessionStorage.removeItem(ACTIVE_POZO_STORAGE_KEY);
             }
+        }
+
+        function getSortedKnownPozos() {
+            return [...knownPozos].sort((a, b) => a.localeCompare(b));
+        }
+
+        function closeManagementPozoMenus(exceptMenuId = '') {
+            MANAGEMENT_POZO_SELECTORS.forEach(({ menuId }) => {
+                if (menuId === exceptMenuId) return;
+                document.getElementById(menuId)?.classList.remove('active');
+            });
+        }
+
+        function renderManagementPozoMenu({ inputId, menuId }, ignoreSearch = false) {
+            const input = document.getElementById(inputId);
+            const menu = document.getElementById(menuId);
+            if (!input || !menu) return;
+
+            const searchTerm = ignoreSearch ? '' : input.value.trim().toLowerCase();
+            const pozos = getSortedKnownPozos().filter(pozo => !searchTerm || pozo.toLowerCase().includes(searchTerm));
+
+            if (pozos.length === 0) {
+                menu.innerHTML = '<div class="management-pozo-empty">No hay pozos para esa búsqueda.</div>';
+                return;
+            }
+
+            menu.innerHTML = pozos.map(pozo => `
+                <button type="button" class="management-pozo-option ${pozo === input.value.trim().toUpperCase() ? 'active' : ''}" data-pozo="${pozo}">
+                    <span class="management-pozo-option-name">${pozo}</span>
+                </button>
+            `).join('');
+
+            menu.querySelectorAll('.management-pozo-option').forEach(button => {
+                button.addEventListener('click', () => {
+                    input.value = button.dataset.pozo || '';
+                    menu.classList.remove('active');
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+            });
+        }
+
+        function openManagementPozoMenu(config, ignoreSearch = false) {
+            const menu = document.getElementById(config.menuId);
+            if (!menu) return;
+            closeManagementPozoMenus(config.menuId);
+            renderManagementPozoMenu(config, ignoreSearch);
+            menu.classList.add('active');
+        }
+
+        function initializeManagementPozoSelectors() {
+            MANAGEMENT_POZO_SELECTORS.forEach(config => {
+                const input = document.getElementById(config.inputId);
+                const toggle = document.getElementById(config.toggleId);
+                const menu = document.getElementById(config.menuId);
+                if (!input || !toggle || !menu) return;
+
+                input.addEventListener('focus', () => {
+                    if (input.value.trim()) {
+                        input.select();
+                    }
+                    openManagementPozoMenu(config, true);
+                });
+
+                input.addEventListener('input', () => {
+                    openManagementPozoMenu(config, false);
+                });
+
+                input.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        menu.classList.remove('active');
+                    }
+                });
+
+                toggle.addEventListener('click', () => {
+                    const shouldOpen = !menu.classList.contains('active');
+                    if (shouldOpen) {
+                        openManagementPozoMenu(config, true);
+                        input.focus();
+                    } else {
+                        menu.classList.remove('active');
+                    }
+                });
+            });
+
+            document.addEventListener('click', (event) => {
+                MANAGEMENT_POZO_SELECTORS.forEach(({ inputId, menuId, toggleId }) => {
+                    const input = document.getElementById(inputId);
+                    const menu = document.getElementById(menuId);
+                    const toggle = document.getElementById(toggleId);
+                    if (!input || !menu || !toggle) return;
+
+                    const clickedInside = input.contains(event.target) || menu.contains(event.target) || toggle.contains(event.target);
+                    if (!clickedInside) {
+                        menu.classList.remove('active');
+                    }
+                });
+            });
         }
 
         async function updatePozoRecordStatus(pozoName, prefix) {
@@ -431,6 +611,33 @@
             statusText.textContent = 'Sin registros de monitoreo cargados.';
         }
 
+        async function updatePumpProfileStatus(pozoName) {
+            const statusText = document.getElementById('pump-pozo-status-text');
+            const statusDot = document.querySelector('#pump-pozo-status .pozo-record-dot');
+            if (!statusText || !statusDot) return;
+
+            statusDot.classList.remove('active', 'inactive');
+
+            if (!pozoName) {
+                statusText.textContent = 'Selecciona un pozo para consultar su configuración actual.';
+                return;
+            }
+
+            try {
+                const profile = await getWellBESProfile(pozoName);
+                if (profile?.pump_type) {
+                    statusDot.classList.add('active');
+                    statusText.textContent = `Configurado: ${profile.pump_type}.`;
+                    return;
+                }
+
+                statusDot.classList.add('inactive');
+                statusText.textContent = 'Este pozo aun no tiene tipo de bomba registrado.';
+            } catch (error) {
+                statusText.textContent = error.message;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             const session = await getSession();
             if (!session) window.location.href = 'index.html';
@@ -443,15 +650,21 @@
             setManualFormVisibility(false);
             resetTechnicalForm();
             setTechnicalFormVisibility(false);
+            resetPumpProfileForm();
+            setPumpProfileVisibility(false);
             await refreshPozoLists();
+            initializeManagementPozoSelectors();
 
             const storedPozo = getStoredSelectedPozo();
             if (storedPozo) {
                 document.getElementById('pozo_name').value = storedPozo;
+                document.getElementById('pump_pozo_name').value = storedPozo;
                 await syncDailyPozoContext();
+                await syncPumpPozoContext();
             }
             await updatePozoRecordStatus(document.getElementById('pozo_name').value.trim(), 'daily');
             await updatePozoRecordStatus(document.getElementById('tech_pozo_name').value.trim(), 'technical');
+            await updatePumpProfileStatus(document.getElementById('pump_pozo_name').value.trim());
             
             // 1. Check for Edit ID in URL
             const urlParams = new URLSearchParams(window.location.search);
@@ -476,7 +689,7 @@
             aysInput.addEventListener('input', calculateBNPD);
             document.getElementById('pozo_name').addEventListener('change', () => syncDailyPozoContext());
             document.getElementById('tech_pozo_name').addEventListener('change', () => syncTechnicalPozoContext());
-            document.getElementById('tech_pozo_name').addEventListener('input', () => syncTechnicalPozoContext());
+            document.getElementById('pump_pozo_name').addEventListener('change', () => syncPumpPozoContext());
             document.getElementById('btn-new-manual-entry').addEventListener('click', prepareNewManualEntry);
             document.getElementById('btn-close-manual-form').addEventListener('click', () => {
                 resetForm();
@@ -484,6 +697,8 @@
             });
             document.getElementById('btn-recent-operational').addEventListener('click', () => setRecentHistoryMode('operational'));
             document.getElementById('btn-recent-technical').addEventListener('click', () => setRecentHistoryMode('technical'));
+            document.getElementById('btn-new-pump-profile').addEventListener('click', prepareNewPumpProfile);
+            document.getElementById('btn-close-pump-profile').addEventListener('click', () => setPumpProfileVisibility(false));
 
             await refreshHistory();
         }
@@ -535,12 +750,8 @@
         async function refreshPozoLists() {
             const pozos = (await getUniquePozos()).sort((a, b) => a.localeCompare(b));
             knownPozos = new Set(pozos.map(pozo => pozo.trim().toUpperCase()));
-            const dailyList = document.getElementById('pozos-list');
-            const technicalList = document.getElementById('tech-pozos-list');
 
-            const optionsMarkup = pozos.map(pozo => `<option value="${pozo}"></option>`).join('');
-            dailyList.innerHTML = optionsMarkup;
-            technicalList.innerHTML = optionsMarkup;
+            MANAGEMENT_POZO_SELECTORS.forEach(config => renderManagementPozoMenu(config, true));
         }
 
         async function ensureKnownPozo(pozoName, campoName = '') {
@@ -579,12 +790,14 @@
         async function syncDailyPozoContext() {
             const pozoName = document.getElementById('pozo_name').value.trim();
             setStoredSelectedPozo(pozoName);
+            document.getElementById('pump_pozo_name').value = pozoName;
             await updatePozoRecordStatus(pozoName, 'daily');
         }
 
         async function syncTechnicalPozoContext() {
             const pozoName = document.getElementById('tech_pozo_name').value.trim();
             setStoredSelectedPozo(pozoName);
+            document.getElementById('pump_pozo_name').value = pozoName;
             await updatePozoRecordStatus(pozoName, 'technical');
             if (!pozoName) {
                 populateTechnicalForm(null, { pozo_name: '', campo_name: '' });
@@ -596,6 +809,20 @@
                 pozo_name: pozoName,
                 campo_name: techData?.campo_name || ''
             });
+        }
+
+        async function syncPumpPozoContext() {
+            const pozoName = document.getElementById('pump_pozo_name').value.trim();
+            setStoredSelectedPozo(pozoName);
+            await updatePumpProfileStatus(pozoName);
+
+            if (!pozoName) {
+                populatePumpProfileForm(null, { pozo_name: '' });
+                return;
+            }
+
+            const profile = await getWellBESProfile(pozoName);
+            populatePumpProfileForm(profile, { pozo_name: pozoName });
         }
 
         async function refreshHistory() {
@@ -829,6 +1056,43 @@
             document.getElementById('tech-submit-btn').querySelector('.btn-text').textContent = 'Guardar Producción Técnica';
         }
 
+        function populatePumpProfileForm(profile = null, context = {}) {
+            const pozoName = context.pozo_name || profile?.pozo_name || '';
+            document.getElementById('pump_pozo_name').value = pozoName;
+            document.getElementById('pump_type').value = profile?.pump_type || '';
+            setStoredSelectedPozo(pozoName);
+        }
+
+        function resetPumpProfileForm() {
+            document.getElementById('pump-profile-form').reset();
+            document.getElementById('pump-submit-btn').querySelector('.btn-text').textContent = 'Guardar Tipo de Bomba';
+        }
+
+        function setPumpProfileVisibility(isVisible) {
+            const panel = document.getElementById('pump-profile-panel');
+            const trigger = document.getElementById('btn-new-pump-profile');
+            if (!panel || !trigger) return;
+
+            togglePanelWithStableScroll(panel, isVisible, trigger);
+            trigger.querySelector('.btn-text').textContent = isVisible
+                ? 'Configurar Otro Tipo de Bomba'
+                : 'Configurar Tipo de Bomba';
+        }
+
+        function prepareNewPumpProfile() {
+            const pozoName = document.getElementById('pump_pozo_name').value.trim()
+                || document.getElementById('tech_pozo_name').value.trim()
+                || document.getElementById('pozo_name').value.trim();
+            const pumpType = document.getElementById('pump_type').value.trim();
+
+            resetPumpProfileForm();
+            setPumpProfileVisibility(true);
+            document.getElementById('pump_pozo_name').value = pozoName;
+            document.getElementById('pump_type').value = pumpType;
+            focusWithoutScroll(document.getElementById('pump_pozo_name'));
+            updatePumpProfileStatus(pozoName);
+        }
+
         function setTechnicalFormVisibility(isVisible) {
             const panel = document.getElementById('technical-form-panel');
             const trigger = document.getElementById('btn-new-technical-measurement');
@@ -939,6 +1203,32 @@
 
         document.getElementById('btn-new-technical-measurement').addEventListener('click', prepareNewTechnicalMeasurement);
         document.getElementById('btn-close-technical-form').addEventListener('click', () => setTechnicalFormVisibility(false));
+
+        const pumpProfileForm = document.getElementById('pump-profile-form');
+        pumpProfileForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('pump-submit-btn');
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            try {
+                const profile = {
+                    pozo_name: document.getElementById('pump_pozo_name').value.trim(),
+                    pump_type: document.getElementById('pump_type').value.trim()
+                };
+
+                await upsertWellBESProfile(profile);
+                await refreshPozoLists();
+                await updatePumpProfileStatus(profile.pozo_name);
+                setPumpProfileVisibility(false);
+                Swal.fire({ icon: 'success', title: 'Tipo de Bomba Guardado', text: `La configuración del pozo ${profile.pozo_name} fue actualizada correctamente.`, timer: 2200, showConfirmButton: false });
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Fallo al Guardar', text: err.message });
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
 
         const techDropZone = document.getElementById('tech-drop-zone');
         const techFileInput = document.getElementById('tech-file-input');

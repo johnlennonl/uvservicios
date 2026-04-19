@@ -58,6 +58,43 @@
                 </div>
             </header>
 
+            <section class="report-export-header" id="report-export-header" aria-hidden="true">
+                <div class="report-export-brand">
+                    <img src="img/uvservicioslogo.png" alt="UV Logo" class="report-export-logo">
+                    <div class="report-export-copy">
+                        <p class="report-export-kicker">Exportacion ejecutiva</p>
+                        <h2>Reporte Historico BES</h2>
+                        <p id="report-export-summary">Resumen curado de registros historicos para auditoria y seguimiento operativo.</p>
+                    </div>
+                </div>
+                <div class="report-export-meta">
+                    <div class="report-export-pill">
+                        <span>Pozo</span>
+                        <strong id="report-data-pozo">--</strong>
+                    </div>
+                    <div class="report-export-pill">
+                        <span>Bomba BES</span>
+                        <strong id="report-data-pump">--</strong>
+                    </div>
+                    <div class="report-export-pill">
+                        <span>Modo</span>
+                        <strong id="report-data-mode">--</strong>
+                    </div>
+                    <div class="report-export-pill">
+                        <span>Filtro</span>
+                        <strong id="report-data-filter">--</strong>
+                    </div>
+                    <div class="report-export-pill">
+                        <span>Registros</span>
+                        <strong id="report-data-count">0</strong>
+                    </div>
+                    <div class="report-export-pill report-export-pill-wide">
+                        <span>Emitido</span>
+                        <strong id="report-data-generated">--</strong>
+                    </div>
+                </div>
+            </section>
+
             <section class="pozo-selector-card">
                 <div class="pozo-selector-main">
                     <div class="pozo-selector-field">
@@ -90,6 +127,26 @@
                             <option value="30">Con registros en últimos 30 días</option>
                             <option value="90">Con registros en últimos 90 días</option>
                         </select>
+                    </div>
+                </div>
+            </section>
+
+            <section class="selected-pozo-profile" id="selected-pozo-profile" style="display: none;">
+                <div class="selected-pozo-profile-card">
+                    <div class="selected-pozo-profile-copy">
+                        <span class="selected-pozo-profile-kicker">Ficha rápida del pozo</span>
+                        <h2 id="selected-pozo-profile-title">Pozo seleccionado</h2>
+                        <p id="selected-pozo-profile-summary">Consulta rápida del tipo de bomba configurado para este pozo.</p>
+                    </div>
+                    <div class="selected-pozo-profile-grid">
+                        <div class="selected-pozo-profile-pill">
+                            <span>Pozo</span>
+                            <strong id="selected-pozo-profile-pozo">--</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Tipo de bomba</span>
+                            <strong id="selected-pozo-profile-pump">Pendiente por configurar</strong>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -221,12 +278,71 @@
 
     <script type="module">
         import { logout, getSession } from './js/auth.js';
-        import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord } from './js/data-service.js';
+        import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord, getWellBESProfile } from './js/data-service.js';
 
         let activePozo = null;
         let currentRecordData = [];
         let pozoSummaries = [];
         let activeHistoryMode = 'operational';
+
+        async function updateSelectedPozoProfile(pozoName) {
+            const profileSection = document.getElementById('selected-pozo-profile');
+            const pozoLabel = document.getElementById('selected-pozo-profile-pozo');
+            const pumpLabel = document.getElementById('selected-pozo-profile-pump');
+            const title = document.getElementById('selected-pozo-profile-title');
+
+            if (!profileSection || !pozoLabel || !pumpLabel || !title) return;
+
+            if (!pozoName) {
+                profileSection.style.display = 'none';
+                pozoLabel.textContent = '--';
+                pumpLabel.textContent = 'Pendiente por configurar';
+                return;
+            }
+
+            profileSection.style.display = 'block';
+            title.textContent = `Pozo ${pozoName}`;
+            pozoLabel.textContent = pozoName;
+
+            try {
+                const profile = await getWellBESProfile(pozoName);
+                pumpLabel.textContent = profile?.pump_type || 'Pendiente por configurar';
+            } catch (error) {
+                pumpLabel.textContent = error.message;
+            }
+        }
+
+        function getActiveFilterLabel() {
+            const filterSelect = document.getElementById('filter-date');
+            const specificDate = document.getElementById('input-specific-date')?.value;
+            if (!filterSelect) return 'Todos los tiempos';
+
+            if (filterSelect.value === 'SPECIFIC' && specificDate) {
+                return `Fecha especifica: ${specificDate}`;
+            }
+
+            return filterSelect.options[filterSelect.selectedIndex]?.text || 'Todos los tiempos';
+        }
+
+        function updateReportExportHeader() {
+            const activeModeLabel = activeHistoryMode === 'technical'
+                ? 'Historial de medicion tecnica'
+                : 'Historial operativo';
+            const filterLabel = getActiveFilterLabel();
+            const recordCount = document.getElementById('record-count')?.textContent?.trim() || `${currentRecordData.length} Registros`;
+            const pumpType = document.getElementById('selected-pozo-profile-pump')?.textContent?.trim() || 'Pendiente por configurar';
+            const summary = activePozo
+                ? `${activeModeLabel} del pozo ${activePozo}. Filtro aplicado: ${filterLabel.toLowerCase()}.`
+                : 'Resumen curado de registros historicos para auditoria y seguimiento operativo.';
+
+            document.getElementById('report-data-pozo').textContent = activePozo || 'Sin seleccion';
+            document.getElementById('report-data-pump').textContent = pumpType;
+            document.getElementById('report-data-mode').textContent = activeModeLabel;
+            document.getElementById('report-data-filter').textContent = filterLabel;
+            document.getElementById('report-data-count').textContent = recordCount;
+            document.getElementById('report-data-generated').textContent = new Date().toLocaleString();
+            document.getElementById('report-export-summary').textContent = summary;
+        }
 
         function setHistoryMode(mode) {
             activeHistoryMode = mode;
@@ -442,6 +558,8 @@
                 ? `Historial de Medición Técnica: ${pozo}`
                 : `Historial Operativo: ${pozo}`;
             document.getElementById('history-body').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px;">Cargando datos...</td></tr>';
+
+            await updateSelectedPozoProfile(pozo);
 
             await loadPozoData();
         }
@@ -746,6 +864,7 @@
         document.getElementById('main-view-toggle').addEventListener('click', () => {
             const isStandard = !document.body.classList.contains('view-mode-report');
             if (isStandard) {
+                updateReportExportHeader();
                 document.body.classList.add('view-mode-report');
                 document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER A LA WEB';
 

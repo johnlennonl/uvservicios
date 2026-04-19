@@ -56,24 +56,290 @@
         }
 
         .view-mode-report .main-container {
-            padding: 10px 40px;
+            padding: 24px 40px 40px;
         }
 
         .view-mode-report .history-card {
-            border: none;
+            border: 1px solid #E2E8F0;
             box-shadow: none;
-            border-bottom: 2px solid #F3F4F6;
-            padding: 15px 0;
+            padding: 0;
+            border-radius: 22px;
+            background: linear-gradient(180deg, #FFFFFF 0%, #FCFDFE 100%);
+        }
+
+        .view-mode-report .page-hero {
+            margin-bottom: 20px;
+            padding: 0 0 18px 0;
+            border: none;
             border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            border-bottom: 2px solid #E2E8F0;
+        }
+
+        .view-mode-report .page-hero::before,
+        .view-mode-report .page-hero::after,
+        .view-mode-report .pozo-selector-card,
+        .view-mode-report .tools-section,
+        .view-mode-report .empty-state,
+        .view-mode-report #empty-state,
+        .view-mode-report .mobile-bottom-nav {
+            display: none !important;
+        }
+
+        .report-export-header {
+            display: none;
+            gap: 18px;
+            margin-bottom: 22px;
+            padding: 24px 26px;
+            border-radius: 24px;
+            border: 1px solid #E2E8F0;
+            background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+        }
+
+        .view-mode-report .report-export-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
+            align-items: start;
+        }
+
+        .report-export-brand {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            min-width: 0;
+        }
+
+        .report-export-logo {
+            width: 112px;
+            flex: 0 0 auto;
+        }
+
+        .report-export-copy h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #0F172A;
+        }
+
+        .report-export-copy p {
+            margin: 6px 0 0;
+            color: #475569;
+            line-height: 1.55;
+            font-size: 0.9rem;
+        }
+
+        .report-export-kicker {
+            margin: 0 0 8px !important;
+            font-size: 0.68rem !important;
+            font-weight: 900;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #B91C1C !important;
+        }
+
+        .report-export-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .report-export-pill {
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px solid #E2E8F0;
+            background: #FFFFFF;
+        }
+
+        .report-export-pill-wide {
+            grid-column: 1 / -1;
+        }
+
+        .report-export-pill span {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #94A3B8;
+        }
+
+        .report-export-pill strong {
+            display: block;
+            color: #0F172A;
+            font-size: 0.95rem;
+            line-height: 1.35;
+        }
+
+        .view-mode-report #history-container > div:first-child {
+            padding: 18px 20px !important;
+            background: #F8FAFC;
+            border-bottom: 1px solid #E2E8F0 !important;
+        }
+
+        .view-mode-report #history-container > div:first-child > div {
+            align-items: center !important;
+        }
+
+        .view-mode-report #table-title {
+            font-size: 1.05rem !important;
+            color: #0F172A !important;
+        }
+
+        .view-mode-report #record-count {
+            background: #DBEAFE !important;
+            color: #1D4ED8 !important;
+        }
+
+        .view-mode-report .history-table th {
+            background: #F8FAFC;
+            color: #475569;
+            border-bottom: 1px solid #E2E8F0;
+            padding: 14px 16px;
+            font-size: 0.68rem;
+            letter-spacing: 0.06em;
+        }
+
+        .view-mode-report .history-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #EEF2F7;
+            font-size: 0.85rem;
+            color: #334155;
+        }
+
+        .view-mode-report .history-table tr:hover {
+            background: transparent;
+        }
+
+        .view-mode-report .history-table th:last-child,
+        .view-mode-report .history-table td:last-child,
+        .view-mode-report .btn-action {
+            display: none !important;
         }
 
         @media print {
+            body,
+            .view-mode-report {
+                background: #FFFFFF !important;
+            }
+
+            .sidebar,
+            .pozo-selector-card,
+            .tools-section,
+            .btn-report-toggle,
+            .mobile-bottom-nav,
+            #logout-btn,
+            #mobile-logout-btn,
+            #empty-state {
+                display: none !important;
+            }
+
+            .dashboard-layout,
+            .view-mode-report .dashboard-layout {
+                display: block !important;
+            }
+
+            .main-container,
+            .view-mode-report .main-container {
+                padding: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+            }
+
+            .page-hero {
+                margin-bottom: 14px !important;
+                padding: 0 0 16px 0 !important;
+                border: none !important;
+                border-bottom: 2px solid #E2E8F0 !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+            }
+
+            .page-hero::before,
+            .page-hero::after {
+                display: none !important;
+            }
+
+            .report-export-header {
+                display: grid !important;
+                grid-template-columns: 1.2fr 1fr;
+                gap: 16px;
+                margin-bottom: 18px !important;
+                padding: 18px 20px !important;
+                border-radius: 18px !important;
+                border: 1px solid #E2E8F0 !important;
+                box-shadow: none !important;
+                break-inside: avoid;
+            }
+
+            .history-card {
+                border: 1px solid #E2E8F0 !important;
+                border-radius: 18px !important;
+                box-shadow: none !important;
+                overflow: hidden !important;
+            }
+
             .btn-report-toggle {
                 display: none !important;
             }
 
             .history-card {
                 page-break-inside: avoid;
+            }
+
+            .history-table {
+                table-layout: fixed;
+            }
+
+            .history-table thead {
+                display: table-header-group;
+            }
+
+            .history-table th,
+            .history-table td {
+                padding: 10px 12px !important;
+                font-size: 8.5pt !important;
+                vertical-align: top;
+                word-break: break-word;
+            }
+
+            .history-table th:last-child,
+            .history-table td:last-child,
+            .btn-action {
+                display: none !important;
+            }
+
+            .technical-history-head {
+                gap: 6px !important;
+            }
+
+            .technical-history-head-icon,
+            .technical-history-date-icon,
+            .technical-history-badge {
+                width: 24px !important;
+                height: 24px !important;
+                min-width: 24px !important;
+                border-radius: 8px !important;
+                padding: 0 !important;
+            }
+
+            .technical-history-date-cell,
+            .technical-history-metric {
+                gap: 8px !important;
+            }
+
+            .technical-history-date-value,
+            .technical-history-metric-value {
+                font-size: 8.6pt !important;
+            }
+
+            .technical-history-date-subtitle,
+            .technical-history-metric-label,
+            .technical-history-status-note {
+                font-size: 7pt !important;
             }
         }
 
@@ -248,6 +514,76 @@
 
         .pozo-selector-card {
             margin-bottom: 28px;
+        }
+
+        .selected-pozo-profile {
+            margin-bottom: 20px;
+        }
+
+        .selected-pozo-profile-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.9fr);
+            gap: 16px;
+            align-items: center;
+            padding: 18px 20px;
+            border-radius: 20px;
+            border: 1px solid #E2E8F0;
+            background: linear-gradient(135deg, #FFFFFF, #F8FAFC);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+        }
+
+        .selected-pozo-profile-kicker {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #7C3AED;
+        }
+
+        .selected-pozo-profile-copy h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #0F172A;
+        }
+
+        .selected-pozo-profile-copy p {
+            margin: 6px 0 0;
+            font-size: 0.84rem;
+            line-height: 1.45;
+            color: #64748B;
+        }
+
+        .selected-pozo-profile-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .selected-pozo-profile-pill {
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px solid #E2E8F0;
+            background: #FFFFFF;
+        }
+
+        .selected-pozo-profile-pill span {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #94A3B8;
+        }
+
+        .selected-pozo-profile-pill strong {
+            display: block;
+            color: #0F172A;
+            font-size: 0.94rem;
+            line-height: 1.35;
         }
 
         .pozo-selector-main,
@@ -856,6 +1192,14 @@
                 border-radius: 20px;
             }
 
+            .view-mode-report .report-export-header {
+                grid-template-columns: 1fr;
+            }
+
+            .report-export-meta {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
             header {
                 flex-direction: column;
                 align-items: flex-start;
@@ -865,6 +1209,14 @@
             .pozo-selector-card {
                 grid-template-columns: 1fr;
                 margin-bottom: 20px;
+            }
+
+            .selected-pozo-profile-card {
+                grid-template-columns: 1fr;
+            }
+
+            .selected-pozo-profile-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .pozo-selector-main {
@@ -992,6 +1344,23 @@
                 border-radius: 18px;
             }
 
+            .report-export-header {
+                padding: 18px;
+                border-radius: 18px;
+            }
+
+            .report-export-brand {
+                align-items: flex-start;
+            }
+
+            .report-export-logo {
+                width: 84px;
+            }
+
+            .report-export-meta {
+                grid-template-columns: 1fr;
+            }
+
             header h1 {
                 font-size: 1.6rem;
             }
@@ -1003,6 +1372,15 @@
             .pozo-selector-main {
                 border-radius: 18px;
                 padding: 16px;
+            }
+
+            .selected-pozo-profile-card {
+                padding: 16px;
+                border-radius: 18px;
+            }
+
+            .selected-pozo-profile-grid {
+                grid-template-columns: 1fr;
             }
 
             .pozo-selector-inline-note {

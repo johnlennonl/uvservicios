@@ -437,6 +437,15 @@
             overflow: hidden;
         }
 
+        .well-management-card {
+            position: relative;
+            border-radius: 22px;
+            border: 1px solid #DCE7F3;
+            background: linear-gradient(180deg, #FFFFFF, #FBFDFF);
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+        }
+
         .manual-entry-card::before {
             content: '';
             position: absolute;
@@ -453,6 +462,14 @@
             background: linear-gradient(90deg, #0F172A, #2563EB 58%, #60A5FA);
         }
 
+        .well-management-card::before {
+            content: '';
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 4px;
+            background: linear-gradient(90deg, #0F172A, #7C3AED 58%, #38BDF8);
+        }
+
         .manual-entry-header {
             position: relative;
             z-index: 1;
@@ -461,6 +478,13 @@
         }
 
         .technical-entry-header {
+            position: relative;
+            z-index: 1;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #EAF0F6;
+        }
+
+        .well-management-header {
             position: relative;
             z-index: 1;
             padding-bottom: 14px;
@@ -712,6 +736,137 @@
             flex: 0 0 auto;
         }
 
+        .well-management-header h2 {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .well-management-header h2::before {
+            content: '';
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #EDE9FE, #E0F2FE);
+            box-shadow: inset 0 0 0 1px #C4B5FD;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C3AED' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06A1.65 1.65 0 0015 19.4a1.65 1.65 0 00-1 .6 1.65 1.65 0 00-.33 1V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-.33-1 1.65 1.65 0 00-1-.6 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-.6-1 1.65 1.65 0 00-1-.33H3a2 2 0 110-4h.09a1.65 1.65 0 001-.33 1.65 1.65 0 00.6-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-.6 1.65 1.65 0 00.33-1V3a2 2 0 114 0v.09a1.65 1.65 0 00.33 1 1.65 1.65 0 001 .6 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c.26.3.45.65.55 1.04.1.39.12.8.05 1.2-.07.4-.22.78-.45 1.11-.22.33-.52.62-.88.85z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 18px;
+            flex: 0 0 auto;
+        }
+
+        .well-management-note {
+            border-color: #E9D5FF;
+            background: linear-gradient(135deg, #FCFAFF, #F5F3FF);
+        }
+
+        .well-management-note .manual-flow-note-copy h3 {
+            color: #7C3AED;
+        }
+
+        .pump-profile-panel {
+            display: none;
+            margin-top: 18px;
+        }
+
+        .pump-profile-panel.is-open {
+            display: block;
+        }
+
+        .pump-profile-grid {
+            gap: 16px 20px;
+            align-items: start;
+        }
+
+        .management-pozo-selector {
+            position: relative;
+        }
+
+        .management-pozo-selector input {
+            padding-right: 52px;
+        }
+
+        .management-pozo-toggle {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: #64748B;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .management-pozo-toggle:hover {
+            background: #E2E8F0;
+            color: #0F172A;
+        }
+
+        .management-pozo-toggle svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .management-pozo-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            display: none;
+            max-height: 260px;
+            overflow-y: auto;
+            padding: 8px;
+            border-radius: 16px;
+            border: 1px solid #E2E8F0;
+            background: #0F172A;
+            box-shadow: 0 18px 34px rgba(15, 23, 42, 0.24);
+            z-index: 80;
+        }
+
+        .management-pozo-menu.active {
+            display: block;
+        }
+
+        .management-pozo-empty {
+            padding: 14px 12px;
+            color: #94A3B8;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .management-pozo-option {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: #E2E8F0;
+            text-align: left;
+            padding: 12px 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .management-pozo-option:hover,
+        .management-pozo-option.active {
+            background: #1E293B;
+            color: #FFFFFF;
+        }
+
+        .management-pozo-option-name {
+            font-weight: 800;
+            letter-spacing: 0.01em;
+        }
+
         .manual-cancel-btn {
             display: inline-flex;
             align-items: center;
@@ -845,12 +1000,27 @@
             transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
+        #pump-profile-form .form-group {
+            position: relative;
+            padding: 14px;
+            border-radius: 18px;
+            border: 1px solid #E8EEF5;
+            background: linear-gradient(180deg, #FCFDFF, #F8FBFE);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
         #manual-data-form .form-group:hover {
             border-color: #D6E2F0;
             box-shadow: 0 10px 20px rgba(148, 163, 184, 0.08);
         }
 
         #technical-data-form .form-group:hover {
+            border-color: #D6E2F0;
+            box-shadow: 0 10px 20px rgba(148, 163, 184, 0.08);
+        }
+
+        #pump-profile-form .form-group:hover {
             border-color: #D6E2F0;
             box-shadow: 0 10px 20px rgba(148, 163, 184, 0.08);
         }
@@ -865,6 +1035,15 @@
         }
 
         #technical-data-form .form-group label {
+            margin-bottom: 10px;
+            font-size: 0.72rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #334155;
+        }
+
+        #pump-profile-form .form-group label {
             margin-bottom: 10px;
             font-size: 0.72rem;
             font-weight: 900;
@@ -895,6 +1074,17 @@
             transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
         }
 
+        #pump-profile-form .form-group input,
+        #pump-profile-form .form-group select,
+        #pump-profile-form .form-group textarea {
+            min-height: 46px;
+            border: 1.5px solid #D8E1EB;
+            border-radius: 14px;
+            background-color: #FFFFFF;
+            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+
         #manual-data-form .form-group input:focus,
         #manual-data-form .form-group select:focus,
         #manual-data-form .form-group textarea:focus {
@@ -911,6 +1101,19 @@
             border-color: #60A5FA;
             box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.16), inset 0 1px 2px rgba(15, 23, 42, 0.03);
             background-color: #FFFFFF;
+        }
+
+        #pump-profile-form .form-group input:focus,
+        #pump-profile-form .form-group select:focus,
+        #pump-profile-form .form-group textarea:focus {
+            outline: none;
+            border-color: #60A5FA;
+            box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.16), inset 0 1px 2px rgba(15, 23, 42, 0.03);
+            background-color: #FFFFFF;
+        }
+
+        #pump-profile-form .pozo-record-status {
+            margin-top: 12px;
         }
 
         #manual-data-form .pozo-record-status {

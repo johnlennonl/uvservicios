@@ -926,6 +926,7 @@ function updateDataRibbon(data) {
         'rb-campo': data?.campo_name || '--',
         'rb-pozo': data?.pozo_name || '--',
         'rb-ef': data?.ef || '--',
+        'rb-pump': data?.pump_type || '--',
         'rb-fecha': data?.measurement_date || data?.fecha || '--',
         'rb-bbpd': data?.bbpd || '--',
         'rb-ays': data?.ays_percentage ? `${data.ays_percentage}%` : '--',

@@ -100,6 +100,10 @@
                         <strong id="print-report-well">POZO: --</strong>
                     </div>
                     <div class="report-meta-card">
+                        <span>Bomba BES</span>
+                        <strong id="print-report-pump">--</strong>
+                    </div>
+                    <div class="report-meta-card">
                         <span>Fecha de corte</span>
                         <strong id="print-report-date">FECHA: --</strong>
                     </div>
@@ -117,16 +121,6 @@
                 </div>
 
                 <div class="page-hero-actions">
-                    <!-- Theme Toggle -->
-                    <button id="theme-toggle"
-                        style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-body); padding: 0 15px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: all 0.2s;">
-                        <svg id="theme-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                            style="width: 20px; height: 20px;">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                        </svg>
-                    </button>
-
                     <!-- System Status Widget -->
                     <div class="system-status-widget"
                         style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 12px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -273,6 +267,23 @@
                     <div class="ribbon-content">
                         <span class="ribbon-label">EF</span>
                         <span class="ribbon-value" id="rb-ef">VLG-7-7</span>
+                    </div>
+                </div>
+                <!-- Bomba -->
+                <div class="ribbon-card highlight" title="Tipo de bomba BES configurado para el pozo">
+                    <div class="ribbon-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v3" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 6h4" />
+                            <rect x="9" y="6" width="6" height="11" rx="2" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 9h6" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 15h6" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 17v4" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8" />
+                        </svg></div>
+                    <div class="ribbon-content">
+                        <span class="ribbon-label">Bomba BES</span>
+                        <span class="ribbon-value" id="rb-pump">--</span>
                     </div>
                 </div>
                 <!-- Fecha -->
@@ -482,9 +493,11 @@
                 const historicalLabel = document.getElementById('historical-record-input')?.value?.trim();
                 const hiddenStartDate = document.getElementById('filter-start')?.value?.trim();
                 const fechaAnalisis = historicalLabel || hiddenStartDate || new Date().toLocaleDateString();
+                const pumpType = document.getElementById('rb-pump')?.textContent?.trim() || '--';
                 const resumen = document.getElementById('header-dynamic-subtitle').textContent?.trim() || 'Analisis tecnico consolidado del pozo seleccionado.';
                 const emitido = new Date().toLocaleString();
                 document.getElementById('print-report-well').textContent = `POZO: ${pozoNombre}`;
+                document.getElementById('print-report-pump').textContent = pumpType;
                 document.getElementById('print-report-date').textContent = `FECHA DE REPORTE: ${fechaAnalisis}`;
                 document.getElementById('print-report-summary').textContent = resumen;
                 document.getElementById('print-report-generated').textContent = emitido;

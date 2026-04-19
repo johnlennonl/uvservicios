@@ -1450,7 +1450,7 @@
         /* Elite Data Ribbon */
         .data-ribbon-elite {
             display: grid;
-            grid-template-columns: repeat(8, 1fr);
+            grid-template-columns: repeat(9, 1fr);
             gap: 15px;
             margin-bottom: 30px;
             animation: fadeIn 0.8s ease;

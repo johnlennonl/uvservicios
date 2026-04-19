@@ -57,6 +57,14 @@ function wrapTechnicalHistoryError(error) {
     return error instanceof Error ? error : new Error(message || 'Error desconocido en historial técnico.');
 }
 
+function wrapBESProfileError(error) {
+    const message = String(error?.message || error || '');
+    if (/well_bes_profile/i.test(message)) {
+        return new Error('Falta crear la tabla de perfil BES en Supabase. Ejecuta el script supabase/well_bes_profile.sql y vuelve a intentar.');
+    }
+    return error instanceof Error ? error : new Error(message || 'Error desconocido en perfil BES.');
+}
+
 /**
  * Fetches monitoring data with optional filters for Pozo and Date.
  * @param {string} pozoName 
@@ -244,12 +252,13 @@ export async function syncMonitoringRecords(records = []) {
  * Fetches unique well names for filters.
  */
 export async function getUniquePozos() {
-    const [monitoringRows, technicalRows] = await Promise.all([
+    const [monitoringRows, technicalRows, besRows] = await Promise.all([
         fetchAllRows('monitoreo_pozos', 'pozo_name'),
-        fetchAllRows('well_production', 'pozo_name')
+        fetchAllRows('well_production', 'pozo_name'),
+        fetchAllRows('well_bes_profile', 'pozo_name').catch(() => [])
     ]);
 
-    const allPozos = [...monitoringRows, ...technicalRows]
+    const allPozos = [...monitoringRows, ...technicalRows, ...besRows]
         .map(item => item?.pozo_name?.trim())
         .filter(Boolean);
 
@@ -594,7 +603,7 @@ export async function syncTechnicalMeasurements(records = []) {
 export async function getWellRibbonData(pozoName) {
     if (!pozoName || pozoName === 'Todas') return null;
 
-    const [latestMonitoringResult, latestTechnical] = await Promise.all([
+    const [latestMonitoringResult, latestTechnical, besProfile] = await Promise.all([
         supabase
             .from('monitoreo_pozos')
             .select('*')
@@ -602,7 +611,8 @@ export async function getWellRibbonData(pozoName) {
             .order('fecha', { ascending: false })
             .order('hora', { ascending: false })
             .limit(1),
-        getWellTechnicalData(pozoName)
+        getWellTechnicalData(pozoName),
+        getWellBESProfile(pozoName)
     ]);
 
     if (latestMonitoringResult.error) {
@@ -626,6 +636,7 @@ export async function getWellRibbonData(pozoName) {
         campo_name: firstDefined(latestMonitoring?.campo_name, latestMonitoring?.campo, latestTechnical?.campo_name),
         pozo_name: firstDefined(latestMonitoring?.pozo_name, latestTechnical?.pozo_name, pozoName),
         ef: firstDefined(latestMonitoring?.ef, latestMonitoring?.estacion, latestTechnical?.ef),
+        pump_type: firstDefined(besProfile?.pump_type),
         fecha: firstDefined(latestTechnical?.fecha, latestMonitoring?.fecha),
         measurement_date: measurementDate,
         bbpd: firstDefined(latestMonitoring?.bbpd, latestTechnical?.bbpd),
@@ -649,6 +660,57 @@ export async function upsertWellTechnicalData(data) {
     
     if (error) throw error;
     return result;
+}
+
+export async function getWellBESProfile(pozoName) {
+    if (!pozoName || pozoName === 'Todas') return null;
+
+    try {
+        const { data, error } = await supabase
+            .from('well_bes_profile')
+            .select('*')
+            .eq('pozo_name', pozoName)
+            .maybeSingle();
+
+        if (error) throw error;
+        return data || null;
+    } catch (error) {
+        const message = String(error?.message || error || '');
+        if (/well_bes_profile/i.test(message)) {
+            console.warn('Tabla well_bes_profile no disponible todavía.');
+            return null;
+        }
+        throw wrapBESProfileError(error);
+    }
+}
+
+export async function upsertWellBESProfile(data) {
+    const normalized = {
+        pozo_name: String(data?.pozo_name || '').trim(),
+        pump_type: String(data?.pump_type || '').trim(),
+        updated_at: new Date().toISOString()
+    };
+
+    if (!normalized.pozo_name) {
+        throw new Error('Nombre del pozo es requerido para guardar el tipo de bomba.');
+    }
+
+    if (!normalized.pump_type) {
+        throw new Error('El tipo de bomba es requerido.');
+    }
+
+    try {
+        const { data: result, error } = await supabase
+            .from('well_bes_profile')
+            .upsert(normalized, { onConflict: 'pozo_name' })
+            .select()
+            .maybeSingle();
+
+        if (error) throw error;
+        return result || normalized;
+    } catch (error) {
+        throw wrapBESProfileError(error);
+    }
 }
 
 /**
