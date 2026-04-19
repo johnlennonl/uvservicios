@@ -587,6 +587,29 @@
             line-height: 1.45;
         }
 
+        .import-progress-modal {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            text-align: left;
+            padding-top: 6px;
+        }
+
+        .import-progress-message {
+            margin: 0;
+            font-size: 0.96rem;
+            font-weight: 800;
+            color: #0F172A;
+            line-height: 1.45;
+        }
+
+        .import-progress-detail {
+            margin: 0;
+            font-size: 0.84rem;
+            line-height: 1.55;
+            color: #475569;
+        }
+
         .technical-upload-status {
             justify-content: flex-end;
             min-height: 100%;
@@ -1062,6 +1085,12 @@
         .upload-mini-zone:hover {
             border-color: var(--primary-blue);
             background: #F1F5F9;
+        }
+
+        .upload-mini-zone.is-dragover {
+            border-color: #2563EB;
+            background: #EFF6FF;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
         }
 
         .technical-form-toggle-row {

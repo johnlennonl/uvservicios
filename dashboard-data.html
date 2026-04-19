@@ -945,8 +945,171 @@
         const techStatusDiv = document.getElementById('tech-upload-status');
         const techStatusText = document.getElementById('tech-status-text');
 
-        techDropZone.addEventListener('click', () => techFileInput.click());
-        techFileInput.addEventListener('change', (e) => handleTechnicalFile(e.target.files[0]));
+        function resetSelectedFile(input) {
+            if (input) input.value = '';
+        }
+
+        let activeImportSession = null;
+
+        function handleImportBeforeUnload(event) {
+            if (!activeImportSession?.active) return undefined;
+            event.preventDefault();
+            event.returnValue = 'Hay una importacion en progreso. Si sales ahora, la carga puede quedar incompleta.';
+            return event.returnValue;
+        }
+
+        function setImportNavigationLock(isLocked) {
+            if (isLocked) {
+                window.addEventListener('beforeunload', handleImportBeforeUnload);
+            } else {
+                window.removeEventListener('beforeunload', handleImportBeforeUnload);
+            }
+        }
+
+        function getImportProgressMarkup(message, detail = '') {
+            return `
+                <div class="import-progress-modal">
+                    <p class="import-progress-message">${message}</p>
+                    <p class="import-progress-detail">${detail || 'No cierres ni abandones esta pantalla hasta finalizar la importacion.'}</p>
+                </div>
+            `;
+        }
+
+        function beginImportSession({ kind, fileName, recordsCount, pozoCount }) {
+            activeImportSession = {
+                active: true,
+                kind,
+                fileName,
+                recordsCount,
+                pozoCount
+            };
+
+            setImportNavigationLock(true);
+
+            Swal.fire({
+                title: kind === 'technical' ? 'Importando mediciones tecnicas' : 'Importando registros operativos',
+                html: getImportProgressMarkup(
+                    `Procesando ${recordsCount} registro(s) de ${pozoCount} pozo(s).`,
+                    `Archivo: ${fileName}. No cierres ni cambies de pantalla hasta completar la carga.`
+                ),
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+        }
+
+        function updateImportSession(message, detail = '') {
+            if (!activeImportSession?.active || !Swal.isVisible()) return;
+
+            const htmlContainer = Swal.getHtmlContainer();
+            if (!htmlContainer) return;
+            htmlContainer.innerHTML = getImportProgressMarkup(message, detail);
+        }
+
+        function finishImportSession() {
+            if (!activeImportSession?.active) return;
+            activeImportSession = null;
+            setImportNavigationLock(false);
+            if (Swal.isVisible()) {
+                Swal.close();
+            }
+        }
+
+        document.addEventListener('click', async (event) => {
+            if (!activeImportSession?.active) return;
+
+            const logoutButton = event.target.closest('#logout-btn, #mobile-logout-btn');
+            const anchor = event.target.closest('a[href]');
+            if (!logoutButton && !anchor) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (Swal.isVisible()) return;
+
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Importacion en progreso',
+                text: 'Espera a que termine la carga antes de salir o cambiar de pantalla.',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#1D4ED8'
+            });
+
+            if (activeImportSession?.active) {
+                beginImportSession(activeImportSession);
+            }
+        }, true);
+
+        function countUniquePozos(rows = []) {
+            return new Set(
+                rows
+                    .map(row => String(row?.pozo_name || '').trim().toUpperCase())
+                    .filter(Boolean)
+            ).size;
+        }
+
+        async function confirmImportSummary({ title, fileName, recordsCount, pozoCount, detailText }) {
+            const result = await Swal.fire({
+                icon: 'question',
+                title,
+                html: `
+                    <div style="text-align: left; line-height: 1.6; color: #475569; font-size: 0.92rem;">
+                        <p style="margin: 0 0 12px 0;"><b>Archivo:</b> ${fileName}</p>
+                        <p style="margin: 0 0 8px 0;"><b>Registros válidos detectados:</b> ${recordsCount}</p>
+                        <p style="margin: 0 0 8px 0;"><b>Pozos detectados:</b> ${pozoCount}</p>
+                        <p style="margin: 0;">${detailText}</p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Sí, cargar registros',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#1D4ED8',
+                reverseButtons: true
+            });
+
+            return result.isConfirmed;
+        }
+
+        function bindDropImport(zone, input, handler) {
+            if (!zone || !input) return;
+
+            zone.addEventListener('click', () => input.click());
+            input.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                await handler(file);
+                resetSelectedFile(input);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                zone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    zone.classList.add('is-dragover');
+                });
+            });
+
+            ['dragleave', 'dragend'].forEach(eventName => {
+                zone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    zone.classList.remove('is-dragover');
+                });
+            });
+
+            zone.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('is-dragover');
+                const file = e.dataTransfer?.files?.[0];
+                await handler(file);
+                resetSelectedFile(input);
+            });
+        }
+
+        bindDropImport(techDropZone, techFileInput, handleTechnicalFile);
 
         function normalizeCsvKey(value) {
             return String(value || '')
@@ -964,16 +1127,16 @@
             campo: ['campo', 'campo_name', 'field', 'area'],
             fecha: ['fecha', 'fecha_medicion', 'date', 'dia', 'fecha_registro'],
             hora: ['hora', 'time', 'hora_medicion'],
-            frecuencia: ['frecuencia', 'frecuencia_hz', 'hz', 'freq', 'frequency'],
-            corriente_motor: ['corriente_motor', 'corriente_m', 'corriente_amp', 'i_motor_amp', 'i_motor', 'motor_amp', 'motor_current', 'amperaje_motor'],
+            frecuencia: ['frecuencia', 'frecuencia_hz', 'hz', 'freq', 'frequency', 'frec'],
+            corriente_motor: ['corriente_motor', 'corriente_m', 'corriente_amp', 'i_motor_amp', 'i_motor', 'motor_amp', 'motor_current', 'amperaje_motor', 'i_motor_a'],
             pip: ['pip', 'pip_psi', 'presion_pip', 'pump_intake_pressure'],
-            tm: ['tm', 'temp_tm', 'temp_tm_f', 'temperatura_tm', 'temperatura_tm_f', 'temp_motor', 'motor_temp'],
+            tm: ['tm', 'tm_f', 'temp_tm', 'temp_tm_f', 'temperatura_tm', 'temperatura_tm_f', 'temp_motor', 'motor_temp'],
             presion_thp: ['presion_thp', 'thp', 'thp_psi', 'tubing_head_pressure'],
             presion_chp: ['presion_chp', 'chp', 'chp_psi', 'casing_head_pressure'],
             presion_lf: ['presion_lf', 'lf', 'lf_psi', 'line_pressure'],
-            vsd_a: ['vsd_a', 'vsd_a_amp', 'vsd_a_amperios', 'fase_a', 'a'],
-            vsd_b: ['vsd_b', 'vsd_b_amp', 'vsd_b_amperios', 'fase_b', 'b'],
-            vsd_c: ['vsd_c', 'vsd_c_amp', 'vsd_c_amperios', 'fase_c', 'c'],
+            vsd_a: ['vsd_a', 'vsd_a_amp', 'vsd_a_amperios', 'i_vsd_a_a', 'fase_a', 'a'],
+            vsd_b: ['vsd_b', 'vsd_b_amp', 'vsd_b_amperios', 'i_vsd_b_a', 'fase_b', 'b'],
+            vsd_c: ['vsd_c', 'vsd_c_amp', 'vsd_c_amperios', 'i_vsd_c_a', 'fase_c', 'c'],
             estatus: ['estatus', 'status', 'estado', 'run_status'],
             observaciones: ['observaciones', 'observacion', 'obs', 'comentario', 'comentarios', 'remarks']
         };
@@ -1057,6 +1220,196 @@
                 .join(' | ');
         }
 
+            function collectExcelObservationTextFromIndex(row, startIndex = 0) {
+                if (!Array.isArray(row)) return undefined;
+
+                return row
+                .slice(startIndex)
+                .map(value => value === undefined || value === null ? '' : String(value).trim())
+                .filter(Boolean)
+                .join(' | ');
+            }
+
+        function normalizeOperationalStatus(value) {
+            const raw = String(value ?? '').trim();
+            if (!raw) return null;
+
+            const normalized = raw
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .replace(/[^A-Z0-9]+/g, '');
+
+            const runValues = new Set([
+                'RUN',
+                'RUNNING',
+                'ON',
+                'ENCENDIDO',
+                'OPERANDO',
+                'OPERATIVO',
+                'ACTIVO',
+                'MARCHA',
+                '1'
+            ]);
+
+            const offValues = new Set([
+                'OFF',
+                'OFFLINE',
+                'STOP',
+                'STOPPED',
+                'PARADO',
+                'APAGADO',
+                'INACTIVO',
+                'DETENIDO',
+                '0'
+            ]);
+
+            if (runValues.has(normalized)) return 'RUN';
+            if (offValues.has(normalized)) return 'OFF';
+            if (normalized.includes('RUN')) return 'RUN';
+            if (normalized.includes('OFF') || normalized.includes('STOP')) return 'OFF';
+            return null;
+        }
+
+        function getDailyHeaderMatchCount(row = []) {
+            const normalizedHeaderMap = Object.fromEntries(
+                row
+                    .map((cell, index) => [normalizeCsvKey(cell || `column_${index + 1}`), true])
+                    .filter(([key]) => key && !key.startsWith('column_'))
+            );
+
+            return getDailyMatchedFields(normalizedHeaderMap).length;
+        }
+
+        function findDailyHeaderRowIndex(rows = []) {
+            let bestIndex = -1;
+            let bestScore = 0;
+
+            rows.slice(0, 10).forEach((row, index) => {
+                const score = getDailyHeaderMatchCount(row);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestIndex = index;
+                }
+            });
+
+            return bestScore >= 4 ? bestIndex : -1;
+        }
+
+        function parseDailyExcelWithHeaders(rows = [], headerRowIndex = 0) {
+            const headerRow = rows[headerRowIndex] || [];
+            const headers = headerRow.map((cell, index) => normalizeCsvKey(cell || `column_${index + 1}`));
+
+            return rows.slice(headerRowIndex + 1).map(row => {
+                const mappedRow = {};
+                headers.forEach((header, index) => {
+                    if (!header) return;
+                    mappedRow[header] = Array.isArray(row) ? row[index] : undefined;
+                });
+                return mappedRow;
+            });
+        }
+
+        function scoreParsedDailyRows(rows = []) {
+            return rows
+                .slice(0, 40)
+                .reduce((score, row) => {
+                    let rowScore = 0;
+
+                    if (`${row?.pozo_name ?? ''}`.trim()) rowScore += 2;
+                    if (toIsoDate(row?.fecha)) rowScore += 2;
+                    if (toIsoTime(row?.hora)) rowScore += 1;
+                    if (normalizeOperationalStatus(row?.estatus)) rowScore += 3;
+                    if (roundNumericValue(row?.frecuencia) !== null) rowScore += 3;
+                    if (roundNumericValue(row?.corriente_motor) !== null) rowScore += 2;
+                    if (roundNumericValue(row?.vsd_a) !== null) rowScore += 1;
+                    if (roundNumericValue(row?.vsd_b) !== null) rowScore += 1;
+                    if (roundNumericValue(row?.vsd_c) !== null) rowScore += 1;
+                    if (roundNumericValue(row?.pip) !== null) rowScore += 2;
+                    if (roundNumericValue(row?.tm) !== null) rowScore += 2;
+                    if (roundNumericValue(row?.presion_thp) !== null) rowScore += 1;
+                    if (roundNumericValue(row?.presion_chp) !== null) rowScore += 1;
+
+                    return score + rowScore;
+                }, 0);
+        }
+
+        const DAILY_EXCEL_LAYOUTS = [
+            {
+                name: 'standard_dashboard',
+                mapRow(row) {
+                    return {
+                        pozo_name: getExcelCellValue(row, 'A'),
+                        campo: getExcelCellValue(row, 'B'),
+                        fecha: getExcelCellValue(row, 'C'),
+                        hora: getFirstNonEmptyValue([getExcelCellValue(row, 'D'), getExcelCellValue(row, 'E')]),
+                        estatus: getExcelCellValue(row, 'F'),
+                        frecuencia: getExcelCellValue(row, 'G'),
+                        corriente_motor: getExcelCellValue(row, 'J'),
+                        vsd_a: getExcelCellValue(row, 'M'),
+                        vsd_b: getExcelCellValue(row, 'N'),
+                        vsd_c: getExcelCellValue(row, 'O'),
+                        pip: getExcelCellValue(row, 'V'),
+                        tm: getExcelCellValue(row, 'Y'),
+                        presion_thp: getExcelCellValue(row, 'BH'),
+                        presion_chp: getExcelCellValue(row, 'BI'),
+                        observaciones: collectExcelObservationText(row, 'EW')
+                    };
+                }
+            },
+            {
+                name: 'tom_compacto',
+                mapRow(row) {
+                    return {
+                        pozo_name: getExcelCellValue(row, 'A'),
+                        campo: getExcelCellValue(row, 'B'),
+                        fecha: getExcelCellValue(row, 'C'),
+                        hora: getExcelCellValue(row, 'D'),
+                        estatus: getExcelCellValue(row, 'E'),
+                        frecuencia: getExcelCellValue(row, 'F'),
+                        vsd_a: getExcelCellValue(row, 'H'),
+                        vsd_b: getExcelCellValue(row, 'I'),
+                        vsd_c: getExcelCellValue(row, 'J'),
+                        corriente_motor: getExcelCellValue(row, 'K'),
+                        pip: getExcelCellValue(row, 'M'),
+                        tm: getExcelCellValue(row, 'N'),
+                        presion_thp: getExcelCellValue(row, 'O'),
+                        presion_chp: getExcelCellValue(row, 'P'),
+                        presion_lf: getExcelCellValue(row, 'Q'),
+                        observaciones: collectExcelObservationTextFromIndex(row, excelColumnToIndex('R'))
+                    };
+                }
+            }
+        ];
+
+        function scoreDailyExcelLayout(rows = [], layout) {
+            return rows
+                .filter(row => Array.isArray(row) && row.some(value => `${value ?? ''}`.trim() !== ''))
+                .slice(0, 25)
+                .reduce((score, row) => {
+                    const mappedRow = layout.mapRow(row);
+                    let rowScore = 0;
+
+                    if (`${mappedRow.pozo_name ?? ''}`.trim()) rowScore += 2;
+                    if (toIsoDate(mappedRow.fecha)) rowScore += 2;
+                    if (toIsoTime(mappedRow.hora)) rowScore += 1;
+                    if (normalizeOperationalStatus(mappedRow.estatus)) rowScore += 3;
+                    if (roundNumericValue(mappedRow.frecuencia) !== null) rowScore += 2;
+                    if (roundNumericValue(mappedRow.pip) !== null) rowScore += 1;
+                    if (roundNumericValue(mappedRow.tm) !== null) rowScore += 1;
+
+                    return score + rowScore;
+                }, 0);
+        }
+
+        function detectDailyExcelLayout(rows = []) {
+            const scoredLayouts = DAILY_EXCEL_LAYOUTS
+                .map(layout => ({ layout, score: scoreDailyExcelLayout(rows, layout) }))
+                .sort((a, b) => b.score - a.score);
+
+            return scoredLayouts[0]?.layout || DAILY_EXCEL_LAYOUTS[0];
+        }
+
         async function parseDailyExcelFile(file) {
             const buffer = await file.arrayBuffer();
             const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
@@ -1069,23 +1422,19 @@
                 raw: true
             });
 
-            return rows.slice(1).map(row => ({
-                pozo_name: getExcelCellValue(row, 'A'),
-                campo: getExcelCellValue(row, 'B'),
-                fecha: getExcelCellValue(row, 'C'),
-                hora: getFirstNonEmptyValue([getExcelCellValue(row, 'D'), getExcelCellValue(row, 'E')]),
-                estatus: getExcelCellValue(row, 'F'),
-                frecuencia: getExcelCellValue(row, 'G'),
-                corriente_motor: getExcelCellValue(row, 'J'),
-                vsd_a: getExcelCellValue(row, 'M'),
-                vsd_b: getExcelCellValue(row, 'N'),
-                vsd_c: getExcelCellValue(row, 'O'),
-                pip: getExcelCellValue(row, 'V'),
-                tm: getExcelCellValue(row, 'Y'),
-                presion_thp: getExcelCellValue(row, 'BH'),
-                presion_chp: getExcelCellValue(row, 'BI'),
-                observaciones: collectExcelObservationText(row, 'EW')
-            }));
+            const dataRows = rows.slice(1);
+            const detectedLayout = detectDailyExcelLayout(dataRows);
+            const layoutRows = dataRows.map(row => detectedLayout.mapRow(row));
+            const layoutScore = scoreParsedDailyRows(layoutRows);
+
+            const headerRowIndex = findDailyHeaderRowIndex(rows);
+            if (headerRowIndex >= 0) {
+                const headerRows = parseDailyExcelWithHeaders(rows, headerRowIndex);
+                const headerScore = scoreParsedDailyRows(headerRows);
+                return headerScore >= layoutScore ? headerRows : layoutRows;
+            }
+
+            return layoutRows;
         }
 
         function normalizeImportedRow(row) {
@@ -1103,6 +1452,7 @@
             normalizedRow.fecha_tech = toIsoDate(normalizedRow.fecha_tech) || normalizedRow.fecha_tech;
             normalizedRow.fecha_medicion = toIsoDate(normalizedRow.fecha_medicion) || normalizedRow.fecha_medicion;
             normalizedRow.hora = toIsoTime(normalizedRow.hora) || '00:00:00';
+            normalizedRow.estatus = normalizeOperationalStatus(normalizedRow.estatus);
 
             return normalizedRow;
         }
@@ -1283,18 +1633,49 @@
                     return;
                 }
 
+                const confirmed = await confirmImportSummary({
+                    title: 'Confirmar carga técnica',
+                    fileName: file.name,
+                    recordsCount: rows.length,
+                    pozoCount: countUniquePozos(rows),
+                    detailText: 'Se sincronizarán las mediciones técnicas detectadas y se actualizará el historial por pozo y fecha.'
+                });
+
+                if (!confirmed) {
+                    techStatusDiv.style.display = 'block';
+                    techStatusText.textContent = 'Carga técnica cancelada por el usuario.';
+                    return;
+                }
+
+                beginImportSession({
+                    kind: 'technical',
+                    fileName: file.name,
+                    recordsCount: rows.length,
+                    pozoCount: countUniquePozos(rows)
+                });
+
                 techStatusDiv.style.display = 'block';
                 techStatusText.textContent = `Subiendo ${rows.length} pozos técnicos...`;
+                updateImportSession(`Sincronizando ${rows.length} medicion(es) tecnica(s)...`, 'No cierres ni abandones esta pantalla hasta finalizar la carga.');
 
                 const syncResult = await syncTechnicalMeasurements(rows);
 
+                updateImportSession('Actualizando catalogos y formularios...', 'La importacion ya casi termina.');
                 await refreshPozoLists();
                 setTechnicalFormVisibility(false);
                 techStatusText.textContent = `✅ Historial técnico sincronizado. Nuevas: ${syncResult.inserted}. Actualizadas: ${syncResult.updated}.`;
                 populateTechnicalForm(rows[0]);
+                finishImportSession();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Importación Técnica Exitosa',
+                    text: `Historial técnico sincronizado. Nuevas: ${syncResult.inserted}. Actualizadas: ${syncResult.updated}.`
+                });
             } catch (err) {
+                finishImportSession();
                 techStatusDiv.style.display = 'block';
                 techStatusText.textContent = `Error al cargar archivo técnico: ${err.message}`;
+                Swal.fire({ icon: 'error', title: 'Error de Importación', text: err.message });
             }
         }
 
@@ -1307,8 +1688,7 @@
         const fileInput = document.getElementById('file-input');
         const statusDiv = document.getElementById('upload-status');
         const statusText = document.getElementById('status-text');
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+        bindDropImport(dropZone, fileInput, handleFile);
         async function handleFile(file) {
             if (!file) return;
 
@@ -1329,6 +1709,7 @@
                     .filter(r => r.pozo_name && r.fecha);
 
                 const telemetryRows = cleanData.filter(hasDailyTelemetryData);
+                const invalidStatusRows = telemetryRows.filter(row => !row.estatus);
 
                 if (telemetryRows.length === 0) {
                     const looksTechnicalFile = cleanData.some(row => row.ef || row.bbpd !== undefined || row.ays !== undefined || row.bnpd !== undefined || row.cat !== undefined || row.cat_number !== undefined);
@@ -1336,6 +1717,31 @@
                         ? 'Este archivo parece corresponder a Produccion Tecnica. Cargalo en la seccion tecnica, no en Entrada de Parametros.'
                         : `No se encontraron columnas validas para monitoreo diario en el archivo importado. Detectadas: ${detectedDailyFields.join(', ') || 'ninguna'}.`);
                 }
+
+                if (invalidStatusRows.length > 0) {
+                    throw new Error(`No pude interpretar el estatus en ${invalidStatusRows.length} fila(s). El layout de este Excel no coincide con el formato esperado para monitoreo diario actual.`);
+                }
+
+                const confirmed = await confirmImportSummary({
+                    title: 'Confirmar carga operativa',
+                    fileName: file.name,
+                    recordsCount: telemetryRows.length,
+                    pozoCount: countUniquePozos(telemetryRows),
+                    detailText: 'Se sincronizarán los registros diarios válidos detectados en el archivo antes de guardarlos en la plataforma.'
+                });
+
+                if (!confirmed) {
+                    statusDiv.style.display = 'block';
+                    statusText.textContent = 'Carga operativa cancelada por el usuario.';
+                    return;
+                }
+
+                beginImportSession({
+                    kind: 'operational',
+                    fileName: file.name,
+                    recordsCount: telemetryRows.length,
+                    pozoCount: countUniquePozos(telemetryRows)
+                });
 
                 const telemetryColumns = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c', 'estatus', 'observaciones', 'user_id'];
 
@@ -1352,10 +1758,12 @@
                     return obj;
                 });
 
+                updateImportSession(`Sincronizando ${telemetryData.length} registro(s) operativos...`, 'Guardando mediciones diarias en la plataforma.');
                 const syncResult = await syncMonitoringRecords(telemetryData);
 
                 const uniquePozos = [...new Set(telemetryRows.map(r => r.pozo_name))];
 
+                updateImportSession('Actualizando resumen tecnico por pozo...', 'Consolidando informacion relacionada antes de cerrar la carga.');
                 for (const pozo of uniquePozos) {
                     const pozoRecords = telemetryRows.filter(r => r.pozo_name === pozo);
                     const latest = pozoRecords[0];
@@ -1376,7 +1784,9 @@
                 }
 
                 statusText.textContent = `✅ Sincronizacion finalizada. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}.`;
+                updateImportSession('Refrescando vistas y estado final...', 'La importacion ya casi termina.');
                 await refreshPozoLists();
+                finishImportSession();
                 Swal.fire({
                     icon: 'success',
                     title: 'Importación Exitosa',
@@ -1384,7 +1794,9 @@
                 });
                 await refreshHistory();
             } catch (err) {
+                finishImportSession();
                 statusText.textContent = '❌ Error: ' + err.message;
+                Swal.fire({ icon: 'error', title: 'Error de Importación', text: err.message });
                 console.error('File Upload Error:', err);
             }
         }

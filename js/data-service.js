@@ -5,6 +5,37 @@
 
 import { supabase } from './supabaseClient.js';
 
+async function fetchAllRows(tableName, selectClause, configureQuery) {
+    const pageSize = 1000;
+    let from = 0;
+    let rows = [];
+
+    while (true) {
+        let query = supabase
+            .from(tableName)
+            .select(selectClause)
+            .range(from, from + pageSize - 1);
+
+        if (typeof configureQuery === 'function') {
+            query = configureQuery(query) || query;
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const batch = data || [];
+        rows = rows.concat(batch);
+
+        if (batch.length < pageSize) {
+            break;
+        }
+
+        from += pageSize;
+    }
+
+    return rows;
+}
+
 function buildMonitoringRecordKey(record = {}) {
     const pozoName = String(record.pozo_name || '').trim().toUpperCase();
     const fecha = String(record.fecha || '').trim();
@@ -213,15 +244,12 @@ export async function syncMonitoringRecords(records = []) {
  * Fetches unique well names for filters.
  */
 export async function getUniquePozos() {
-    const [monitoringResult, technicalResult] = await Promise.all([
-        supabase.from('monitoreo_pozos').select('pozo_name'),
-        supabase.from('well_production').select('pozo_name')
+    const [monitoringRows, technicalRows] = await Promise.all([
+        fetchAllRows('monitoreo_pozos', 'pozo_name'),
+        fetchAllRows('well_production', 'pozo_name')
     ]);
 
-    if (monitoringResult.error) throw monitoringResult.error;
-    if (technicalResult.error) throw technicalResult.error;
-
-    const allPozos = [...(monitoringResult.data || []), ...(technicalResult.data || [])]
+    const allPozos = [...monitoringRows, ...technicalRows]
         .map(item => item?.pozo_name?.trim())
         .filter(Boolean);
 
@@ -229,15 +257,13 @@ export async function getUniquePozos() {
 }
 
 export async function getPozosHistorySummary() {
-    const [pozos, monitoringResult] = await Promise.all([
+    const [pozos, monitoringRows] = await Promise.all([
         getUniquePozos(),
-        supabase.from('monitoreo_pozos').select('pozo_name, fecha')
+        fetchAllRows('monitoreo_pozos', 'pozo_name, fecha')
     ]);
 
-    if (monitoringResult.error) throw monitoringResult.error;
-
     const latestByPozo = new Map();
-    (monitoringResult.data || []).forEach(record => {
+    (monitoringRows || []).forEach(record => {
         const pozoName = record?.pozo_name?.trim();
         const fecha = record?.fecha || null;
         if (!pozoName) return;
@@ -279,15 +305,11 @@ export async function getLatestDate(pozoName = null) {
 export async function getPozoRecordDates(pozoName) {
     if (!pozoName || pozoName === 'Todas') return [];
 
-    const { data, error } = await supabase
-        .from('monitoreo_pozos')
-        .select('fecha, hora')
+    return fetchAllRows('monitoreo_pozos', 'fecha, hora', (query) => query
         .eq('pozo_name', pozoName)
         .order('fecha', { ascending: false })
-        .order('hora', { ascending: false });
-
-    if (error) throw error;
-    return data || [];
+        .order('hora', { ascending: false })
+    );
 }
 
 /**

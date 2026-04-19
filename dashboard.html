@@ -158,7 +158,7 @@
                 </div>
 
                 <div class="filter-item historical-record-item" id="historical-record-container">
-                    <label>Registro Histórico</label>
+                    <label>Registro Histórico · Fecha / Hora</label>
                     <div class="historical-record-picker">
                         <button id="btn-prev-day" class="btn-secondary historical-nav-btn" type="button" title="Registro anterior" aria-label="Registro anterior">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -166,8 +166,21 @@
                             </svg>
                         </button>
                         <input type="text" id="historical-record-input" placeholder="Selecciona un pozo" readonly>
+                        <button id="btn-pick-historical-date" class="btn-secondary historical-date-btn" type="button" title="Buscar por fecha" aria-label="Buscar por fecha">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M8 2v4" />
+                                <path d="M16 2v4" />
+                                <rect x="3" y="4" width="18" height="18" rx="2" />
+                                <path d="M3 10h18" />
+                                <path d="M8 14h.01" />
+                                <path d="M12 14h.01" />
+                                <path d="M16 14h.01" />
+                            </svg>
+                        </button>
                         <input type="date" id="filter-start" hidden>
                         <input type="date" id="filter-end" hidden>
+                        <input type="time" id="filter-time" hidden>
+                        <input type="date" id="historical-date-jump" hidden>
                         <div class="historical-record-menu" id="historical-record-menu"></div>
                         <button id="btn-next-day" class="btn-secondary historical-nav-btn" type="button" title="Registro siguiente" aria-label="Registro siguiente">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

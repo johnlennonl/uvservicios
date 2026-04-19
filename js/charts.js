@@ -96,16 +96,84 @@ function closeHistoricalRecordMenu() {
     document.getElementById('historical-record-menu')?.classList.remove('active');
 }
 
-function selectHistoricalRecord(dateValue) {
+function getSelectedHistoricalRecordValue() {
+    return document.getElementById('historical-record-input')?.dataset.recordValue || '';
+}
+
+function applyHistoricalRecordSelection(option, shouldUpdate = true) {
     const input = document.getElementById('historical-record-input');
     const startInput = document.getElementById('filter-start');
     const endInput = document.getElementById('filter-end');
+    const timeInput = document.getElementById('filter-time');
+    const dateJumpInput = document.getElementById('historical-date-jump');
 
-    if (!input || !startInput || !endInput) return;
+    if (!input || !startInput || !endInput || !timeInput) return;
 
-    input.value = dateValue || '';
-    startInput.value = dateValue || '';
-    endInput.value = dateValue || '';
+    input.value = option?.label || '';
+    input.dataset.recordValue = option?.value || '';
+    startInput.value = option?.date || '';
+    endInput.value = option?.date || '';
+    timeInput.value = option?.time || '';
+
+    if (dateJumpInput) {
+        dateJumpInput.value = option?.date || '';
+    }
+
+    if (shouldUpdate) {
+        updateDashboard();
+    }
+}
+
+function selectHistoricalDate(dateValue) {
+    if (!dateValue) return;
+
+    const exactMatch = historicalRecordOptions.find(option => option.date === dateValue);
+    if (exactMatch) {
+        applyHistoricalRecordSelection(exactMatch);
+        closeHistoricalRecordMenu();
+        return;
+    }
+
+    const nearestMatch = historicalRecordOptions
+        .slice()
+        .sort((left, right) => Math.abs(new Date(left.date) - new Date(dateValue)) - Math.abs(new Date(right.date) - new Date(dateValue)))[0] || null;
+
+    if (nearestMatch) {
+        applyHistoricalRecordSelection(nearestMatch);
+        closeHistoricalRecordMenu();
+    }
+}
+
+async function openHistoricalDatePicker() {
+    const historicalRecordInput = document.getElementById('historical-record-input');
+    const dateJumpInput = document.getElementById('historical-date-jump');
+    if (historicalRecordInput?.disabled || !dateJumpInput || historicalRecordOptions.length === 0) return;
+
+    const result = await Swal.fire({
+        title: 'Buscar registro por fecha',
+        input: 'date',
+        inputValue: dateJumpInput.value || dateJumpInput.max || '',
+        inputAttributes: {
+            min: dateJumpInput.min || '',
+            max: dateJumpInput.max || ''
+        },
+        confirmButtonText: 'Ir a la fecha',
+        cancelButtonText: 'Cancelar',
+        showCancelButton: true,
+        confirmButtonColor: '#1D4ED8',
+        reverseButtons: true,
+        inputValidator: (value) => value ? undefined : 'Selecciona o escribe una fecha.'
+    });
+
+    if (result.isConfirmed && result.value) {
+        dateJumpInput.value = result.value;
+        selectHistoricalDate(result.value);
+    }
+}
+
+function selectHistoricalRecord(dateValue) {
+    const selectedOption = historicalRecordOptions.find(option => option.value === dateValue) || null;
+    applyHistoricalRecordSelection(selectedOption, false);
 
     closeHistoricalRecordMenu();
     updateDashboard();
@@ -123,8 +191,9 @@ function renderHistoricalRecordMenu() {
 
     menu.innerHTML = historicalRecordOptions
         .map(option => `
-            <button type="button" class="historical-record-option ${option.value === input.value ? 'active' : ''}" data-value="${option.value}">
-                ${option.label}
+            <button type="button" class="historical-record-option ${option.value === getSelectedHistoricalRecordValue() ? 'active' : ''}" data-value="${option.value}">
+                <span class="historical-record-option-date">${option.date}</span>
+                <span class="historical-record-option-time">${option.time}</span>
             </button>
         `)
         .join('');
@@ -138,15 +207,30 @@ async function syncHistoricalRecordSelector(pozoName, preserveSelection = false)
     const input = document.getElementById('historical-record-input');
     const startInput = document.getElementById('filter-start');
     const endInput = document.getElementById('filter-end');
+    const timeInput = document.getElementById('filter-time');
+    const dateJumpInput = document.getElementById('historical-date-jump');
+    const dateJumpButton = document.getElementById('btn-pick-historical-date');
 
-    if (!input || !startInput || !endInput) return;
+    if (!input || !startInput || !endInput || !timeInput) return;
 
     const shouldEnable = Boolean(pozoName && !isComparisonMode);
     input.disabled = !shouldEnable;
+    if (dateJumpButton) {
+        dateJumpButton.disabled = !shouldEnable;
+    }
 
     if (!shouldEnable) {
         historicalRecordOptions = [];
         input.value = '';
+        input.dataset.recordValue = '';
+        startInput.value = '';
+        endInput.value = '';
+        timeInput.value = '';
+        if (dateJumpInput) {
+            dateJumpInput.value = '';
+            dateJumpInput.min = '';
+            dateJumpInput.max = '';
+        }
         input.placeholder = !pozoName ? 'Selecciona un pozo' : 'No disponible en comparacion';
         renderHistoricalRecordMenu();
         closeHistoricalRecordMenu();
@@ -154,29 +238,38 @@ async function syncHistoricalRecordSelector(pozoName, preserveSelection = false)
     }
 
     const records = await getPozoRecordDates(pozoName);
-    const seenDates = new Set();
 
-    historicalRecordOptions = [];
-    records.forEach(record => {
-        if (!record?.fecha || seenDates.has(record.fecha)) return;
-        seenDates.add(record.fecha);
-        historicalRecordOptions.push({
-            value: record.fecha,
-            label: record.hora ? `${record.fecha} ${record.hora}` : record.fecha
-        });
-    });
+    historicalRecordOptions = records
+        .filter(record => record?.fecha)
+        .map(record => ({
+            value: `${record.fecha}T${record.hora || '00:00:00'}`,
+            date: record.fecha,
+            time: record.hora || '00:00:00',
+            label: record.hora ? `${record.fecha} ${record.hora}` : `${record.fecha} 00:00:00`
+        }));
 
-    const currentValueIsValid = historicalRecordOptions.some(option => option.value === input.value);
+    const currentValueIsValid = historicalRecordOptions.some(option => option.value === getSelectedHistoricalRecordValue());
     if (!preserveSelection || !currentValueIsValid) {
-        input.value = historicalRecordOptions[0]?.value || '';
+        applyHistoricalRecordSelection(historicalRecordOptions[0] || null, false);
+    } else {
+        const selectedOption = historicalRecordOptions.find(option => option.value === getSelectedHistoricalRecordValue()) || null;
+        applyHistoricalRecordSelection(selectedOption, false);
     }
 
-    if (input.value) {
-        startInput.value = input.value;
-        endInput.value = input.value;
+    input.placeholder = historicalRecordOptions.length > 0 ? 'Selecciona una fecha y hora registrada' : 'Sin registros disponibles';
+    if (dateJumpButton) {
+        dateJumpButton.disabled = historicalRecordOptions.length === 0;
     }
 
-    input.placeholder = historicalRecordOptions.length > 0 ? 'Selecciona una fecha registrada' : 'Sin registros disponibles';
+    if (dateJumpInput) {
+        const availableDates = historicalRecordOptions.map(option => option.date).filter(Boolean);
+        const minDate = availableDates.length > 0 ? availableDates[availableDates.length - 1] : '';
+        const maxDate = availableDates.length > 0 ? availableDates[0] : '';
+        dateJumpInput.min = minDate;
+        dateJumpInput.max = maxDate;
+        dateJumpInput.value = getSelectedHistoricalRecordValue() ? (historicalRecordOptions.find(option => option.value === getSelectedHistoricalRecordValue())?.date || '') : '';
+    }
+
     renderHistoricalRecordMenu();
 }
 
@@ -325,9 +418,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const startFilter = document.getElementById('filter-start');
     if (startFilter) {
         startFilter.addEventListener('change', () => {
-            const historicalRecordInput = document.getElementById('historical-record-input');
-            if (historicalRecordInput) historicalRecordInput.value = startFilter.value;
-            updateDashboard();
+            const matchedOption = historicalRecordOptions.find(option => option.date === startFilter.value) || null;
+            if (matchedOption) {
+                applyHistoricalRecordSelection(matchedOption);
+            } else {
+                updateDashboard();
+            }
         });
     }
     
@@ -335,6 +431,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (endFilter) endFilter.addEventListener('change', updateDashboard);
 
     const historicalRecordInput = document.getElementById('historical-record-input');
+    const historicalDateJump = document.getElementById('historical-date-jump');
+    const historicalDateBtn = document.getElementById('btn-pick-historical-date');
     if (historicalRecordInput) {
         historicalRecordInput.addEventListener('click', () => {
             if (historicalRecordInput.disabled) return;
@@ -352,6 +450,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (event.key === 'Escape') {
                 closeHistoricalRecordMenu();
             }
+        });
+    }
+
+    if (historicalDateBtn && historicalDateJump) {
+        historicalDateBtn.addEventListener('click', openHistoricalDatePicker);
+
+        historicalDateJump.addEventListener('change', () => {
+            selectHistoricalDate(historicalDateJump.value);
         });
     }
 
@@ -393,16 +499,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Day Navigation Logic
     const shiftDate = (delta) => {
-        const dateInput = document.getElementById('filter-start');
-        const historicalRecordInput = document.getElementById('historical-record-input');
-        if (!dateInput.value) return;
-        const currentDate = new Date(dateInput.value + 'T12:00:00'); // Use noon to avoid TZ issues
-        currentDate.setDate(currentDate.getDate() + delta);
-        const newStr = currentDate.toISOString().split('T')[0];
-        dateInput.value = newStr;
-        document.getElementById('filter-end').value = newStr;
-        if (historicalRecordInput) historicalRecordInput.value = newStr;
-        updateDashboard();
+        const currentValue = getSelectedHistoricalRecordValue();
+        const currentIndex = historicalRecordOptions.findIndex(option => option.value === currentValue);
+        if (currentIndex === -1) return;
+
+        const nextIndex = currentIndex + delta;
+        if (nextIndex < 0 || nextIndex >= historicalRecordOptions.length) return;
+
+        applyHistoricalRecordSelection(historicalRecordOptions[nextIndex]);
     };
 
     document.getElementById('btn-prev-day')?.addEventListener('click', () => shiftDate(-1));
@@ -447,6 +551,7 @@ async function updateDashboard() {
 
     const start = document.getElementById('filter-start').value || null;
     const end = document.getElementById('filter-end').value || null;
+    const selectedRecordValue = getSelectedHistoricalRecordValue();
     
     // Activate Skeletons
     const chartContainers = document.querySelectorAll('.chart-space, .trend-space');
@@ -527,7 +632,11 @@ async function updateDashboard() {
             return true; // "Todas" case
         });
 
-        renderKPIs(data[0]);
+        const activeRecord = selectedPozos.length === 1 && selectedRecordValue
+            ? data.find(record => `${record.fecha}T${record.hora}` === selectedRecordValue) || data[0]
+            : data[0];
+
+        renderKPIs(activeRecord);
         renderStatusDonut(data);
         renderCoreTrends(timelineData, selectedPozos);
         renderObservations(filteredObs);
