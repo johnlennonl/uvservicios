@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UV Servicios | Base de Datos</title>
+    <meta name="description" content="Base de datos historica de UV Servicios para consultar registros operativos y mediciones tecnicas BES por pozo, fecha y modo de analisis.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/data-page.css">
@@ -14,9 +16,9 @@
 
 <body>
     <div class="dashboard-layout">
-        <!-- Sidebar -->
+        <!-- Navegacion lateral principal -->
         <aside class="sidebar">
-            <img src="img/UV SERVICES - Logo vectorial sin fondo.png" alt="Logo" class="sidebar-logo">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
             <nav>
                 <a href="dashboard.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -49,7 +51,7 @@
             </button>
         </aside>
 
-        <!-- Main Content -->
+        <!-- Contenido principal de consulta -->
         <main class="main-container">
             <header class="page-hero">
                 <div class="page-hero-copy">
@@ -60,7 +62,7 @@
 
             <section class="report-export-header" id="report-export-header" aria-hidden="true">
                 <div class="report-export-brand">
-                    <img src="img/uvservicioslogo.png" alt="UV Logo" class="report-export-logo">
+                    <img src="img/uvservicioslogo.png" alt="UV Logo" class="report-export-logo" width="112" height="81">
                     <div class="report-export-copy">
                         <p class="report-export-kicker">Exportacion ejecutiva</p>
                         <h2>Reporte Historico BES</h2>
@@ -151,7 +153,7 @@
                 </div>
             </section>
 
-            <!-- Dashboard Tools & Filters -->
+            <!-- Herramientas y filtros del historial -->
             <div class="tools-section" style="display: none; margin-bottom: 15px; justify-content: flex-end; gap: 10px;"
                 id="tools-section">
                 <div class="history-mode-toggle" id="history-mode-toggle">
@@ -169,7 +171,7 @@
                     style="display: none; padding: 9px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; background: white;">
             </div>
 
-            <!-- Recent History Table -->
+            <!-- Tabla principal del historial -->
             <section class="history-card" id="history-container" style="display: none;">
                 <div
                     style="padding: 16px; border-bottom: 1px solid #E2E8F0; display: flex; flex-direction: column; gap: 10px;">
@@ -196,20 +198,20 @@
                             </tr>
                         </thead>
                         <tbody id="history-body">
-                            <!-- Rows injected -->
+                            <!-- Las filas se generan desde JavaScript -->
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            <!-- Premium Empty State -->
+            <!-- Estado vacio cuando no hay pozo seleccionado -->
             <div id="empty-state"
                 style="text-align: center; padding: 80px 20px; background: white; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #E2E8F0; margin-top: 20px;">
                 <div style="max-width: 600px; margin: 0 auto;">
                     <div style="margin-bottom: 30px;">
                         <div
                             style="width: 130px; height: 130px; background: rgba(37, 99, 235, 0.05); color: #2563EB; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; border: 2px dashed rgba(37, 99, 235, 0.2); animation: floatPulse 3s ease-in-out infinite;">
-                            <!-- Oil Barrel SVG Icon -->
+                            <!-- Icono del estado vacio -->
                             <svg style="width: 65px; height: 65px;" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="1.5">
                                 <ellipse cx="12" cy="5" rx="7" ry="3"></ellipse>
@@ -285,6 +287,7 @@
         let pozoSummaries = [];
         let activeHistoryMode = 'operational';
 
+        // Muestra la ficha rapida del pozo activo y trae el tipo de bomba maestro.
         async function updateSelectedPozoProfile(pozoName) {
             const profileSection = document.getElementById('selected-pozo-profile');
             const pozoLabel = document.getElementById('selected-pozo-profile-pozo');
@@ -312,6 +315,7 @@
             }
         }
 
+        // Traduce el filtro visual a un texto util para el encabezado del reporte.
         function getActiveFilterLabel() {
             const filterSelect = document.getElementById('filter-date');
             const specificDate = document.getElementById('input-specific-date')?.value;
@@ -324,6 +328,7 @@
             return filterSelect.options[filterSelect.selectedIndex]?.text || 'Todos los tiempos';
         }
 
+        // Prepara el resumen ejecutivo que se imprime/exporta en modo reporte.
         function updateReportExportHeader() {
             const activeModeLabel = activeHistoryMode === 'technical'
                 ? 'Historial de medicion tecnica'
@@ -344,6 +349,7 @@
             document.getElementById('report-export-summary').textContent = summary;
         }
 
+        // Cambia la vista entre historial operativo y medicion tecnica.
         function setHistoryMode(mode) {
             activeHistoryMode = mode;
 
@@ -356,6 +362,7 @@
             }
         }
 
+        // Cambia las columnas de la tabla segun el modo activo para no mezclar estructuras.
         function renderHistoryHead() {
             const thead = document.getElementById('history-table-head');
             if (!thead) return;
@@ -411,6 +418,7 @@
                 `;
                 return;
             }
+            // Carga el catalogo de pozos una sola vez y prepara el selector principal.
 
             thead.innerHTML = `
                 <tr>
@@ -474,6 +482,7 @@
             });
         }
 
+        // Renderiza el menu personalizado del selector de pozos con estado y actividad reciente.
         function renderPozoOptions(ignoreSearch = false) {
             const menu = document.getElementById('pozo-selector-menu');
             const filteredPozos = getFilteredPozoSummaries(ignoreSearch);
@@ -548,7 +557,7 @@
             document.getElementById('pozo-selector-input').value = pozo;
             document.getElementById('pozo-selector-menu').classList.remove('active');
 
-            // Switch UI states
+            // Cambia la interfaz del estado vacio a la vista de historial activo.
             document.getElementById('empty-state').style.display = 'none';
             document.getElementById('history-container').style.display = 'block';
             document.getElementById('tools-section').style.display = 'flex';
@@ -564,10 +573,11 @@
             await loadPozoData();
         }
 
+        // Resuelve filtros, consulta Supabase y refresca la tabla activa del pozo.
         async function loadPozoData() {
             if (!activePozo) return;
             try {
-                // Gather date filter
+                // Traduce el filtro visible en rangos de fecha para la consulta.
                 const filterVal = document.getElementById('filter-date').value;
                 const specificDate = document.getElementById('input-specific-date').value;
 
@@ -796,7 +806,7 @@
 
             currentRecordData.forEach(record => {
                 const tr = document.createElement('tr');
-                // We now know the ID field is definitely 'id'
+                // El identificador confirmado del registro es 'id'.
                 const recordId = record.id || record.ID || null;
 
                 if (!recordId) {
@@ -819,7 +829,7 @@
                 tbody.appendChild(tr);
             });
 
-            // Bind Edit Actions
+            // Enlaza las acciones de edicion fila por fila.
             document.querySelectorAll('.btn-edit').forEach(btn => {
                 btn.onclick = function() {
                     const id = this.getAttribute('data-id');
@@ -827,7 +837,7 @@
                 };
             });
 
-            // Bind delete with SweetAlert
+            // Enlaza la eliminacion con confirmacion visual.
             document.querySelectorAll('.btn-delete').forEach(btn => {
                 btn.onclick = async function () {
                     const id = this.getAttribute('data-id');
@@ -860,7 +870,7 @@
             });
         }
 
-        // Toggling Print/Report view
+        // Alterna entre vista web normal y vista preparada para reporte.
         document.getElementById('main-view-toggle').addEventListener('click', () => {
             const isStandard = !document.body.classList.contains('view-mode-report');
             if (isStandard) {
@@ -868,7 +878,7 @@
                 document.body.classList.add('view-mode-report');
                 document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER A LA WEB';
 
-                // Open the Print (Save as PDF) dialog automatically
+                // Abre automaticamente el dialogo de impresion o guardado en PDF.
                 setTimeout(() => { window.print(); }, 500);
             } else {
                 document.body.classList.remove('view-mode-report');

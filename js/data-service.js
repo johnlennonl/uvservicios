@@ -5,6 +5,7 @@
 
 import { supabase } from './supabaseClient.js';
 
+// Lee una tabla grande por paginas para evitar topes de 1000 filas en Supabase.
 async function fetchAllRows(tableName, selectClause, configureQuery) {
     const pageSize = 1000;
     let from = 0;
@@ -49,6 +50,7 @@ function buildTechnicalRecordKey(record = {}) {
     return `${pozoName}|${fecha}`;
 }
 
+// Convierte errores tecnicos en mensajes que se entienden rapido desde la UI.
 function wrapTechnicalHistoryError(error) {
     const message = String(error?.message || error || '');
     if (/well_production_history/i.test(message)) {
@@ -265,6 +267,7 @@ export async function getUniquePozos() {
     return [...new Set(allPozos)];
 }
 
+// Resume por pozo si existe historial y cual fue su fecha mas reciente.
 export async function getPozosHistorySummary() {
     const [pozos, monitoringRows] = await Promise.all([
         getUniquePozos(),
@@ -647,6 +650,7 @@ export async function getWellRibbonData(pozoName) {
 }
 
 /**
+// Consulta el perfil maestro BES del pozo sin romper si la tabla aun no existe.
  * Inserts or updates technical production data for a well.
  * @param {object} data 
  */
@@ -684,6 +688,7 @@ export async function getWellBESProfile(pozoName) {
     }
 }
 
+// Inserta o actualiza el tipo de bomba por pozo usando pozo_name como clave natural.
 export async function upsertWellBESProfile(data) {
     const normalized = {
         pozo_name: String(data?.pozo_name || '').trim(),

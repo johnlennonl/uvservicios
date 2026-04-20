@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UV Servicios | Dashboard Elite</title>
+    <meta name="description" content="Dashboard operativo BES de UV Servicios con indicadores, tendencias, comparacion historica y reportes tecnicos por pozo.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,12 +18,12 @@
 </head>
 
 <body class="view-mode-standard">
-    <!-- Premium Loader Overlay -->
+    <!-- Loader inicial del dashboard -->
     <div id="premium-loader" class="premium-loader-overlay">
-        <img src="img/uvservicioslogo.png" alt="Cargando..." class="loader-logo-pulse">
+        <img src="img/uvservicioslogo.png" alt="Cargando..." class="loader-logo-pulse" width="150" height="109">
     </div>
 
-    <!-- Immediate Loader Suppression (Prevents flicker) -->
+    <!-- Si ya se visito el dashboard, ocultamos el loader para evitar parpadeo -->
     <script>
         if (sessionStorage.getItem('dashboard-visited')) {
             document.getElementById('premium-loader').classList.add('hidden');
@@ -29,9 +31,9 @@
     </script>
 
     <div class="dashboard-layout">
-        <!-- Sidebar -->
+        <!-- Navegacion lateral principal -->
         <aside class="sidebar">
-            <img src="img/UV SERVICES - Logo vectorial sin fondo.png" alt="Logo" class="sidebar-logo">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
             <nav>
                 <a href="dashboard.html" class="nav-link active">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -72,9 +74,9 @@
             <span id="report-toggle-label">Generar reporte</span>
         </button>
 
-        <!-- Main Workspace -->
+        <!-- Area principal de trabajo -->
         <main class="main-container">
-            <!-- Navigation for Report Mode -->
+            <!-- Boton de regreso cuando se entra a modo reporte -->
             <button id="btn-back-from-report" class="btn-back-report">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -83,10 +85,10 @@
                 Volver al Panel
             </button>
 
-            <!-- Corporate Print Header -->
+            <!-- Encabezado corporativo para impresion y PDF -->
             <div class="report-header-print">
                 <div class="report-brand-block">
-                    <img src="img/uvservicioslogo.png" alt="UV Logo" class="report-brand-logo">
+                    <img src="img/uvservicioslogo.png" alt="UV Logo" class="report-brand-logo" width="112" height="81">
                     <div class="report-brand-copy">
                         <p class="report-brand-kicker">Resumen técnico para exportación</p>
                         <h2>Reporte Operativo BES</h2>
@@ -121,7 +123,7 @@
                 </div>
 
                 <div class="page-hero-actions">
-                    <!-- System Status Widget -->
+                    <!-- Estado rapido del sistema -->
                     <div class="system-status-widget"
                         style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 12px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                         <div style="display: flex; flex-direction: column; align-items: flex-end;">
@@ -142,7 +144,7 @@
                 </div>
             </header>
 
-            <!-- Filters -->
+            <!-- Filtros principales del dashboard -->
             <section class="filter-section">
                 <div class="filter-item" id="single-pozo-container">
                     <label>Pozo</label>
@@ -199,14 +201,14 @@
                 </div>
             </section>
 
-            <!-- Premium Welcome View (Shown when no pozo is selected) -->
+            <!-- Vista inicial cuando aun no se ha seleccionado un pozo -->
             <div id="welcome-view"
                 style="text-align: center; padding: 100px 20px; background: var(--bg-card); border-radius: 24px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); margin-bottom: 30px;">
                 <div style="max-width: 600px; margin: 0 auto;">
                     <div style="margin-bottom: 35px;">
                         <div
                             style="width: 140px; height: 140px; background: rgba(37, 99, 235, 0.05); color: #3B82F6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; border: 2px dashed rgba(59, 130, 246, 0.2); animation: floatPulse 3s ease-in-out infinite;">
-                            <!-- Oil Barrel SVG Icon -->
+                            <!-- Icono central de bienvenida -->
                             <svg style="width: 70px; height: 70px;" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="1.2">
                                 <ellipse cx="12" cy="5" rx="7" ry="3"></ellipse>
@@ -342,14 +344,14 @@
                 </div>
             </section>
 
-            <!-- Comparison Selector Panel (Hidden by default) -->
+            <!-- Panel de comparacion de pozos, oculto hasta activarlo -->
             <div id="comparison-panel" class="comparison-panel">
-                <!-- Checkboxes will be injected here -->
+                <!-- Las opciones de comparacion se insertan aqui -->
             </div>
 
-            <!-- GRID BRUTAL -->
+            <!-- Rejilla principal de indicadores y tendencias -->
             <div class="brutal-grid" id="brutal-grid" style="display: none;">
-                <!-- KPIs -->
+                <!-- Indicadores rapidos -->
                 <div class="elite-card col-1">
                     <div class="card-header-industrial">
                         <h3>Frecuencia</h3>
@@ -387,7 +389,7 @@
                     <div id="donut-status" class="chart-space"></div>
                 </div>
 
-                <!-- REPSOL TRENDS BLOCK - COMPACT GRID -->
+                <!-- Bloque de tendencias historicas -->
                 <div class="elite-card col-4">
                     <div class="card-header-industrial">
                         <h3>Frecuencia</h3>
@@ -430,7 +432,7 @@
                     <div id="chart-vsd-triphase" class="trend-space"></div>
                 </div>
 
-                <!-- Bitácora -->
+                <!-- Bitacora de observaciones -->
                 <div class="elite-card col-4">
                     <div class="card-header-industrial">
                         <h3>Bitácora de Observaciones</h3>
@@ -486,7 +488,7 @@
                 body.classList.replace('view-mode-standard', 'view-mode-report');
                 toggleBtnLabel.textContent = 'Volver al panel';
 
-                // Set Header Data for Print
+                // Prepara el encabezado del reporte antes de imprimir o exportar.
                 const pozoValue = document.getElementById('filter-pozo')?.value?.trim();
                 const pozoDisplayValue = document.getElementById('filter-pozo-display')?.value?.trim();
                 const pozoNombre = pozoValue || pozoDisplayValue || '--';
@@ -502,12 +504,11 @@
                 document.getElementById('print-report-summary').textContent = resumen;
                 document.getElementById('print-report-generated').textContent = emitido;
 
-                // Force ApexCharts to resize, then open the Print dialog automatically
+                // Fuerza el reajuste de ApexCharts antes de abrir el dialogo de impresion.
                 setTimeout(() => {
                     window.dispatchEvent(new Event('resize'));
 
-                    // IF THE USER IS NOT IN DARK MODE, WE JUST PRINT. 
-                    // IF THEY ARE, THE CSS @MEDIA PRINT ALREADY FORCES COLORS.
+                    // Si el usuario venia de otro tema, el CSS de impresion ya corrige los colores.
                     setTimeout(() => { window.print(); }, 800);
                 }, 100);
             } else {

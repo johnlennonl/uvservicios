@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UV Servicios | Gestión de Datos</title>
+    <meta name="description" content="Modulo de gestion de datos de UV Servicios para cargar monitoreo, produccion tecnica y configuracion de bomba BES por pozo.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,9 +20,9 @@
 
 <body style="display: block;">
     <div class="dashboard-layout">
-        <!-- Sidebar -->
+        <!-- Navegacion lateral principal -->
         <aside class="sidebar">
-            <img src="img/UV SERVICES - Logo vectorial sin fondo.png" alt="Logo" class="sidebar-logo">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
             <nav>
                 <a href="dashboard.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -53,7 +55,7 @@
             </button>
         </aside>
 
-        <!-- Main Workspace -->
+        <!-- Area principal de gestion -->
         <main class="main-container">
             <header class="page-hero">
                 <h1>Gestión de Datos BES</h1>
@@ -61,7 +63,7 @@
             </header>
             <div class="management-layout">
                 <div class="top-row">
-                    <!-- Data Entry Form -->
+                    <!-- Bloque de carga operativa manual -->
                     <section class="form-card manual-entry-card">
                         <header class="manual-entry-header"
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -387,7 +389,7 @@
                     </div>
                 </section>
 
-                <!-- Historial Reciente de Registros -->
+                <!-- Historial reciente resumido -->
             <section class="form-card" style="margin-top: 10px;">
                 <div class="recent-records-header">
                     <div>
@@ -644,6 +646,7 @@
             initApp();
         });
 
+        // Inicializa la pagina, recupera contexto previo y deja listos formularios y selectores.
         async function initApp() {
             document.getElementById('fecha').valueAsDate = new Date();
             resetForm();
@@ -666,14 +669,14 @@
             await updatePozoRecordStatus(document.getElementById('tech_pozo_name').value.trim(), 'technical');
             await updatePumpProfileStatus(document.getElementById('pump_pozo_name').value.trim());
             
-            // 1. Check for Edit ID in URL
+            // Si llegamos con ?edit=..., abrimos el registro en modo edicion.
             const urlParams = new URLSearchParams(window.location.search);
             const editId = urlParams.get('edit');
             if (editId) {
                 loadAndFillForm(editId);
             }
 
-            // Auto-calculation logic for BNPD
+            // Recalcula BNPD en vivo a partir de BBPD y porcentaje de agua.
             const bbpdInput = document.getElementById('bbpd_tech');
             const aysInput = document.getElementById('ays_tech');
             const bnpdInput = document.getElementById('bnpd_tech');
@@ -703,6 +706,7 @@
             await refreshHistory();
         }
 
+        // Alterna entre historial operativo reciente e historial tecnico reciente.
         function setRecentHistoryMode(mode) {
             activeRecentHistoryMode = mode;
             document.getElementById('btn-recent-operational').classList.toggle('active', mode === 'operational');
@@ -714,6 +718,7 @@
             refreshHistory();
         }
 
+        // Cambia las columnas del historial reciente segun el modo visible.
         function renderRecentHistoryHead() {
             const head = document.getElementById('recent-history-head');
             if (!head) return;
@@ -747,6 +752,7 @@
             `;
         }
 
+        // Refresca el catalogo comun de pozos para los tres selectores personalizados.
         async function refreshPozoLists() {
             const pozos = (await getUniquePozos()).sort((a, b) => a.localeCompare(b));
             knownPozos = new Set(pozos.map(pozo => pozo.trim().toUpperCase()));
@@ -754,6 +760,7 @@
             MANAGEMENT_POZO_SELECTORS.forEach(config => renderManagementPozoMenu(config, true));
         }
 
+        // Si el pozo no existe aun, ofrece abrir Produccion Tecnica para registrarlo.
         async function ensureKnownPozo(pozoName, campoName = '') {
             const normalizedPozo = pozoName.trim().toUpperCase();
             if (!normalizedPozo || knownPozos.has(normalizedPozo)) return true;
@@ -787,6 +794,7 @@
             return false;
         }
 
+        // Sincroniza el pozo del formulario operativo con el estado compartido de la sesion.
         async function syncDailyPozoContext() {
             const pozoName = document.getElementById('pozo_name').value.trim();
             setStoredSelectedPozo(pozoName);
@@ -794,6 +802,7 @@
             await updatePozoRecordStatus(pozoName, 'daily');
         }
 
+        // Carga la ficha tecnica actual del pozo para editarla o completarla.
         async function syncTechnicalPozoContext() {
             const pozoName = document.getElementById('tech_pozo_name').value.trim();
             setStoredSelectedPozo(pozoName);
@@ -811,6 +820,7 @@
             });
         }
 
+        // Carga el perfil BES maestro del pozo seleccionado en Gestion de Pozos.
         async function syncPumpPozoContext() {
             const pozoName = document.getElementById('pump_pozo_name').value.trim();
             setStoredSelectedPozo(pozoName);
@@ -825,6 +835,7 @@
             populatePumpProfileForm(profile, { pozo_name: pozoName });
         }
 
+        // Reconstruye la tabla de actividad reciente con la vista operativa o tecnica.
         async function refreshHistory() {
             try {
                 const historyBody = document.getElementById('recent-history-body');
@@ -903,7 +914,7 @@
                         historyBody.appendChild(tr);
                     });
 
-                    // Bind actions
+                    // Vuelve a enlazar botones porque la tabla se reconstruye por completo.
                     document.querySelectorAll('.btn-edit').forEach(btn => {
                         btn.onclick = () => loadAndFillForm(btn.getAttribute('data-id'));
                     });
@@ -921,6 +932,7 @@
             }
         }
 
+        // Abre un registro operativo existente y trae tambien el contexto tecnico del pozo.
         async function loadAndFillForm(id) {
             try {
                 Swal.fire({ title: 'Cargando datos...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
@@ -936,7 +948,7 @@
                 document.getElementById('submit-btn').querySelector('.btn-text').textContent = 'Guardar Cambios';
                 document.getElementById('cancel-edit').style.display = 'inline-block';
 
-                // Map fields
+                // Asigna los campos del registro recibido a los inputs del formulario.
                 const fields = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'pip', 'tm', 'presion_thp', 'presion_chp', 'vsd_a', 'vsd_b', 'vsd_c', 'estatus', 'observaciones'];
                 fields.forEach(f => {
                     const el = document.getElementById(f);
@@ -945,7 +957,7 @@
 
                 populateTechnicalForm(techData, { pozo_name: record.pozo_name, campo_name: record.campo });
 
-                // Smooth scroll to top
+                // Lleva la vista al inicio para que el usuario vea el formulario abierto.
                 window.scrollTo({ top: 0, behavior: 'smooth' });
 
             } catch (err) {
@@ -953,6 +965,7 @@
             }
         }
 
+        // Elimina un registro operativo despues de confirmar la accion con el usuario.
         async function handleDelete(id) {
             const result = await Swal.fire({
                 title: '¿Estás seguro?',
@@ -1969,11 +1982,11 @@
             }
         }
 
-        // Logout
+        // Cierre de sesion desde Gestion.
         document.getElementById('logout-btn').addEventListener('click', logout);
         document.getElementById('mobile-logout-btn').addEventListener('click', logout);
 
-        // CSV Logic
+        // Flujo de importacion de archivos operativos.
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
         const statusDiv = document.getElementById('upload-status');

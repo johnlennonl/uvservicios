@@ -20,7 +20,7 @@
             min-height: 100vh;
         }
 
-        /* Sidebar - Premium Corporate Matte */
+        /* Barra lateral principal */
         .sidebar {
             background: #0F172A;
             color: #94A3B8;
@@ -393,7 +393,7 @@
         .compact-form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            /* Auto-flowing grid */
+            /* Rejilla automatica para tarjetas y formularios */
             gap: 12px 20px;
         }
 
@@ -1367,7 +1367,7 @@
             }
         }
 
-        /* History Table Styling */
+        /* Estilos de la tabla de historial */
         .history-card {
             background: white;
             border-radius: 12px;
@@ -1560,7 +1560,7 @@
             font-weight: 700;
         }
 
-        /* Compact Inputs */
+        /* Inputs compactos para formularios extensos */
         .form-group label {
             margin-bottom: 6px;
             font-size: 0.72rem;
@@ -1888,7 +1888,7 @@
             }
         }
 
-        /* Final responsive normalization: keep this block last to win over duplicate rules above */
+        /* Normalizacion responsiva final: este bloque queda al final para prevalecer sobre reglas duplicadas */
         .main-container,
         .management-layout,
         .top-row,

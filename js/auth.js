@@ -1,14 +1,14 @@
 /**
- * Authentication Module - Supabase Edition
- * Handles real authentication calls using the Supabase client.
+ * Modulo de autenticacion.
+ * Encapsula el acceso a Supabase para iniciar y cerrar sesion.
  */
 
 import { supabase } from './supabaseClient.js';
 
 /**
- * Validates the credentials against Supabase.
- * @param {string} email 
- * @param {string} password 
+ * Valida las credenciales contra Supabase.
+ * @param {string} email
+ * @param {string} password
  * @returns {Promise<{success: boolean, message: string, user: object}>}
  */
 export async function login(email, password) {
@@ -23,7 +23,7 @@ export async function login(email, password) {
         });
 
         if (error) {
-            // Map common Supabase errors to user-friendly messages
+            // Traduce errores comunes de Supabase a mensajes comprensibles para la interfaz.
             let msg = 'Credenciales inválidas. Intente de nuevo.';
             if (error.message.includes('Invalid login credentials')) {
                 msg = 'Usuario o contraseña incorrectos.';
@@ -41,7 +41,7 @@ export async function login(email, password) {
 }
 
 /**
- * Signs out the current user.
+ * Cierra la sesion actual y limpia el contexto temporal del navegador.
  */
 export async function logout() {
     sessionStorage.removeItem('dashboard-visited');
@@ -52,7 +52,7 @@ export async function logout() {
 }
 
 /**
- * Checks if there is an active session.
+ * Devuelve la sesion activa si existe.
  */
 export async function getSession() {
     const { data, error } = await supabase.auth.getSession();

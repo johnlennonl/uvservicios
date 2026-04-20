@@ -1,6 +1,6 @@
 /**
- * Elite Industrial Dashboard - Brutal Grid Logic
- * High-performance charting for UV Servicios.
+ * Modulo principal del dashboard.
+ * Resuelve filtros, consulta datos y dibuja indicadores y graficas.
  */
 
 import { logout, getSession } from './auth.js';
@@ -15,6 +15,7 @@ let historicalRecordOptions = [];
 let pozoSummaries = [];
 const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
 
+// Mantiene el pozo activo entre Dashboard, Data y Gestion durante la sesion actual.
 function getStoredSelectedPozo() {
     return sessionStorage.getItem(ACTIVE_POZO_STORAGE_KEY) || '';
 }
@@ -31,6 +32,7 @@ function getPozoSummary(pozoName) {
     return pozoSummaries.find(item => item.pozo_name === pozoName) || null;
 }
 
+// Renderiza el selector personalizado del pozo y conserva el estado de cada opcion.
 function renderPozoFilterOptions(ignoreSearch = false) {
     const menu = document.getElementById('filter-pozo-menu');
     const input = document.getElementById('filter-pozo-display');
@@ -74,6 +76,7 @@ function closePozoFilterMenu() {
     document.getElementById('filter-pozo-menu')?.classList.remove('active');
 }
 
+// Cuando el usuario elige un pozo, sincronizamos filtros, fecha sugerida e historial rapido.
 async function selectDashboardPozo(pozoName) {
     const hiddenInput = document.getElementById('filter-pozo');
     const displayInput = document.getElementById('filter-pozo-display');
@@ -100,6 +103,7 @@ function getSelectedHistoricalRecordValue() {
     return document.getElementById('historical-record-input')?.dataset.recordValue || '';
 }
 
+// Aplica el registro historico elegido y alinea fecha, hora y selector visual.
 function applyHistoricalRecordSelection(option, shouldUpdate = true) {
     const input = document.getElementById('historical-record-input');
     const startInput = document.getElementById('filter-start');
@@ -282,7 +286,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const isFirstEntry = !sessionStorage.getItem('dashboard-visited');
 
-    // 0. Initialize Theme
+    // Aplica el tema almacenado antes de empezar a dibujar el dashboard.
     if (isDarkMode) {
         document.body.classList.add('dark-room');
         updateThemeIcon();
@@ -295,7 +299,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.body.classList.toggle('dark-room', isDarkMode);
             localStorage.setItem('theme-uv', isDarkMode ? 'dark' : 'white');
             updateThemeIcon();
-            updateDashboard(); // Re-render charts with new theme
+            updateDashboard(); // Redibuja las graficas con el tema activo.
         });
     }
 
@@ -309,7 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 1. Initialize Filters
+    // Carga el catalogo de pozos y deja listos los filtros principales.
     try {
         pozoSummaries = await getPozosHistorySummary();
         const pozos = pozoSummaries.map(item => item.pozo_name);
@@ -318,7 +322,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const comparePanel = document.getElementById('comparison-panel');
         const storedPozo = getStoredSelectedPozo();
 
-        // Intelligent Initial Date: Fetch latest date in DB
+        // Toma la fecha mas reciente de la base para no abrir el dashboard vacio.
         const latestDate = await getLatestDate();
         if (latestDate) {
             document.getElementById('filter-start').value = latestDate;
@@ -359,14 +363,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (err) { console.error('Filter load error:', err); }
 
-    // 2. Initial state: keep the brutal welcome view until a pozo is selected.
+    // Mantiene la vista de bienvenida hasta que exista un pozo seleccionado.
     clearDashboard();
 
     if (document.getElementById('filter-pozo')?.value) {
         updateDashboard();
     }
 
-    // Hide the premium loader after initial data is rendered (only if it was shown)
+    // Oculta el loader solo despues del primer render real del dashboard.
     if (isFirstEntry) {
         setTimeout(() => {
             hideFullLoader();
@@ -374,11 +378,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 1000);
     }
 
-    // 3. Event Binding
+    // Conecta eventos de filtros, logout, comparacion y navegacion historica.
     const applyBtn = document.getElementById('apply-filters');
     if (applyBtn) applyBtn.addEventListener('click', updateDashboard);
     
-    // Auto-update on selection change
+    // Actualiza automaticamente cuando cambian filtros o selectores.
     const pozoFilter = document.getElementById('filter-pozo');
     const pozoFilterDisplay = document.getElementById('filter-pozo-display');
     const pozoFilterToggle = document.getElementById('filter-pozo-toggle');
@@ -482,7 +486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
     if (mobileLogoutBtn) mobileLogoutBtn.addEventListener('click', logout);
 
-    // Toggle Comparison Mode
+    // Activa o desactiva la comparacion simultanea entre pozos.
     const compareToggleBtn = document.getElementById('btn-toggle-compare');
     if (compareToggleBtn) {
         compareToggleBtn.addEventListener('click', () => {
@@ -497,7 +501,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Day Navigation Logic
+    // Permite moverse entre registros historicos del pozo activo.
     const shiftDate = (delta) => {
         const currentValue = getSelectedHistoricalRecordValue();
         const currentIndex = historicalRecordOptions.findIndex(option => option.value === currentValue);
@@ -512,8 +516,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-prev-day')?.addEventListener('click', () => shiftDate(-1));
     document.getElementById('btn-next-day')?.addEventListener('click', () => shiftDate(1));
     
-    // Mobile browsers fire resize during scroll when the address bar collapses.
-    // Re-calling render() duplicates ApexCharts SVG nodes, so only request a lightweight refresh.
+    // En moviles el navegador dispara resize al colapsar la barra superior.
+    // Aqui solo pedimos un refresh liviano para no duplicar nodos SVG de ApexCharts.
     window.addEventListener('resize', () => {
         if (resizeFrame) cancelAnimationFrame(resizeFrame);
         resizeFrame = requestAnimationFrame(() => {
@@ -553,7 +557,8 @@ async function updateDashboard() {
     const end = document.getElementById('filter-end').value || null;
     const selectedRecordValue = getSelectedHistoricalRecordValue();
     
-    // Activate Skeletons
+    // Activa skeletons mientras resolvemos consultas y volvemos a dibujar las visualizaciones.
+    // Activa skeletons mientras llegan datos y se repinta la vista.
     const chartContainers = document.querySelectorAll('.chart-space, .trend-space');
     chartContainers.forEach(el => el.parentElement.classList.add('loading-skeleton'));
 
@@ -593,43 +598,43 @@ async function updateDashboard() {
             return;
         }
 
-        // Data found -> Show Dashboard
+        // Si hay datos, ocultamos la bienvenida y mostramos todo el panel.
         if (welcomeView) welcomeView.style.display = 'none';
         if (dataRibbon) dataRibbon.style.display = 'grid';
         if (brutalGrid) brutalGrid.style.display = 'grid';
 
-        // Use the latest well record first, then fall back to the technical table.
+        // Prioriza el ultimo dato operativo y usa la ficha tecnica como respaldo.
         if (selectedPozos.length === 1) {
             updateDataRibbon(ribbonData);
         } else {
             updateDataRibbon(null);
         }
 
-        // AUTO-CONTEXT: Fetch neighbors to draw connecting lines point-to-point without needing Historical mode
+        // Trae vecinos anterior/siguiente para que las lineas no queden cortadas en filtros cerrados.
         let extendedData = [...data];
         if (data.length > 0 && selectedPozos.length === 1 && !isComparisonMode) {
-            // Find the oldest date in our current dataset (which might be just 'today')
+            // Busca el registro mas viejo del bloque filtrado.
             const oldestDate = data[data.length - 1].fecha; 
-            // Find the newest date in our dataset
+            // Busca el registro mas reciente del bloque filtrado.
             const newestDate = data[0].fecha;
             
-            // Get records right before oldest and right after newest
+            // Trae vecinos fuera del rango para evitar cortes bruscos en las lineas.
             const neighbors = await getNeighborRecords(selectedPozos[0], oldestDate, newestDate);
             extendedData = [...extendedData, ...neighbors];
         }
 
-        // Sorting for timeline
+        // Ordena por fecha y hora antes de alimentar las graficas de tendencia.
         const timelineData = [...extendedData].sort((a, b) => {
             const dateA = new Date(`${a.fecha}T${a.hora}`);
             const dateB = new Date(`${b.fecha}T${b.hora}`);
             return dateA - dateB;
         });
 
-        // Filter and sanitize observations for the selected wells only
+        // Filtra observaciones para que solo queden las del contexto visible.
         const filteredObs = data.filter(d => {
             if (isComparisonMode) return selectedPozos.includes(d.pozo_name);
             if (selectedPozos.length === 1) return d.pozo_name === selectedPozos[0];
-            return true; // "Todas" case
+            return true; // Caso comodin cuando no hay filtro puntual.
         });
 
         const activeRecord = selectedPozos.length === 1 && selectedRecordValue
@@ -668,14 +673,14 @@ function clearDashboard() {
 }
 
 /**
- * 1. KPIs & GAUGES
+ * Indicadores rapidos y gauges del encabezado operativo.
  */
 function renderKPIs(latest) {
     createEliteGauge('gauge-frecuencia', latest.frecuencia, 0, 60, 'Hz', '#2563EB');
     createEliteGauge('gauge-pip', latest.pip, 0, 5000, 'PSI', '#DC2626');
     createEliteGauge('gauge-tm', latest.tm, 0, 450, '°F', '#9333EA');
     
-    // Update header info
+    // Actualiza el subtitulo superior con el contexto de analisis actual.
     const title = document.querySelector('.main-container header p');
     if (title) {
         title.textContent = isComparisonMode 
@@ -738,7 +743,7 @@ function createEliteGauge(id, value, min, max, unit, color) {
 }
 
 /**
- * 2. STATUS
+ * Estado general del pozo segun sus registros operativos.
  */
 function renderStatusDonut(data) {
     const runCount = data.filter(d => d.estatus === 'RUN').length;
@@ -760,16 +765,13 @@ function renderStatusDonut(data) {
 }
 
 /**
- * 3. TRENDS
- */
-/**
- * 3. TRENDS - REPSOL OVERHAUL
+ * Tendencias historicas y comparativas del panel.
  */
 function renderCoreTrends(timeline, requestedPozos) {
     const pozosPresentes = [...new Set(timeline.map(d => d.pozo_name))];
     const isComparison = pozosPresentes.length > 1;
 
-    // Premium Color Palette (Repsol Inspired)
+    // Paleta principal de colores para tendencias y comparaciones.
     const REPSOL_ORANGE = '#FF8200';
     const REPSOL_RED = '#DA291C';
     const TECH_BLUE = '#2563EB';
@@ -778,7 +780,7 @@ function renderCoreTrends(timeline, requestedPozos) {
 
     const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
 
-    // Helper for shared options
+    // Genera la base comun de opciones para no repetir configuracion por grafica.
     const getBaseOptions = (title, color, unit) => ({
         chart: {
             type: 'area',

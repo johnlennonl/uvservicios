@@ -40,7 +40,7 @@
             transform: translateY(-5px);
         }
 
-        /* Report Mode Transformation CSS */
+        /* Reglas para transformar la pagina en modo reporte */
         .view-mode-report {
             background: white;
         }
@@ -343,7 +343,7 @@
             }
         }
 
-        /* Sidebar - Premium Corporate Matte */
+        /* Barra lateral principal */
         .sidebar {
             background: #0F172A;
             color: #94A3B8;

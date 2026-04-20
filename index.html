@@ -5,7 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UV Servicios | Portal de Acceso Corporativo</title>
-    <!-- Premium Fonts: Inter for unmatched clarity -->
+    <meta name="description" content="Portal corporativo de UV Servicios para acceso seguro al monitoreo inteligente, gestion de pozos y analisis operativo BES.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
+    <!-- Fuentes base de la interfaz -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,17 +15,17 @@
 </head>
 
 <body class="auth-page">
-    <!-- Premium Loader Overlay -->
+    <!-- Loader inicial mientras arranca la pantalla de acceso -->
     <div id="premium-loader" class="premium-loader-overlay">
-        <img src="img/uvservicioslogo.png" alt="Cargando..." class="loader-logo-pulse">
+        <img src="img/uvservicioslogo.png" alt="Cargando..." class="loader-logo-pulse" width="150" height="109">
     </div>
 
     <div class="split-container">
-        <!-- Layout Part 1: Executive Form Section -->
+        <!-- Columna izquierda: acceso y autenticacion -->
         <main class="form-section">
             <div class="form-content-wrapper">
                 <header class="login-header">
-                    <img src="img/UV SERVICES - Logo vectorial sin fondo.png" alt="UV Servicios" class="brand-logo">
+                    <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" class="brand-logo" width="155" height="155">
                     <h1>Monitoreo Inteligente</h1>
                     <p>Ingrese sus credenciales corporativas para la gestión de pozos.</p>
                 </header>
@@ -48,13 +50,13 @@
                                 placeholder="••••••••">
                             <button type="button" id="toggle-password" class="btn-toggle-eye"
                                 title="Mostrar/Ocultar contraseña">
-                                <!-- Eye Open Icon -->
+                                <!-- Icono de ojo abierto -->
                                 <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                     <circle cx="12" cy="12" r="3"></circle>
                                 </svg>
-                                <!-- Eye Closed (Eye-Off) Icon -->
+                                <!-- Icono de ojo cerrado -->
                                 <svg class="eye-closed hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path
@@ -70,11 +72,11 @@
                         <span class="btn-text">Iniciar Sesión</span>
                         <div class="loader-container">
                             <svg viewBox="0 0 64 48" class="pumpjack-svg">
-                                <!-- Base Estructural (A-Frame) -->
+                                <!-- Base estructural -->
                                 <path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="white"
                                     stroke-width="2" stroke-linecap="round" />
 
-                                <!-- Motor Trasero (Crank Assembly) -->
+                                <!-- Mecanismo trasero del balancin -->
                                 <g class="crank-engine">
                                     <circle cx="12" cy="38" r="6" fill="none" stroke="white" stroke-width="1"
                                         stroke-dasharray="2,2" opacity="0.2" />
@@ -84,20 +86,20 @@
                                     </g>
                                 </g>
 
-                                <!-- Ensamblaje de Viga Móvil -->
+                                <!-- Ensamblaje de la viga movil -->
                                 <g class="pump-beam">
-                                    <!-- Viga Principal -->
+                                    <!-- Viga principal -->
                                     <path d="M8 16 L52 16 L52 20 L8 20 Z" fill="white" />
-                                    <!-- Cabezal de Caballo -->
+                                    <!-- Cabezal del balancin -->
                                     <path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z"
                                         fill="white" />
-                                    <!-- Varilla de Extracción -->
+                                    <!-- Varilla de extraccion -->
                                     <line x1="62" y1="34" x2="62" y2="46" stroke="white" stroke-width="1.2"
                                         stroke-dasharray="1,1" />
-                                    <!-- Biela de Conexión (Pitman Arm) -->
+                                    <!-- Biela de conexion -->
                                     <line x1="12" y1="20" x2="12" y2="34" stroke="white" stroke-width="2"
                                         stroke-linecap="round" />
-                                    <!-- Punto de Pivote Central -->
+                                    <!-- Punto de pivote central -->
                                     <circle cx="32" cy="18" r="2.8" fill="#0F172A" />
                                 </g>
                             </svg>
@@ -111,13 +113,13 @@
             </div>
         </main>
 
-        <!-- Layout Part 2: Cinematic Image Section -->
+        <!-- Columna derecha: fondo visual y ambientacion -->
         <aside class="image-section">
             <div class="image-overlay"></div>
-            <!-- Interactive telemetry background -->
+            <!-- Fondo animado de telemetria -->
             <canvas id="telemetry-bg"></canvas>
             
-            <!-- Zumaque 1 Tribute Caption -->
+            <!-- Pie historico del fondo -->
             <div class="image-caption">
                 <div class="caption-content">
                     <span class="caption-tag">MONUMENTO HISTÓRICO</span>
@@ -129,7 +131,7 @@
         </aside>
     </div>
 
-    <!-- Modular JS -->
+    <!-- Scripts del acceso -->
     <script type="module" src="js/bg-animation.js"></script>
     <script type="module" src="js/main.js"></script>
 </body>

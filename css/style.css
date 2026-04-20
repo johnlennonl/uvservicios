@@ -38,7 +38,7 @@ body {
     height: 100vh;
 }
 
-/* 🏢 FORM SECTION (Technical White) */
+/* 🏢 Seccion del formulario de acceso */
 .form-section {
     flex: 0 0 40%;
     display: flex;
@@ -52,7 +52,7 @@ body {
     box-shadow: 20px 0 50px rgba(0, 0, 0, 0.05);
 }
 
-/* Subtle Technical Grid */
+/* Reticula suave de fondo para la columna del login */
 .form-section::before {
     content: '';
     position: absolute;
@@ -105,7 +105,7 @@ body {
     line-height: 1.5;
 }
 
-/* Form Styles */
+/* Estilos base del formulario */
 .login-form {
     display: flex;
     flex-direction: column;
@@ -144,7 +144,7 @@ body {
     box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.08);
 }
 
-/* Password Toggle */
+/* Boton para mostrar u ocultar la contraseña */
 .password-group input {
     padding-right: 50px;
 }
@@ -219,7 +219,7 @@ body {
     filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.4));
 }
 
-/* Loading State Activation */
+/* Estado visual de carga del boton principal */
 .btn-submit.loading {
     pointer-events: none;
     background: var(--uv-red-hover);
@@ -236,7 +236,7 @@ body {
     transform: translateY(0);
 }
 
-/* Pumpjack Mechanical Animation - Full Transmission */
+/* Animacion mecanica del balancin dentro del boton */
 .btn-submit.loading .pump-beam {
     transform-origin: 32px 18px;
     animation: pumpSwingRealistic 2.5s infinite ease-in-out;
@@ -277,12 +277,12 @@ body {
     box-shadow: 0 10px 15px rgba(225, 29, 72, 0.2);
 }
 
-/* 🏗️ IMAGE SECTION (Brutal Industrial Mastery - High Res) */
+/* 🏗️ Seccion visual de fondo */
 .image-section {
     flex: 1;
     position: relative;
-    background-image: url('../img/imagen2.png');
-    /* High-res version */
+    background-image: url('../img/imagen2.webp');
+    /* Imagen principal del fondo */
     background-size: cover;
     background-position: center bottom; /* Aseguramos que el balancín se vea */
     background-repeat: no-repeat;
@@ -291,9 +291,9 @@ body {
     padding: 40px;
 }
 
-/* Force path fallback */
+/* Refuerzo del fondo para la vista de acceso */
 .auth-page .image-section {
-    background-image: url('../img/imagen2.png') !important;
+    background-image: url('../img/imagen2.webp') !important;
 }
 
 .image-overlay {
@@ -306,7 +306,7 @@ body {
     z-index: 1;
 }
 
-/* 🏆 COMMEMORATIVE CAPTION (Zumaque 1) */
+/* 🏆 Pie historico opcional del fondo */
 .image-caption {
     display: none;
     /* Oculto temporalmente a petición */
@@ -334,7 +334,7 @@ body {
     font-weight: 800;
     letter-spacing: 0.15em;
     color: #38BDF8;
-    /* Sky Blue accent */
+    /* Acento azul del texto superior */
     margin-bottom: 8px;
     display: block;
 }
@@ -387,7 +387,7 @@ body {
     pointer-events: none;
 }
 
-/* ⏳ LOADER */
+/* ⏳ Loader global */
 .premium-loader-overlay {
     position: fixed;
     top: 0;
@@ -444,7 +444,7 @@ body {
     display: none !important;
 }
 
-/* 📱 RESPONSIVE */
+/* 📱 Ajustes responsivos */
 @media (max-width: 1100px) {
     .image-section {
         display: none;
