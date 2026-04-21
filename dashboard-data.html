@@ -147,41 +147,41 @@
                                 <div class="section-header section-critical"><span>2. Parámetros Críticos</span></div>
                                 <div class="form-group">
                                     <label>Frecuencia (Hz)</label>
-                                    <input type="number" step="0.01" id="frecuencia" required>
+                                    <input type="number" step="0.01" id="frecuencia" placeholder="Opcional">
                                 </div>
                                 <div class="form-group">
                                     <label>I. Motor (AMP)</label>
-                                    <input type="number" step="0.01" id="corriente_motor" required>
+                                    <input type="number" step="0.01" id="corriente_motor" placeholder="Opcional">
                                 </div>
                                 <div class="form-group">
                                     <label>PIP (PSI)</label>
-                                    <input type="number" step="0.01" id="pip" required>
+                                    <input type="number" step="0.01" id="pip" placeholder="Opcional">
                                 </div>
                                 <div class="form-group">
                                     <label>Temp. TM [F]</label>
-                                    <input type="number" step="0.01" id="tm" required>
+                                    <input type="number" step="0.01" id="tm" placeholder="Opcional">
                                 </div>
 
                                 <div class="section-header section-pressure"><span>3. Presiones y VSD</span></div>
                                 <div class="form-group">
                                     <label>THP (PSI)</label>
-                                    <input type="number" step="0.01" id="presion_thp" required>
+                                    <input type="number" step="0.01" id="presion_thp" placeholder="Opcional">
                                 </div>
                                 <div class="form-group">
                                     <label>CHP (PSI)</label>
-                                    <input type="number" step="0.01" id="presion_chp" required>
+                                    <input type="number" step="0.01" id="presion_chp" placeholder="Opcional">
                                 </div>
                                 <div class="form-group">
                                     <label>VSD A (AMP)</label>
-                                    <input type="number" step="0.01" id="vsd_a" required>
+                                    <input type="number" step="0.01" id="vsd_a" placeholder="Opcional">
                                 </div>
                                 <div class="form-group">
                                     <label>VSD B (AMP)</label>
-                                    <input type="number" step="0.01" id="vsd_b" required>
+                                    <input type="number" step="0.01" id="vsd_b" placeholder="Opcional">
                                 </div>
                                 <div class="form-group">
                                     <label>VSD C (AMP)</label>
-                                    <input type="number" step="0.01" id="vsd_c" required>
+                                    <input type="number" step="0.01" id="vsd_c" placeholder="Opcional">
                                 </div>
                                 <div class="form-group">
                                     <label>Estatus</label>
@@ -952,7 +952,7 @@
                 const fields = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'pip', 'tm', 'presion_thp', 'presion_chp', 'vsd_a', 'vsd_b', 'vsd_c', 'estatus', 'observaciones'];
                 fields.forEach(f => {
                     const el = document.getElementById(f);
-                    if (el) el.value = record[f] || '';
+                    if (el) el.value = record[f] ?? '';
                 });
 
                 populateTechnicalForm(techData, { pozo_name: record.pozo_name, campo_name: record.campo });
@@ -1141,20 +1141,22 @@
             btn.classList.add('loading');
             btn.disabled = true;
 
+            const getOptionalTelemetryValue = (fieldId) => roundNumericValue(document.getElementById(fieldId).value);
+
             const record = {
                 pozo_name: document.getElementById('pozo_name').value,
                 campo: document.getElementById('campo').value,
                 fecha: document.getElementById('fecha').value,
                 hora: document.getElementById('hora').value,
-                frecuencia: roundNumericValue(document.getElementById('frecuencia').value) ?? 0,
-                corriente_motor: roundNumericValue(document.getElementById('corriente_motor').value) ?? 0,
-                pip: roundNumericValue(document.getElementById('pip').value) ?? 0,
-                tm: roundNumericValue(document.getElementById('tm').value) ?? 0,
-                presion_thp: roundNumericValue(document.getElementById('presion_thp').value) ?? 0,
-                presion_chp: roundNumericValue(document.getElementById('presion_chp').value) ?? 0,
-                vsd_a: roundNumericValue(document.getElementById('vsd_a').value) ?? 0,
-                vsd_b: roundNumericValue(document.getElementById('vsd_b').value) ?? 0,
-                vsd_c: roundNumericValue(document.getElementById('vsd_c').value) ?? 0,
+                frecuencia: getOptionalTelemetryValue('frecuencia'),
+                corriente_motor: getOptionalTelemetryValue('corriente_motor'),
+                pip: getOptionalTelemetryValue('pip'),
+                tm: getOptionalTelemetryValue('tm'),
+                presion_thp: getOptionalTelemetryValue('presion_thp'),
+                presion_chp: getOptionalTelemetryValue('presion_chp'),
+                vsd_a: getOptionalTelemetryValue('vsd_a'),
+                vsd_b: getOptionalTelemetryValue('vsd_b'),
+                vsd_c: getOptionalTelemetryValue('vsd_c'),
                 estatus: document.getElementById('estatus').value,
                 observaciones: document.getElementById('observaciones').value,
             };

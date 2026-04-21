@@ -14,6 +14,14 @@ let resizeFrame = null;
 let historicalRecordOptions = [];
 let pozoSummaries = [];
 const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
+const TREND_AXIS_BASES = {
+    frecuencia: { min: 0, max: 60, step: 5, decimals: 1 },
+    pip: { min: 0, max: 3000, step: 250, decimals: 0 },
+    tm: { min: 0, max: 450, step: 25, decimals: 0 },
+    superficie: { min: 0, max: 350, step: 25, decimals: 0 },
+    corrienteMotor: { min: 0, max: 120, step: 10, decimals: 0 },
+    vsd: { min: 0, max: 120, step: 10, decimals: 0 }
+};
 
 // Mantiene el pozo activo entre Dashboard, Data y Gestion durante la sesion actual.
 function getStoredSelectedPozo() {
@@ -101,6 +109,59 @@ function closeHistoricalRecordMenu() {
 
 function getSelectedHistoricalRecordValue() {
     return document.getElementById('historical-record-input')?.dataset.recordValue || '';
+}
+
+function getSeriesNumericBounds(series) {
+    const values = series
+        .flatMap(item => Array.isArray(item.data) ? item.data : [])
+        .map(point => point?.y)
+        .filter(value => Number.isFinite(value));
+
+    if (values.length === 0) {
+        return null;
+    }
+
+    return {
+        min: Math.min(...values),
+        max: Math.max(...values)
+    };
+}
+
+function roundUpToStep(value, step) {
+    if (!Number.isFinite(value)) return step;
+    return Math.ceil(value / step) * step;
+}
+
+function roundDownToStep(value, step) {
+    if (!Number.isFinite(value)) return 0;
+    return Math.floor(value / step) * step;
+}
+
+function getExpandedAxisConfig(baseConfig, series) {
+    const bounds = getSeriesNumericBounds(series);
+    let min = baseConfig.min;
+    let max = baseConfig.max;
+
+    if (bounds) {
+        if (bounds.min < min) {
+            min = roundDownToStep(bounds.min, baseConfig.step);
+        }
+
+        if (bounds.max > max) {
+            max = roundUpToStep(bounds.max, baseConfig.step);
+        }
+    }
+
+    if (max <= min) {
+        max = min + baseConfig.step;
+    }
+
+    return {
+        min,
+        max,
+        tickAmount: Math.max(2, Math.round((max - min) / baseConfig.step)),
+        forceNiceScale: true
+    };
 }
 
 // Aplica el registro historico elegido y alinea fecha, hora y selector visual.
@@ -781,7 +842,7 @@ function renderCoreTrends(timeline, requestedPozos) {
     const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
 
     // Genera la base comun de opciones para no repetir configuracion por grafica.
-    const getBaseOptions = (title, color, unit) => ({
+    const getBaseOptions = (title, color, unit, axisBase) => ({
         chart: {
             type: 'area',
             height: 220,
@@ -823,9 +884,10 @@ function renderCoreTrends(timeline, requestedPozos) {
         },
         yaxis: {
             title: { text: title, style: { color: effectiveMode === 'dark' ? '#E2E8F0' : '#475569', fontWeight: 700 } },
+            ...getExpandedAxisConfig(axisBase, []),
             labels: { 
                 style: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', fontWeight: 600 },
-                formatter: (v) => v ? v.toFixed(1) + ' ' + unit : v
+                formatter: (v) => v === null || v === undefined ? v : `${Number(v).toFixed(axisBase.decimals)} ${unit}`
             }
         },
         colors: Array.isArray(color) ? color : [color, REPSOL_RED, TECH_BLUE, TECH_CYAN, TECH_PURPLE],
@@ -843,21 +905,33 @@ function renderCoreTrends(timeline, requestedPozos) {
     // 1. FRECUENCIA
     const freqSeries = pozosPresentes.map(p => makeSeries('Hz', 'frecuencia', p));
     renderOrUpdate('chart-frecuencia', {
-        ...getBaseOptions('Frecuencia (Hz)', REPSOL_ORANGE, 'Hz'),
+        ...getBaseOptions('Frecuencia (Hz)', REPSOL_ORANGE, 'Hz', TREND_AXIS_BASES.frecuencia),
+        yaxis: {
+            ...getBaseOptions('Frecuencia (Hz)', REPSOL_ORANGE, 'Hz', TREND_AXIS_BASES.frecuencia).yaxis,
+            ...getExpandedAxisConfig(TREND_AXIS_BASES.frecuencia, freqSeries)
+        },
         series: freqSeries
     });
 
     // 2. PIP (FONDO)
     const pipSeries = pozosPresentes.map(p => makeSeries('PSI', 'pip', p));
     renderOrUpdate('chart-pip', {
-        ...getBaseOptions('Presión PIP (PSI)', REPSOL_RED, 'PSI'),
+        ...getBaseOptions('Presión PIP (PSI)', REPSOL_RED, 'PSI', TREND_AXIS_BASES.pip),
+        yaxis: {
+            ...getBaseOptions('Presión PIP (PSI)', REPSOL_RED, 'PSI', TREND_AXIS_BASES.pip).yaxis,
+            ...getExpandedAxisConfig(TREND_AXIS_BASES.pip, pipSeries)
+        },
         series: pipSeries
     });
 
     // 3. TM (MOTOR)
     const tmSeries = pozosPresentes.map(p => makeSeries('°F', 'tm', p));
     renderOrUpdate('chart-tm', {
-        ...getBaseOptions('Temperatura Motor (°F)', TECH_PURPLE, '°F'),
+        ...getBaseOptions('Temperatura Motor (°F)', TECH_PURPLE, '°F', TREND_AXIS_BASES.tm),
+        yaxis: {
+            ...getBaseOptions('Temperatura Motor (°F)', TECH_PURPLE, '°F', TREND_AXIS_BASES.tm).yaxis,
+            ...getExpandedAxisConfig(TREND_AXIS_BASES.tm, tmSeries)
+        },
         series: tmSeries
     });
 
@@ -868,14 +942,22 @@ function renderCoreTrends(timeline, requestedPozos) {
         surfSeries.push(makeSeries('CHP', 'presion_chp', p));
     });
     renderOrUpdate('chart-superficie', {
-        ...getBaseOptions('Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN], 'PSI'),
+        ...getBaseOptions('Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN], 'PSI', TREND_AXIS_BASES.superficie),
+        yaxis: {
+            ...getBaseOptions('Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN], 'PSI', TREND_AXIS_BASES.superficie).yaxis,
+            ...getExpandedAxisConfig(TREND_AXIS_BASES.superficie, surfSeries)
+        },
         series: surfSeries
     });
 
     // 5. CORRIENTE MOTOR
     const currSeries = pozosPresentes.map(p => makeSeries('Amp', 'corriente_motor', p));
     renderOrUpdate('chart-motor-curr', {
-        ...getBaseOptions('Corriente Motor (Amp)', TECH_BLUE, 'Amp'),
+        ...getBaseOptions('Corriente Motor (Amp)', TECH_BLUE, 'Amp', TREND_AXIS_BASES.corrienteMotor),
+        yaxis: {
+            ...getBaseOptions('Corriente Motor (Amp)', TECH_BLUE, 'Amp', TREND_AXIS_BASES.corrienteMotor).yaxis,
+            ...getExpandedAxisConfig(TREND_AXIS_BASES.corrienteMotor, currSeries)
+        },
         series: currSeries
     });
 
@@ -887,7 +969,11 @@ function renderCoreTrends(timeline, requestedPozos) {
         vsdSeries.push(makeSeries('VSD C', 'vsd_c', p));
     });
     renderOrUpdate('chart-vsd-triphase', {
-        ...getBaseOptions('Corriente VSD (Amp)', ['#6366F1', '#EC4899', '#F43F5E'], 'Amp'),
+        ...getBaseOptions('Corriente VSD (Amp)', ['#6366F1', '#EC4899', '#F43F5E'], 'Amp', TREND_AXIS_BASES.vsd),
+        yaxis: {
+            ...getBaseOptions('Corriente VSD (Amp)', ['#6366F1', '#EC4899', '#F43F5E'], 'Amp', TREND_AXIS_BASES.vsd).yaxis,
+            ...getExpandedAxisConfig(TREND_AXIS_BASES.vsd, vsdSeries)
+        },
         series: vsdSeries
     });
 }

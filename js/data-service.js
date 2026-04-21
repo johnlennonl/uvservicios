@@ -629,11 +629,8 @@ export async function getWellRibbonData(pozoName) {
     if (!latestMonitoring && !latestTechnical) return null;
 
     const firstDefined = (...values) => values.find(value => value !== undefined && value !== null && `${value}`.trim() !== '');
-    const monitoringDate = latestMonitoring?.fecha || null;
     const technicalDate = latestTechnical?.fecha || null;
-    const measurementDate = [monitoringDate, technicalDate]
-        .filter(Boolean)
-        .sort((a, b) => b.localeCompare(a))[0] || null;
+    const measurementDate = technicalDate || null;
 
     return {
         campo_name: firstDefined(latestMonitoring?.campo_name, latestMonitoring?.campo, latestTechnical?.campo_name),
