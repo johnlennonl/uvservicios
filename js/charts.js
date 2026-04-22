@@ -20,7 +20,7 @@ const TREND_AXIS_BASES = {
     tm: { min: 0, max: 450, step: 25, decimals: 0 },
     superficie: { min: 0, max: 350, step: 25, decimals: 0 },
     corrienteMotor: { min: 0, max: 120, step: 10, decimals: 0 },
-    vsd: { min: 0, max: 120, step: 10, decimals: 0 }
+    vsd: { min: 0, max: 600, step: 50, decimals: 0 }
 };
 
 // Mantiene el pozo activo entre Dashboard, Data y Gestion durante la sesion actual.
