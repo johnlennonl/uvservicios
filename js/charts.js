@@ -729,6 +729,11 @@ function clearDashboard() {
     if (dataRibbon) dataRibbon.style.display = 'none';
     if (brutalGrid) brutalGrid.style.display = 'none';
 
+    const rotationBadge = document.getElementById('rotation-badge');
+    const rotationValue = document.getElementById('rotation-badge-value');
+    if (rotationBadge) rotationBadge.style.display = 'none';
+    if (rotationValue) rotationValue.textContent = '--';
+
     const tbody = document.getElementById('obs-body');
     if (tbody) tbody.innerHTML = '<tr><td style="padding: 20px; text-align: center; color: var(--text-muted);">No hay registros</td></tr>';
 }
@@ -740,6 +745,20 @@ function renderKPIs(latest) {
     createEliteGauge('gauge-frecuencia', latest.frecuencia, 0, 60, 'Hz', '#2563EB');
     createEliteGauge('gauge-pip', latest.pip, 0, 5000, 'PSI', '#DC2626');
     createEliteGauge('gauge-tm', latest.tm, 0, 450, '°F', '#9333EA');
+
+    const rotationBadge = document.getElementById('rotation-badge');
+    const rotationValue = document.getElementById('rotation-badge-value');
+    const rawRotation = String(latest?.sentido_giro || '').trim();
+
+    if (rotationBadge && rotationValue) {
+        if (!isComparisonMode && rawRotation) {
+            rotationValue.textContent = rawRotation;
+            rotationBadge.style.display = 'inline-flex';
+        } else {
+            rotationValue.textContent = '--';
+            rotationBadge.style.display = 'none';
+        }
+    }
     
     // Actualiza el subtitulo superior con el contexto de analisis actual.
     const title = document.querySelector('.main-container header p');
@@ -935,16 +954,17 @@ function renderCoreTrends(timeline, requestedPozos) {
         series: tmSeries
     });
 
-    // 4. SUPERFICIE (THP / CHP)
+    // 4. SUPERFICIE (THP / CHP / LF)
     const surfSeries = [];
     pozosPresentes.forEach(p => {
         surfSeries.push(makeSeries('THP', 'presion_thp', p));
         surfSeries.push(makeSeries('CHP', 'presion_chp', p));
+        surfSeries.push(makeSeries('LF', 'presion_lf', p));
     });
     renderOrUpdate('chart-superficie', {
-        ...getBaseOptions('Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN], 'PSI', TREND_AXIS_BASES.superficie),
+        ...getBaseOptions('Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN, '#0F766E'], 'PSI', TREND_AXIS_BASES.superficie),
         yaxis: {
-            ...getBaseOptions('Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN], 'PSI', TREND_AXIS_BASES.superficie).yaxis,
+            ...getBaseOptions('Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN, '#0F766E'], 'PSI', TREND_AXIS_BASES.superficie).yaxis,
             ...getExpandedAxisConfig(TREND_AXIS_BASES.superficie, surfSeries)
         },
         series: surfSeries

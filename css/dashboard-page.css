@@ -696,6 +696,44 @@
             min-height: 180px;
         }
 
+        .rotation-badge {
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-header);
+            color: var(--text-body);
+            font-size: 0.76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .rotation-badge-label {
+            color: var(--text-muted);
+        }
+
+        .rotation-badge-value {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 56px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(16, 185, 129, 0.12);
+            color: #047857;
+            border: 1px solid rgba(16, 185, 129, 0.25);
+        }
+
+        .dark-room .rotation-badge-value {
+            background: rgba(16, 185, 129, 0.16);
+            color: #6EE7B7;
+            border-color: rgba(110, 231, 183, 0.24);
+        }
+
         .trend-space {
             min-height: 450px;
         }

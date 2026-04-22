@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UV Servicios | Preparador de Excel</title>
+    <meta name="description" content="Utilidad para limpiar archivos consolidados de monitoreo BES y exportarlos en un formato listo para cargar en la plataforma.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/data-page.css">
+    <link rel="stylesheet" href="css/monitoring-prep-page.css">
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
+            <nav>
+                <a href="dashboard.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="dashboard-data.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    Gestión
+                </a>
+                <a href="monitoring-prep.html" class="nav-link active">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                    </svg>
+                    Preparador Excel
+                </a>
+                <a href="data.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                    Data
+                </a>
+            </nav>
+            <button id="logout-btn" class="nav-link">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Salir
+            </button>
+        </aside>
+
+        <main class="main-container prep-main-container">
+            <header class="page-hero prep-hero">
+                <div class="page-hero-copy">
+                    <h1>Preparador de Excel de Monitoreo</h1>
+                    <p>Convierte el consolidado operativo en un archivo limpio, listo para importar en Gestión sin tocar el Excel original.</p>
+                </div>
+                <div class="prep-hero-actions">
+                    <button type="button" id="download-template-btn" class="btn-secondary prep-action-btn">Descargar plantilla</button>
+                    <a href="dashboard-data.html" class="btn-submit prep-action-link">Volver a Gestión</a>
+                </div>
+            </header>
+
+            <section class="prep-shell">
+                <section class="prep-card prep-uploader-card">
+                    <div class="prep-card-header">
+                        <div>
+                            <h2>1. Cargar consolidado</h2>
+                            <p>Admite CSV, XLSX o XLS. Se procesa la primera hoja y se detectan encabezados o layouts conocidos.</p>
+                        </div>
+                    </div>
+
+                    <div id="prep-drop-zone" class="prep-drop-zone" role="button" tabindex="0" aria-label="Cargar archivo consolidado de monitoreo">
+                        <div class="prep-drop-icon">XLSX</div>
+                        <div class="prep-drop-copy">
+                            <h3>Arrastra tu archivo aquí o haz clic para buscarlo</h3>
+                            <p>El resultado se exporta con columnas limpias: pozo, campo, fecha, hora, THP, CHP, LF, giro y demás telemetría.</p>
+                        </div>
+                        <input type="file" id="prep-file-input" accept=".csv,.xlsx,.xls" hidden>
+                    </div>
+
+                    <div id="prep-status" class="prep-status prep-status-neutral">
+                        Esperando archivo. Al terminar tendrás un Excel listo para cargar en Gestión.
+                    </div>
+                </section>
+
+                <section class="prep-card prep-summary-card">
+                    <div class="prep-card-header">
+                        <div>
+                            <h2>2. Resumen de limpieza</h2>
+                            <p>Se conservan solo filas útiles para monitoreo diario y se descartan filas vacías o incompletas.</p>
+                        </div>
+                    </div>
+
+                    <div class="prep-metrics-grid">
+                        <article class="prep-metric-card">
+                            <span class="prep-metric-label">Filas leídas</span>
+                            <strong id="metric-total">0</strong>
+                        </article>
+                        <article class="prep-metric-card success">
+                            <span class="prep-metric-label">Listas para exportar</span>
+                            <strong id="metric-valid">0</strong>
+                        </article>
+                        <article class="prep-metric-card warning">
+                            <span class="prep-metric-label">Descartadas</span>
+                            <strong id="metric-discarded">0</strong>
+                        </article>
+                    </div>
+
+                    <div class="prep-issues-panel">
+                        <div class="prep-issues-header">
+                            <h3>Filas descartadas</h3>
+                            <p>Ejemplos de por qué no entraron al archivo final.</p>
+                        </div>
+                        <ul id="prep-issues-list" class="prep-issues-list">
+                            <li>Aún no hay descartes. Carga un archivo para revisar el resultado.</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="prep-card prep-export-card">
+                    <div class="prep-card-header">
+                        <div>
+                            <h2>3. Exportar archivo limpio</h2>
+                            <p>El archivo sale con las mismas columnas que consume el importador actual de Gestión.</p>
+                        </div>
+                    </div>
+
+                    <div class="prep-export-actions">
+                        <button type="button" id="download-xlsx-btn" class="btn-submit prep-export-btn" disabled>Descargar XLSX limpio</button>
+                        <button type="button" id="download-csv-btn" class="btn-secondary prep-export-btn" disabled>Descargar CSV limpio</button>
+                    </div>
+                </section>
+
+                <section class="prep-card prep-preview-card">
+                    <div class="prep-card-header">
+                        <div>
+                            <h2>Vista previa</h2>
+                            <p>Se muestran los primeros registros normalizados para verificar que el archivo quedó como esperas.</p>
+                        </div>
+                    </div>
+
+                    <div class="prep-table-wrap">
+                        <table class="prep-table">
+                            <thead id="prep-table-head"></thead>
+                            <tbody id="prep-table-body">
+                                <tr>
+                                    <td colspan="18" class="prep-table-empty">Todavía no hay datos preparados.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <nav class="mobile-bottom-nav" aria-label="Navegacion movil principal">
+        <a href="dashboard.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+            </svg>
+            <span>Inicio</span>
+        </a>
+        <a href="dashboard-data.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            <span>Gestion</span>
+        </a>
+        <a href="monitoring-prep.html" class="mobile-nav-link active" aria-current="page">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+            </svg>
+            <span>Preparador</span>
+        </a>
+        <a href="data.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+            </svg>
+            <span>Data</span>
+        </a>
+        <button type="button" id="mobile-logout-btn" class="mobile-nav-action logout">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Salir</span>
+        </button>
+    </nav>
+
+    <script type="module" src="js/monitoring-prep.js"></script>
+</body>
+
+</html>

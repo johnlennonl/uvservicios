@@ -38,6 +38,13 @@
                     </svg>
                     Gestión
                 </a>
+                <a href="monitoring-prep.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                    </svg>
+                    Preparador Excel
+                </a>
                 <a href="data.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -98,8 +105,12 @@
                                 <h3>Cómo usar esta sección</h3>
                                 <p>Usa este módulo para cargar archivos o crear nuevas entradas manuales.</p>
                                 <p>Si necesitas editar un registro existente, ve a Data, selecciona el pozo y abre el registro desde su historial.</p>
+                                <p>Si el consolidado viene muy cargado o sucio, usa el Preparador Excel para generar un archivo limpio antes de importarlo.</p>
                             </div>
-                            <a href="data.html" class="manual-flow-link">Ir a Data para editar</a>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <a href="data.html" class="manual-flow-link">Ir a Data para editar</a>
+                                <a href="monitoring-prep.html" class="manual-flow-link">Abrir Preparador Excel</a>
+                            </div>
                         </section>
 
                         <div class="manual-form-toggle-row">
@@ -172,6 +183,10 @@
                                     <input type="number" step="0.01" id="presion_chp" placeholder="Opcional">
                                 </div>
                                 <div class="form-group">
+                                    <label>LF (PSI)</label>
+                                    <input type="number" step="0.01" id="presion_lf" placeholder="Opcional">
+                                </div>
+                                <div class="form-group">
                                     <label>VSD A (AMP)</label>
                                     <input type="number" step="0.01" id="vsd_a" placeholder="Opcional">
                                 </div>
@@ -182,6 +197,10 @@
                                 <div class="form-group">
                                     <label>VSD C (AMP)</label>
                                     <input type="number" step="0.01" id="vsd_c" placeholder="Opcional">
+                                </div>
+                                <div class="form-group">
+                                    <label>Sentido de Giro</label>
+                                    <input type="text" id="sentido_giro" placeholder="Ej: FWD / REV">
                                 </div>
                                 <div class="form-group">
                                     <label>Estatus</label>
@@ -419,13 +438,15 @@
                                     <th>Freq</th>
                                     <th>I. Mot</th>
                                     <th>PIP</th>
+                                    <th>LF</th>
+                                    <th>Giro</th>
                                     <th>Estatus</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="recent-history-body">
                                 <tr>
-                                    <td colspan="8" style="text-align: center; color: #94A3B8; padding: 20px;">No hay registros recientes disponibles.</td>
+                                    <td colspan="10" style="text-align: center; color: #94A3B8; padding: 20px;">No hay registros recientes disponibles.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -450,6 +471,13 @@
                     d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
             </svg>
             <span>Gestion</span>
+        </a>
+        <a href="monitoring-prep.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+            </svg>
+            <span>Preparador</span>
         </a>
         <a href="data.html" class="mobile-nav-link">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -746,6 +774,8 @@
                     <th>Freq</th>
                     <th>I. Mot</th>
                     <th>PIP</th>
+                    <th>LF</th>
+                    <th>Giro</th>
                     <th>Estatus</th>
                     <th>Acciones</th>
                 </tr>
@@ -905,6 +935,8 @@
                             <td>${formatTelemetryNumber(record.frecuencia)}</td>
                             <td>${formatTelemetryNumber(record.corriente_motor)}</td>
                             <td>${formatTelemetryNumber(record.pip)}</td>
+                            <td>${formatTelemetryNumber(record.presion_lf)}</td>
+                            <td>${record.sentido_giro || '--'}</td>
                             <td><span style="color: ${record.estatus === 'RUN' ? '#059669' : '#DC2626'}">● ${record.estatus}</span></td>
                             <td>
                                 <button class="btn-action btn-edit" data-id="${record.id}">Editar</button>
@@ -923,7 +955,7 @@
                     });
 
                 } else {
-                    historyBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #94A3B8; padding: 20px;">No hay registros disponibles.</td></tr>';
+                    historyBody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #94A3B8; padding: 20px;">No hay registros disponibles.</td></tr>';
                 }
                 historyLoading.style.display = 'none';
             } catch (err) {
@@ -949,7 +981,7 @@
                 document.getElementById('cancel-edit').style.display = 'inline-block';
 
                 // Asigna los campos del registro recibido a los inputs del formulario.
-                const fields = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'pip', 'tm', 'presion_thp', 'presion_chp', 'vsd_a', 'vsd_b', 'vsd_c', 'estatus', 'observaciones'];
+                const fields = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'pip', 'tm', 'presion_thp', 'presion_chp', 'presion_lf', 'vsd_a', 'vsd_b', 'vsd_c', 'sentido_giro', 'estatus', 'observaciones'];
                 fields.forEach(f => {
                     const el = document.getElementById(f);
                     if (el) el.value = record[f] ?? '';
@@ -1154,9 +1186,11 @@
                 tm: getOptionalTelemetryValue('tm'),
                 presion_thp: getOptionalTelemetryValue('presion_thp'),
                 presion_chp: getOptionalTelemetryValue('presion_chp'),
+                presion_lf: getOptionalTelemetryValue('presion_lf'),
                 vsd_a: getOptionalTelemetryValue('vsd_a'),
                 vsd_b: getOptionalTelemetryValue('vsd_b'),
                 vsd_c: getOptionalTelemetryValue('vsd_c'),
+                sentido_giro: document.getElementById('sentido_giro').value.trim() || null,
                 estatus: document.getElementById('estatus').value,
                 observaciones: document.getElementById('observaciones').value,
             };
@@ -1439,6 +1473,7 @@
             presion_thp: ['presion_thp', 'thp', 'thp_psi', 'tubing_head_pressure'],
             presion_chp: ['presion_chp', 'chp', 'chp_psi', 'casing_head_pressure'],
             presion_lf: ['presion_lf', 'lf', 'lf_psi', 'line_pressure'],
+            sentido_giro: ['sentido_giro', 'sentido_de_giro', 'giro', 'direccion_giro', 'rotation_direction', 'rotation', 'sentido'],
             vsd_a: ['vsd_a', 'vsd_a_amp', 'vsd_a_amperios', 'i_vsd_a_a', 'fase_a', 'a'],
             vsd_b: ['vsd_b', 'vsd_b_amp', 'vsd_b_amperios', 'i_vsd_b_a', 'fase_b', 'b'],
             vsd_c: ['vsd_c', 'vsd_c_amp', 'vsd_c_amperios', 'i_vsd_c_a', 'fase_c', 'c'],
@@ -1770,15 +1805,23 @@
                 'tm',
                 'presion_thp',
                 'presion_chp',
+                'presion_lf',
                 'vsd_a',
                 'vsd_b',
-                'vsd_c'
+                'vsd_c',
+                'sentido_giro'
             ];
 
-            return telemetryFields.some(field => {
+            const hasTelemetry = telemetryFields.some(field => {
                 const value = row[field];
                 return value !== undefined && value !== null && `${value}`.trim() !== '';
             });
+
+            if (hasTelemetry) {
+                return true;
+            }
+
+            return normalizeOperationalStatus(row?.estatus) === 'OFF';
         }
 
         function parseCsvNumber(value) {
@@ -2048,7 +2091,7 @@
                     pozoCount: countUniquePozos(telemetryRows)
                 });
 
-                const telemetryColumns = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c', 'estatus', 'observaciones', 'user_id'];
+                const telemetryColumns = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c', 'sentido_giro', 'estatus', 'observaciones', 'user_id'];
 
                 const telemetryData = telemetryRows.map(r => {
                     let obj = {};
