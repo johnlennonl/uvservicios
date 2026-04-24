@@ -13,6 +13,7 @@ let isDarkMode = localStorage.getItem('theme-uv') === 'dark';
 let resizeFrame = null;
 let historicalRecordOptions = [];
 let pozoSummaries = [];
+let isLatestSevenTrendMode = false;
 const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
 const TREND_AXIS_BASES = {
     frecuencia: { min: 0, max: 60, step: 5, decimals: 1 },
@@ -547,6 +548,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
     if (mobileLogoutBtn) mobileLogoutBtn.addEventListener('click', logout);
 
+    const trendWindowBtn = document.getElementById('btn-trend-last-7');
+    trendWindowBtn?.closest('.trend-window-toolbar')?.setAttribute('hidden', 'hidden');
+    trendWindowBtn?.closest('.trend-window-toolbar')?.setAttribute('aria-hidden', 'true');
+    if (trendWindowBtn?.closest('.trend-window-toolbar')) {
+        trendWindowBtn.closest('.trend-window-toolbar').style.display = 'none';
+    }
+    if (trendWindowBtn) {
+        trendWindowBtn.addEventListener('click', () => {
+            isLatestSevenTrendMode = !isLatestSevenTrendMode;
+            trendWindowBtn.classList.toggle('active', isLatestSevenTrendMode);
+            trendWindowBtn.setAttribute('aria-pressed', String(isLatestSevenTrendMode));
+            trendWindowBtn.textContent = isLatestSevenTrendMode
+                ? 'Volver a historial completo'
+                : 'Ver ultimos 7 registros';
+            updateDashboard();
+        });
+    }
+
     // Activa o desactiva la comparacion simultanea entre pozos.
     const compareToggleBtn = document.getElementById('btn-toggle-compare');
     if (compareToggleBtn) {
@@ -704,7 +723,10 @@ async function updateDashboard() {
 
         renderKPIs(activeRecord);
         renderStatusDonut(data);
-        renderCoreTrends(timelineData, selectedPozos);
+        renderCoreTrends(timelineData, selectedPozos, {
+            latestRecordsOnly: isLatestSevenTrendMode,
+            latestRecordCount: 7
+        });
         renderObservations(filteredObs);
     } catch (err) {
         console.error('Update Fail:', err);
@@ -847,8 +869,13 @@ function renderStatusDonut(data) {
 /**
  * Tendencias historicas y comparativas del panel.
  */
-function renderCoreTrends(timeline, requestedPozos) {
-    const pozosPresentes = [...new Set(timeline.map(d => d.pozo_name))];
+function renderCoreTrends(timeline, requestedPozos, options = {}) {
+    const { latestRecordsOnly = false, latestRecordCount = 7 } = options;
+    const scopedTimeline = latestRecordsOnly
+        ? getLatestTrendWindow(timeline, latestRecordCount)
+        : timeline;
+    const trendBounds = getTrendWindowBounds(scopedTimeline, latestRecordsOnly, latestRecordCount);
+    const pozosPresentes = [...new Set(scopedTimeline.map(d => d.pozo_name))];
     const isComparison = pozosPresentes.length > 1;
 
     // Paleta principal de colores para tendencias y comparaciones.
@@ -895,10 +922,13 @@ function renderCoreTrends(timeline, requestedPozos) {
         },
         xaxis: {
             type: 'datetime',
+            min: trendBounds?.min,
+            max: trendBounds?.max,
+            tickAmount: latestRecordsOnly ? latestRecordCount : undefined,
             labels: { 
                 datetimeUTC: false,
                 style: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', fontSize: '11px', fontWeight: 600 },
-                format: isComparisonMode ? 'dd MMM' : 'HH:mm'
+                format: 'dd MMM'
             }
         },
         yaxis: {
@@ -915,7 +945,7 @@ function renderCoreTrends(timeline, requestedPozos) {
 
     const makeSeries = (nameSuffix, field, pozo) => ({
         name: isComparison ? `${pozo} (${nameSuffix})` : nameSuffix,
-        data: timeline.filter(d => d.pozo_name === pozo).map(d => ({
+        data: scopedTimeline.filter(d => d.pozo_name === pozo).map(d => ({
             x: new Date(`${d.fecha}T${d.hora}`).getTime(),
             y: d[field] !== null ? Number(d[field]) : null
         }))
@@ -996,6 +1026,48 @@ function renderCoreTrends(timeline, requestedPozos) {
         },
         series: vsdSeries
     });
+}
+
+function getLatestTrendWindow(timeline, latestRecordCount) {
+    const timelineByPozo = new Map();
+
+    timeline.forEach(record => {
+        const pozoName = record?.pozo_name;
+        if (!pozoName) return;
+
+        if (!timelineByPozo.has(pozoName)) {
+            timelineByPozo.set(pozoName, []);
+        }
+
+        timelineByPozo.get(pozoName).push(record);
+    });
+
+    return [...timelineByPozo.values()]
+        .flatMap(records => records.slice(-latestRecordCount));
+}
+
+function getTrendWindowBounds(timeline, latestRecordsOnly, latestRecordCount) {
+    if (!latestRecordsOnly || !Array.isArray(timeline) || timeline.length === 0) {
+        return null;
+    }
+
+    const timestamps = timeline
+        .map(record => new Date(`${record?.fecha}T${record?.hora || '00:00:00'}`).getTime())
+        .filter(value => Number.isFinite(value));
+
+    if (timestamps.length === 0) {
+        return null;
+    }
+
+    const minTimestamp = Math.min(...timestamps);
+    const maxTimestamp = Math.max(...timestamps);
+    const span = Math.max(maxTimestamp - minTimestamp, 60 * 60 * 1000);
+    const padding = Math.min(span * 0.12, 12 * 60 * 60 * 1000);
+
+    return {
+        min: minTimestamp - padding,
+        max: maxTimestamp + padding
+    };
 }
 
 function renderObservations(data) {

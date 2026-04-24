@@ -677,6 +677,44 @@
             grid-column: span 1;
         }
 
+        .trend-window-toolbar {
+            grid-column: span 4;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 18px;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            background: var(--bg-card);
+            box-shadow: var(--card-shadow);
+        }
+
+        .trend-window-copy {
+            min-width: 0;
+        }
+
+        .trend-window-label {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-body);
+            margin-bottom: 4px;
+        }
+
+        .trend-window-copy p {
+            margin: 0;
+            font-size: 0.86rem;
+            color: var(--text-muted);
+        }
+
+        .trend-window-btn {
+            white-space: nowrap;
+            min-width: 210px;
+        }
+
         .kpi-range-labels {
             display: flex;
             justify-content: space-between;
@@ -1043,6 +1081,16 @@
         @media (max-width: 640px) {
             .brutal-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .trend-window-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .trend-window-btn {
+                width: 100%;
+                min-width: 0;
             }
 
             .col-4,

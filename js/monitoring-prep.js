@@ -40,7 +40,7 @@ const DAILY_IMPORT_FIELD_ALIASES = {
     hora: ['hora', 'time', 'hora_medicion'],
     frecuencia: ['frecuencia', 'frecuencia_hz', 'hz', 'freq', 'frequency', 'frec'],
     corriente_motor: ['corriente_motor', 'corriente_m', 'corriente_amp', 'i_motor_amp', 'i_motor', 'motor_amp', 'motor_current', 'amperaje_motor', 'i_motor_a'],
-    pip: ['pip', 'pip_psi', 'presion_pip', 'pump_intake_pressure'],
+    pip: ['pip_psi', 'pip', 'presion_pip', 'pump_intake_pressure'],
     tm: ['tm', 'tm_f', 'temp_tm', 'temp_tm_f', 'temperatura_tm', 'temperatura_tm_f', 'temp_motor', 'motor_temp'],
     presion_thp: ['presion_thp', 'thp', 'thp_psi', 'tubing_head_pressure'],
     presion_chp: ['presion_chp', 'chp', 'chp_psi', 'casing_head_pressure'],
@@ -68,7 +68,7 @@ const DAILY_EXCEL_LAYOUTS = [
                 vsd_a: getExcelCellValue(row, 'M'),
                 vsd_b: getExcelCellValue(row, 'N'),
                 vsd_c: getExcelCellValue(row, 'O'),
-                pip: getExcelCellValue(row, 'V'),
+                pip: getLikelyPipValue(getExcelCellValue(row, 'AB'), getExcelCellValue(row, 'V'), getExcelCellValue(row, 'M')),
                 tm: getExcelCellValue(row, 'Y'),
                 presion_thp: getExcelCellValue(row, 'BH'),
                 presion_chp: getExcelCellValue(row, 'BI'),
@@ -90,7 +90,7 @@ const DAILY_EXCEL_LAYOUTS = [
                 vsd_b: getExcelCellValue(row, 'I'),
                 vsd_c: getExcelCellValue(row, 'J'),
                 corriente_motor: getExcelCellValue(row, 'K'),
-                pip: getExcelCellValue(row, 'M'),
+                pip: getLikelyPipValue(getExcelCellValue(row, 'AB'), getExcelCellValue(row, 'M'), getExcelCellValue(row, 'V')),
                 tm: getExcelCellValue(row, 'N'),
                 presion_thp: getExcelCellValue(row, 'O'),
                 presion_chp: getExcelCellValue(row, 'P'),
@@ -100,6 +100,18 @@ const DAILY_EXCEL_LAYOUTS = [
         }
     }
 ];
+
+function getLikelyPipValue(...values) {
+    const candidates = values.filter(value => value !== undefined && value !== null && `${value}`.trim() !== '');
+    if (candidates.length === 0) return undefined;
+
+    const psiCandidate = candidates.find(value => {
+        const numeric = roundNumericValue(value, 4);
+        return numeric !== null && Math.abs(numeric) >= 10;
+    });
+
+    return psiCandidate ?? candidates[0];
+}
 
 let preparedRows = [];
 let discardedRows = [];
@@ -313,9 +325,11 @@ async function parseMonitoringSourceFile(file) {
 
     const headerRowIndex = findDailyHeaderRowIndex(rows);
     if (headerRowIndex >= 0) {
+        const headerFields = getDailyHeaderFields(rows[headerRowIndex] || []);
+        const headerRows = parseDailyExcelWithHeaders(rows, headerRowIndex);
         return {
-            rows: parseDailyExcelWithHeaders(rows, headerRowIndex),
-            sheetName: firstSheetName
+            rows: headerRows,
+            sheetName: headerFields.includes('pip') ? `${firstSheetName} · encabezados` : firstSheetName
         };
     }
 
@@ -553,29 +567,43 @@ function getDailyMatchedFields(source) {
         .map(([field]) => field);
 }
 
-function getDailyHeaderMatchCount(row = []) {
+function getDailyHeaderFields(row = []) {
     const normalizedHeaderMap = Object.fromEntries(
         row
             .map((cell, index) => [normalizeCsvKey(cell || `column_${index + 1}`), true])
             .filter(([key]) => key && !key.startsWith('column_'))
     );
 
-    return getDailyMatchedFields(normalizedHeaderMap).length;
+    return getDailyMatchedFields(normalizedHeaderMap);
+}
+
+function getDailyHeaderMatchCount(row = []) {
+    return getDailyHeaderFields(row).length;
+}
+
+function isLikelyDailyHeaderFields(fields = []) {
+    const fieldSet = new Set(fields);
+    return fieldSet.has('pozo_name')
+        && fieldSet.has('fecha')
+        && (fieldSet.has('pip') || fieldSet.has('frecuencia') || fieldSet.has('estatus'));
 }
 
 function findDailyHeaderRowIndex(rows = []) {
     let bestIndex = -1;
     let bestScore = 0;
+    let bestFields = [];
 
-    rows.slice(0, 10).forEach((row, index) => {
-        const score = getDailyHeaderMatchCount(row);
+    rows.slice(0, 20).forEach((row, index) => {
+        const fields = getDailyHeaderFields(row);
+        const score = fields.length;
         if (score > bestScore) {
             bestScore = score;
             bestIndex = index;
+            bestFields = fields;
         }
     });
 
-    return bestScore >= 4 ? bestIndex : -1;
+    return bestScore >= 4 || isLikelyDailyHeaderFields(bestFields) ? bestIndex : -1;
 }
 
 function parseDailyExcelWithHeaders(rows = [], headerRowIndex = 0) {
@@ -734,9 +762,40 @@ function normalizeRotationDirection(value) {
     return raw.toUpperCase();
 }
 
-function roundNumericValue(value, decimals = 2) {
+function parseFlexibleNumber(value) {
     if (value === undefined || value === null || value === '') return null;
-    const numeric = typeof value === 'number' ? value : parseFloat(String(value).trim().replace(',', '.'));
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : null;
+    }
+
+    let normalized = String(value).trim().replace(/\s+/g, '');
+    if (!normalized) return null;
+
+    const hasComma = normalized.includes(',');
+    const hasDot = normalized.includes('.');
+
+    if (hasComma && hasDot) {
+        if (normalized.lastIndexOf(',') > normalized.lastIndexOf('.')) {
+            normalized = normalized.replace(/\./g, '').replace(',', '.');
+        } else {
+            normalized = normalized.replace(/,/g, '');
+        }
+    } else if (hasComma) {
+        if (/^-?\d{1,3}(,\d{3})+$/.test(normalized)) {
+            normalized = normalized.replace(/,/g, '');
+        } else {
+            normalized = normalized.replace(',', '.');
+        }
+    } else if (hasDot && /^-?\d{1,3}(\.\d{3})+$/.test(normalized)) {
+        normalized = normalized.replace(/\./g, '');
+    }
+
+    const parsed = parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function roundNumericValue(value, decimals = 2) {
+    const numeric = parseFlexibleNumber(value);
     if (!Number.isFinite(numeric)) return null;
     const factor = 10 ** decimals;
     return Math.round(numeric * factor) / factor;
