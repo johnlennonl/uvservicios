@@ -95,6 +95,22 @@ export async function getMonitoringData(pozos = [], startDate = null, endDate = 
     return data;
 }
 
+export async function getLatestMonitoringRecords(pozoName, limit = 15) {
+    if (!pozoName || pozoName === 'Todas') return [];
+
+    const safeLimit = Number.isFinite(Number(limit)) ? Number(limit) : 15;
+    const { data, error } = await supabase
+        .from('monitoreo_pozos')
+        .select('*')
+        .eq('pozo_name', pozoName)
+        .order('fecha', { ascending: false })
+        .order('hora', { ascending: false })
+        .limit(safeLimit);
+
+    if (error) throw error;
+    return data || [];
+}
+
 /**
  * Fetches a single record by its ID.
  * @param {string} id 

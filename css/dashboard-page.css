@@ -715,6 +715,18 @@
             min-width: 210px;
         }
 
+        .trend-window-btn.active {
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+            color: #ffffff;
+            border-color: #1d4ed8;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+        }
+
+        .trend-window-btn.active:hover {
+            background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+            border-color: #1e40af;
+        }
+
         .kpi-range-labels {
             display: flex;
             justify-content: space-between;

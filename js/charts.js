@@ -4,7 +4,7 @@
  */
 
 import { logout, getSession } from './auth.js';
-import { getMonitoringData, getLatestDate, getNeighborRecords, getPozoRecordDates, getPozosHistorySummary, getWellRibbonData } from './data-service.js';
+import { getMonitoringData, getLatestDate, getLatestMonitoringRecords, getNeighborRecords, getPozoRecordDates, getPozosHistorySummary, getWellRibbonData } from './data-service.js';
 import { hideFullLoader, showFullLoader } from './ui.js';
 
 let charts = {};
@@ -14,6 +14,7 @@ let resizeFrame = null;
 let historicalRecordOptions = [];
 let pozoSummaries = [];
 let isLatestSevenTrendMode = false;
+const FOCUSED_TREND_RECORD_COUNT = 15;
 const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
 const TREND_AXIS_BASES = {
     frecuencia: { min: 0, max: 60, step: 5, decimals: 1 },
@@ -549,19 +550,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (mobileLogoutBtn) mobileLogoutBtn.addEventListener('click', logout);
 
     const trendWindowBtn = document.getElementById('btn-trend-last-7');
-    trendWindowBtn?.closest('.trend-window-toolbar')?.setAttribute('hidden', 'hidden');
-    trendWindowBtn?.closest('.trend-window-toolbar')?.setAttribute('aria-hidden', 'true');
-    if (trendWindowBtn?.closest('.trend-window-toolbar')) {
-        trendWindowBtn.closest('.trend-window-toolbar').style.display = 'none';
-    }
     if (trendWindowBtn) {
         trendWindowBtn.addEventListener('click', () => {
             isLatestSevenTrendMode = !isLatestSevenTrendMode;
             trendWindowBtn.classList.toggle('active', isLatestSevenTrendMode);
             trendWindowBtn.setAttribute('aria-pressed', String(isLatestSevenTrendMode));
             trendWindowBtn.textContent = isLatestSevenTrendMode
-                ? 'Volver a historial completo'
-                : 'Ver ultimos 7 registros';
+                ? 'Volver a vista normal'
+                : `Ver ultimos ${FOCUSED_TREND_RECORD_COUNT} registros`;
             updateDashboard();
         });
     }
@@ -690,9 +686,11 @@ async function updateDashboard() {
             updateDataRibbon(null);
         }
 
+        const shouldUseFocusedTrendData = isLatestSevenTrendMode && selectedPozos.length === 1 && !isComparisonMode;
+
         // Trae vecinos anterior/siguiente para que las lineas no queden cortadas en filtros cerrados.
         let extendedData = [...data];
-        if (data.length > 0 && selectedPozos.length === 1 && !isComparisonMode) {
+        if (!shouldUseFocusedTrendData && data.length > 0 && selectedPozos.length === 1 && !isComparisonMode) {
             // Busca el registro mas viejo del bloque filtrado.
             const oldestDate = data[data.length - 1].fecha; 
             // Busca el registro mas reciente del bloque filtrado.
@@ -703,8 +701,12 @@ async function updateDashboard() {
             extendedData = [...extendedData, ...neighbors];
         }
 
+        const trendSourceData = shouldUseFocusedTrendData
+            ? await getLatestMonitoringRecords(selectedPozos[0], FOCUSED_TREND_RECORD_COUNT)
+            : extendedData;
+
         // Ordena por fecha y hora antes de alimentar las graficas de tendencia.
-        const timelineData = [...extendedData].sort((a, b) => {
+        const timelineData = [...trendSourceData].sort((a, b) => {
             const dateA = new Date(`${a.fecha}T${a.hora}`);
             const dateB = new Date(`${b.fecha}T${b.hora}`);
             return dateA - dateB;
@@ -725,7 +727,7 @@ async function updateDashboard() {
         renderStatusDonut(data);
         renderCoreTrends(timelineData, selectedPozos, {
             latestRecordsOnly: isLatestSevenTrendMode,
-            latestRecordCount: 7
+            latestRecordCount: FOCUSED_TREND_RECORD_COUNT
         });
         renderObservations(filteredObs);
     } catch (err) {
@@ -796,6 +798,15 @@ function createEliteGauge(id, value, min, max, unit, color) {
     const percentage = Math.min(100, Math.max(0, ((val - min) / (max - min)) * 100));
     
     const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
+
+    const formatTrendAxisLabel = (value) => {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+
+        return latestRecordsOnly
+            ? date.toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+            : date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    };
     const isReport = document.body.classList.contains('view-mode-report');
     
     const options = {
@@ -887,6 +898,23 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
 
     const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
 
+    const formatTrendAxisLabel = (value) => {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+
+        return latestRecordsOnly
+            ? date.toLocaleString('es-ES', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+            : date.toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: 'short'
+            });
+    };
+
     // Genera la base comun de opciones para no repetir configuracion por grafica.
     const getBaseOptions = (title, color, unit, axisBase) => ({
         chart: {
@@ -898,7 +926,7 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             background: 'transparent'
         },
         theme: { mode: effectiveMode },
-        stroke: { curve: 'smooth', width: 2, connectNulls: true },
+        stroke: { curve: latestRecordsOnly ? 'straight' : 'smooth', width: 2, connectNulls: true },
         fill: {
             type: 'gradient',
             gradient: {
@@ -909,7 +937,7 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             }
         },
         markers: {
-            size: 4,
+            size: latestRecordsOnly ? 5 : 4,
             strokeWidth: 2,
             strokeColors: effectiveMode === 'dark' ? '#0F172A' : '#fff',
             hover: { size: 6 }
@@ -924,11 +952,13 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             type: 'datetime',
             min: trendBounds?.min,
             max: trendBounds?.max,
-            tickAmount: latestRecordsOnly ? latestRecordCount : undefined,
             labels: { 
                 datetimeUTC: false,
                 style: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', fontSize: '11px', fontWeight: 600 },
-                format: 'dd MMM'
+                formatter: formatTrendAxisLabel,
+                rotate: latestRecordsOnly ? -20 : 0,
+                hideOverlappingLabels: true,
+                showDuplicates: false
             }
         },
         yaxis: {
@@ -940,7 +970,23 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             }
         },
         colors: Array.isArray(color) ? color : [color, REPSOL_RED, TECH_BLUE, TECH_CYAN, TECH_PURPLE],
-        tooltip: { theme: effectiveMode, x: { format: 'dd MMM HH:mm' } }
+        tooltip: {
+            theme: effectiveMode,
+            x: {
+                formatter: (value) => {
+                    const date = new Date(value);
+                    if (Number.isNaN(date.getTime())) return '';
+
+                    return date.toLocaleString('es-ES', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+        }
     });
 
     const makeSeries = (nameSuffix, field, pozo) => ({
