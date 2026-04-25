@@ -4,6 +4,16 @@
  */
 
 import { supabase } from './supabaseClient.js';
+import { getAccessProfile, getSession } from './auth.js';
+
+async function ensureWriteAccess() {
+    const session = await getSession();
+    const accessProfile = getAccessProfile(session);
+
+    if (accessProfile.isReadOnly) {
+        throw new Error('Tu usuario tiene acceso de solo lectura. Esta acción no está permitida.');
+    }
+}
 
 // Lee una tabla grande por paginas para evitar topes de 1000 filas en Supabase.
 async function fetchAllRows(tableName, selectClause, configureQuery) {
@@ -132,6 +142,7 @@ export async function getRecordById(id) {
  * @param {object} record 
  */
 export async function insertRecord(record) {
+    await ensureWriteAccess();
     const { data, error } = await supabase
         .from('monitoreo_pozos')
         .insert([record]);
@@ -146,6 +157,7 @@ export async function insertRecord(record) {
  * @param {object} record 
  */
 export async function updateRecord(id, record) {
+    await ensureWriteAccess();
     const { data, error } = await supabase
         .from('monitoreo_pozos')
         .update(record)
@@ -160,6 +172,7 @@ export async function updateRecord(id, record) {
  * @param {string} id 
  */
 export async function deleteRecord(id) {
+    await ensureWriteAccess();
     if (!id || id === 'undefined') {
         throw new Error('No se puede eliminar: El registro no tiene un ID válido asociado.');
     }
@@ -176,6 +189,7 @@ export async function deleteRecord(id) {
  * @param {Array} records 
  */
 export async function bulkInsertRecords(records) {
+    await ensureWriteAccess();
     const { data, error } = await supabase
         .from('monitoreo_pozos')
         .insert(records);
@@ -190,6 +204,7 @@ export async function bulkInsertRecords(records) {
  * @param {Array} records
  */
 export async function syncMonitoringRecords(records = []) {
+    await ensureWriteAccess();
     const normalizedRecords = (Array.isArray(records) ? records : [])
         .filter(record => record?.pozo_name && record?.fecha)
         .map(record => ({
@@ -499,6 +514,7 @@ async function refreshTechnicalSnapshot(pozoName) {
 }
 
 export async function saveTechnicalMeasurement(data) {
+    await ensureWriteAccess();
     const normalized = {
         pozo_name: String(data?.pozo_name || '').trim(),
         campo_name: String(data?.campo_name || '').trim(),
@@ -533,6 +549,7 @@ export async function saveTechnicalMeasurement(data) {
 }
 
 export async function syncTechnicalMeasurements(records = []) {
+    await ensureWriteAccess();
     const normalizedRecords = (Array.isArray(records) ? records : [])
         .filter(record => record?.pozo_name && record?.fecha)
         .map(record => ({
@@ -668,6 +685,7 @@ export async function getWellRibbonData(pozoName) {
  * @param {object} data 
  */
 export async function upsertWellTechnicalData(data) {
+    await ensureWriteAccess();
     const { pozo_name } = data;
     if (!pozo_name) throw new Error('Nombre del pozo es requerido para sincronizar datos técnicos.');
 
@@ -703,6 +721,7 @@ export async function getWellBESProfile(pozoName) {
 
 // Inserta o actualiza el tipo de bomba por pozo usando pozo_name como clave natural.
 export async function upsertWellBESProfile(data) {
+    await ensureWriteAccess();
     const normalized = {
         pozo_name: String(data?.pozo_name || '').trim(),
         pump_type: String(data?.pump_type || '').trim(),
@@ -736,6 +755,7 @@ export async function upsertWellBESProfile(data) {
  * @param {string} pozoName 
  */
 export async function deleteAllRecordsByPozo(pozoName) {
+    await ensureWriteAccess();
     if (!pozoName || pozoName === 'Todas') return 0;
     
     // Solo se elimina el historial operativo de monitoreo.

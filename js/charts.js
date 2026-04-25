@@ -3,7 +3,7 @@
  * Resuelve filtros, consulta datos y dibuja indicadores y graficas.
  */
 
-import { logout, getSession } from './auth.js';
+import { logout, getAccessProfile, getSession } from './auth.js';
 import { getMonitoringData, getLatestDate, getLatestMonitoringRecords, getNeighborRecords, getPozoRecordDates, getPozosHistorySummary, getWellRibbonData } from './data-service.js';
 import { hideFullLoader, showFullLoader } from './ui.js';
 
@@ -40,6 +40,42 @@ function setStoredSelectedPozo(pozoName) {
 
 function getPozoSummary(pozoName) {
     return pozoSummaries.find(item => item.pozo_name === pozoName) || null;
+}
+
+function applyDashboardAccessProfile(accessProfile) {
+    if (!accessProfile?.isReadOnly) return;
+
+    document.body.classList.add('access-readonly');
+
+    document.querySelectorAll('a[href="data.html"]').forEach(link => {
+        const label = link.querySelector('span');
+        if (label) {
+            label.textContent = 'Historial';
+            return;
+        }
+
+        const textNode = [...link.childNodes]
+            .filter(node => node.nodeType === Node.TEXT_NODE)
+            .find(node => node.textContent.trim());
+
+        if (textNode) {
+            textNode.textContent = ' Historial';
+        }
+    });
+
+    document.querySelectorAll('a[href="dashboard-data.html"]').forEach(link => {
+        link.style.display = 'none';
+        link.setAttribute('aria-hidden', 'true');
+        link.tabIndex = -1;
+    });
+
+    const heroCopy = document.querySelector('.page-hero-copy');
+    if (heroCopy && !heroCopy.querySelector('.access-role-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'access-role-badge';
+        badge.textContent = 'Panel de Visualizacion';
+        heroCopy.appendChild(badge);
+    }
 }
 
 // Renderiza el selector personalizado del pozo y conserva el estado de cada opcion.
@@ -346,6 +382,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = 'index.html';
         return;
     }
+
+    applyDashboardAccessProfile(getAccessProfile(session));
 
     const isFirstEntry = !sessionStorage.getItem('dashboard-visited');
 

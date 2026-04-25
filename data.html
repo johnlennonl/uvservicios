@@ -279,13 +279,50 @@
     </nav>
 
     <script type="module">
-        import { logout, getSession } from './js/auth.js';
+        import { logout, getAccessProfile, getSession } from './js/auth.js';
         import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord, getWellBESProfile } from './js/data-service.js';
 
         let activePozo = null;
         let currentRecordData = [];
         let pozoSummaries = [];
         let activeHistoryMode = 'operational';
+        let currentAccessProfile = { isReadOnly: false, canViewManagement: true, canEditData: true };
+
+        function applyDataAccessProfile() {
+            if (!currentAccessProfile?.isReadOnly) return;
+
+            document.body.classList.add('access-readonly');
+
+            document.querySelectorAll('a[href="data.html"]').forEach(link => {
+                const label = link.querySelector('span');
+                if (label) {
+                    label.textContent = 'Historial';
+                    return;
+                }
+
+                const textNode = [...link.childNodes]
+                    .filter(node => node.nodeType === Node.TEXT_NODE)
+                    .find(node => node.textContent.trim());
+
+                if (textNode) {
+                    textNode.textContent = ' Historial';
+                }
+            });
+
+            document.querySelectorAll('a[href="dashboard-data.html"]').forEach(link => {
+                link.style.display = 'none';
+                link.setAttribute('aria-hidden', 'true');
+                link.tabIndex = -1;
+            });
+
+            const heroCopy = document.querySelector('.page-hero-copy');
+            if (heroCopy && !heroCopy.querySelector('.access-role-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'access-role-badge';
+                badge.textContent = 'Panel de Visualizacion';
+                heroCopy.appendChild(badge);
+            }
+        }
 
         // Muestra la ficha rapida del pozo activo y trae el tipo de bomba maestro.
         async function updateSelectedPozoProfile(pozoName) {
@@ -429,7 +466,7 @@
                     <th>Presiones (THP/CHP)</th>
                     <th>VSD A/B/C</th>
                     <th>Estatus</th>
-                    <th style="text-align: right;">Acciones</th>
+                    ${currentAccessProfile.canEditData ? '<th style="text-align: right;">Acciones</th>' : ''}
                 </tr>
             `;
         }
@@ -437,6 +474,9 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const session = await getSession();
             if (!session) { window.location.href = 'index.html'; return; }
+            currentAccessProfile = getAccessProfile(session);
+            applyDataAccessProfile();
+            renderHistoryHead();
             document.getElementById('logout-btn').addEventListener('click', logout);
             document.getElementById('mobile-logout-btn').addEventListener('click', logout);
             document.getElementById('btn-operational-history').addEventListener('click', () => setHistoryMode('operational'));
@@ -821,13 +861,17 @@
                     <td><span style="color:#2563EB;">T: ${formatTextCell(record.presion_thp)}</span> / <span style="color:#06B6D4;">C: ${formatTextCell(record.presion_chp)}</span></td>
                     <td style="font-family: monospace;">${formatTextCell(record.vsd_a)} / ${formatTextCell(record.vsd_b, '0')} / ${formatTextCell(record.vsd_c, '0')}</td>
                     <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}; font-weight: 800;">${record.estatus}</span></td>
-                    <td style="text-align: right;">
+                    ${currentAccessProfile.canEditData ? `<td style="text-align: right;">
                         <button class="btn-action btn-edit" data-id="${recordId}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
                         <button class="btn-action btn-delete" data-id="${recordId}">Borrar</button>
-                    </td>
+                    </td>` : ''}
                 `;
                 tbody.appendChild(tr);
             });
+
+            if (!currentAccessProfile.canEditData) {
+                return;
+            }
 
             // Enlaza las acciones de edicion fila por fila.
             document.querySelectorAll('.btn-edit').forEach(btn => {

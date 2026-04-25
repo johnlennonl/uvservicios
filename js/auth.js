@@ -5,6 +5,10 @@
 
 import { supabase } from './supabaseClient.js';
 
+const READ_ONLY_EMAILS = new Set([
+    'ingeniero@uvservicios.com'
+]);
+
 /**
  * Valida las credenciales contra Supabase.
  * @param {string} email
@@ -58,4 +62,17 @@ export async function getSession() {
     const { data, error } = await supabase.auth.getSession();
     if (error) return null;
     return data.session;
+}
+
+export function getAccessProfile(sessionOrUser) {
+    const user = sessionOrUser?.user || sessionOrUser || null;
+    const email = String(user?.email || '').trim().toLowerCase();
+    const isReadOnly = READ_ONLY_EMAILS.has(email);
+
+    return {
+        email,
+        isReadOnly,
+        canViewManagement: !isReadOnly,
+        canEditData: !isReadOnly
+    };
 }

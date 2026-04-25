@@ -496,7 +496,7 @@
     </nav>
 
     <script type="module">
-        import { logout, getSession } from './js/auth.js';
+        import { logout, getAccessProfile, getSession } from './js/auth.js';
         import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, saveTechnicalMeasurement, syncTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile } from './js/data-service.js';
 
         let isEditing = false;
@@ -671,6 +671,10 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const session = await getSession();
             if (!session) window.location.href = 'index.html';
+            if (getAccessProfile(session).isReadOnly) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
             initApp();
         });
 

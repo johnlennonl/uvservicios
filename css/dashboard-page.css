@@ -238,6 +238,54 @@
             margin: 5px 0 0 0;
         }
 
+        .access-role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.12);
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            color: #1d4ed8;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .access-readonly .page-hero::before {
+            background: linear-gradient(90deg, #7f1d1d, #dc2626 55%, transparent);
+        }
+
+        .access-readonly .page-hero::after {
+            background: radial-gradient(circle, rgba(220, 38, 38, 0.14), transparent 70%);
+        }
+
+        .access-readonly .access-role-badge {
+            background: rgba(185, 28, 28, 0.12);
+            border-color: rgba(185, 28, 28, 0.24);
+            color: #991b1b;
+        }
+
+        .access-readonly .card-header-industrial h3::before {
+            background: #dc2626;
+            box-shadow: 0 0 8px rgba(220, 38, 38, 0.45);
+        }
+
+        .access-readonly .ribbon-card.highlight .ribbon-icon {
+            color: #b91c1c;
+            background: rgba(185, 28, 28, 0.1);
+        }
+
+        .access-readonly .ribbon-card.highlight {
+            border-left-color: #b91c1c;
+        }
+
+        .access-readonly .ribbon-card:hover {
+            border-color: #dc2626;
+        }
+
         .page-hero-actions {
             position: relative;
             z-index: 1;

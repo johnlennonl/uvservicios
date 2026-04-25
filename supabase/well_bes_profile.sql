@@ -1,5 +1,15 @@
 create extension if not exists pgcrypto;
 
+create or replace function public.is_read_only_client()
+returns boolean
+language sql
+stable
+as $$
+    select lower(coalesce(auth.jwt() ->> 'email', '')) in (
+        'ingeniero@uvservicios.com'
+    );
+$$;
+
 create table if not exists public.well_bes_profile (
     id uuid primary key default gen_random_uuid(),
     pozo_name text not null unique,
@@ -39,7 +49,7 @@ begin
             on public.well_bes_profile
             for insert
             to authenticated
-            with check (true);
+            with check (not public.is_read_only_client());
     end if;
 
     if not exists (
@@ -53,7 +63,7 @@ begin
             on public.well_bes_profile
             for update
             to authenticated
-            using (true)
-            with check (true);
+            using (not public.is_read_only_client())
+            with check (not public.is_read_only_client());
     end if;
 end $$;

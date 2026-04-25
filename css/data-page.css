@@ -512,6 +512,40 @@
             font-size: 0.95rem;
         }
 
+        .access-role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.12);
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            color: #1d4ed8;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .access-readonly .nav-link.active svg {
+            color: #ef4444;
+        }
+
+        .access-readonly .page-hero::before {
+            background: linear-gradient(90deg, #7f1d1d, #dc2626 55%, transparent);
+        }
+
+        .access-readonly .page-hero::after {
+            background: radial-gradient(circle, rgba(220, 38, 38, 0.12), transparent 70%);
+        }
+
+        .access-readonly .access-role-badge {
+            background: rgba(185, 28, 28, 0.12);
+            border-color: rgba(185, 28, 28, 0.24);
+            color: #991b1b;
+        }
+
         .pozo-selector-card {
             margin-bottom: 28px;
         }
