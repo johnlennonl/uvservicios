@@ -88,7 +88,7 @@ export function clearError() {
 /**
  * Redirects to the dashboard.
  */
-export function redirectToDashboard() {
+export function redirectToDashboard(targetPath = 'dashboard.html') {
     showFullLoader(); // Activate loader before leaving
     
     // Smooth fade transition
@@ -96,7 +96,7 @@ export function redirectToDashboard() {
     document.body.style.transition = 'opacity 0.6s ease';
     
     setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        window.location.href = targetPath;
     }, 600);
 }
 

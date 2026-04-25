@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UV Servicios | Jornada</title>
+    <meta name="description" content="Panel de trabajo diario para operadores de campo.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/data-page.css">
+    <link rel="stylesheet" href="css/field-page.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar field-sidebar">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
+            <nav>
+                <a href="jornada.html" class="nav-link field-nav-link active">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z" /></svg>
+                    Jornada
+                </a>
+                <a href="jornada-history.html" class="nav-link field-nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Historial de Jornada
+                </a>
+                <a href="field.html" class="nav-link field-nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Captura y Envío
+                </a>
+            </nav>
+            <button id="logout-btn" class="nav-link">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                Salir
+            </button>
+        </aside>
+
+        <main class="main-container field-main-container">
+            <header class="page-hero field-hero">
+                <div class="page-hero-copy">
+                    <span class="field-kicker">Jornada</span>
+                    <h1>Panel de trabajo diario</h1>
+                    <p>Resumen operativo para la cuadrilla: qué se debe capturar hoy, qué ya fue enviado y qué reportes siguen pendientes.</p>
+                    <div class="field-role-badge">Rol Campo</div>
+                </div>
+            </header>
+
+            <section class="field-overview-grid">
+                <article class="field-overview-card highlight">
+                    <span>Turno activo</span>
+                    <strong>Jornada diurna</strong>
+                    <p>Usa Captura y Envío para registrar los pozos monitoreados durante el turno actual.</p>
+                </article>
+                <article class="field-overview-card">
+                    <span>Meta operativa</span>
+                    <strong>Capturar todos los pozos asignados</strong>
+                    <p>El objetivo de Campo es reportar la jornada, no navegar por análisis técnico ni módulos administrativos.</p>
+                </article>
+                <article class="field-overview-card action-card">
+                    <span>Acción rápida</span>
+                    <strong>Ir a Captura y Envío</strong>
+                    <p>Abre el formulario operativo para llenar el pozo y compartir el mensaje.</p>
+                    <a href="field.html" class="btn-submit field-inline-action">Abrir captura</a>
+                </article>
+            </section>
+
+            <section class="field-card field-summary-card">
+                <div class="field-card-header">
+                    <div>
+                        <h2>Qué debe ver Campo</h2>
+                        <p>Solo lo necesario para ejecutar la jornada y enviar la información de los pozos.</p>
+                    </div>
+                </div>
+                <div class="field-steps-grid">
+                    <article class="field-step-card"><strong>1. Jornada</strong><p>Vista inicial del turno y flujo operativo del día.</p></article>
+                    <article class="field-step-card"><strong>2. Captura y Envío</strong><p>Registro del pozo, validación y mensaje listo para WhatsApp.</p></article>
+                    <article class="field-step-card"><strong>3. Historial de Jornada</strong><p>Consulta rápida de lo enviado por la cuadrilla en el día.</p></article>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script type="module" src="js/modules/field/field-shell.js"></script>
+</body>
+</html>

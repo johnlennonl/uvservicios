@@ -1,4 +1,4 @@
-import { getSession, logout } from './auth.js';
+import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
 
 const OUTPUT_COLUMNS = [
     'pozo_name',
@@ -123,6 +123,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const session = await getSession();
     if (!session) {
         window.location.href = 'index.html';
+        return;
+    }
+
+    const accessProfile = getAccessProfile(session);
+    if (!accessProfile.canViewManagement) {
+        window.location.href = getDefaultRouteForAccessProfile(accessProfile);
         return;
     }
 

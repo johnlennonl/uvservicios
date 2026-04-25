@@ -3,7 +3,7 @@
  * Manages the initialization of the app and coordinates auth logic.
  */
 
-import { login, getSession } from './auth.js';
+import { login, getSession, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
 import * as ui from './ui.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (session) {
         console.log('Session detected, redirecting...');
-        ui.redirectToDashboard();
+        ui.redirectToDashboard(getDefaultRouteForAccessProfile(getAccessProfile(session)));
         return; // Stop further execution
     }
 
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ]);
 
             if (result.success) {
-                ui.redirectToDashboard();
+                ui.redirectToDashboard(getDefaultRouteForAccessProfile(getAccessProfile(result.user)));
             } else {
                 ui.showError(result.message);
                 ui.setLoading(false);

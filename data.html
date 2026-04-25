@@ -315,6 +315,12 @@
                 link.tabIndex = -1;
             });
 
+            document.querySelectorAll('a[href="field.html"]').forEach(link => {
+                link.style.display = 'none';
+                link.setAttribute('aria-hidden', 'true');
+                link.tabIndex = -1;
+            });
+
             const heroCopy = document.querySelector('.page-hero-copy');
             if (heroCopy && !heroCopy.querySelector('.access-role-badge')) {
                 const badge = document.createElement('span');
@@ -475,6 +481,10 @@
             const session = await getSession();
             if (!session) { window.location.href = 'index.html'; return; }
             currentAccessProfile = getAccessProfile(session);
+            if (currentAccessProfile.isFieldOperator) {
+                window.location.href = 'jornada-history.html';
+                return;
+            }
             applyDataAccessProfile();
             renderHistoryHead();
             document.getElementById('logout-btn').addEventListener('click', logout);

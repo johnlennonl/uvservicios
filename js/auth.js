@@ -4,10 +4,7 @@
  */
 
 import { supabase } from './supabaseClient.js';
-
-const READ_ONLY_EMAILS = new Set([
-    'ingeniero@uvservicios.com'
-]);
+import { getAccessProfile, getDefaultRouteForAccessProfile } from './core/access-control.js';
 
 /**
  * Valida las credenciales contra Supabase.
@@ -64,15 +61,4 @@ export async function getSession() {
     return data.session;
 }
 
-export function getAccessProfile(sessionOrUser) {
-    const user = sessionOrUser?.user || sessionOrUser || null;
-    const email = String(user?.email || '').trim().toLowerCase();
-    const isReadOnly = READ_ONLY_EMAILS.has(email);
-
-    return {
-        email,
-        isReadOnly,
-        canViewManagement: !isReadOnly,
-        canEditData: !isReadOnly
-    };
-}
+export { getAccessProfile, getDefaultRouteForAccessProfile };

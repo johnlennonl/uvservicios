@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UV Servicios | Captura y Envío</title>
+    <meta name="description" content="Captura y envío de monitoreos de campo listos para compartir por WhatsApp y exportar después.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/data-page.css">
+    <link rel="stylesheet" href="css/field-page.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar field-sidebar">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
+            <nav>
+                <a href="jornada.html" class="nav-link field-nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z" />
+                    </svg>
+                    Jornada
+                </a>
+                <a href="jornada-history.html" class="nav-link field-nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Historial de Jornada
+                </a>
+                <a href="field.html" class="nav-link field-nav-link active">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Captura y Envío
+                </a>
+            </nav>
+            <button id="logout-btn" class="nav-link">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Salir
+            </button>
+        </aside>
+
+        <main class="main-container field-main-container">
+            <header class="page-hero field-hero">
+                <div class="page-hero-copy">
+                    <span class="field-kicker">Operacion de Campo</span>
+                    <h1>Captura y envío del monitoreo</h1>
+                    <p>Esta vista está diseñada para registrar el pozo, generar el texto operativo y compartirlo sin pasar por dashboard, gestión ni Excel manual.</p>
+                    <div class="field-role-badge">Rol Campo</div>
+                </div>
+                <div class="field-hero-panel">
+                    <div class="field-hero-stat">
+                        <span>Misión</span>
+                        <strong>Capturar y enviar cada jornada</strong>
+                    </div>
+                    <div class="field-hero-stat">
+                        <span>Acción</span>
+                        <strong>WhatsApp listo en un clic</strong>
+                    </div>
+                </div>
+            </header>
+
+            <section class="field-grid">
+                <section class="field-card field-form-card">
+                    <div class="field-card-header">
+                        <div>
+                            <h2>Reporte operativo</h2>
+                            <p>Completa los datos del pozo y deja listo el mensaje de envío de la jornada.</p>
+                        </div>
+                    </div>
+
+                    <div id="field-continue-banner" class="field-continue-banner" hidden></div>
+
+                    <form id="field-report-form" class="field-form" novalidate>
+                        <div class="field-form-grid field-form-grid-top">
+                            <label class="field-input-group">
+                                <span>Equipo de guardia</span>
+                                <input type="text" name="equipo_guardia" id="field-equipo-guardia" placeholder="Ej: Carlos Ruiz, Ana Perez, Luis Mora" required>
+                                <small class="field-input-hint">Escribe los nombres separados por coma. El placeholder es solo una guía visual.</small>
+                            </label>
+                            <label class="field-input-group">
+                                <span>Locación de la jornada</span>
+                                <input type="text" name="locacion_jornada" id="field-locacion-jornada" placeholder="Ej: Bateria TOM - Estacion Norte" required>
+                            </label>
+                            <label class="field-input-group">
+                                <span>Fecha</span>
+                                <input type="date" name="fecha" id="field-fecha" required>
+                            </label>
+                            <label class="field-input-group">
+                                <span>Hora</span>
+                                <input type="time" name="hora" id="field-hora" required>
+                            </label>
+                            <label class="field-input-group">
+                                <span>Pozo</span>
+                                <input type="text" name="pozo" id="field-pozo" placeholder="TOM0012" required>
+                            </label>
+                            <label class="field-input-group">
+                                <span>Jornada</span>
+                                <select name="jornada" id="field-jornada">
+                                    <option value="Diurna">Diurna</option>
+                                    <option value="Nocturna">Nocturna</option>
+                                    <option value="Especial">Especial</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div class="field-section-title">Variables operativas</div>
+                        <div class="field-form-grid">
+                            <label class="field-input-group">
+                                <span>Hz</span>
+                                <input type="number" step="0.1" name="hz" id="field-hz" placeholder="57" required>
+                            </label>
+                            <label class="field-input-group">
+                                <span>Sentido</span>
+                                <select name="sentido_giro" id="field-sentido" required>
+                                    <option value="FWD">FWD</option>
+                                    <option value="REV">REV</option>
+                                </select>
+                            </label>
+                            <label class="field-input-group">
+                                <span>V VSD</span>
+                                <input type="number" step="0.1" name="v_vsd" id="field-v-vsd" placeholder="451">
+                            </label>
+                            <label class="field-input-group">
+                                <span>I Motor</span>
+                                <input type="number" step="0.1" name="i_mot" id="field-i-mot" placeholder="36">
+                            </label>
+                            <label class="field-input-group">
+                                <span>V Motor</span>
+                                <input type="number" step="0.1" name="v_mot" id="field-v-mot" placeholder="2899">
+                            </label>
+                            <label class="field-input-group">
+                                <span>THP</span>
+                                <input type="number" step="0.1" name="thp" id="field-thp" placeholder="120">
+                            </label>
+                            <label class="field-input-group">
+                                <span>LF</span>
+                                <input type="number" step="0.1" name="lf" id="field-lf" placeholder="110">
+                            </label>
+                            <label class="field-input-group">
+                                <span>CHP</span>
+                                <input type="number" step="0.1" name="chp" id="field-chp" placeholder="110">
+                            </label>
+                            <label class="field-input-group">
+                                <span>PI</span>
+                                <input type="number" step="0.1" name="pi" id="field-pi" placeholder="853">
+                            </label>
+                            <label class="field-input-group">
+                                <span>PD</span>
+                                <input type="number" step="0.1" name="pd" id="field-pd" placeholder="840">
+                            </label>
+                            <label class="field-input-group">
+                                <span>TI</span>
+                                <input type="number" step="0.1" name="ti" id="field-ti" placeholder="269">
+                            </label>
+                            <label class="field-input-group">
+                                <span>TM</span>
+                                <input type="number" step="0.1" name="tm" id="field-tm" placeholder="298">
+                            </label>
+                        </div>
+
+                        <div class="field-section-title">Corriente VSD</div>
+                        <div class="field-form-grid field-form-grid-vsd">
+                            <label class="field-input-group">
+                                <span>Fase A</span>
+                                <input type="number" step="0.1" name="ivsd_a" id="field-ivsd-a" placeholder="232">
+                            </label>
+                            <label class="field-input-group">
+                                <span>Fase B</span>
+                                <input type="number" step="0.1" name="ivsd_b" id="field-ivsd-b" placeholder="232">
+                            </label>
+                            <label class="field-input-group">
+                                <span>Fase C</span>
+                                <input type="number" step="0.1" name="ivsd_c" id="field-ivsd-c" placeholder="239">
+                            </label>
+                        </div>
+
+                        <label class="field-input-group field-comment-group">
+                            <span>Comentario operativo</span>
+                            <textarea name="comentario" id="field-comentario" rows="4" placeholder="Operando en condiciones normales" required></textarea>
+                        </label>
+
+                        <div class="field-form-actions">
+                            <button type="button" id="field-add-report-btn" class="btn-submit field-add-btn">Agregar pozo a la jornada</button>
+                            <button type="button" id="field-clear-form-btn" class="btn-secondary field-clear-btn">Limpiar formulario</button>
+                        </div>
+
+                        <div id="field-form-status" class="field-form-status">Completa los datos y el mensaje se arma automáticamente.</div>
+                    </form>
+                </section>
+
+                <section class="field-card field-preview-card">
+                    <div class="field-card-header">
+                        <div>
+                            <h2>Mensaje de envío</h2>
+                            <p>Texto listo para copiar, compartir por WhatsApp y después exportar a PDF o Excel.</p>
+                        </div>
+                    </div>
+
+                    <div class="field-preview-shell">
+                        <pre id="field-message-preview" class="field-message-preview">Hora: --
+Pozo: --
+Hz: --
+FWD
+I vsd: -- -- -- amp
+V vsd: -- volt
+I mot: --
+V mot: --
+PI: --
+PD: --
+TI: --
+TM: --
+THP: --
+LF: --
+CHP: --
+
+Comentario: --</pre>
+                    </div>
+
+                    <div class="field-action-stack">
+                        <button type="button" id="field-copy-btn" class="btn-submit">Copiar mensaje</button>
+                        <button type="button" id="field-whatsapp-btn" class="btn-secondary field-whatsapp-btn">Abrir WhatsApp</button>
+                    </div>
+
+                    <div class="field-export-stack">
+                        <button type="button" id="field-save-supabase-btn" class="btn-submit field-save-btn">Guardar Jornada</button>
+                        <button type="button" id="field-export-pdf-btn" class="btn-secondary field-export-btn">Exportar PDF</button>
+                        <button type="button" id="field-export-xlsx-btn" class="btn-secondary field-export-btn">Exportar Excel</button>
+                    </div>
+
+                    <div class="field-journey-shell">
+                        <div class="field-journey-header">
+                            <div>
+                                <h3>Jornada en construcción</h3>
+                                <p>Agrega cada pozo monitoreado y lleva control de lo capturado durante la guardia.</p>
+                            </div>
+                            <span id="field-journey-count" class="field-journey-count">0 pozos</span>
+                        </div>
+                        <div id="field-journey-list" class="field-journey-list">
+                            <div class="field-journey-empty">Todavía no has agregado pozos a esta jornada.</div>
+                        </div>
+                    </div>
+
+                    <div class="field-note-box">
+                        <strong>Flujo de Campo:</strong>
+                        capturar el monitoreo, revisar el mensaje, enviarlo y dejarlo luego consolidado en historial de jornada.
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="js/modules/field/field-controller.js?v=20260425d"></script>
+</body>
+
+</html>

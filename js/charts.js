@@ -69,6 +69,12 @@ function applyDashboardAccessProfile(accessProfile) {
         link.tabIndex = -1;
     });
 
+    document.querySelectorAll('a[href="field.html"]').forEach(link => {
+        link.style.display = 'none';
+        link.setAttribute('aria-hidden', 'true');
+        link.tabIndex = -1;
+    });
+
     const heroCopy = document.querySelector('.page-hero-copy');
     if (heroCopy && !heroCopy.querySelector('.access-role-badge')) {
         const badge = document.createElement('span');
@@ -383,7 +389,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    applyDashboardAccessProfile(getAccessProfile(session));
+    const accessProfile = getAccessProfile(session);
+    if (accessProfile.isFieldOperator) {
+        window.location.href = 'jornada.html';
+        return;
+    }
+
+    applyDashboardAccessProfile(accessProfile);
 
     const isFirstEntry = !sessionStorage.getItem('dashboard-visited');
 

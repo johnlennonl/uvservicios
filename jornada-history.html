@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UV Servicios | Historial de Jornada</title>
+    <meta name="description" content="Consulta operativa de reportes enviados durante la jornada.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/data-page.css">
+    <link rel="stylesheet" href="css/field-page.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar field-sidebar">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
+            <nav>
+                <a href="jornada.html" class="nav-link field-nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z" /></svg>
+                    Jornada
+                </a>
+                <a href="jornada-history.html" class="nav-link field-nav-link active">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Historial de Jornada
+                </a>
+                <a href="field.html" class="nav-link field-nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Captura y Envío
+                </a>
+            </nav>
+            <button id="logout-btn" class="nav-link">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                Salir
+            </button>
+        </aside>
+
+        <main class="main-container field-main-container">
+            <header class="page-hero field-hero field-history-hero">
+                <div class="page-hero-copy">
+                    <span class="field-kicker">Historial de Jornada</span>
+                    <h1>Seguimiento operativo enviado</h1>
+                    <p>Esta vista servirá para revisar lo reportado por la cuadrilla durante la jornada, sin exponer el historial técnico global del sistema.</p>
+                    <div class="field-role-badge">Rol Campo</div>
+                </div>
+            </header>
+
+            <section class="field-card field-summary-card">
+                <div class="field-card-header">
+                    <div>
+                        <h2>Historial de jornada</h2>
+                        <p>Revisa rápidamente locación, fecha, hora, jornada, equipo y la última actualización de cada registro.</p>
+                    </div>
+                </div>
+                <div class="field-history-shell">
+                    <div class="field-history-toolbar">
+                        <label class="field-history-search-group" for="field-history-search">
+                            <span>Buscar jornada</span>
+                            <input type="search" id="field-history-search" class="field-history-search" placeholder="Buscar por fecha, jornada, locación, equipo o pozo">
+                        </label>
+                    </div>
+                    <div id="field-history-status" class="field-history-status">Cargando jornadas guardadas...</div>
+                    <div id="field-history-list" class="field-history-list"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script type="module" src="js/modules/field/field-history-controller.js?v=20260425e"></script>
+</body>
+</html>
