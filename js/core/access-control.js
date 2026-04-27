@@ -1,11 +1,3 @@
-const READ_ONLY_EMAILS = new Set([
-    'ingeniero@uvservicios.com'
-]);
-
-const FIELD_EMAILS = new Set([
-    'ingcampo@uvservicios.com'
-]);
-
 export const ACCESS_ROLES = Object.freeze({
     ADMIN: 'admin',
     SUPERVISOR: 'supervisor',
@@ -13,24 +5,33 @@ export const ACCESS_ROLES = Object.freeze({
     CLIENTE_VIEW: 'cliente_view'
 });
 
-export function resolveAccessRole(email) {
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+const ALLOWED_ACCESS_ROLES = new Set(Object.values(ACCESS_ROLES));
 
-    if (READ_ONLY_EMAILS.has(normalizedEmail)) {
-        return ACCESS_ROLES.CLIENTE_VIEW;
-    }
+function normalizeRole(value) {
+    const normalizedRole = String(value || '').trim().toLowerCase();
+    return ALLOWED_ACCESS_ROLES.has(normalizedRole)
+        ? normalizedRole
+        : ACCESS_ROLES.CLIENTE_VIEW;
+}
 
-    if (FIELD_EMAILS.has(normalizedEmail)) {
-        return ACCESS_ROLES.CAMPO;
-    }
+function readRoleFromClaims(user = {}) {
+    return normalizeRole(
+        user?.app_metadata?.role
+        || user?.user_metadata?.role
+        || user?.role
+    );
+}
 
-    return ACCESS_ROLES.ADMIN;
+export function resolveAccessRole(sessionOrUser) {
+    const user = sessionOrUser?.user || sessionOrUser || null;
+
+    return readRoleFromClaims(user);
 }
 
 export function getAccessProfile(sessionOrUser) {
     const user = sessionOrUser?.user || sessionOrUser || null;
     const email = String(user?.email || '').trim().toLowerCase();
-    const role = resolveAccessRole(email);
+    const role = resolveAccessRole(user);
     const isReadOnly = role === ACCESS_ROLES.CLIENTE_VIEW;
     const isFieldOperator = role === ACCESS_ROLES.CAMPO;
     const isSupervisor = role === ACCESS_ROLES.SUPERVISOR;
@@ -55,6 +56,10 @@ export function getAccessProfile(sessionOrUser) {
 export function getDefaultRouteForAccessProfile(accessProfile) {
     if (accessProfile?.isFieldOperator) {
         return 'jornada.html';
+    }
+
+    if (accessProfile?.isReadOnly) {
+        return 'dashboard.html';
     }
 
     return 'dashboard.html';

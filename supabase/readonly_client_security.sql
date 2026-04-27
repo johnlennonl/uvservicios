@@ -1,11 +1,29 @@
+create or replace function public.get_access_role()
+returns text
+language sql
+stable
+as $$
+    select lower(coalesce(
+        auth.jwt() -> 'app_metadata' ->> 'role',
+        auth.jwt() -> 'user_metadata' ->> 'role',
+        'cliente_view'
+    ));
+$$;
+
 create or replace function public.is_read_only_client()
 returns boolean
 language sql
 stable
 as $$
-    select lower(coalesce(auth.jwt() ->> 'email', '')) in (
-        'ingeniero@uvservicios.com'
-    );
+    select public.get_access_role() = 'cliente_view';
+$$;
+
+create or replace function public.can_manage_monitoring()
+returns boolean
+language sql
+stable
+as $$
+    select public.get_access_role() in ('admin', 'supervisor');
 $$;
 
 alter table if exists public.monitoreo_pozos enable row level security;
@@ -38,8 +56,8 @@ create policy "Allow authenticated write access to monitoring except read only"
     on public.monitoreo_pozos
     for all
     to authenticated
-    using (not public.is_read_only_client())
-    with check (not public.is_read_only_client());
+    using (public.can_manage_monitoring())
+    with check (public.can_manage_monitoring());
 
 create policy "Allow authenticated read access to technical snapshot"
     on public.well_production
@@ -51,8 +69,8 @@ create policy "Allow authenticated write access to technical snapshot except rea
     on public.well_production
     for all
     to authenticated
-    using (not public.is_read_only_client())
-    with check (not public.is_read_only_client());
+    using (public.can_manage_monitoring())
+    with check (public.can_manage_monitoring());
 
 create policy "Allow authenticated read access to technical history"
     on public.well_production_history
@@ -64,8 +82,8 @@ create policy "Allow authenticated write access to technical history except read
     on public.well_production_history
     for all
     to authenticated
-    using (not public.is_read_only_client())
-    with check (not public.is_read_only_client());
+    using (public.can_manage_monitoring())
+    with check (public.can_manage_monitoring());
 
 create policy "Allow authenticated read access to bes profile"
     on public.well_bes_profile
@@ -77,5 +95,5 @@ create policy "Allow authenticated write access to bes profile except read only"
     on public.well_bes_profile
     for all
     to authenticated
-    using (not public.is_read_only_client())
-    with check (not public.is_read_only_client());
+    using (public.can_manage_monitoring())
+    with check (public.can_manage_monitoring());

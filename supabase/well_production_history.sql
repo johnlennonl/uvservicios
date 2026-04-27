@@ -1,13 +1,31 @@
 create extension if not exists pgcrypto;
 
+create or replace function public.get_access_role()
+returns text
+language sql
+stable
+as $$
+    select lower(coalesce(
+        auth.jwt() -> 'app_metadata' ->> 'role',
+        auth.jwt() -> 'user_metadata' ->> 'role',
+        'cliente_view'
+    ));
+$$;
+
 create or replace function public.is_read_only_client()
 returns boolean
 language sql
 stable
 as $$
-    select lower(coalesce(auth.jwt() ->> 'email', '')) in (
-        'ingeniero@uvservicios.com'
-    );
+    select public.get_access_role() = 'cliente_view';
+$$;
+
+create or replace function public.can_manage_monitoring()
+returns boolean
+language sql
+stable
+as $$
+    select public.get_access_role() in ('admin', 'supervisor');
 $$;
 
 create table if not exists public.well_production_history (
@@ -58,7 +76,7 @@ begin
             on public.well_production_history
             for insert
             to authenticated
-            with check (not public.is_read_only_client());
+            with check (public.can_manage_monitoring());
     end if;
 
     if not exists (
@@ -72,8 +90,8 @@ begin
             on public.well_production_history
             for update
             to authenticated
-            using (not public.is_read_only_client())
-            with check (not public.is_read_only_client());
+            using (public.can_manage_monitoring())
+            with check (public.can_manage_monitoring());
     end if;
 end $$;
 
