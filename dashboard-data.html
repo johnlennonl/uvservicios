@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>UV Servicios | Gestión de Datos</title>
     <meta name="description" content="Modulo de gestion de datos de UV Servicios para cargar monitoreo, produccion tecnica y configuracion de bomba BES por pozo.">
     <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
@@ -497,7 +498,7 @@
 
     <script type="module">
         import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession } from './js/auth.js';
-        import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, saveTechnicalMeasurement, syncTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile } from './js/data-service.js';
+        import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, previewMonitoringSync, saveTechnicalMeasurement, syncTechnicalMeasurements, previewTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile } from './js/data-service.js';
 
         let isEditing = false;
         let knownPozos = new Set();
@@ -525,6 +526,15 @@
             return [...knownPozos].sort((a, b) => a.localeCompare(b));
         }
 
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function closeManagementPozoMenus(exceptMenuId = '') {
             MANAGEMENT_POZO_SELECTORS.forEach(({ menuId }) => {
                 if (menuId === exceptMenuId) return;
@@ -546,8 +556,8 @@
             }
 
             menu.innerHTML = pozos.map(pozo => `
-                <button type="button" class="management-pozo-option ${pozo === input.value.trim().toUpperCase() ? 'active' : ''}" data-pozo="${pozo}">
-                    <span class="management-pozo-option-name">${pozo}</span>
+                <button type="button" class="management-pozo-option ${pozo === input.value.trim().toUpperCase() ? 'active' : ''}" data-pozo="${escapeHtml(pozo)}">
+                    <span class="management-pozo-option-name">${escapeHtml(pozo)}</span>
                 </button>
             `).join('');
 
@@ -892,18 +902,18 @@
 
                     if (technicalData && technicalData.length > 0) {
                         const latestTech = technicalData[0];
-                        document.getElementById('last-record-display').innerHTML = `<b>${latestTech.pozo_name}</b> - ${latestTech.fecha}`;
+                        document.getElementById('last-record-display').innerHTML = `<b>${escapeHtml(latestTech.pozo_name)}</b> - ${escapeHtml(latestTech.fecha)}`;
 
                         technicalData.forEach(record => {
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
-                                <td style="font-weight: 700;">${record.pozo_name || '--'}</td>
-                                <td>${record.campo_name || '--'}</td>
-                                <td>${record.fecha || '--'}</td>
+                                <td style="font-weight: 700;">${escapeHtml(record.pozo_name || '--')}</td>
+                                <td>${escapeHtml(record.campo_name || '--')}</td>
+                                <td>${escapeHtml(record.fecha || '--')}</td>
                                 <td>${formatTelemetryNumber(record.bbpd)}</td>
                                 <td>${formatTelemetryNumber(record.ays_percentage)}%</td>
                                 <td>${formatTelemetryNumber(record.bnpd)}</td>
-                                <td><span class="recent-technical-cat">CAT ${record.cat_number ?? '--'}</span></td>
+                                <td><span class="recent-technical-cat">CAT ${escapeHtml(record.cat_number ?? '--')}</span></td>
                             `;
                             historyBody.appendChild(tr);
                         });
@@ -928,24 +938,24 @@
                 
                 if (latestByPozo.length > 0) {
                     const latest = latestByPozo[0];
-                    document.getElementById('last-record-display').innerHTML = `<b>${latest.pozo_name}</b> - ${latest.fecha} ${latest.hora}`;
+                    document.getElementById('last-record-display').innerHTML = `<b>${escapeHtml(latest.pozo_name)}</b> - ${escapeHtml(latest.fecha)} ${escapeHtml(latest.hora)}`;
                     
                     historyBody.innerHTML = '';
                     latestByPozo.slice(0, 10).forEach(record => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
-                            <td style="font-weight: 700;">${record.pozo_name}</td>
-                            <td>${record.fecha}</td>
-                            <td>${record.hora}</td>
+                            <td style="font-weight: 700;">${escapeHtml(record.pozo_name)}</td>
+                            <td>${escapeHtml(record.fecha)}</td>
+                            <td>${escapeHtml(record.hora)}</td>
                             <td>${formatTelemetryNumber(record.frecuencia)}</td>
                             <td>${formatTelemetryNumber(record.corriente_motor)}</td>
                             <td>${formatTelemetryNumber(record.pip)}</td>
                             <td>${formatTelemetryNumber(record.presion_lf)}</td>
-                            <td>${record.sentido_giro || '--'}</td>
-                            <td><span style="color: ${record.estatus === 'RUN' ? '#059669' : '#DC2626'}">● ${record.estatus}</span></td>
+                            <td>${escapeHtml(record.sentido_giro || '--')}</td>
+                            <td><span style="color: ${record.estatus === 'RUN' ? '#059669' : '#DC2626'}">● ${escapeHtml(record.estatus || '--')}</span></td>
                             <td>
-                                <button class="btn-action btn-edit" data-id="${record.id}">Editar</button>
-                                <button class="btn-action btn-delete" data-id="${record.id}">Borrar</button>
+                                <button class="btn-action btn-edit" data-id="${escapeHtml(record.id)}">Editar</button>
+                                <button class="btn-action btn-delete" data-id="${escapeHtml(record.id)}">Borrar</button>
                             </td>
                         `;
                         historyBody.appendChild(tr);
@@ -1395,23 +1405,294 @@
             ).size;
         }
 
-        async function confirmImportSummary({ title, fileName, recordsCount, pozoCount, detailText }) {
+        function buildImportPreviewList(items = [], kind = 'operational', limit = 200) {
+            const previewItems = items.slice(0, limit).map(item => {
+                const record = item?.record || item || {};
+                if (kind === 'technical') {
+                    return `<li><b>${escapeHtml(record.pozo_name || '--')}</b> · ${escapeHtml(record.fecha || '--')}</li>`;
+                }
+
+                return `<li><b>${escapeHtml(record.pozo_name || '--')}</b> · ${escapeHtml(record.fecha || '--')} ${escapeHtml(record.hora || '00:00:00')}</li>`;
+            }).join('');
+
+            const remaining = Math.max(items.length - limit, 0);
+            const moreLine = remaining > 0
+                ? `<p style="margin: 8px 0 0 0; font-size: 0.8rem; color: #64748B;">Y ${remaining} registro(s) más...</p>`
+                : '';
+
+            return previewItems
+                ? `<div style="margin-top: 8px; max-height: 260px; overflow-y: auto; padding-right: 6px;"><ul style="margin: 0 0 0 18px; padding: 0;">${previewItems}</ul></div>${moreLine}`
+                : '<p style="margin: 8px 0 0 0; color: #64748B;">Sin registros en esta categoría.</p>';
+        }
+
+        function getImportPreviewRecord(item) {
+            return item?.record || item || {};
+        }
+
+        function filterImportPreviewItems(items = [], query = '') {
+            const normalizedQuery = String(query || '').trim().toUpperCase();
+            if (!normalizedQuery) return items;
+
+            return items.filter(item => {
+                const record = getImportPreviewRecord(item);
+                const pozoName = String(record?.pozo_name || '').trim().toUpperCase();
+                return pozoName.includes(normalizedQuery);
+            });
+        }
+
+        function mapPreviewExportRows(items = [], statusLabel = 'Nuevo', kind = 'operational') {
+            return items.map(item => {
+                const record = getImportPreviewRecord(item);
+
+                if (kind === 'technical') {
+                    return {
+                        accion: statusLabel,
+                        pozo_name: record.pozo_name || '',
+                        fecha: record.fecha || '',
+                        campo_name: record.campo_name || '',
+                        ef: record.ef || '',
+                        bbpd: record.bbpd ?? '',
+                        ays_percentage: record.ays_percentage ?? '',
+                        bnpd: record.bnpd ?? '',
+                        cat_number: record.cat_number ?? '',
+                        existing_id: item?.id || ''
+                    };
+                }
+
+                return {
+                    accion: statusLabel,
+                    pozo_name: record.pozo_name || '',
+                    fecha: record.fecha || '',
+                    hora: record.hora || '00:00:00',
+                    campo: record.campo || '',
+                    estatus: record.estatus || '',
+                    frecuencia: record.frecuencia ?? '',
+                    corriente_motor: record.corriente_motor ?? '',
+                    presion_thp: record.presion_thp ?? '',
+                    presion_chp: record.presion_chp ?? '',
+                    presion_lf: record.presion_lf ?? '',
+                    pip: record.pip ?? '',
+                    tm: record.tm ?? '',
+                    vsd_a: record.vsd_a ?? '',
+                    vsd_b: record.vsd_b ?? '',
+                    vsd_c: record.vsd_c ?? '',
+                    sentido_giro: record.sentido_giro || '',
+                    observaciones: record.observaciones || '',
+                    existing_id: item?.id || ''
+                };
+            });
+        }
+
+        function exportImportPreviewWorkbook({ fileName, kind = 'operational', recordsCount = 0, pozoCount = 0, recordsToInsert = [], recordsToUpdate = [] }) {
+            if (typeof XLSX === 'undefined') {
+                throw new Error('La libreria XLSX no esta disponible para exportar el preview.');
+            }
+
+            const workbook = XLSX.utils.book_new();
+            const summaryRows = [{
+                archivo: fileName || '',
+                tipo: kind === 'technical' ? 'tecnico' : 'operativo',
+                registros_validos: recordsCount,
+                pozos_detectados: pozoCount,
+                nuevos: recordsToInsert.length,
+                actualizaciones: recordsToUpdate.length,
+                generado_en: new Date().toISOString()
+            }];
+
+            XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), 'Resumen');
+            XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(mapPreviewExportRows(recordsToInsert, 'Nuevo', kind)), 'Nuevos');
+            XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(mapPreviewExportRows(recordsToUpdate, 'Actualizar', kind)), 'Actualizaciones');
+
+            const safeName = String(fileName || 'preview')
+                .replace(/\.[^.]+$/, '')
+                .replace(/[^a-zA-Z0-9_-]+/g, '_')
+                .replace(/^_+|_+$/g, '') || 'preview';
+
+            XLSX.writeFile(workbook, `${safeName}_preview_importacion.xlsx`);
+        }
+
+        function buildImportPreviewCard({ title, items = [], kind = 'operational', tone = 'neutral' }) {
+            const palette = tone === 'warm'
+                ? {
+                    background: '#FFF7ED',
+                    border: '#FED7AA',
+                    title: '#9A3412'
+                }
+                : {
+                    background: '#F8FAFC',
+                    border: '#E2E8F0',
+                    title: '#0F172A'
+                };
+
+            return `
+                <div style="padding: 14px; border-radius: 14px; background: ${palette.background}; border: 1px solid ${palette.border}; min-height: 320px; box-sizing: border-box;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <p style="margin: 0; font-weight: 700; color: ${palette.title};">${escapeHtml(title)}</p>
+                        <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 12px; border-radius: 999px; background: rgba(255,255,255,0.72); border: 1px solid ${palette.border}; font-size: 0.82rem; font-weight: 700; color: ${palette.title};">
+                            ${items.length}
+                        </span>
+                    </div>
+                    ${buildImportPreviewList(items, kind)}
+                </div>
+            `;
+        }
+
+        async function confirmImportSummary({ title, fileName, recordsCount, pozoCount, detailText, previewResult, kind = 'operational' }) {
+            const recordsToInsert = previewResult?.recordsToInsert || [];
+            const recordsToUpdate = previewResult?.recordsToUpdate || [];
+            const defaultTab = recordsToInsert.length > 0 || recordsToUpdate.length === 0 ? 'insert' : 'update';
+
             const result = await Swal.fire({
                 icon: 'question',
                 title,
+                width: '960px',
                 html: `
-                    <div style="text-align: left; line-height: 1.6; color: #475569; font-size: 0.92rem;">
-                        <p style="margin: 0 0 12px 0;"><b>Archivo:</b> ${fileName}</p>
-                        <p style="margin: 0 0 8px 0;"><b>Registros válidos detectados:</b> ${recordsCount}</p>
-                        <p style="margin: 0 0 8px 0;"><b>Pozos detectados:</b> ${pozoCount}</p>
-                        <p style="margin: 0;">${detailText}</p>
+                    <div style="text-align: left; line-height: 1.6; color: #475569; font-size: 0.92rem; max-height: 68vh; overflow: hidden; display: flex; flex-direction: column;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px;">
+                            <div style="padding: 12px; border-radius: 12px; background: #F8FAFC; border: 1px solid #E2E8F0;">
+                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B;">Archivo</p>
+                                <p style="margin: 0; font-weight: 600; color: #0F172A; word-break: break-word;">${escapeHtml(fileName)}</p>
+                            </div>
+                            <div style="padding: 12px; border-radius: 12px; background: #F8FAFC; border: 1px solid #E2E8F0;">
+                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B;">Registros válidos</p>
+                                <p style="margin: 0; font-weight: 700; color: #0F172A;">${recordsCount}</p>
+                            </div>
+                            <div style="padding: 12px; border-radius: 12px; background: #F8FAFC; border: 1px solid #E2E8F0;">
+                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B;">Pozos detectados</p>
+                                <p style="margin: 0; font-weight: 700; color: #0F172A;">${pozoCount}</p>
+                            </div>
+                            <div style="padding: 12px; border-radius: 12px; background: #ECFDF5; border: 1px solid #A7F3D0;">
+                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #047857;">Nuevos</p>
+                                <p style="margin: 0; font-weight: 700; color: #065F46;">${previewResult?.inserted ?? 0}</p>
+                            </div>
+                            <div style="padding: 12px; border-radius: 12px; background: #FFF7ED; border: 1px solid #FED7AA;">
+                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #C2410C;">Se actualizarán</p>
+                                <p style="margin: 0; font-weight: 700; color: #9A3412;">${previewResult?.updated ?? 0}</p>
+                            </div>
+                        </div>
+                        <p style="margin: 0 0 14px 0;">${escapeHtml(detailText)}</p>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
+                            <input id="import-preview-search" type="search" placeholder="Filtrar por pozo..." style="flex: 1 1 220px; min-width: 220px; border: 1px solid #CBD5E1; background: #FFFFFF; color: #0F172A; border-radius: 12px; padding: 10px 14px; outline: none;">
+                            <button type="button" id="import-preview-export" style="border: 1px solid #BFDBFE; background: #EFF6FF; color: #1D4ED8; border-radius: 12px; padding: 10px 16px; font-weight: 700; cursor: pointer;">Exportar preview</button>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+                            <button type="button" data-preview-tab="insert" style="border: 1px solid #CBD5E1; background: #FFFFFF; color: #0F172A; border-radius: 999px; padding: 10px 16px; font-weight: 700; cursor: pointer;">Ver nuevos (${recordsToInsert.length})</button>
+                            <button type="button" data-preview-tab="update" style="border: 1px solid #CBD5E1; background: #FFFFFF; color: #0F172A; border-radius: 999px; padding: 10px 16px; font-weight: 700; cursor: pointer;">Ver actualizaciones (${recordsToUpdate.length})</button>
+                            <button type="button" data-preview-tab="both" style="border: 1px solid #CBD5E1; background: #FFFFFF; color: #0F172A; border-radius: 999px; padding: 10px 16px; font-weight: 700; cursor: pointer;">Ver ambos</button>
+                        </div>
+                        <div id="import-preview-panel" style="flex: 1; min-height: 0; overflow: hidden;">
+                            ${defaultTab === 'update'
+                                ? buildImportPreviewCard({ title: 'Se actualizarán', items: recordsToUpdate, kind, tone: 'warm' })
+                                : buildImportPreviewCard({ title: 'Nuevos', items: recordsToInsert, kind, tone: 'neutral' })}
+                        </div>
                     </div>
                 `,
                 showCancelButton: true,
                 confirmButtonText: 'Sí, cargar registros',
                 cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#1D4ED8',
-                reverseButtons: true
+                reverseButtons: true,
+                didOpen: (popup) => {
+                    const panel = popup.querySelector('#import-preview-panel');
+                    const buttons = [...popup.querySelectorAll('[data-preview-tab]')];
+                    const searchInput = popup.querySelector('#import-preview-search');
+                    const exportButton = popup.querySelector('#import-preview-export');
+                    let activeTab = defaultTab;
+                    let currentQuery = '';
+
+                    const setButtonState = (button, isActive) => {
+                        button.style.background = isActive ? '#0F172A' : '#FFFFFF';
+                        button.style.color = isActive ? '#FFFFFF' : '#0F172A';
+                        button.style.borderColor = isActive ? '#0F172A' : '#CBD5E1';
+                    };
+
+                    const renderBothPreviewCards = (insertItems, updateItems) => {
+                        const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+                        if (isDesktop) {
+                            return `
+                                <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start;">
+                                    ${buildImportPreviewCard({ title: 'Nuevos', items: insertItems, kind, tone: 'neutral' })}
+                                    ${buildImportPreviewCard({ title: 'Se actualizarán', items: updateItems, kind, tone: 'warm' })}
+                                </div>
+                            `;
+                        }
+
+                        return `
+                            <div style="display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start;">
+                                ${buildImportPreviewCard({ title: 'Nuevos', items: insertItems, kind, tone: 'neutral' })}
+                                ${buildImportPreviewCard({ title: 'Se actualizarán', items: updateItems, kind, tone: 'warm' })}
+                            </div>
+                        `;
+                    };
+
+                    const renderPreviewTab = (tab) => {
+                        activeTab = tab;
+                        const filteredInsertItems = filterImportPreviewItems(recordsToInsert, currentQuery);
+                        const filteredUpdateItems = filterImportPreviewItems(recordsToUpdate, currentQuery);
+
+                        if (tab === 'both') {
+                            panel.innerHTML = renderBothPreviewCards(filteredInsertItems, filteredUpdateItems);
+                        } else if (tab === 'update') {
+                            panel.innerHTML = buildImportPreviewCard({ title: 'Se actualizarán', items: filteredUpdateItems, kind, tone: 'warm' });
+                        } else {
+                            panel.innerHTML = buildImportPreviewCard({ title: 'Nuevos', items: filteredInsertItems, kind, tone: 'neutral' });
+                        }
+
+                        buttons.forEach(button => {
+                            setButtonState(button, button.dataset.previewTab === tab);
+                        });
+                    };
+
+                    buttons.forEach(button => {
+                        button.addEventListener('click', () => renderPreviewTab(button.dataset.previewTab));
+                    });
+
+                    searchInput?.addEventListener('input', (event) => {
+                        currentQuery = event.target.value || '';
+                        renderPreviewTab(activeTab);
+                    });
+
+                    exportButton?.addEventListener('click', () => {
+                        try {
+                            const filteredInsertItems = filterImportPreviewItems(recordsToInsert, currentQuery);
+                            const filteredUpdateItems = filterImportPreviewItems(recordsToUpdate, currentQuery);
+                            exportImportPreviewWorkbook({
+                                fileName,
+                                kind,
+                                recordsCount,
+                                pozoCount,
+                                recordsToInsert: filteredInsertItems,
+                                recordsToUpdate: filteredUpdateItems
+                            });
+                            const originalLabel = exportButton.textContent;
+                            exportButton.textContent = 'Preview exportado';
+                            exportButton.disabled = true;
+                            setTimeout(() => {
+                                exportButton.textContent = originalLabel;
+                                exportButton.disabled = false;
+                            }, 1800);
+                        } catch (error) {
+                            Swal.showValidationMessage(error.message || 'No fue posible exportar el preview.');
+                        }
+                    });
+
+                    const handleResize = () => {
+                        if (activeTab === 'both') {
+                            renderPreviewTab(activeTab);
+                        }
+                    };
+
+                    window.addEventListener('resize', handleResize);
+                    popup.dataset.previewResizeBound = 'true';
+                    popup._previewResizeHandler = handleResize;
+
+                    renderPreviewTab(defaultTab);
+                },
+                willClose: (popup) => {
+                    if (popup?._previewResizeHandler) {
+                        window.removeEventListener('resize', popup._previewResizeHandler);
+                    }
+                }
             });
 
             return result.isConfirmed;
@@ -2046,12 +2327,16 @@
                     return;
                 }
 
+                const previewResult = await previewTechnicalMeasurements(rows);
+
                 const confirmed = await confirmImportSummary({
                     title: 'Confirmar carga técnica',
                     fileName: file.name,
                     recordsCount: rows.length,
                     pozoCount: countUniquePozos(rows),
-                    detailText: 'Se sincronizarán las mediciones técnicas detectadas y se actualizará el historial por pozo y fecha.'
+                    detailText: 'Se sincronizarán las mediciones técnicas detectadas y se actualizará el historial por pozo y fecha.',
+                    previewResult,
+                    kind: 'technical'
                 });
 
                 if (!confirmed) {
@@ -2135,27 +2420,6 @@
                     throw new Error(`No pude interpretar el estatus en ${invalidStatusRows.length} fila(s). El layout de este Excel no coincide con el formato esperado para monitoreo diario actual.`);
                 }
 
-                const confirmed = await confirmImportSummary({
-                    title: 'Confirmar carga operativa',
-                    fileName: file.name,
-                    recordsCount: telemetryRows.length,
-                    pozoCount: countUniquePozos(telemetryRows),
-                    detailText: 'Se sincronizarán los registros diarios válidos detectados en el archivo antes de guardarlos en la plataforma.'
-                });
-
-                if (!confirmed) {
-                    statusDiv.style.display = 'block';
-                    statusText.textContent = 'Carga operativa cancelada por el usuario.';
-                    return;
-                }
-
-                beginImportSession({
-                    kind: 'operational',
-                    fileName: file.name,
-                    recordsCount: telemetryRows.length,
-                    pozoCount: countUniquePozos(telemetryRows)
-                });
-
                 const telemetryColumns = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c', 'sentido_giro', 'estatus', 'observaciones', 'user_id'];
 
                 const telemetryData = telemetryRows.map(r => {
@@ -2169,6 +2433,31 @@
                     });
 
                     return obj;
+                });
+
+                const previewResult = await previewMonitoringSync(telemetryData);
+
+                const confirmed = await confirmImportSummary({
+                    title: 'Confirmar carga operativa',
+                    fileName: file.name,
+                    recordsCount: telemetryRows.length,
+                    pozoCount: countUniquePozos(telemetryRows),
+                    detailText: 'Se sincronizarán los registros diarios válidos detectados en el archivo antes de guardarlos en la plataforma.',
+                    previewResult,
+                    kind: 'operational'
+                });
+
+                if (!confirmed) {
+                    statusDiv.style.display = 'block';
+                    statusText.textContent = 'Carga operativa cancelada por el usuario.';
+                    return;
+                }
+
+                beginImportSession({
+                    kind: 'operational',
+                    fileName: file.name,
+                    recordsCount: telemetryRows.length,
+                    pozoCount: countUniquePozos(telemetryRows)
                 });
 
                 updateImportSession(`Sincronizando ${telemetryData.length} registro(s) operativos...`, 'Guardando mediciones diarias en la plataforma.');

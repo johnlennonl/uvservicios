@@ -3,23 +3,7 @@ const REQUIRED_FIELDS = [
     'locacion_jornada',
     'fecha',
     'hora',
-    'pozo',
-    'hz',
-    'sentido_giro',
-    'v_vsd',
-    'i_mot',
-    'v_mot',
-    'thp',
-    'lf',
-    'chp',
-    'pi',
-    'pd',
-    'ti',
-    'tm',
-    'ivsd_a',
-    'ivsd_b',
-    'ivsd_c',
-    'comentario'
+    'pozo'
 ];
 
 const NUMERIC_FIELDS = [

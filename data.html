@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>UV Servicios | Base de Datos</title>
     <meta name="description" content="Base de datos historica de UV Servicios para consultar registros operativos y mediciones tecnicas BES por pozo, fecha y modo de analisis.">
     <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
@@ -532,6 +533,15 @@
             });
         }
 
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         // Renderiza el menu personalizado del selector de pozos con estado y actividad reciente.
         function renderPozoOptions(ignoreSearch = false) {
             const menu = document.getElementById('pozo-selector-menu');
@@ -543,9 +553,9 @@
             }
 
             menu.innerHTML = filteredPozos.map(item => `
-                <button type="button" class="pozo-selector-option ${item.pozo_name === activePozo ? 'active' : ''}" data-pozo="${item.pozo_name}">
+                <button type="button" class="pozo-selector-option ${item.pozo_name === activePozo ? 'active' : ''}" data-pozo="${escapeHtml(item.pozo_name)}">
                     <span class="pozo-status-dot ${item.has_records ? 'active' : 'inactive'}"></span>
-                    <span class="pozo-option-name">${item.pozo_name}</span>
+                    <span class="pozo-option-name">${escapeHtml(item.pozo_name)}</span>
                     <span class="pozo-option-state ${item.has_records ? 'active' : 'inactive'}">${item.has_records ? 'Con registros' : 'Sin registros'}</span>
                 </button>
             `).join('');
@@ -664,7 +674,7 @@
             };
 
             const formatTextCell = (value, fallback = 'No disponible') => {
-                return value === undefined || value === null || value === '' ? fallback : value;
+                return escapeHtml(value === undefined || value === null || value === '' ? fallback : value);
             };
 
             Swal.fire({
@@ -777,7 +787,7 @@
             };
 
             const formatTextCell = (value, fallback = '--') => {
-                return value === undefined || value === null || value === '' ? fallback : value;
+                return escapeHtml(value === undefined || value === null || value === '' ? fallback : value);
             };
 
             if (currentRecordData.length === 0) {
@@ -872,8 +882,8 @@
                     <td style="font-family: monospace;">${formatTextCell(record.vsd_a)} / ${formatTextCell(record.vsd_b, '0')} / ${formatTextCell(record.vsd_c, '0')}</td>
                     <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}; font-weight: 800;">${record.estatus}</span></td>
                     ${currentAccessProfile.canEditData ? `<td style="text-align: right;">
-                        <button class="btn-action btn-edit" data-id="${recordId}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
-                        <button class="btn-action btn-delete" data-id="${recordId}">Borrar</button>
+                        <button class="btn-action btn-edit" data-id="${escapeHtml(recordId)}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
+                        <button class="btn-action btn-delete" data-id="${escapeHtml(recordId)}">Borrar</button>
                     </td>` : ''}
                 `;
                 tbody.appendChild(tr);

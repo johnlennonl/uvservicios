@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>UV Servicios | Captura y Envío</title>
     <meta name="description" content="Captura y envío de monitoreos de campo listos para compartir por WhatsApp y exportar después.">
     <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
@@ -117,11 +118,11 @@
                         <div class="field-form-grid">
                             <label class="field-input-group">
                                 <span>Hz</span>
-                                <input type="number" step="0.1" name="hz" id="field-hz" placeholder="57" required>
+                                <input type="number" step="0.1" name="hz" id="field-hz" placeholder="57">
                             </label>
                             <label class="field-input-group">
                                 <span>Sentido</span>
-                                <select name="sentido_giro" id="field-sentido" required>
+                                <select name="sentido_giro" id="field-sentido">
                                     <option value="FWD">FWD</option>
                                     <option value="REV">REV</option>
                                 </select>
@@ -186,7 +187,7 @@
 
                         <label class="field-input-group field-comment-group">
                             <span>Comentario operativo</span>
-                            <textarea name="comentario" id="field-comentario" rows="4" placeholder="Operando en condiciones normales" required></textarea>
+                            <textarea name="comentario" id="field-comentario" rows="4" placeholder="Operando en condiciones normales"></textarea>
                         </label>
 
                         <div class="field-form-actions">

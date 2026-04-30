@@ -13,7 +13,11 @@ let isDarkMode = localStorage.getItem('theme-uv') === 'dark';
 let resizeFrame = null;
 let historicalRecordOptions = [];
 let pozoSummaries = [];
-let isLatestSevenTrendMode = false;
+let isLatestSevenTrendMode = (() => {
+    const v = sessionStorage.getItem('uv-latest-trend-mode');
+    if (v === null) return true; // por defecto ver últimos registros
+    return v === '1';
+})();
 const FOCUSED_TREND_RECORD_COUNT = 15;
 const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
 const TREND_AXIS_BASES = {
@@ -24,6 +28,15 @@ const TREND_AXIS_BASES = {
     corrienteMotor: { min: 0, max: 120, step: 10, decimals: 0 },
     vsd: { min: 0, max: 600, step: 50, decimals: 0 }
 };
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 // Mantiene el pozo activo entre Dashboard, Data y Gestion durante la sesion actual.
 function getStoredSelectedPozo() {
@@ -103,9 +116,9 @@ function renderPozoFilterOptions(ignoreSearch = false) {
     }
 
     menu.innerHTML = filteredPozos.map(item => `
-        <button type="button" class="pozo-selector-option ${item.pozo_name === hiddenInput.value ? 'active' : ''}" data-pozo="${item.pozo_name}">
+        <button type="button" class="pozo-selector-option ${item.pozo_name === hiddenInput.value ? 'active' : ''}" data-pozo="${escapeHtml(item.pozo_name)}">
             <span class="pozo-status-dot ${item.has_records ? 'active' : 'inactive'}"></span>
-            <span class="pozo-option-name">${item.pozo_name}</span>
+            <span class="pozo-option-name">${escapeHtml(item.pozo_name)}</span>
             <span class="pozo-option-state ${item.has_records ? 'active' : 'inactive'}">${item.has_records ? 'Con registros' : 'Sin registros'}</span>
         </button>
     `).join('');
@@ -187,13 +200,38 @@ function getExpandedAxisConfig(baseConfig, series) {
     let max = baseConfig.max;
 
     if (bounds) {
-        if (bounds.min < min) {
-            min = roundDownToStep(bounds.min, baseConfig.step);
+        // Si hay datos, ajustamos min/max en torno a los bounds.
+        // Usar un paso dinámico cuando el rango real es mucho más pequeño
+        const rawMin = bounds.min;
+        const rawMax = bounds.max;
+        const rawSpan = rawMax - rawMin;
+
+        let step = baseConfig.step;
+        if (Number.isFinite(rawSpan) && rawSpan > 0) {
+            // Si el span es pequeño comparado con el step base, generar un step más fino
+            if (rawSpan < baseConfig.step * 1.5) {
+                // Queremos ~4 ticks dentro del rango real
+                step = Math.max(1, Math.ceil(rawSpan / 4));
+            }
         }
 
-        if (bounds.max > max) {
-            max = roundUpToStep(bounds.max, baseConfig.step);
+        if (rawMin < min) {
+            min = roundDownToStep(rawMin, step);
+        } else {
+            min = roundDownToStep(rawMin, step);
         }
+
+        if (rawMax > max) {
+            max = roundUpToStep(rawMax, step);
+        } else {
+            max = roundUpToStep(rawMax, step);
+        }
+
+        // Añadir un padding relativo para que las líneas no queden pegadas al borde
+        const span = Math.max(1, max - min);
+        const pad = Math.max(step, Math.ceil(span * 0.08));
+        min = Math.max(0, min - pad);
+        max = max + pad;
     }
 
     if (max <= min) {
@@ -203,7 +241,7 @@ function getExpandedAxisConfig(baseConfig, series) {
     return {
         min,
         max,
-        tickAmount: Math.max(2, Math.round((max - min) / baseConfig.step)),
+        tickAmount: Math.max(2, Math.round((max - min) / Math.max(1, baseConfig.step))),
         forceNiceScale: true
     };
 }
@@ -300,9 +338,9 @@ function renderHistoricalRecordMenu() {
 
     menu.innerHTML = historicalRecordOptions
         .map(option => `
-            <button type="button" class="historical-record-option ${option.value === getSelectedHistoricalRecordValue() ? 'active' : ''}" data-value="${option.value}">
-                <span class="historical-record-option-date">${option.date}</span>
-                <span class="historical-record-option-time">${option.time}</span>
+            <button type="button" class="historical-record-option ${option.value === getSelectedHistoricalRecordValue() ? 'active' : ''}" data-value="${escapeHtml(option.value)}">
+                <span class="historical-record-option-date">${escapeHtml(option.date)}</span>
+                <span class="historical-record-option-time">${escapeHtml(option.time)}</span>
             </button>
         `)
         .join('');
@@ -470,7 +508,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             pozos.sort().forEach(pozo => {
                 const label = document.createElement('label');
                 label.className = 'checkbox-item';
-                label.innerHTML = `<input type="checkbox" name="compare-pozo" value="${pozo}"> ${pozo}`;
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = 'compare-pozo';
+                checkbox.value = pozo;
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(` ${pozo}`));
                 comparePanel.appendChild(label);
             });
         }
@@ -603,6 +646,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (trendWindowBtn) {
         trendWindowBtn.addEventListener('click', () => {
             isLatestSevenTrendMode = !isLatestSevenTrendMode;
+            // Persistir la preferencia en la sesión para que dure hasta cerrar sesión.
+            sessionStorage.setItem('uv-latest-trend-mode', isLatestSevenTrendMode ? '1' : '0');
             trendWindowBtn.classList.toggle('active', isLatestSevenTrendMode);
             trendWindowBtn.setAttribute('aria-pressed', String(isLatestSevenTrendMode));
             trendWindowBtn.textContent = isLatestSevenTrendMode
@@ -610,6 +655,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : `Ver ultimos ${FOCUSED_TREND_RECORD_COUNT} registros`;
             updateDashboard();
         });
+        // Inicializar el estado del botón según la preferencia/restauración
+        trendWindowBtn.classList.toggle('active', isLatestSevenTrendMode);
+        trendWindowBtn.setAttribute('aria-pressed', String(isLatestSevenTrendMode));
+        trendWindowBtn.textContent = isLatestSevenTrendMode
+            ? 'Volver a vista normal'
+            : `Ver ultimos ${FOCUSED_TREND_RECORD_COUNT} registros`;
     }
 
     // Activa o desactiva la comparacion simultanea entre pozos.
@@ -938,6 +989,7 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
     const trendBounds = getTrendWindowBounds(scopedTimeline, latestRecordsOnly, latestRecordCount);
     const pozosPresentes = [...new Set(scopedTimeline.map(d => d.pozo_name))];
     const isComparison = pozosPresentes.length > 1;
+    const useCompressedTrendAxis = latestRecordsOnly && !isComparison;
 
     // Paleta principal de colores para tendencias y comparaciones.
     const REPSOL_ORANGE = '#FF8200';
@@ -948,22 +1000,24 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
 
     const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
 
-    const formatTrendAxisLabel = (value) => {
+    const formatTrendPointLabel = (value, includeYear = false, includeTime = true) => {
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return '';
 
-        return latestRecordsOnly
-            ? date.toLocaleString('es-ES', {
-                day: '2-digit',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit'
-            })
-            : date.toLocaleDateString('es-ES', {
-                day: '2-digit',
-                month: 'short'
-            });
+        const opts = {
+            day: '2-digit',
+            month: 'short',
+            ...(includeYear ? { year: 'numeric' } : {})
+        };
+
+        if (includeTime) {
+            opts.hour = '2-digit';
+            opts.minute = '2-digit';
+        }
+
+        return date.toLocaleString('es-ES', opts);
     };
+
 
     // Genera la base comun de opciones para no repetir configuracion por grafica.
     const getBaseOptions = (title, color, unit, axisBase) => ({
@@ -973,10 +1027,15 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             toolbar: { show: true },
             zoom: { enabled: true },
             animations: { enabled: true, easing: 'easeinout', speed: 800 },
-            background: 'transparent'
+            background: 'transparent',
         },
         theme: { mode: effectiveMode },
-        stroke: { curve: latestRecordsOnly ? 'straight' : 'smooth', width: 2, connectNulls: true },
+        stroke: { curve: latestRecordsOnly ? 'straight' : 'smooth', width: 4, connectNulls: true },
+        markers: {
+            size: latestRecordsOnly ? 3 : 5,
+            strokeWidth: 0,
+            hover: { size: latestRecordsOnly ? 5 : 8 }
+        },
         fill: {
             type: 'gradient',
             gradient: {
@@ -986,12 +1045,6 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
                 stops: [0, 90, 100]
             }
         },
-        markers: {
-            size: latestRecordsOnly ? 5 : 4,
-            strokeWidth: 2,
-            strokeColors: effectiveMode === 'dark' ? '#0F172A' : '#fff',
-            hover: { size: 6 }
-        },
         grid: {
             borderColor: effectiveMode === 'dark' ? '#1E293B' : '#F1F5F9',
             strokeDashArray: 4,
@@ -999,52 +1052,102 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             yaxis: { lines: { show: true } }
         },
         xaxis: {
-            type: 'datetime',
-            min: trendBounds?.min,
-            max: trendBounds?.max,
-            labels: { 
+            type: useCompressedTrendAxis ? 'category' : 'datetime',
+            min: useCompressedTrendAxis ? undefined : trendBounds?.min,
+            max: useCompressedTrendAxis ? undefined : trendBounds?.max,
+            ...(useCompressedTrendAxis
+                ? { categories: scopedTimeline.map(d => {
+                    const fecha = d?.fecha;
+                    const hora = d?.hora || '00:00:00';
+                    if (!fecha) return '';
+                    const ts = new Date(`${fecha}T${hora}`).getTime();
+                    return Number.isFinite(ts) ? formatTrendPointLabel(ts) : '';
+                }) } // Fechas legibles (día/mes hora) en compacta
+                : {}),
+            labels: {
                 datetimeUTC: false,
                 style: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', fontSize: '11px', fontWeight: 600 },
-                formatter: formatTrendAxisLabel,
-                rotate: latestRecordsOnly ? -20 : 0,
-                hideOverlappingLabels: true,
+                formatter: useCompressedTrendAxis
+                    ? (value) => String(value) // Mostrar la categoría (fecha formateada) tal cual en compacta
+                    : (value) => {
+                        const date = new Date(value);
+                        if (Number.isNaN(date.getTime())) return '';
+                        return date.toLocaleString('es-ES', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    },
+                rotate: useCompressedTrendAxis ? -45 : (latestRecordsOnly ? -20 : 0),
+                hideOverlappingLabels: useCompressedTrendAxis ? false : true,
                 showDuplicates: false
             }
         },
-        yaxis: {
-            title: { text: title, style: { color: effectiveMode === 'dark' ? '#E2E8F0' : '#475569', fontWeight: 700 } },
-            ...getExpandedAxisConfig(axisBase, []),
-            labels: { 
-                style: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', fontWeight: 600 },
-                formatter: (v) => v === null || v === undefined ? v : `${Number(v).toFixed(axisBase.decimals)} ${unit}`
-            }
-        },
-        colors: Array.isArray(color) ? color : [color, REPSOL_RED, TECH_BLUE, TECH_CYAN, TECH_PURPLE],
-        tooltip: {
-            theme: effectiveMode,
-            x: {
-                formatter: (value) => {
-                    const date = new Date(value);
-                    if (Number.isNaN(date.getTime())) return '';
+        colors: Array.isArray(color) ? color : [color],
+        dataLabels: (() => {
+            // Pre-calcula colores de texto para cada serie según contraste con su color de fondo
+            const cfgColors = Array.isArray(color) ? color : [color];
+            const textColors = cfgColors.map(col => {
+                const hex = (String(col || '#000')).replace('#', '').slice(0, 6).padEnd(6, '0');
+                const r = parseInt(hex.substring(0, 2), 16) || 0;
+                const g = parseInt(hex.substring(2, 4), 16) || 0;
+                const b = parseInt(hex.substring(4, 6), 16) || 0;
+                const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+                return luminance > 0.6 ? '#0F172A' : '#fff';
+            });
 
-                    return date.toLocaleString('es-ES', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
+            return {
+                enabled: true,
+                offsetY: -8,
+                style: {
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    colors: [effectiveMode === 'dark' ? '#0F172A' : '#fff']
+                },
+                background: {
+                    enabled: true,
+                    foreColor: effectiveMode === 'dark' ? '#0F172A' : '#334155',
+                    borderRadius: 6,
+                    padding: 6,
+                    opacity: 1,
+                    borderWidth: 0,
+                    borderColor: 'transparent'
+                },
+                formatter: (_value, opts) => {
+                    const point = opts?.w?.config?.series?.[opts.seriesIndex]?.data?.[opts.dataPointIndex];
+                    if (!point) return '';
+                    const decimals = axisBase?.decimals ?? 0;
+                    if (typeof point.y === 'number') return Number(point.y).toFixed(decimals);
+                    return '';
                 }
-            }
-        }
+            };
+        })()
     });
 
     const makeSeries = (nameSuffix, field, pozo) => ({
         name: isComparison ? `${pozo} (${nameSuffix})` : nameSuffix,
-        data: scopedTimeline.filter(d => d.pozo_name === pozo).map(d => ({
-            x: new Date(`${d.fecha}T${d.hora}`).getTime(),
-            y: d[field] !== null ? Number(d[field]) : null
-        }))
+        data: scopedTimeline
+            .filter(d => d.pozo_name === pozo)
+            .map(d => {
+                const rawValue = d[field];
+                const numericValue = rawValue !== null && rawValue !== undefined && rawValue !== ''
+                    ? Number(rawValue)
+                    : null;
+
+                if (useCompressedTrendAxis && !Number.isFinite(numericValue)) {
+                    return null;
+                }
+
+                return {
+                    x: useCompressedTrendAxis
+                        ? formatTrendPointLabel(new Date(`${d.fecha}T${d.hora}`).getTime())
+                        : new Date(`${d.fecha}T${d.hora}`).getTime(),
+                    y: Number.isFinite(numericValue) ? numericValue : null
+                };
+            })
+            .filter(Boolean)
     });
 
     // 1. FRECUENCIA
@@ -1174,8 +1277,8 @@ function renderObservations(data) {
         if (record.observaciones) {
             const tr = document.createElement('tr');
             tr.innerHTML = `<td style="padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-body);">
-                <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">${record.pozo_name} - ${record.fecha} ${record.hora}</span>
-                ${record.observaciones}
+                <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">${escapeHtml(record.pozo_name)} - ${escapeHtml(record.fecha)} ${escapeHtml(record.hora)}</span>
+                ${escapeHtml(record.observaciones)}
             </td>`;
             tbody.appendChild(tr);
         }

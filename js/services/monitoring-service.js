@@ -11,8 +11,8 @@ async function ensureWriteAccess() {
     const session = await getSession();
     const accessProfile = getAccessProfile(session);
 
-    if (accessProfile.isReadOnly) {
-        throw new Error('Tu usuario tiene acceso de solo lectura. Esta acción no está permitida.');
+    if (!accessProfile.canEditData) {
+        throw new Error('Tu usuario no tiene permisos para modificar información técnica.');
     }
 }
 
@@ -245,6 +245,69 @@ export async function syncMonitoringRecords(records = []) {
         inserted: recordsToInsert.length,
         updated: recordsToUpdate.length,
         total: dedupedRecords.length
+    };
+}
+
+export async function previewMonitoringSync(records = []) {
+    await ensureWriteAccess();
+    const normalizedRecords = (Array.isArray(records) ? records : [])
+        .filter(record => record?.pozo_name && record?.fecha)
+        .map(record => ({
+            ...record,
+            pozo_name: String(record.pozo_name).trim(),
+            hora: String(record.hora || '00:00:00').trim() || '00:00:00'
+        }));
+
+    if (normalizedRecords.length === 0) {
+        return { inserted: 0, updated: 0, total: 0, recordsToInsert: [], recordsToUpdate: [] };
+    }
+
+    const uniqueIncomingRecords = new Map();
+    normalizedRecords.forEach(record => {
+        uniqueIncomingRecords.set(buildMonitoringRecordKey(record), record);
+    });
+
+    const dedupedRecords = [...uniqueIncomingRecords.values()];
+    const pozoNames = [...new Set(dedupedRecords.map(record => record.pozo_name))];
+    const fechas = dedupedRecords.map(record => record.fecha).filter(Boolean).sort();
+
+    let existingQuery = supabase
+        .from('monitoreo_pozos')
+        .select('id, pozo_name, fecha, hora')
+        .in('pozo_name', pozoNames);
+
+    if (fechas[0]) existingQuery = existingQuery.gte('fecha', fechas[0]);
+    if (fechas[fechas.length - 1]) existingQuery = existingQuery.lte('fecha', fechas[fechas.length - 1]);
+
+    const { data: existingRecords, error: existingError } = await existingQuery;
+    if (existingError) throw existingError;
+
+    const existingByKey = new Map();
+    (existingRecords || []).forEach(record => {
+        const key = buildMonitoringRecordKey(record);
+        if (!existingByKey.has(key)) {
+            existingByKey.set(key, record.id);
+        }
+    });
+
+    const recordsToInsert = [];
+    const recordsToUpdate = [];
+
+    dedupedRecords.forEach(record => {
+        const existingId = existingByKey.get(buildMonitoringRecordKey(record));
+        if (existingId) {
+            recordsToUpdate.push({ id: existingId, record });
+        } else {
+            recordsToInsert.push(record);
+        }
+    });
+
+    return {
+        inserted: recordsToInsert.length,
+        updated: recordsToUpdate.length,
+        total: dedupedRecords.length,
+        recordsToInsert,
+        recordsToUpdate
     };
 }
 
@@ -583,6 +646,75 @@ export async function syncTechnicalMeasurements(records = []) {
             inserted: recordsToInsert.length,
             updated: recordsToUpdate.length,
             total: dedupedRecords.length
+        };
+    } catch (error) {
+        throw wrapTechnicalHistoryError(error);
+    }
+}
+
+export async function previewTechnicalMeasurements(records = []) {
+    await ensureWriteAccess();
+    const normalizedRecords = (Array.isArray(records) ? records : [])
+        .filter(record => record?.pozo_name && record?.fecha)
+        .map(record => ({
+            pozo_name: String(record.pozo_name).trim(),
+            campo_name: String(record.campo_name || '').trim(),
+            ef: String(record.ef || '').trim(),
+            fecha: record.fecha,
+            bbpd: record.bbpd ?? 0,
+            ays_percentage: record.ays_percentage ?? 0,
+            bnpd: record.bnpd ?? 0,
+            cat_number: record.cat_number ?? 1
+        }));
+
+    if (normalizedRecords.length === 0) {
+        return { inserted: 0, updated: 0, total: 0, recordsToInsert: [], recordsToUpdate: [] };
+    }
+
+    const uniqueIncomingRecords = new Map();
+    normalizedRecords.forEach(record => {
+        uniqueIncomingRecords.set(buildTechnicalRecordKey(record), record);
+    });
+
+    const dedupedRecords = [...uniqueIncomingRecords.values()];
+    const pozoNames = [...new Set(dedupedRecords.map(record => record.pozo_name))];
+    const fechas = dedupedRecords.map(record => record.fecha).filter(Boolean).sort();
+
+    try {
+        let existingQuery = supabase
+            .from('well_production_history')
+            .select('id, pozo_name, fecha')
+            .in('pozo_name', pozoNames);
+
+        if (fechas[0]) existingQuery = existingQuery.gte('fecha', fechas[0]);
+        if (fechas[fechas.length - 1]) existingQuery = existingQuery.lte('fecha', fechas[fechas.length - 1]);
+
+        const { data: existingRecords, error: existingError } = await existingQuery;
+        if (existingError) throw existingError;
+
+        const existingByKey = new Map();
+        (existingRecords || []).forEach(record => {
+            existingByKey.set(buildTechnicalRecordKey(record), record.id);
+        });
+
+        const recordsToInsert = [];
+        const recordsToUpdate = [];
+
+        dedupedRecords.forEach(record => {
+            const existingId = existingByKey.get(buildTechnicalRecordKey(record));
+            if (existingId) {
+                recordsToUpdate.push({ id: existingId, record });
+            } else {
+                recordsToInsert.push(record);
+            }
+        });
+
+        return {
+            inserted: recordsToInsert.length,
+            updated: recordsToUpdate.length,
+            total: dedupedRecords.length,
+            recordsToInsert,
+            recordsToUpdate
         };
     } catch (error) {
         throw wrapTechnicalHistoryError(error);
