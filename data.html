@@ -190,9 +190,10 @@
                             <tr>
                                 <th>Fecha/Hora</th>
                                 <th>Frecuencia</th>
+                                <th>Giro</th>
                                 <th>Corriente M.</th>
                                 <th>PIP / TM</th>
-                                <th>Presiones (THP/CHP)</th>
+                                <th>Presiones (THP/CHP/LF)</th>
                                 <th>VSD A/B/C</th>
                                 <th>Estatus</th>
                                 <th style="text-align: right;">Acciones</th>
@@ -468,12 +469,13 @@
                 <tr>
                     <th>Fecha/Hora</th>
                     <th>Frecuencia</th>
+                    <th>Giro</th>
                     <th>Corriente M.</th>
                     <th>PIP / TM</th>
-                    <th>Presiones (THP/CHP)</th>
+                    <th>Presiones (THP/CHP/LF)</th>
                     <th>VSD A/B/C</th>
                     <th>Estatus</th>
-                    ${currentAccessProfile.canEditData ? '<th style="text-align: right;">Acciones</th>' : ''}
+                    ${currentAccessProfile.canEditData ? '<th style="text-align: right;">Acciones</th>' : '<th style="text-align: right;"></th>'}
                 </tr>
             `;
         }
@@ -626,7 +628,7 @@
             document.getElementById('table-title').textContent = activeHistoryMode === 'technical'
                 ? `Historial de Medición Técnica: ${pozo}`
                 : `Historial Operativo: ${pozo}`;
-            document.getElementById('history-body').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px;">Cargando datos...</td></tr>';
+            document.getElementById('history-body').innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px;">Cargando datos...</td></tr>';
 
             await updateSelectedPozoProfile(pozo);
 
@@ -790,8 +792,11 @@
                 return escapeHtml(value === undefined || value === null || value === '' ? fallback : value);
             };
 
+            // DEBUG: mostrar muestra de registros en consola para verificar campos
+            try { console.debug('DEBUG renderTable sample', currentRecordData.slice(0,3)); } catch(e) {}
+
             if (currentRecordData.length === 0) {
-                const emptyColumns = activeHistoryMode === 'technical' ? 4 : 8;
+                const emptyColumns = activeHistoryMode === 'technical' ? 4 : 9;
                 tbody.innerHTML = `<tr><td colspan="${emptyColumns}" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay registros históricos</td></tr>`;
                 return;
             }
@@ -876,15 +881,16 @@
                 tr.innerHTML = `
                     <td><b>${formatTextCell(record.fecha)}</b> <br> <span style="font-size:0.75rem; color:#64748B;">${formatTextCell(record.hora)}</span></td>
                     <td><b>${formatNumberCell(record.frecuencia)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Hz</span></td>
+                    <td><b>${formatTextCell(record.sentido_giro ?? record.giro, '--')}</b></td>
                     <td><b>${formatNumberCell(record.corriente_motor)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Amp</span></td>
                     <td><b>${formatTextCell(record.pip)}</b> <span style="color:#9CA3AF; font-size:0.7rem;">PSI</span> <br> <span style="color:#EF4444;">${formatTextCell(record.tm)}°F</span></td>
-                    <td><span style="color:#2563EB;">T: ${formatTextCell(record.presion_thp)}</span> / <span style="color:#06B6D4;">C: ${formatTextCell(record.presion_chp)}</span></td>
+                    <td><span style="color:#2563EB;">T: ${formatTextCell(record.presion_thp)}</span> / <span style="color:#06B6D4;">C: ${formatTextCell(record.presion_chp)}</span> <br> <span style="color:#F59E0B;">LF: ${formatTextCell(record.presion_lf ?? record.lf, '--')}</span></td>
                     <td style="font-family: monospace;">${formatTextCell(record.vsd_a)} / ${formatTextCell(record.vsd_b, '0')} / ${formatTextCell(record.vsd_c, '0')}</td>
                     <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}; font-weight: 800;">${record.estatus}</span></td>
-                    ${currentAccessProfile.canEditData ? `<td style="text-align: right;">
-                        <button class="btn-action btn-edit" data-id="${escapeHtml(recordId)}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
-                        <button class="btn-action btn-delete" data-id="${escapeHtml(recordId)}">Borrar</button>
-                    </td>` : ''}
+                    <td style="text-align: right;">
+                        ${currentAccessProfile.canEditData ? `<button class="btn-action btn-edit" data-id="${escapeHtml(recordId)}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
+                        <button class="btn-action btn-delete" data-id="${escapeHtml(recordId)}">Borrar</button>` : ''}
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
