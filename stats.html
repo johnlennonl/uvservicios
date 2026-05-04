@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UV Servicios | Estadísticas de Monitoreo</title>
+    <meta name="description" content="Estadísticas administrativas de monitoreo por pozo y rango de fechas.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard-page.css">
+    <link rel="stylesheet" href="css/stats-page.css">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+<body class="view-mode-standard">
+    <div class="dashboard-layout">
+        <!-- Sidebar (copiado del dashboard) -->
+        <aside class="sidebar">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
+            <nav>
+                <a href="dashboard.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="dashboard-data.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    Gestión
+                </a>
+                <a href="data.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                    Data
+                </a>
+                <a href="stats.html" class="nav-link active">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 3v18M4 10h14M4 6h6" />
+                    </svg>
+                    Estadísticas
+                </a>
+            </nav>
+            <button id="logout-btn" class="nav-link">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Salir
+            </button>
+        </aside>
+
+        <main class="main-container">
+            <header class="page-hero">
+                <div class="page-hero-copy">
+                    <h1>Estadísticas de Monitoreo</h1>
+                    <p style="color: #64748B;">Filtra por rango de fechas para ver a qué pozos se les hizo monitoreo, cuáles tienen más visitas y cómo se distribuye la actividad diaria.</p>
+                </div>
+            </header>
+
+            <section class="content-section" style="padding: 18px 0;">
+                <div class="stats-header">
+                    <div class="stats-filter-panel">
+                    <form id="stats-filter-form" class="filter-section">
+                        <div class="filter-item stats-filter-item-date">
+                            <label>
+                                <span>Fecha inicio</span>
+                                <input type="date" id="stats-start" name="start" required>
+                            </label>
+                        </div>
+                        <div class="filter-item stats-filter-item-date">
+                            <label>
+                                <span>Fecha fin</span>
+                                <input type="date" id="stats-end" name="end" required>
+                            </label>
+                        </div>
+                        <div class="filter-item">
+                            <label>
+                                <span>Pozos (opcional)</span>
+                            </label>
+                            <div id="stats-wells-container" class="multi-select" data-placeholder="Selecciona pozo(s)...">
+                                <div class="ms-chips" id="ms-chips"></div>
+                                <input type="text" id="ms-input" class="ms-input" placeholder="Selecciona pozo(s)..." autocomplete="off">
+                                <div class="ms-dropdown" id="ms-dropdown" hidden></div>
+                            </div>
+                        </div>
+                        <div class="filter-item stats-filter-item-action">
+                            <button id="btn-generate-stats" class="stats-generate-btn" type="submit">
+                                <span>Generar</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M5 12h14"></path>
+                                    <path d="M13 6l6 6-6 6"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
+                    </div>
+                </div>
+
+                <div id="kpis" class="stats-kpi-row"></div>
+                <pre id="stats-debug" style="display:none; white-space:pre-wrap; background:#fff; border:1px solid #eee; padding:12px; margin-top:12px; border-radius:8px; max-height:220px; overflow:auto;"></pre>
+
+                <div class="stats-grid">
+                    <div class="stats-card">
+                        <h3>Top Pozos por Monitoreos</h3>
+                        <p class="stats-card-subtitle">Ranking de los pozos con mayor frecuencia de monitoreo dentro del rango seleccionado.</p>
+                        <div id="top-wells"></div>
+                    </div>
+                    <div class="stats-card">
+                        <h3>Monitoreos por Día</h3>
+                        <p class="stats-card-subtitle">Distribución diaria de la actividad para detectar picos o caídas de seguimiento operativo.</p>
+                        <div id="visits-chart" class="chart-frame"></div>
+                        <div id="chart-insights" class="chart-insights-panel">
+                            <div class="empty-panel compact">
+                                <strong>Genera un rango para ver insights</strong>
+                                <span>Aquí aparecerán el día más activo, el promedio diario y la última actividad registrada.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-admin-grid">
+                    <div class="stats-card">
+                        <h3>Cobertura del Rango</h3>
+                        <p class="stats-card-subtitle">Qué parte del universo consultado sí recibió monitoreo y cuántos pozos quedaron sin actividad.</p>
+                        <div id="coverage-panel">
+                            <div class="empty-panel compact">
+                                <strong>Genera un rango para medir cobertura</strong>
+                                <span>Aquí verás monitoreados, no monitoreados y el porcentaje cubierto.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stats-card">
+                        <h3>Alertas de Seguimiento</h3>
+                        <p class="stats-card-subtitle">Ranking de atraso y pozos que no recibieron visita dentro del período seleccionado.</p>
+                        <div id="alerts-panel">
+                            <div class="empty-panel compact">
+                                <strong>Genera un rango para ver alertas</strong>
+                                <span>Aquí aparecerán los pozos pendientes y los más atrasados.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-card" style="margin-top:22px;">
+                    <h3 class="stats-section-heading">
+                        <span class="stats-title-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                                <path d="M12 3c4.5 0 8 1.7 8 4s-3.5 4-8 4-8-1.7-8-4 3.5-4 8-4Z"></path>
+                                <path d="M4 7v5c0 2.3 3.5 4 8 4s8-1.7 8-4V7"></path>
+                                <path d="M4 12v5c0 2.3 3.5 4 8 4s8-1.7 8-4v-5"></path>
+                            </svg>
+                        </span>
+                        <span>Pozos Monitoreados en el Rango</span>
+                    </h3>
+                    <p class="stats-card-subtitle">Resumen consolidado por pozo con cantidad de monitoreos y última actividad registrada.</p>
+                    <div id="time-table"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+    import { getMonitoringData } from './js/services/monitoring-service.js';
+    import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './js/auth.js';
+    import { getUniquePozos } from './js/services/monitoring-service.js';
+
+    function formatDateLabel(value) {
+        if (!value) return '--';
+        const date = new Date(`${value}T00:00:00`);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('es-CO');
+    }
+
+    function formatHourLabel(value) {
+        return String(value || '--').slice(0, 5) || '--';
+    }
+
+    function formatDateTimeLabel(dateValue, hourValue) {
+        const dateLabel = formatDateLabel(dateValue);
+        const hourLabel = formatHourLabel(hourValue);
+        return `${dateLabel} · ${hourLabel}`;
+    }
+
+    function normalizeMonitoringRows(rows = []) {
+        return (rows || []).map(r => ({
+            ...r,
+            pozo_name: String(r.pozo_name || '').trim().toUpperCase(),
+            fecha: String(r.fecha || '').trim(),
+            hora: String(r.hora || '00:00:00').trim() || '00:00:00'
+        }));
+    }
+
+    function shiftIsoDate(value, days) {
+        const date = new Date(`${value}T00:00:00`);
+        if (Number.isNaN(date.getTime())) return value;
+        date.setDate(date.getDate() + days);
+        return date.toISOString().slice(0, 10);
+    }
+
+    function getInclusiveRangeDays(startValue, endValue) {
+        const start = new Date(`${startValue}T00:00:00`);
+        const end = new Date(`${endValue}T00:00:00`);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 1;
+        return Math.max(1, Math.round((end - start) / 86400000) + 1);
+    }
+
+    function diffDaysFrom(dateValue, endValue) {
+        const date = new Date(`${dateValue}T00:00:00`);
+        const end = new Date(`${endValue}T00:00:00`);
+        if (Number.isNaN(date.getTime()) || Number.isNaN(end.getTime())) return 0;
+        return Math.max(0, Math.round((end - date) / 86400000));
+    }
+
+    function formatVariation(currentValue, previousValue) {
+        if (!previousValue && !currentValue) {
+            return { label: '0%', tone: 'neutral', meta: 'Sin movimiento en ambos períodos.' };
+        }
+
+        if (!previousValue && currentValue > 0) {
+            return { label: 'Nuevo', tone: 'positive', meta: 'El rango anterior no registró monitoreos.' };
+        }
+
+        const change = ((currentValue - previousValue) / previousValue) * 100;
+        return {
+            label: `${change > 0 ? '+' : ''}${change.toFixed(1)}%`,
+            tone: change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral',
+            meta: `${currentValue - previousValue >= 0 ? '+' : ''}${currentValue - previousValue} monitoreos vs período anterior.`
+        };
+    }
+
+    async function initWellsMultiselect({ containerId }) {
+        const container = document.getElementById(containerId);
+        const chips = document.getElementById('ms-chips');
+        const input = document.getElementById('ms-input');
+        const dropdown = document.getElementById('ms-dropdown');
+        const allWells = (await getUniquePozos())
+            .map(item => String(item || '').trim().toUpperCase())
+            .filter(Boolean)
+            .sort();
+        const selected = new Set();
+
+        function renderChips() {
+            chips.innerHTML = [...selected].map(well => `
+                <span class="ms-chip">
+                    <span>${well}</span>
+                    <button type="button" data-remove-well="${well}" aria-label="Quitar ${well}">x</button>
+                </span>
+            `).join('');
+
+            chips.querySelectorAll('[data-remove-well]').forEach(button => {
+                button.addEventListener('click', () => {
+                    selected.delete(button.dataset.removeWell);
+                    renderChips();
+                    renderOptions(input.value);
+                });
+            });
+        }
+
+        function renderOptions(query = '') {
+            const normalizedQuery = String(query || '').trim().toUpperCase();
+            const filtered = allWells
+                .filter(well => !selected.has(well))
+                .filter(well => !normalizedQuery || well.includes(normalizedQuery));
+
+            dropdown.hidden = false;
+
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div class="ms-empty">No hay pozos para esa búsqueda.</div>';
+                return;
+            }
+
+            dropdown.innerHTML = filtered.map(well => `<button type="button" class="ms-option" data-well="${well}">${well}</button>`).join('');
+            dropdown.querySelectorAll('[data-well]').forEach(button => {
+                button.addEventListener('click', () => {
+                    selected.add(button.dataset.well);
+                    input.value = '';
+                    renderChips();
+                    renderOptions('');
+                    input.focus();
+                });
+            });
+        }
+
+        input.addEventListener('focus', () => renderOptions(input.value));
+        input.addEventListener('input', () => renderOptions(input.value));
+
+        document.addEventListener('click', event => {
+            if (!container.contains(event.target)) {
+                dropdown.hidden = true;
+            }
+        });
+
+        renderChips();
+        renderOptions('');
+        dropdown.hidden = true;
+
+        return {
+            getSelected() {
+                return [...selected];
+            },
+            getAvailable() {
+                return [...allWells];
+            }
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const session = await getSession();
+        if (!session) { window.location.href = 'index.html'; return; }
+        const accessProfile = getAccessProfile(session);
+        if (!accessProfile.canViewManagement) {
+            window.location.href = getDefaultRouteForAccessProfile(accessProfile);
+            return;
+        }
+
+        const today = new Date();
+        const endInput = document.getElementById('stats-end');
+        const startInput = document.getElementById('stats-start');
+        endInput.value = today.toISOString().slice(0, 10);
+        const startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - 30);
+        startInput.value = startDate.toISOString().slice(0, 10);
+
+        document.getElementById('logout-btn').addEventListener('click', logout);
+
+        let wellsPicker = null;
+        try {
+            wellsPicker = await initWellsMultiselect({ containerId: 'stats-wells-container' });
+        } catch (err) {
+            console.error('Error inicializando selector de pozos:', err);
+            const container = document.getElementById('stats-wells-container');
+            if (container) container.innerHTML = '<div class="ms-empty">Error iniciando selector de pozos</div>';
+            const kpis = document.getElementById('kpis');
+            if (kpis) kpis.innerHTML = `<div class="stats-kpi-card" style="background:#FFEDED; border-color:#FCA5A5;"><strong>Error</strong><div class="kpi-value" style="font-size:1rem;color:#B91C1C">No fue posible inicializar el selector de pozos.</div></div>`;
+        }
+
+        document.getElementById('stats-filter-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const start = document.getElementById('stats-start').value;
+            const end = document.getElementById('stats-end').value;
+            const wells = (wellsPicker && typeof wellsPicker.getSelected === 'function') ? wellsPicker.getSelected() : [];
+            if (!start || !end) { alert('Selecciona fechas de inicio y fin.'); return; }
+
+            try {
+                document.getElementById('kpis').innerHTML = 'Cargando...';
+                document.getElementById('coverage-panel').innerHTML = '<div class="empty-panel compact"><strong>Cargando cobertura</strong><span>Analizando el universo de pozos consultado.</span></div>';
+                document.getElementById('alerts-panel').innerHTML = '<div class="empty-panel compact"><strong>Cargando alertas</strong><span>Calculando pozos pendientes y atraso de visitas.</span></div>';
+                console.debug('[stats] solicitando filas', { start, end, wells });
+                const selectedWells = wells.length > 0 ? wells : [];
+                const availableWells = wellsPicker && typeof wellsPicker.getAvailable === 'function'
+                    ? wellsPicker.getAvailable()
+                    : (await getUniquePozos()).map(item => String(item || '').trim().toUpperCase()).filter(Boolean);
+                const scopedWells = selectedWells.length > 0 ? selectedWells : availableWells;
+                const rangeDays = getInclusiveRangeDays(start, end);
+                const previousEnd = shiftIsoDate(start, -1);
+                const previousStart = shiftIsoDate(previousEnd, -(rangeDays - 1));
+
+                let [rows, previousRows, historicalRows] = await Promise.all([
+                    getMonitoringData(selectedWells, start, end),
+                    getMonitoringData(selectedWells, previousStart, previousEnd),
+                    getMonitoringData(selectedWells, null, end)
+                ]);
+                console.debug('[stats] filas recibidas', rows ? rows.length : 0);
+
+                rows = normalizeMonitoringRows(rows);
+                previousRows = normalizeMonitoringRows(previousRows);
+                historicalRows = normalizeMonitoringRows(historicalRows);
+
+                const monitoredSet = new Set(rows.map(r => r.pozo_name));
+                const unmonitoredWells = scopedWells.filter(well => !monitoredSet.has(well));
+                const coveragePercent = scopedWells.length > 0 ? (monitoredSet.size / scopedWells.length) * 100 : 0;
+                const variation = formatVariation(rows.length, previousRows.length);
+                const latestHistoryByWell = historicalRows.reduce((acc, row) => {
+                    const existing = acc[row.pozo_name];
+                    if (!existing || `${row.fecha} ${row.hora}` > `${existing.fecha} ${existing.hora}`) {
+                        acc[row.pozo_name] = row;
+                    }
+                    return acc;
+                }, {});
+                const staleWells = scopedWells
+                    .map(well => {
+                        const latest = latestHistoryByWell[well];
+                        return {
+                            pozo: well,
+                            latestDate: latest?.fecha || null,
+                            latestHour: latest?.hora || '--',
+                            monitoredInRange: monitoredSet.has(well),
+                            daysWithoutVisit: latest?.fecha ? diffDaysFrom(latest.fecha, end) : null
+                        };
+                    })
+                    .sort((left, right) => {
+                        if (left.monitoredInRange !== right.monitoredInRange) {
+                            return left.monitoredInRange ? 1 : -1;
+                        }
+                        return (right.daysWithoutVisit ?? -1) - (left.daysWithoutVisit ?? -1) || left.pozo.localeCompare(right.pozo);
+                    })
+                    .slice(0, 6);
+
+                document.getElementById('coverage-panel').innerHTML = `
+                    <div class="coverage-panel-content">
+                        <div class="coverage-progress-card">
+                            <div class="coverage-progress-head">
+                                <strong>${monitoredSet.size} de ${scopedWells.length || 0} pozos cubiertos</strong>
+                                <span>${coveragePercent.toFixed(1)}% de cobertura</span>
+                            </div>
+                            <div class="coverage-progress-bar"><div class="coverage-progress-fill" style="width:${Math.min(100, coveragePercent)}%"></div></div>
+                            <p class="coverage-progress-note">${unmonitoredWells.length === 0 ? 'Todos los pozos del universo consultado recibieron al menos un monitoreo.' : `${unmonitoredWells.length} pozos quedaron sin actividad en el rango.`}</p>
+                        </div>
+                        <div class="coverage-mini-grid">
+                            <article class="coverage-mini-card success">
+                                <span class="coverage-mini-label">Monitoreados</span>
+                                <strong class="coverage-mini-value">${monitoredSet.size}</strong>
+                                <span class="coverage-mini-meta">Pozos con al menos una visita.</span>
+                            </article>
+                            <article class="coverage-mini-card warning">
+                                <span class="coverage-mini-label">Sin monitoreo</span>
+                                <strong class="coverage-mini-value">${unmonitoredWells.length}</strong>
+                                <span class="coverage-mini-meta">Pendientes dentro del universo filtrado.</span>
+                            </article>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('alerts-panel').innerHTML = `
+                    <div class="alerts-panel-content">
+                        <div class="alerts-summary-strip ${unmonitoredWells.length > 0 ? 'has-pending' : 'is-clear'}">
+                            <strong>${unmonitoredWells.length > 0 ? `${unmonitoredWells.length} pozos sin monitoreo en el rango` : 'Sin pozos pendientes en el rango'}</strong>
+                            <span>${unmonitoredWells.length > 0 ? 'El listado inferior muestra los casos más críticos o sin historial visible.' : 'Todos los pozos del universo filtrado registraron actividad en el período.'}</span>
+                        </div>
+                        <div class="stale-wells-list">
+                            ${staleWells.map(item => `
+                                <article class="stale-well-item ${item.monitoredInRange ? 'is-active' : 'is-stale'}">
+                                    <div class="stale-well-copy">
+                                        <strong>${item.pozo}</strong>
+                                        <span>${item.latestDate ? `Última visita: ${formatDateLabel(item.latestDate)} · ${formatHourLabel(item.latestHour)}` : 'Sin historial previo visible'}</span>
+                                    </div>
+                                    <div class="stale-well-metric">
+                                        <span class="stale-well-days">${item.daysWithoutVisit ?? '--'} días</span>
+                                        <span class="stale-well-state">${item.monitoredInRange ? 'Con actividad en el rango' : 'Sin monitoreo en el rango'}</span>
+                                    </div>
+                                </article>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+
+                if (!rows || rows.length === 0) {
+                    document.getElementById('kpis').innerHTML = `
+                        <div class="stats-kpi-card"><strong>Total monitoreos</strong><div class="kpi-value">0</div></div>
+                        <div class="stats-kpi-card"><strong>Pozos monitoreados</strong><div class="kpi-value">0</div></div>
+                        <div class="stats-kpi-card"><strong>Días con actividad</strong><div class="kpi-value">0</div></div>
+                        <div class="stats-kpi-card"><strong>Promedio diario</strong><div class="kpi-value">0.0</div></div>
+                        <div class="stats-kpi-card stats-kpi-card-${variation.tone}"><strong>Variación vs anterior</strong><div class="kpi-value stats-kpi-text">${variation.label}</div><span class="stats-kpi-meta">${variation.meta}</span></div>
+                        <div class="stats-kpi-card"><strong>Pozo líder</strong><div class="kpi-value stats-kpi-text">--</div></div>
+                        <div class="stats-kpi-card"><strong>Última actividad</strong><div class="kpi-value stats-kpi-text">--</div></div>
+                    `;
+                    document.getElementById('top-wells').innerHTML = '<div class="empty-panel"><strong>Sin monitoreos en este rango</strong><span>Ajusta las fechas o el filtro de pozos para consultar otra ventana.</span></div>';
+                    document.getElementById('visits-chart').innerHTML = '';
+                    document.getElementById('chart-insights').innerHTML = '<div class="empty-panel compact"><strong>Sin insights disponibles</strong><span>No hubo actividad en el rango seleccionado.</span></div>';
+                    document.getElementById('time-table').innerHTML = '<div class="empty-panel"><strong>No hay pozos monitoreados</strong><span>Cuando existan registros en el rango, aquí verás el consolidado por pozo.</span></div>';
+                    return;
+                }
+
+                const totalVisits = rows.length;
+                const uniqueWells = monitoredSet.size;
+                const activeDays = new Set(rows.map(r => r.fecha)).size;
+                const wellCounts = rows.reduce((acc, r) => {
+                    const key = r.pozo_name || '--';
+                    acc[key] = (acc[key] || 0) + 1;
+                    return acc;
+                }, {});
+                const top = Object.entries(wellCounts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+                const maxCount = top[0]?.[1] || 1;
+                const averagePerDay = (totalVisits / Math.max(1, activeDays)).toFixed(1);
+                const latestRecord = rows.slice().sort((left, right) => `${right.fecha} ${right.hora}`.localeCompare(`${left.fecha} ${left.hora}`))[0];
+                const topWellName = top[0]?.[0] || '--';
+
+                document.getElementById('kpis').innerHTML = `
+                    <div class="stats-kpi-card"><strong>Total monitoreos</strong><div class="kpi-value">${totalVisits}</div></div>
+                    <div class="stats-kpi-card"><strong>Pozos monitoreados</strong><div class="kpi-value">${uniqueWells}</div></div>
+                    <div class="stats-kpi-card"><strong>Días con actividad</strong><div class="kpi-value">${activeDays}</div></div>
+                    <div class="stats-kpi-card"><strong>Promedio diario</strong><div class="kpi-value">${averagePerDay}</div></div>
+                    <div class="stats-kpi-card stats-kpi-card-${variation.tone}"><strong>Variación vs anterior</strong><div class="kpi-value stats-kpi-text">${variation.label}</div><span class="stats-kpi-meta">${variation.meta}</span></div>
+                    <div class="stats-kpi-card"><strong>Pozo líder</strong><div class="kpi-value stats-kpi-text">${topWellName}</div></div>
+                    <div class="stats-kpi-card"><strong>Última actividad</strong><div class="kpi-value stats-kpi-text">${formatDateTimeLabel(latestRecord?.fecha, latestRecord?.hora)}</div></div>
+                `;
+
+                document.getElementById('top-wells').innerHTML = `
+                    <div class="top-wells-list">
+                        ${top.map(([wellName, count], index) => {
+                            const percentage = Math.max(8, Math.round((count / maxCount) * 100));
+                            return `
+                                <article class="top-well-item">
+                                    <div class="top-well-row">
+                                        <div class="top-well-meta">
+                                            <span class="top-well-rank">${index + 1}</span>
+                                            <div class="top-well-copy">
+                                                <span class="top-well-name">${wellName}</span>
+                                                <span class="top-well-note">Pozo con actividad registrada en el rango consultado.</span>
+                                            </div>
+                                        </div>
+                                        <span class="top-well-count">${count} monitoreos</span>
+                                    </div>
+                                    <div class="top-well-bar"><div class="top-well-bar-fill" style="width: ${percentage}%"></div></div>
+                                </article>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+                const visitsByDay = {};
+                rows.forEach(r => {
+                    const date = r.fecha;
+                    visitsByDay[date] = (visitsByDay[date] || 0) + 1;
+                });
+                const days = Array.from(new Set(rows.map(r=>r.fecha))).sort();
+                const series = [{ name: 'Monitoreos', data: days.map(d => visitsByDay[d] || 0) }];
+
+                const chartOptions = {
+                    chart: { type: 'bar', height: 260 },
+                    series,
+                    xaxis: { categories: days },
+                    plotOptions: { bar: { horizontal: false, columnWidth: '65%' } },
+                    legend: { position: 'top' }
+                };
+                document.getElementById('visits-chart').innerHTML = '';
+                const chart = new ApexCharts(document.getElementById('visits-chart'), chartOptions);
+                chart.render();
+
+                const orderedDays = Object.entries(visitsByDay).sort((left, right) => left[0].localeCompare(right[0]));
+                const busiestDay = orderedDays.reduce((best, current) => current[1] > best[1] ? current : best, orderedDays[0]);
+
+                document.getElementById('chart-insights').innerHTML = `
+                    <div class="chart-insights-grid">
+                        <article class="chart-insight-card accent">
+                            <span class="chart-insight-label">Día más activo</span>
+                            <strong class="chart-insight-value">${formatDateLabel(busiestDay[0])}</strong>
+                            <span class="chart-insight-meta">${busiestDay[1]} monitoreos en una sola fecha.</span>
+                        </article>
+                        <article class="chart-insight-card">
+                            <span class="chart-insight-label">Promedio diario</span>
+                            <strong class="chart-insight-value">${averagePerDay}</strong>
+                            <span class="chart-insight-meta">Monitoreos promedio por día con actividad.</span>
+                        </article>
+                        <article class="chart-insight-card">
+                            <span class="chart-insight-label">Última actividad</span>
+                            <strong class="chart-insight-value">${latestRecord?.pozo_name || '--'}</strong>
+                            <span class="chart-insight-meta">${formatDateLabel(latestRecord?.fecha)} · ${formatHourLabel(latestRecord?.hora)}</span>
+                        </article>
+                    </div>
+                `;
+
+                const wellsSummary = {};
+                rows.forEach(r => {
+                    const key = r.pozo_name || '--';
+                    if (!wellsSummary[key]) {
+                        wellsSummary[key] = {
+                            pozo: key,
+                            count: 0,
+                            firstDate: r.fecha,
+                            lastDate: r.fecha,
+                            lastHour: r.hora || '--'
+                        };
+                    }
+
+                    wellsSummary[key].count += 1;
+                    if (r.fecha < wellsSummary[key].firstDate) wellsSummary[key].firstDate = r.fecha;
+                    if (r.fecha > wellsSummary[key].lastDate) {
+                        wellsSummary[key].lastDate = r.fecha;
+                        wellsSummary[key].lastHour = r.hora || '--';
+                    }
+                });
+
+                const wellsArray = Object.values(wellsSummary)
+                    .sort((a,b) => b.count - a.count || a.pozo.localeCompare(b.pozo));
+
+                document.getElementById('time-table').innerHTML = `
+                    <div class="stats-table-wrap">
+                        <table class="stats-table stats-table-enhanced">
+                            <thead>
+                                <tr>
+                                    <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3c4.5 0 8 1.7 8 4s-3.5 4-8 4-8-1.7-8-4 3.5-4 8-4Z"></path><path d="M4 7v5c0 2.3 3.5 4 8 4s8-1.7 8-4V7"></path><path d="M4 12v5c0 2.3 3.5 4 8 4s8-1.7 8-4v-5"></path></svg><span>Pozo</span></span></th>
+                                    <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 20V10"></path><path d="M7 20V4"></path><path d="M17 20v-6"></path></svg><span>Monitoreos</span></span></th>
+                                    <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"></rect><path d="M8 2v4"></path><path d="M16 2v4"></path><path d="M3 10h18"></path></svg><span>Primera fecha</span></span></th>
+                                    <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"></rect><path d="M8 2v4"></path><path d="M16 2v4"></path><path d="M3 10h18"></path><path d="m10 15 2 2 4-4"></path></svg><span>Última fecha</span></span></th>
+                                    <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v5l3 2"></path></svg><span>Última hora</span></span></th>
+                                </tr>
+                            </thead>
+                            <tbody>${wellsArray.map(item=>`<tr><td class="stats-pozo-cell">${item.pozo}</td><td><span class="stats-count-badge">${item.count}</span></td><td class="stats-muted-cell"><span class="stats-date-cell">${formatDateLabel(item.firstDate)}</span></td><td class="stats-muted-cell"><span class="stats-date-cell stats-date-cell-latest">${formatDateLabel(item.lastDate)}</span></td><td class="stats-muted-cell"><span class="stats-time-badge">${formatHourLabel(item.lastHour)}</span></td></tr>`).join('')}</tbody>
+                        </table>
+                    </div>
+                `;
+
+            } catch (err) {
+                console.error(err);
+                const kpis = document.getElementById('kpis');
+                if (kpis) kpis.innerHTML = `<div class="stats-kpi-card" style="background:#FFEDED; border-color:#FCA5A5;"><strong>Error</strong><div class="kpi-value" style="font-size:1rem;color:#B91C1C">Error generando estadísticas: ${String(err.message || err)}</div></div>`;
+                document.getElementById('coverage-panel').innerHTML = '<div class="empty-panel compact"><strong>No fue posible calcular cobertura</strong><span>Intenta nuevamente con otro rango.</span></div>';
+                document.getElementById('alerts-panel').innerHTML = '<div class="empty-panel compact"><strong>No fue posible generar alertas</strong><span>Revisa el rango o intenta nuevamente.</span></div>';
+                document.getElementById('top-wells').innerHTML = '';
+                document.getElementById('visits-chart').innerHTML = '';
+                document.getElementById('chart-insights').innerHTML = '<div class="empty-panel compact"><strong>No fue posible generar insights</strong><span>Revisa el rango o intenta nuevamente.</span></div>';
+                document.getElementById('time-table').innerHTML = '';
+            }
+        });
+    });
+    </script>
+</body>
+</html>

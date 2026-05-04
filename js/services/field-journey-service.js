@@ -2,19 +2,33 @@ import { supabase } from '../supabaseClient.js';
 import { getSession } from '../auth.js';
 import { getAccessProfile } from '../core/access-control.js';
 
-async function ensureFieldWriteAccess() {
+async function ensureFieldSessionAccess() {
     const session = await getSession();
     const accessProfile = getAccessProfile(session);
 
     if (!session?.user) {
-        throw new Error('Debes iniciar sesión para guardar la jornada en Supabase.');
+        throw new Error('Debes iniciar sesión para acceder a jornadas de Campo.');
     }
+
+    return { session, accessProfile };
+}
+
+async function ensureFieldWriteAccess() {
+    const { session, accessProfile } = await ensureFieldSessionAccess();
 
     if (!accessProfile.canCreateFieldReports || accessProfile.isReadOnly) {
         throw new Error('Tu usuario no tiene permisos para guardar jornadas de Campo.');
     }
 
     return session;
+}
+
+async function ensureFieldAdminReadAccess() {
+    const { accessProfile } = await ensureFieldSessionAccess();
+
+    if (!accessProfile.canViewManagement) {
+        throw new Error('Tu usuario no tiene permisos para consultar jornadas administrativas.');
+    }
 }
 
 function wrapFieldJourneyError(error) {
@@ -123,6 +137,39 @@ export async function getFieldJourneyHistory(limit = 150) {
         throw wrapFieldJourneyError(error);
     }
 }
+
+export async function getFieldJourneyReportsRange(startDate, endDate, limit = 5000) {
+    await ensureFieldAdminReadAccess();
+
+    let query = supabase
+        .from('field_journey_reports')
+        .select('*')
+        .order('report_date', { ascending: false })
+        .order('report_time', { ascending: false });
+
+    if (startDate) {
+        query = query.gte('report_date', startDate);
+    }
+
+    if (endDate) {
+        query = query.lte('report_date', endDate);
+    }
+
+    const safeLimit = Number(limit);
+    if (Number.isFinite(safeLimit) && safeLimit > 0) {
+        query = query.limit(safeLimit);
+    }
+
+    try {
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
+export const getFieldJourneyReportsRangePublic = getFieldJourneyReportsRange;
 
 export async function deleteFieldJourneyReport(clientReportId) {
     const session = await ensureFieldWriteAccess();

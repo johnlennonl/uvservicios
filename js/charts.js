@@ -56,6 +56,14 @@ function getPozoSummary(pozoName) {
 }
 
 function applyDashboardAccessProfile(accessProfile) {
+    if (!accessProfile?.canViewManagement) {
+        document.querySelectorAll('a[href="stats.html"]').forEach(link => {
+            link.style.display = 'none';
+            link.setAttribute('aria-hidden', 'true');
+            link.tabIndex = -1;
+        });
+    }
+
     if (!accessProfile?.isReadOnly) return;
 
     document.body.classList.add('access-readonly');

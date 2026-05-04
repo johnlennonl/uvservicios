@@ -69,6 +69,15 @@ using (
     or lower(user_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
 );
 
+drop policy if exists "field journey select management" on public.field_journey_reports;
+create policy "field journey select management"
+on public.field_journey_reports
+for select
+to authenticated
+using (
+    public.can_manage_monitoring()
+);
+
 drop policy if exists "field journey insert own" on public.field_journey_reports;
 create policy "field journey insert own"
 on public.field_journey_reports
