@@ -47,6 +47,7 @@ export async function login(email, password) {
 export async function logout() {
     sessionStorage.removeItem('dashboard-visited');
     sessionStorage.removeItem('uv-selected-pozo');
+    sessionStorage.removeItem('uv-stats-monitoring-detail-state');
     localStorage.removeItem('uv-stats-monitoring-state');
     const { error } = await supabase.auth.signOut();
     if (error) console.error('Sign out error:', error);

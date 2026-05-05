@@ -43,7 +43,9 @@
                 </a>
                 <a href="stats.html" class="nav-link active">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 3v18M4 10h14M4 6h6" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 20V10" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 20V4" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 20v-7" />
                     </svg>
                     Estadísticas
                 </a>
@@ -155,6 +157,17 @@
                     </div>
                 </div>
 
+                <div class="stats-card stats-drilldown-card" style="margin-top:22px;">
+                    <h3>Detalle de Monitoreos</h3>
+                    <p class="stats-card-subtitle">Haz clic en una tarjeta, una barra del gráfico o un pozo para abrir el detalle de los monitoreos que construyen ese bloque.</p>
+                    <div id="drilldown-panel">
+                        <div class="empty-panel compact">
+                            <strong>Selecciona un bloque para investigar</strong>
+                            <span>Aquí aparecerá el detalle operativo de los monitoreos asociados al KPI, día o pozo que elijas.</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="stats-card" style="margin-top:22px;">
                     <h3 class="stats-section-heading">
                         <span class="stats-title-icon" aria-hidden="true">
@@ -179,6 +192,7 @@
     import { getUniquePozos } from './js/services/monitoring-service.js';
 
     const STATS_STORAGE_KEY = 'uv-stats-monitoring-state';
+    const STATS_DETAIL_STORAGE_KEY = 'uv-stats-monitoring-detail-state';
 
     function formatDateLabel(value) {
         if (!value) return '--';
@@ -258,9 +272,29 @@
         };
     }
 
+    function sortRowsByMostRecent(rows = []) {
+        return (rows || []).slice().sort((left, right) => `${right.fecha} ${right.hora}`.localeCompare(`${left.fecha} ${left.hora}`));
+    }
+
+    function getLatestRowsByWell(rows = []) {
+        const latestByWell = (rows || []).reduce((acc, row) => {
+            const key = row.pozo_name;
+            if (!key) return acc;
+            const existing = acc[key];
+            if (!existing || `${row.fecha} ${row.hora}` > `${existing.fecha} ${existing.hora}`) {
+                acc[key] = row;
+            }
+            return acc;
+        }, {});
+
+        return sortRowsByMostRecent(Object.values(latestByWell));
+    }
+
     function saveStatsSnapshot(userId, snapshot) {
         try {
-            localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify({ userId, snapshot }));
+            const { rows, previousRows, historicalRows, detailReady, ...persistedSnapshot } = snapshot || {};
+            localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify({ userId, snapshot: { ...persistedSnapshot, detailReady: false } }));
+            sessionStorage.setItem(STATS_DETAIL_STORAGE_KEY, JSON.stringify({ userId, snapshot }));
         } catch (error) {
             console.warn('No fue posible guardar el estado de estadísticas:', error);
         }
@@ -268,6 +302,14 @@
 
     function loadStatsSnapshot(userId) {
         try {
+            const detailRaw = sessionStorage.getItem(STATS_DETAIL_STORAGE_KEY);
+            if (detailRaw) {
+                const detailParsed = JSON.parse(detailRaw);
+                if (detailParsed?.userId === userId && detailParsed?.snapshot) {
+                    return detailParsed.snapshot;
+                }
+            }
+
             const raw = localStorage.getItem(STATS_STORAGE_KEY);
             if (!raw) return null;
             const parsed = JSON.parse(raw);
@@ -281,15 +323,19 @@
 
     function clearStatsSnapshot() {
         localStorage.removeItem(STATS_STORAGE_KEY);
+        sessionStorage.removeItem(STATS_DETAIL_STORAGE_KEY);
     }
 
     function buildStatsSnapshot({ start, end, selectedWells = [], availableWells = [], rows = [], previousRows = [], historicalRows = [] }) {
+        const sortedRows = sortRowsByMostRecent(rows);
+        const sortedPreviousRows = sortRowsByMostRecent(previousRows);
+        const sortedHistoricalRows = sortRowsByMostRecent(historicalRows);
         const scopedWells = selectedWells.length > 0 ? selectedWells : availableWells;
-        const monitoredSet = new Set(rows.map(r => r.pozo_name));
+        const monitoredSet = new Set(sortedRows.map(r => r.pozo_name));
         const unmonitoredWells = scopedWells.filter(well => !monitoredSet.has(well));
         const coveragePercent = scopedWells.length > 0 ? (monitoredSet.size / scopedWells.length) * 100 : 0;
-        const variation = formatVariation(rows.length, previousRows.length);
-        const latestHistoryByWell = historicalRows.reduce((acc, row) => {
+        const variation = formatVariation(sortedRows.length, sortedPreviousRows.length);
+        const latestHistoryByWell = sortedHistoricalRows.reduce((acc, row) => {
             const existing = acc[row.pozo_name];
             if (!existing || `${row.fecha} ${row.hora}` > `${existing.fecha} ${existing.hora}`) {
                 acc[row.pozo_name] = row;
@@ -316,10 +362,10 @@
             })
             .slice(0, 6);
 
-        const totalVisits = rows.length;
+        const totalVisits = sortedRows.length;
         const uniqueWells = monitoredSet.size;
-        const activeDays = new Set(rows.map(r => r.fecha)).size;
-        const wellCounts = rows.reduce((acc, r) => {
+        const activeDays = new Set(sortedRows.map(r => r.fecha)).size;
+        const wellCounts = sortedRows.reduce((acc, r) => {
             const key = r.pozo_name || '--';
             acc[key] = (acc[key] || 0) + 1;
             return acc;
@@ -327,7 +373,7 @@
         const topEntries = Object.entries(wellCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
         const maxCount = topEntries[0]?.[1] || 1;
         const averagePerDay = (totalVisits / Math.max(1, activeDays)).toFixed(1);
-        const latestRecord = rows.slice().sort((left, right) => `${right.fecha} ${right.hora}`.localeCompare(`${left.fecha} ${left.hora}`))[0] || null;
+        const latestRecord = sortedRows[0] || null;
         const topWellName = topEntries[0]?.[0] || '--';
         const topWells = topEntries.map(([wellName, count], index) => ({
             wellName,
@@ -337,19 +383,19 @@
         }));
 
         const visitsByDay = {};
-        rows.forEach(r => {
+        sortedRows.forEach(r => {
             const date = r.fecha;
             visitsByDay[date] = (visitsByDay[date] || 0) + 1;
         });
 
-        const days = Array.from(new Set(rows.map(r => r.fecha))).sort();
+        const days = Array.from(new Set(sortedRows.map(r => r.fecha))).sort();
         const dailySeries = days.map(day => visitsByDay[day] || 0);
         const busiestDayKey = days.length > 0
             ? days.reduce((best, current) => (visitsByDay[current] > (visitsByDay[best] || 0) ? current : best), days[0])
             : null;
 
         const wellsSummary = {};
-        rows.forEach(r => {
+        sortedRows.forEach(r => {
             const key = r.pozo_name || '--';
             if (!wellsSummary[key]) {
                 wellsSummary[key] = {
@@ -372,7 +418,7 @@
         const wellsArray = Object.values(wellsSummary)
             .sort((a, b) => b.count - a.count || a.pozo.localeCompare(b.pozo));
 
-        const latestStatusByWell = rows.reduce((acc, row) => {
+        const latestStatusByWell = sortedRows.reduce((acc, row) => {
             if (!row.pozo_name) return acc;
             const currentKey = `${row.fecha} ${row.hora}`;
             const existing = acc[row.pozo_name];
@@ -410,13 +456,17 @@
             activeDays,
             averagePerDay,
             topWellName,
+            detailReady: true,
             latestRecord,
             topWells,
             days,
             dailySeries,
             busiestDay: busiestDayKey ? { date: busiestDayKey, count: visitsByDay[busiestDayKey] || 0 } : null,
             wellsArray,
-            offWells
+            offWells,
+            rows: sortedRows,
+            previousRows: sortedPreviousRows,
+            historicalRows: sortedHistoricalRows
         };
     }
 
@@ -498,7 +548,15 @@
             });
         }
 
-        input.addEventListener('focus', () => renderOptions(input.value));
+        container.addEventListener('click', event => {
+            if (event.target.closest('[data-remove-well], [data-well], [data-reset-selection]')) {
+                return;
+            }
+
+            input.focus();
+            renderOptions(input.value);
+        });
+
         input.addEventListener('input', () => renderOptions(input.value));
 
         document.addEventListener('click', event => {
@@ -527,6 +585,7 @@
                 input.value = '';
                 renderChips();
                 renderOptions('');
+                dropdown.hidden = true;
             }
         };
     }
@@ -550,6 +609,44 @@
 
         const statsUserId = session?.user?.id || 'anonymous';
         let visitsChart = null;
+        let currentSnapshot = null;
+        let currentDrilldown = null;
+
+        function scrollToDrilldownPanel() {
+            const panelCard = document.querySelector('.stats-drilldown-card');
+            if (!panelCard) return;
+            panelCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            panelCard.classList.remove('is-drilldown-focus');
+            requestAnimationFrame(() => {
+                panelCard.classList.add('is-drilldown-focus');
+            });
+        }
+
+        function clearDrilldownFocusState() {
+            document.querySelector('.stats-drilldown-card')?.classList.remove('is-drilldown-focus');
+            document.querySelectorAll('.drilldown-trigger.is-drilldown-selected').forEach(element => {
+                element.classList.remove('is-drilldown-selected');
+            });
+        }
+
+        function setSelectedDrilldownTrigger(descriptor) {
+            clearDrilldownFocusState();
+            if (!descriptor) return;
+
+            const candidates = Array.from(document.querySelectorAll('.drilldown-trigger'));
+            candidates.forEach(element => {
+                const currentDescriptor = getDrilldownDescriptorFromElement(element);
+                if (!currentDescriptor) return;
+
+                const isSameKind = currentDescriptor.kind === descriptor.kind;
+                const isSameWell = currentDescriptor.well === descriptor.well;
+                const isSameDate = currentDescriptor.date === descriptor.date;
+
+                if (isSameKind && (descriptor.kind !== 'well' || isSameWell) && (descriptor.kind !== 'date' || isSameDate)) {
+                    element.classList.add('is-drilldown-selected');
+                }
+            });
+        }
 
         function resetVisitsChart() {
             if (visitsChart) {
@@ -559,7 +656,219 @@
             document.getElementById('visits-chart').innerHTML = '';
         }
 
+        function getDrilldownDescriptorFromElement(element) {
+            if (!element?.dataset?.drilldownKind) return null;
+
+            const kind = element.dataset.drilldownKind;
+            if (kind === 'well') {
+                return {
+                    kind,
+                    well: decodeURIComponent(element.dataset.drilldownWell || '')
+                };
+            }
+
+            if (kind === 'date') {
+                return {
+                    kind,
+                    date: element.dataset.drilldownDate || ''
+                };
+            }
+
+            return { kind };
+        }
+
+        function buildDrilldownConfig(snapshot, descriptor) {
+            if (!snapshot) return null;
+
+            const rows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
+            const previousRows = Array.isArray(snapshot.previousRows) ? snapshot.previousRows : [];
+            const historicalRows = Array.isArray(snapshot.historicalRows) ? snapshot.historicalRows : [];
+            const well = descriptor?.well;
+
+            switch (descriptor?.kind) {
+                case 'kpi-total':
+                    return {
+                        title: 'Total de monitoreos del rango',
+                        subtitle: `Detalle completo de los ${snapshot.totalVisits} monitoreos registrados entre ${formatDateLabel(snapshot.start)} y ${formatDateLabel(snapshot.end)}.`,
+                        rows,
+                        sourceLabel: 'Rango actual'
+                    };
+                case 'kpi-unique-wells': {
+                    const uniqueRows = getLatestRowsByWell(rows);
+                    return {
+                        title: 'Pozos monitoreados en el rango',
+                        subtitle: `Último monitoreo visible por cada uno de los ${snapshot.uniqueWells} pozos con actividad.`,
+                        rows: uniqueRows,
+                        sourceLabel: 'Último registro por pozo'
+                    };
+                }
+                case 'kpi-active-days':
+                    return {
+                        title: 'Actividad por días del rango',
+                        subtitle: `Estos monitoreos explican los ${snapshot.activeDays} días con actividad detectados en el período.`,
+                        rows,
+                        sourceLabel: 'Rango actual'
+                    };
+                case 'kpi-average':
+                    return {
+                        title: 'Base del promedio diario',
+                        subtitle: `Los siguientes registros sostienen el promedio diario de ${snapshot.averagePerDay} monitoreos.`,
+                        rows,
+                        sourceLabel: 'Rango actual'
+                    };
+                case 'kpi-variation':
+                    return {
+                        title: previousRows.length ? 'Período anterior de comparación' : 'Rango actual sin comparativo anterior',
+                        subtitle: previousRows.length
+                            ? `Aquí ves los ${previousRows.length} monitoreos del período anterior usados para calcular la variación.`
+                            : 'No hubo datos en el período anterior; se muestra el rango actual como referencia.',
+                        rows: previousRows.length ? previousRows : rows,
+                        sourceLabel: previousRows.length ? 'Período anterior' : 'Rango actual'
+                    };
+                case 'kpi-top-well':
+                    return {
+                        title: `Detalle del pozo líder: ${snapshot.topWellName}`,
+                        subtitle: `Monitoreos que convierten a ${snapshot.topWellName} en el pozo con mayor actividad del rango.`,
+                        rows: rows.filter(item => item.pozo_name === snapshot.topWellName),
+                        sourceLabel: 'Pozo líder'
+                    };
+                case 'kpi-latest':
+                    return {
+                        title: 'Última actividad registrada',
+                        subtitle: 'Registro más reciente dentro del rango seleccionado.',
+                        rows: snapshot.latestRecord ? [snapshot.latestRecord] : [],
+                        sourceLabel: 'Último monitoreo'
+                    };
+                case 'well': {
+                    const scopedRows = rows.filter(item => item.pozo_name === well);
+                    const historicalScopedRows = historicalRows.filter(item => item.pozo_name === well);
+                    const resultRows = scopedRows.length ? scopedRows : historicalScopedRows;
+                    return {
+                        title: `Detalle del pozo ${well}`,
+                        subtitle: scopedRows.length
+                            ? `Monitoreos del rango actual asociados a ${well}.`
+                            : `No hubo monitoreos en el rango actual; se muestra el historial visible de ${well} hasta ${formatDateLabel(snapshot.end)}.`,
+                        rows: resultRows,
+                        sourceLabel: scopedRows.length ? 'Rango actual' : 'Histórico hasta la fecha final'
+                    };
+                }
+                case 'date': {
+                    const scopedRows = rows.filter(item => item.fecha === descriptor.date);
+                    return {
+                        title: `Monitoreos del ${formatDateLabel(descriptor.date)}`,
+                        subtitle: `Detalle de la barra seleccionada para esa fecha.`,
+                        rows: scopedRows,
+                        sourceLabel: 'Día seleccionado'
+                    };
+                }
+                default:
+                    return null;
+            }
+        }
+
+        function renderDrilldownPanel(snapshot, descriptor = null) {
+            const panel = document.getElementById('drilldown-panel');
+            if (!panel) return;
+
+            if (!snapshot?.hasRows) {
+                clearDrilldownFocusState();
+                panel.innerHTML = `
+                    <div class="empty-panel compact">
+                        <strong>Sin detalle disponible</strong>
+                        <span>Genera un rango con actividad para poder inspeccionar el origen de cada bloque.</span>
+                    </div>
+                `;
+                return;
+            }
+
+            if (!descriptor) {
+                clearDrilldownFocusState();
+                panel.innerHTML = `
+                    <div class="empty-panel compact">
+                        <strong>${snapshot.detailReady ? 'Selecciona un bloque para investigar' : 'Regenera el rango para habilitar el detalle'}</strong>
+                        <span>${snapshot.detailReady ? 'Haz clic sobre una tarjeta, una barra del gráfico o un pozo para abrir los registros asociados.' : 'La vista restaurada conserva el resumen, pero el detalle fila a fila se reconstruye cuando vuelves a generar estadísticas.'}</span>
+                    </div>
+                `;
+                return;
+            }
+
+            if (!snapshot.detailReady) {
+                setSelectedDrilldownTrigger(descriptor);
+                scrollToDrilldownPanel();
+                panel.innerHTML = `
+                    <div class="empty-panel compact">
+                        <strong>Detalle no disponible en esta restauración</strong>
+                        <span>El resumen sí se restauró, pero las filas del drilldown no se guardan en el navegador. Dale a Generar otra vez y luego vuelve a hacer clic.</span>
+                    </div>
+                `;
+                return;
+            }
+
+            const config = buildDrilldownConfig(snapshot, descriptor);
+            if (!config) {
+                setSelectedDrilldownTrigger(descriptor);
+                scrollToDrilldownPanel();
+                panel.innerHTML = `
+                    <div class="empty-panel compact">
+                        <strong>No se pudo construir el detalle</strong>
+                        <span>Intenta con otro bloque o vuelve a generar el rango.</span>
+                    </div>
+                `;
+                return;
+            }
+
+            const detailRows = sortRowsByMostRecent(config.rows || []);
+            setSelectedDrilldownTrigger(descriptor);
+            panel.innerHTML = `
+                <div class="drilldown-shell">
+                    <div class="drilldown-head">
+                        <div class="drilldown-copy">
+                            <strong>${config.title}</strong>
+                            <span>${config.subtitle}</span>
+                        </div>
+                        <button type="button" class="drilldown-clear-btn" data-clear-drilldown="true">Limpiar selección</button>
+                    </div>
+                    <div class="drilldown-pill-row">
+                        <span class="drilldown-pill emphasis">${detailRows.length} registro${detailRows.length === 1 ? '' : 's'}</span>
+                        <span class="drilldown-pill">${config.sourceLabel}</span>
+                        <span class="drilldown-pill">${formatDateLabel(snapshot.start)} al ${formatDateLabel(snapshot.end)}</span>
+                    </div>
+                    ${detailRows.length ? `
+                        <div class="stats-table-wrap drilldown-table-wrap">
+                            <table class="stats-table stats-table-enhanced drilldown-table">
+                                <thead>
+                                    <tr>
+                                        <th>Pozo</th>
+                                        <th>Fecha</th>
+                                        <th>Hora</th>
+                                        <th>Estatus</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${detailRows.map(row => `
+                                        <tr>
+                                            <td class="stats-pozo-cell">${row.pozo_name || '--'}</td>
+                                            <td class="stats-muted-cell"><span class="stats-date-cell">${formatDateLabel(row.fecha)}</span></td>
+                                            <td class="stats-muted-cell"><span class="stats-time-badge">${formatHourLabel(row.hora)}</span></td>
+                                            <td class="stats-muted-cell"><span class="drilldown-status-badge ${row.estatus === 'OFF' ? 'is-off' : row.estatus === 'RUN' ? 'is-run' : 'is-unknown'}">${row.estatus || 'SIN DATO'}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    ` : `
+                        <div class="empty-panel compact">
+                            <strong>Sin registros para este bloque</strong>
+                            <span>El bloque seleccionado no tiene monitoreos detallables con la información disponible.</span>
+                        </div>
+                    `}
+                </div>
+            `;
+            scrollToDrilldownPanel();
+        }
+
         function renderStatsSnapshot(snapshot) {
+            currentSnapshot = snapshot;
             const coverage = snapshot.coverage || { monitoredCount: 0, scopeWellCount: 0, coveragePercent: 0, unmonitoredCount: 0 };
             const variation = snapshot.variation || formatVariation(0, 0);
             const coveragePercent = Number(coverage.coveragePercent || 0);
@@ -626,7 +935,7 @@
                     </div>
                     <div class="stale-wells-list">
                         ${(snapshot.staleWells || []).map(item => `
-                            <article class="stale-well-item ${item.monitoredInRange ? 'is-active' : 'is-stale'}">
+                            <article class="stale-well-item ${item.monitoredInRange ? 'is-active' : 'is-stale'} drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="well" data-drilldown-well="${encodeURIComponent(item.pozo)}">
                                 <div class="stale-well-copy">
                                     <strong>${item.pozo}</strong>
                                     <span>${item.latestDate ? `Última visita: ${formatDateLabel(item.latestDate)} · ${formatHourLabel(item.latestHour)}` : 'Sin historial previo visible'}</span>
@@ -656,23 +965,24 @@
                 document.getElementById('chart-insights').innerHTML = '<div class="empty-panel compact"><strong>Sin insights disponibles</strong><span>No hubo actividad en el rango seleccionado.</span></div>';
                 document.getElementById('off-wells-panel').innerHTML = '<div class="empty-panel compact"><strong>Sin pozos en OFF</strong><span>No hubo registros operativos en el rango seleccionado.</span></div>';
                 document.getElementById('time-table').innerHTML = '<div class="empty-panel"><strong>No hay pozos monitoreados</strong><span>Cuando existan registros en el rango, aquí verás el consolidado por pozo.</span></div>';
+                renderDrilldownPanel(snapshot, null);
                 return;
             }
 
             document.getElementById('kpis').innerHTML = `
-                <div class="stats-kpi-card"><strong>Total monitoreos</strong><div class="kpi-value">${snapshot.totalVisits}</div></div>
-                <div class="stats-kpi-card"><strong>Pozos monitoreados</strong><div class="kpi-value">${snapshot.uniqueWells}</div></div>
-                <div class="stats-kpi-card"><strong>Días con actividad</strong><div class="kpi-value">${snapshot.activeDays}</div></div>
-                <div class="stats-kpi-card"><strong>Promedio diario</strong><div class="kpi-value">${snapshot.averagePerDay}</div></div>
-                <div class="stats-kpi-card stats-kpi-card-${variation.tone}"><strong>Variación vs anterior</strong><div class="kpi-value stats-kpi-text">${variation.label}</div><span class="stats-kpi-meta">${variation.meta}</span></div>
-                <div class="stats-kpi-card"><strong>Pozo líder</strong><div class="kpi-value stats-kpi-text">${snapshot.topWellName}</div></div>
-                <div class="stats-kpi-card"><strong>Última actividad</strong><div class="kpi-value stats-kpi-text">${formatDateTimeLabel(snapshot.latestRecord?.fecha, snapshot.latestRecord?.hora)}</div></div>
+                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-total"><strong>Total monitoreos</strong><div class="kpi-value">${snapshot.totalVisits}</div></div>
+                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-unique-wells"><strong>Pozos monitoreados</strong><div class="kpi-value">${snapshot.uniqueWells}</div></div>
+                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-active-days"><strong>Días con actividad</strong><div class="kpi-value">${snapshot.activeDays}</div></div>
+                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-average"><strong>Promedio diario</strong><div class="kpi-value">${snapshot.averagePerDay}</div></div>
+                <div class="stats-kpi-card stats-kpi-card-${variation.tone} drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-variation"><strong>Variación vs anterior</strong><div class="kpi-value stats-kpi-text">${variation.label}</div><span class="stats-kpi-meta">${variation.meta}</span></div>
+                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-top-well"><strong>Pozo líder</strong><div class="kpi-value stats-kpi-text">${snapshot.topWellName}</div></div>
+                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-latest"><strong>Última actividad</strong><div class="kpi-value stats-kpi-text">${formatDateTimeLabel(snapshot.latestRecord?.fecha, snapshot.latestRecord?.hora)}</div></div>
             `;
 
             document.getElementById('top-wells').innerHTML = `
                 <div class="top-wells-list">
                     ${(snapshot.topWells || []).map(item => `
-                        <article class="top-well-item">
+                        <article class="top-well-item drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="well" data-drilldown-well="${encodeURIComponent(item.wellName)}">
                             <div class="top-well-row">
                                 <div class="top-well-meta">
                                     <span class="top-well-rank">${item.rank}</span>
@@ -691,7 +1001,18 @@
 
             resetVisitsChart();
             visitsChart = new ApexCharts(document.getElementById('visits-chart'), {
-                chart: { type: 'bar', height: 260 },
+                chart: {
+                    type: 'bar',
+                    height: 260,
+                    events: {
+                        dataPointSelection: (_event, _chartContext, config) => {
+                            const date = snapshot.days?.[config?.dataPointIndex];
+                            if (!date) return;
+                            currentDrilldown = { kind: 'date', date };
+                            renderDrilldownPanel(snapshot, currentDrilldown);
+                        }
+                    }
+                },
                 series: [{ name: 'Monitoreos', data: snapshot.dailySeries || [] }],
                 xaxis: { categories: snapshot.days || [] },
                 plotOptions: { bar: { horizontal: false, columnWidth: '65%' } },
@@ -701,17 +1022,17 @@
 
             document.getElementById('chart-insights').innerHTML = `
                 <div class="chart-insights-grid">
-                    <article class="chart-insight-card accent">
+                    <article class="chart-insight-card accent drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="date" data-drilldown-date="${snapshot.busiestDay?.date || ''}">
                         <span class="chart-insight-label">Día más activo</span>
                         <strong class="chart-insight-value">${formatDateLabel(snapshot.busiestDay?.date)}</strong>
                         <span class="chart-insight-meta">${snapshot.busiestDay?.count || 0} monitoreos en una sola fecha.</span>
                     </article>
-                    <article class="chart-insight-card">
+                    <article class="chart-insight-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-average">
                         <span class="chart-insight-label">Promedio diario</span>
                         <strong class="chart-insight-value">${snapshot.averagePerDay}</strong>
                         <span class="chart-insight-meta">Monitoreos promedio por día con actividad.</span>
                     </article>
-                    <article class="chart-insight-card">
+                    <article class="chart-insight-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-latest">
                         <span class="chart-insight-label">Última actividad</span>
                         <strong class="chart-insight-value">${snapshot.latestRecord?.pozo_name || '--'}</strong>
                         <span class="chart-insight-meta">${formatDateLabel(snapshot.latestRecord?.fecha)} · ${formatHourLabel(snapshot.latestRecord?.hora)}</span>
@@ -732,7 +1053,7 @@
                         </div>
                         <div class="off-wells-list">
                             ${snapshot.offWells.slice(0, 6).map(item => `
-                                <article class="off-well-item">
+                                <article class="off-well-item drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="well" data-drilldown-well="${encodeURIComponent(item.pozo)}">
                                     <div class="off-well-copy">
                                         <strong>${item.pozo}</strong>
                                         <span>${formatDateLabel(item.fecha)} · ${formatHourLabel(item.hora)}</span>
@@ -757,11 +1078,41 @@
                                 <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v5l3 2"></path></svg><span>Última hora</span></span></th>
                             </tr>
                         </thead>
-                        <tbody>${(snapshot.wellsArray || []).map(item => `<tr><td class="stats-pozo-cell">${item.pozo}</td><td><span class="stats-count-badge">${item.count}</span></td><td class="stats-muted-cell"><span class="stats-date-cell">${formatDateLabel(item.firstDate)}</span></td><td class="stats-muted-cell"><span class="stats-date-cell stats-date-cell-latest">${formatDateLabel(item.lastDate)}</span></td><td class="stats-muted-cell"><span class="stats-time-badge">${formatHourLabel(item.lastHour)}</span></td></tr>`).join('')}</tbody>
+                        <tbody>${(snapshot.wellsArray || []).map(item => `<tr class="drilldown-trigger drilldown-row" tabindex="0" role="button" data-drilldown-kind="well" data-drilldown-well="${encodeURIComponent(item.pozo)}"><td class="stats-pozo-cell">${item.pozo}</td><td><span class="stats-count-badge">${item.count}</span></td><td class="stats-muted-cell"><span class="stats-date-cell">${formatDateLabel(item.firstDate)}</span></td><td class="stats-muted-cell"><span class="stats-date-cell stats-date-cell-latest">${formatDateLabel(item.lastDate)}</span></td><td class="stats-muted-cell"><span class="stats-time-badge">${formatHourLabel(item.lastHour)}</span></td></tr>`).join('')}</tbody>
                     </table>
                 </div>
             `;
+
+            renderDrilldownPanel(snapshot, currentDrilldown);
         }
+
+        document.addEventListener('click', event => {
+            const clearButton = event.target.closest('[data-clear-drilldown]');
+            if (clearButton) {
+                currentDrilldown = null;
+                renderDrilldownPanel(currentSnapshot, null);
+                return;
+            }
+
+            const trigger = event.target.closest('[data-drilldown-kind]');
+            if (!trigger) return;
+
+            const descriptor = getDrilldownDescriptorFromElement(trigger);
+            if (!descriptor) return;
+            currentDrilldown = descriptor;
+            renderDrilldownPanel(currentSnapshot, currentDrilldown);
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            const trigger = event.target.closest('[data-drilldown-kind]');
+            if (!trigger) return;
+            event.preventDefault();
+            const descriptor = getDrilldownDescriptorFromElement(trigger);
+            if (!descriptor) return;
+            currentDrilldown = descriptor;
+            renderDrilldownPanel(currentSnapshot, currentDrilldown);
+        });
 
         document.getElementById('logout-btn').addEventListener('click', async () => {
             clearStatsSnapshot();
@@ -787,6 +1138,12 @@
                 wellsPicker.setSelected(persistedSnapshot.selectedWells || []);
             }
             renderStatsSnapshot(persistedSnapshot);
+
+            if (!persistedSnapshot.detailReady) {
+                requestAnimationFrame(() => {
+                    document.getElementById('stats-filter-form')?.requestSubmit();
+                });
+            }
         }
 
         document.getElementById('stats-filter-form').addEventListener('submit', async (e) => {
@@ -795,11 +1152,13 @@
             const end = document.getElementById('stats-end').value;
             const wells = (wellsPicker && typeof wellsPicker.getSelected === 'function') ? wellsPicker.getSelected() : [];
             if (!start || !end) { alert('Selecciona fechas de inicio y fin.'); return; }
+            currentDrilldown = null;
 
             try {
                 document.getElementById('kpis').innerHTML = 'Cargando...';
                 document.getElementById('coverage-panel').innerHTML = '<div class="empty-panel compact"><strong>Cargando cobertura</strong><span>Analizando el universo de pozos consultado.</span></div>';
                 document.getElementById('alerts-panel').innerHTML = '<div class="empty-panel compact"><strong>Cargando alertas</strong><span>Calculando pozos pendientes y atraso de visitas.</span></div>';
+                document.getElementById('drilldown-panel').innerHTML = '<div class="empty-panel compact"><strong>Preparando detalle</strong><span>Reconstruyendo el contexto de los monitoreos para habilitar el drilldown.</span></div>';
                 console.debug('[stats] solicitando filas', { start, end, wells });
                 const selectedWells = wells.length > 0 ? wells : [];
                 const availableWells = wellsPicker && typeof wellsPicker.getAvailable === 'function'
