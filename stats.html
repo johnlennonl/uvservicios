@@ -110,7 +110,7 @@
                 <pre id="stats-debug" style="display:none; white-space:pre-wrap; background:#fff; border:1px solid #eee; padding:12px; margin-top:12px; border-radius:8px; max-height:220px; overflow:auto;"></pre>
 
                 <div class="stats-grid">
-                    <div class="stats-card">
+                    <div class="stats-card top-wells-card">
                         <h3>Top Pozos por Monitoreos</h3>
                         <p class="stats-card-subtitle">Ranking de los pozos con mayor frecuencia de monitoreo dentro del rango seleccionado.</p>
                         <div id="top-wells"></div>
@@ -137,7 +137,7 @@
                 <div class="stats-admin-grid">
                     <div class="stats-card">
                         <h3>Cobertura del Rango</h3>
-                        <p class="stats-card-subtitle">Qué parte del universo consultado sí recibió monitoreo y cuántos pozos quedaron sin actividad.</p>
+                        <p class="stats-card-subtitle">Qué parte de los pozos consultados sí recibió monitoreo y cuántos pozos quedaron sin actividad.</p>
                         <div id="coverage-panel">
                             <div class="empty-panel compact">
                                 <strong>Genera un rango para medir cobertura</strong>
@@ -785,8 +785,8 @@
                 clearDrilldownFocusState();
                 panel.innerHTML = `
                     <div class="empty-panel compact">
-                        <strong>${snapshot.detailReady ? 'Selecciona un bloque para investigar' : 'Regenera el rango para habilitar el detalle'}</strong>
-                        <span>${snapshot.detailReady ? 'Haz clic sobre una tarjeta, una barra del gráfico o un pozo para abrir los registros asociados.' : 'La vista restaurada conserva el resumen, pero el detalle fila a fila se reconstruye cuando vuelves a generar estadísticas.'}</span>
+                        <strong>Selecciona un bloque para investigar</strong>
+                        <span>Haz clic sobre una tarjeta, una barra del gráfico o un pozo para abrir los registros asociados.</span>
                     </div>
                 `;
                 return;
@@ -797,8 +797,8 @@
                 scrollToDrilldownPanel();
                 panel.innerHTML = `
                     <div class="empty-panel compact">
-                        <strong>Detalle no disponible en esta restauración</strong>
-                        <span>El resumen sí se restauró, pero las filas del drilldown no se guardan en el navegador. Dale a Generar otra vez y luego vuelve a hacer clic.</span>
+                        <strong>Preparando detalle</strong>
+                        <span>Estamos reconstruyendo los monitoreos de este bloque.</span>
                     </div>
                 `;
                 return;
@@ -886,7 +886,7 @@
                             <span>${coveragePercent.toFixed(1)}% de cobertura</span>
                         </div>
                         <div class="coverage-progress-bar"><div class="coverage-progress-fill" style="width:${Math.min(100, coveragePercent)}%"></div></div>
-                        <p class="coverage-progress-note">${coverage.unmonitoredCount === 0 ? 'Todos los pozos del universo consultado recibieron al menos un monitoreo.' : `${coverage.unmonitoredCount} pozos quedaron sin actividad en el rango.`}</p>
+                        <p class="coverage-progress-note">${coverage.unmonitoredCount === 0 ? 'Todos los pozos consultados recibieron al menos un monitoreo.' : `${coverage.unmonitoredCount} pozos quedaron sin actividad en el rango.`}</p>
                     </div>
                     <div class="coverage-mini-grid">
                         <article class="coverage-mini-card success">
@@ -897,7 +897,7 @@
                         <article class="coverage-mini-card warning">
                             <span class="coverage-mini-label">Sin monitoreo</span>
                             <strong class="coverage-mini-value">${coverage.unmonitoredCount}</strong>
-                            <span class="coverage-mini-meta">Pendientes dentro del universo filtrado.</span>
+                            <span class="coverage-mini-meta">Pendientes dentro de los pozos filtrados.</span>
                         </article>
                     </div>
                     <div class="coverage-insights-block">
@@ -916,7 +916,7 @@
                         <div class="coverage-insights-list">
                             <article class="coverage-insight-item ${coverageStatus.tone}">
                                 <strong>${coverageStatus.label}</strong>
-                                <span>${coveragePercent >= 50 ? 'Más de la mitad del universo filtrado recibió seguimiento.' : 'Menos de la mitad del universo filtrado tuvo monitoreo.'}</span>
+                                <span>${coveragePercent >= 50 ? 'Más de la mitad de los pozos filtrados recibió seguimiento.' : 'Menos de la mitad de los pozos filtrados tuvo monitoreo.'}</span>
                             </article>
                             <article class="coverage-insight-item">
                                 <strong>Lectura rápida</strong>
@@ -931,7 +931,7 @@
                 <div class="alerts-panel-content">
                     <div class="alerts-summary-strip ${coverage.unmonitoredCount > 0 ? 'has-pending' : 'is-clear'}">
                         <strong>${coverage.unmonitoredCount > 0 ? `${coverage.unmonitoredCount} pozos sin monitoreo en el rango` : 'Sin pozos pendientes en el rango'}</strong>
-                        <span>${coverage.unmonitoredCount > 0 ? 'El listado inferior muestra los casos más críticos o sin historial visible.' : 'Todos los pozos del universo filtrado registraron actividad en el período.'}</span>
+                        <span>${coverage.unmonitoredCount > 0 ? 'El listado inferior muestra los casos más críticos o sin historial visible.' : 'Todos los pozos filtrados registraron actividad en el período.'}</span>
                     </div>
                     <div class="stale-wells-list">
                         ${(snapshot.staleWells || []).map(item => `
@@ -1156,7 +1156,7 @@
 
             try {
                 document.getElementById('kpis').innerHTML = 'Cargando...';
-                document.getElementById('coverage-panel').innerHTML = '<div class="empty-panel compact"><strong>Cargando cobertura</strong><span>Analizando el universo de pozos consultado.</span></div>';
+                document.getElementById('coverage-panel').innerHTML = '<div class="empty-panel compact"><strong>Cargando cobertura</strong><span>Analizando los pozos consultados.</span></div>';
                 document.getElementById('alerts-panel').innerHTML = '<div class="empty-panel compact"><strong>Cargando alertas</strong><span>Calculando pozos pendientes y atraso de visitas.</span></div>';
                 document.getElementById('drilldown-panel').innerHTML = '<div class="empty-panel compact"><strong>Preparando detalle</strong><span>Reconstruyendo el contexto de los monitoreos para habilitar el drilldown.</span></div>';
                 console.debug('[stats] solicitando filas', { start, end, wells });

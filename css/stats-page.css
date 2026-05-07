@@ -1143,6 +1143,7 @@ label[for="stats-wells"] span {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 28px;
   margin-bottom: 32px;
+  align-items: stretch;
 }
 
 .stats-card {
@@ -1152,6 +1153,25 @@ label[for="stats-wells"] span {
   padding: 22px 18px 18px 18px;
   border: 1.5px solid #E0E7EF;
   min-width: 0;
+}
+
+.top-wells-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.top-wells-card #top-wells {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.top-wells-card .top-wells-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  align-content: start;
 }
 
 .stats-card h3 {
@@ -1445,6 +1465,10 @@ label[for="stats-wells"] span {
   .off-wells-list,
   .top-wells-list,
   .stats-table-wrap {
+    max-height: 420px;
+  }
+
+  .top-wells-card .top-wells-list {
     max-height: 420px;
   }
 }
