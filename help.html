@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <title>UV Servicios | Centro de Ayuda</title>
+    <meta name="description" content="Centro de ayuda de UV Servicios con guías rápidas para Dashboard, Gestión, Data, Estadísticas y Preparador de Excel.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard-page.css">
+    <link rel="stylesheet" href="css/help-page.css">
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
+            <nav>
+                <a href="dashboard.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="dashboard-data.html" class="nav-link" data-management-link>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    Gestión
+                </a>
+                <a href="monitoring-prep.html" class="nav-link" data-management-link>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                    </svg>
+                    Preparador Excel
+                </a>
+                <a href="data.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                    Data
+                </a>
+                <a href="stats.html" class="nav-link" data-management-link>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v18M12 7v14M19 11v10M3 21h18" />
+                    </svg>
+                    Estadísticas
+                </a>
+                <a href="help.html" class="nav-link active" aria-current="page">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.09 9a3 3 0 115.82 1c0 2-3 3-3 3" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 17h.01" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
+                    </svg>
+                    Ayuda
+                </a>
+            </nav>
+            <button id="logout-btn" class="nav-link">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Salir
+            </button>
+        </aside>
+
+        <main class="main-container help-main-container">
+            <header class="page-hero help-hero">
+                <div class="page-hero-copy help-hero-copy">
+                    <span class="help-kicker">Centro de ayuda interno</span>
+                    <h1>Cómo usar UV Servicios</h1>
+                    <p>Encuentra rutas de trabajo, pasos recomendados y buenas prácticas para usar Dashboard, Gestión, Data, Estadísticas y Preparador de Excel sin depender de soporte cada vez.</p>
+                    <div class="help-role-row">
+                        <span class="help-role-pill" id="help-role-pill">Cargando perfil...</span>
+                        <span class="help-last-update">Última actualización operativa: mayo 2026</span>
+                    </div>
+                </div>
+                <div class="help-hero-panel">
+                    <div class="help-hero-stat help-hero-stat-route">
+                        <span>Ruta recomendada</span>
+                        <strong>Preparar, cargar, revisar, analizar</strong>
+                    </div>
+                    <div class="help-hero-stat help-hero-stat-goal">
+                        <span>Objetivo</span>
+                        <strong>Reducir errores y acelerar el uso</strong>
+                    </div>
+                </div>
+            </header>
+
+            <section class="help-toolbar">
+                <label class="help-search-field" for="help-search-input">
+                    <span>Buscar en la ayuda</span>
+                    <input type="search" id="help-search-input" placeholder="Ej: importar Excel, ver historial, estadísticas, pozo">
+                </label>
+                <div class="help-filter-group" aria-label="Filtrar contenido por tipo">
+                    <button type="button" class="help-filter-chip" data-filter="all">Todo</button>
+                    <button type="button" class="help-filter-chip active" data-filter="inicio">Inicio rápido</button>
+                    <button type="button" class="help-filter-chip" data-filter="modulo">Módulos</button>
+                    <button type="button" class="help-filter-chip" data-filter="faq">Preguntas frecuentes</button>
+                </div>
+            </section>
+
+            <section class="help-overview-grid help-section-tonal help-section-tonal-intro" data-help-card data-category="inicio" data-keywords="inicio rapido primeros pasos preparar cargar revisar analizar ayuda resumen general">
+                <article class="help-summary-card help-summary-card-prep">
+                    <span>Paso 1</span>
+                    <h2>Preparar datos</h2>
+                    <p>Si el archivo viene desordenado o con múltiples formatos, comienza por Preparador Excel.</p>
+                    <a href="#preparador">Ver guía</a>
+                </article>
+                <article class="help-summary-card help-summary-card-gestion">
+                    <span>Paso 2</span>
+                    <h2>Cargar o editar</h2>
+                    <p>Usa Gestión para importar, crear o corregir registros operativos y mediciones técnicas.</p>
+                    <a href="#gestion">Ver guía</a>
+                </article>
+                <article class="help-summary-card help-summary-card-analisis">
+                    <span>Paso 3</span>
+                    <h2>Consultar y analizar</h2>
+                    <p>Valida los resultados en Dashboard, revisa históricos en Data y genera lectura administrativa en Estadísticas.</p>
+                    <a href="#dashboard">Ver guía</a>
+                </article>
+            </section>
+
+            <section class="help-section help-flow-section help-section-tonal help-section-tonal-quickstart" data-help-card data-category="inicio" data-keywords="flujo recomendando uso app preparar cargar revisar analizar dashboard gestion data estadisticas excel">
+                <div class="help-section-header">
+                    <div>
+                        <span class="help-section-kicker">Inicio rápido</span>
+                        <h2>Flujo recomendado de trabajo</h2>
+                    </div>
+                </div>
+                <div class="help-flow-grid">
+                    <article class="help-flow-step">
+                        <strong>1. Revisa el origen del archivo</strong>
+                        <p>Si el Excel del monitoreo diario viene mezclado, usa Preparador Excel antes de importarlo.</p>
+                    </article>
+                    <article class="help-flow-step">
+                        <strong>2. Carga o corrige en Gestión</strong>
+                        <p>Importa archivos limpios o crea entradas manuales cuando el dato no exista en el consolidado.</p>
+                    </article>
+                    <article class="help-flow-step">
+                        <strong>3. Confirma visualmente en Dashboard</strong>
+                        <p>Selecciona pozo, revisa gráficas, cambia fecha histórica y valida tendencias antes de compartir hallazgos.</p>
+                    </article>
+                    <article class="help-flow-step">
+                        <strong>4. Usa Data para auditoría</strong>
+                        <p>Consulta historial operativo o técnico, identifica vacíos y corrige registros puntuales.</p>
+                    </article>
+                    <article class="help-flow-step" data-management-only>
+                        <strong>5. Usa Estadísticas para seguimiento</strong>
+                        <p>Mide cobertura, pozos sin visita, carga diaria y rezagos por rango de fechas.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section id="dashboard" class="help-section help-section-tonal help-section-dashboard" data-help-card data-category="modulo" data-keywords="dashboard panel operacion bes pozo filtros reporte historico graficas telemetria">
+                <div class="help-section-header">
+                    <div>
+                        <span class="help-section-kicker">Módulo</span>
+                        <h2>Dashboard</h2>
+                    </div>
+                    <a href="dashboard.html" class="help-inline-link">Abrir Dashboard</a>
+                </div>
+                <div class="help-section-body">
+                    <div class="help-checklist-card">
+                        <h3>Para qué sirve</h3>
+                        <ul>
+                            <li>Ver el comportamiento operativo de un pozo en tiempo real o sobre registros históricos.</li>
+                            <li>Comparar contexto técnico, telemetría y variaciones antes de exportar un reporte.</li>
+                        </ul>
+                    </div>
+                    <div class="help-checklist-card">
+                        <h3>Cómo usarlo</h3>
+                        <ol>
+                            <li>Selecciona un pozo desde el filtro superior.</li>
+                            <li>Si quieres revisar otra medición, usa el selector histórico de fecha y hora.</li>
+                            <li>Pulsa refrescar cuando cambies pozo o quieras recargar datos.</li>
+                            <li>Activa el modo reporte cuando necesites exportar o imprimir resumen técnico.</li>
+                        </ol>
+                    </div>
+                    <div class="help-tip-card">
+                        <h3>Consejo operativo</h3>
+                        <p>Si un dato no aparece como esperas, primero valida en Data si el registro existe y luego confirma en Gestión si fue importado en la fecha correcta.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="gestion" class="help-section help-section-tonal help-section-gestion" data-help-card data-category="modulo" data-keywords="gestion importar manual excel registros mediciones tecnicas dashboard-data cargar editar sincronizar" data-management-only>
+                <div class="help-section-header">
+                    <div>
+                        <span class="help-section-kicker">Módulo</span>
+                        <h2>Gestión</h2>
+                    </div>
+                    <a href="dashboard-data.html" class="help-inline-link">Abrir Gestión</a>
+                </div>
+                <div class="help-section-body two-column">
+                    <div class="help-checklist-card">
+                        <h3>Cuándo entrar aquí</h3>
+                        <ul>
+                            <li>Cuando vas a importar un archivo con monitoreos operativos.</li>
+                            <li>Cuando necesitas cargar una medición técnica manual.</li>
+                            <li>Cuando necesitas corregir o agregar un registro puntual.</li>
+                        </ul>
+                    </div>
+                    <div class="help-checklist-card">
+                        <h3>Flujo recomendado</h3>
+                        <ol>
+                            <li>Si el archivo está desordenado, pásalo primero por Preparador Excel.</li>
+                            <li>Importa el archivo o abre el formulario manual correspondiente.</li>
+                            <li>Confirma estado del pozo y fecha antes de guardar.</li>
+                            <li>Después valida el resultado en Dashboard o en Data.</li>
+                        </ol>
+                    </div>
+                    <div class="help-tip-card wide">
+                        <h3>Qué evita duplicados</h3>
+                        <p>La lógica de importación actual actualiza coincidencias exactas de pozo y fecha cuando aplica. Por eso es clave revisar que el archivo tenga fecha y pozo consistentes antes de cargar.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="data" class="help-section help-section-tonal help-section-data" data-help-card data-category="modulo" data-keywords="data historial base datos pozo actividad registros tecnicos operativos editar consultar">
+                <div class="help-section-header">
+                    <div>
+                        <span class="help-section-kicker">Módulo</span>
+                        <h2>Data</h2>
+                    </div>
+                    <a href="data.html" class="help-inline-link">Abrir Data</a>
+                </div>
+                <div class="help-section-body">
+                    <div class="help-checklist-card">
+                        <h3>Para qué sirve</h3>
+                        <ul>
+                            <li>Consultar la base histórica por pozo.</li>
+                            <li>Ver si un pozo tiene registros, actividad reciente y tipo de historial.</li>
+                            <li>Auditar si la información cargada coincide con lo esperado.</li>
+                        </ul>
+                    </div>
+                    <div class="help-checklist-card">
+                        <h3>Pasos clave</h3>
+                        <ol>
+                            <li>Busca el pozo en el selector principal.</li>
+                            <li>Usa el filtro de actividad reciente si quieres reducir la lista.</li>
+                            <li>Elige historial operativo o historial técnico según la revisión.</li>
+                            <li>Filtra por fecha para auditar un día puntual o revisar continuidad.</li>
+                        </ol>
+                    </div>
+                    <div class="help-tip-card">
+                        <h3>Uso recomendado</h3>
+                        <p>Data es la mejor vista para confirmar si el problema es de captura, de importación o de interpretación. Úsala como punto de auditoría antes de modificar datos.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="estadisticas" class="help-section help-section-tonal help-section-stats" data-help-card data-category="modulo" data-keywords="estadisticas cobertura alertas rango fechas top pozos monitoreos visitas actividad diaria" data-management-only>
+                <div class="help-section-header">
+                    <div>
+                        <span class="help-section-kicker">Módulo</span>
+                        <h2>Estadísticas</h2>
+                    </div>
+                    <a href="stats.html" class="help-inline-link">Abrir Estadísticas</a>
+                </div>
+                <div class="help-section-body">
+                    <div class="help-checklist-card">
+                        <h3>Para qué sirve</h3>
+                        <ul>
+                            <li>Medir cuántos monitoreos se hicieron por rango de fechas.</li>
+                            <li>Identificar top de pozos visitados, cobertura del rango y alertas de rezago.</li>
+                            <li>Explorar el detalle detrás de un KPI, un día o un pozo concreto.</li>
+                        </ul>
+                    </div>
+                    <div class="help-checklist-card">
+                        <h3>Cómo leerlo</h3>
+                        <ol>
+                            <li>Selecciona fecha inicio y fecha fin.</li>
+                            <li>Opcionalmente filtra uno o varios pozos.</li>
+                            <li>Genera el reporte y revisa KPIs, top pozos y alertas.</li>
+                            <li>Haz clic en tarjetas o barras para abrir el detalle de monitoreos.</li>
+                        </ol>
+                    </div>
+                    <div class="help-tip-card">
+                        <h3>Cuándo usarlo</h3>
+                        <p>Este módulo sirve mejor para seguimiento de supervisión y revisión administrativa que para corrección puntual de datos.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="preparador" class="help-section help-section-tonal help-section-prep" data-help-card data-category="modulo" data-keywords="preparador excel csv xlsx limpiar archivo importar plantilla columnas monitoreo diario" data-management-only>
+                <div class="help-section-header">
+                    <div>
+                        <span class="help-section-kicker">Módulo</span>
+                        <h2>Preparador de Excel</h2>
+                    </div>
+                    <a href="monitoring-prep.html" class="help-inline-link">Abrir Preparador</a>
+                </div>
+                <div class="help-section-body two-column">
+                    <div class="help-checklist-card">
+                        <h3>Úsalo cuando</h3>
+                        <ul>
+                            <li>Recibes un consolidado con columnas sucias o formatos variables.</li>
+                            <li>Necesitas exportar un archivo listo para Gestión sin tocar el original.</li>
+                            <li>Quieres validar descartes antes de importar.</li>
+                        </ul>
+                    </div>
+                    <div class="help-checklist-card">
+                        <h3>Secuencia de trabajo</h3>
+                        <ol>
+                            <li>Carga el archivo XLSX, XLS o CSV.</li>
+                            <li>Revisa el resumen de filas válidas y descartadas.</li>
+                            <li>Valida la vista previa y descarga el archivo limpio.</li>
+                            <li>Ve a Gestión e importa ese archivo ya normalizado.</li>
+                        </ol>
+                    </div>
+                    <div class="help-tip-card wide">
+                        <h3>Resultado esperado</h3>
+                        <p>El archivo exportado debe conservar solo columnas útiles para el importador actual. Si el preview sale incoherente, corrige primero el origen en vez de forzar la carga.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="help-section help-section-tonal help-section-faq" data-help-card data-category="faq" data-keywords="preguntas frecuentes errores comunes soporte login dashboard no aparece pozo sin historial importacion">
+                <div class="help-section-header">
+                    <div>
+                        <span class="help-section-kicker">Preguntas frecuentes</span>
+                        <h2>Solución rápida de dudas comunes</h2>
+                    </div>
+                </div>
+                <div class="help-faq-list">
+                    <details class="help-faq-item" open>
+                        <summary>No veo un pozo en Dashboard o Data</summary>
+                        <p>Primero confirma en Data si el pozo existe en la lista. Si no aparece, revisa si fue cargado correctamente desde Gestión o si el archivo de origen lo traía con otro nombre.</p>
+                    </details>
+                    <details class="help-faq-item">
+                        <summary>Importé un archivo y no veo cambios</summary>
+                        <p>Revisa si la carga terminó sin errores, valida la fecha del registro y luego refresca la vista destino. Si el archivo fue limpiado antes, verifica la vista previa del Preparador.</p>
+                    </details>
+                    <details class="help-faq-item">
+                        <summary>¿Dónde corrijo un dato puntual?</summary>
+                        <p>Usa Gestión para crear o ajustar registros y luego confirma el resultado en Data o Dashboard según el caso.</p>
+                    </details>
+                    <details class="help-faq-item">
+                        <summary>¿Qué módulo uso primero?</summary>
+                        <p>Si vas a analizar, entra a Dashboard. Si vas a cargar datos, usa Gestión. Si el archivo está sucio, arranca en Preparador. Si quieres auditar históricos, usa Data. Si vas a medir cobertura, usa Estadísticas.</p>
+                    </details>
+                </div>
+            </section>
+
+            <section class="help-empty-state" id="help-empty-state" hidden>
+                <strong>No hubo coincidencias</strong>
+                <p>Prueba con palabras como dashboard, importar, historial, excel, pozo o estadísticas.</p>
+            </section>
+        </main>
+    </div>
+
+    <nav class="mobile-bottom-nav help-mobile-nav" aria-label="Navegacion movil principal">
+        <a href="dashboard.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+            </svg>
+            <span>Inicio</span>
+        </a>
+        <a href="dashboard-data.html" class="mobile-nav-link" data-management-link>
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            <span>Gestión</span>
+        </a>
+        <a href="monitoring-prep.html" class="mobile-nav-link" data-management-link>
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+            </svg>
+            <span>Prep</span>
+        </a>
+        <a href="help.html" class="mobile-nav-link active" aria-current="page">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.09 9a3 3 0 115.82 1c0 2-3 3-3 3" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 17h.01" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
+            </svg>
+            <span>Ayuda</span>
+        </a>
+        <button type="button" id="mobile-logout-btn" class="mobile-nav-action logout">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Salir</span>
+        </button>
+    </nav>
+
+    <script type="module" src="js/help.js"></script>
+</body>
+
+</html>
