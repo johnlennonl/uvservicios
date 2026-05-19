@@ -77,84 +77,36 @@
         </aside>
 
         <main class="main-container notification-main-container">
-            <header class="page-hero notification-hero">
+            <header class="page-hero notification-hero notification-placeholder-hero">
                 <div class="page-hero-copy notification-hero-copy">
                     <span class="notification-kicker">Centro de notificaciones</span>
-                    <h1>Actividad operativa del día</h1>
-                    <p id="notification-hero-subtitle">Consulta cuántos registros se cargaron hoy, qué pozos fueron impactados y cuáles son las últimas altas visibles en la plataforma.</p>
+                    <h1>En desarrollo</h1>
+                    <p>Esta sección estará disponible cuando terminemos una versión más sólida, visualmente cuidada y lista para producción.</p>
                     <div class="notification-meta-row">
                         <span class="notification-pill" id="notification-role-pill">Cargando perfil...</span>
-                        <span class="notification-meta-text" id="notification-range-label">Cargando ventana operativa...</span>
+                        <span class="notification-meta-text">Módulo temporalmente oculto mientras se prepara su lanzamiento.</span>
                     </div>
-                </div>
-                <div class="notification-hero-actions">
-                    <button id="notification-refresh-btn" class="btn-secondary notification-refresh-btn" type="button">Refrescar</button>
                 </div>
             </header>
 
-            <section class="notification-warning" id="notification-warning" hidden>
-                <strong>Atención:</strong>
-                <span id="notification-warning-text">La auditoría diaria no está disponible todavía.</span>
-            </section>
-
-            <section class="notification-summary-grid" aria-label="Resumen del día">
-                <article class="notification-summary-card">
-                    <span class="notification-summary-label">Registros cargados hoy</span>
-                    <strong class="notification-summary-value" id="notification-total">--</strong>
-                    <p class="notification-summary-note" id="notification-last-refresh">Esperando actualización...</p>
-                </article>
-                <article class="notification-summary-card accent">
-                    <span class="notification-summary-label">Pozos impactados</span>
-                    <strong class="notification-summary-value" id="notification-pozos">--</strong>
-                    <p class="notification-summary-note" id="notification-latest-record">Sin actividad visible todavía.</p>
-                </article>
-                <article class="notification-summary-card soft">
-                    <span class="notification-summary-label">Últimas altas visibles</span>
-                    <strong class="notification-summary-value" id="notification-visible-count">--</strong>
-                    <p class="notification-summary-note">Vista rápida de los registros más recientes del día.</p>
-                </article>
-            </section>
-
-            <section class="notification-layout-grid">
-                <article class="notification-panel notification-feed-panel">
-                    <div class="notification-panel-header">
-                        <div>
-                            <span class="notification-panel-kicker">Bitácora reciente</span>
-                            <h2>Registros cargados hoy</h2>
-                        </div>
-                        <span class="notification-count-pill" id="notification-feed-count">0</span>
-                    </div>
-                    <div class="notification-feed-list" id="notification-feed-list">
-                        <p class="notification-empty-state">Todavía no hay registros para mostrar.</p>
-                    </div>
-                </article>
-
-                <article class="notification-panel notification-pozo-panel">
-                    <div class="notification-panel-header">
-                        <div>
-                            <span class="notification-panel-kicker">Resumen por pozo</span>
-                            <h2>Pozos con más carga hoy</h2>
-                        </div>
-                    </div>
-                    <div class="notification-pozo-list" id="notification-pozo-list">
-                        <p class="notification-empty-state">Todavía no hay pozos con actividad visible.</p>
-                    </div>
-                </article>
-
-                <article class="notification-panel notification-info-panel">
-                    <div class="notification-panel-header compact">
-                        <div>
-                            <span class="notification-panel-kicker">Uso recomendado</span>
-                            <h2>Cómo aprovechar esta sección</h2>
-                        </div>
-                    </div>
-                    <ul class="notification-tip-list">
-                        <li>Confirma al inicio del día cuántos registros entraron realmente a la plataforma.</li>
-                        <li>Usa la lista reciente para detectar pozos con cargas repetidas o inusuales.</li>
-                        <li>Si ves un pozo con muchas entradas, cruza el detalle luego en Data o Gestión.</li>
-                        <li>Si este módulo muestra advertencia técnica, falta created_at en monitoreo_pozos.</li>
-                    </ul>
-                </article>
+            <section class="notification-placeholder-card" aria-label="Estado del módulo de notificaciones">
+                <div class="notification-placeholder-badge">EN DESARROLLO</div>
+                <h2>Estamos puliendo esta sección antes de activarla</h2>
+                <p>Por ahora ocultamos las notificaciones operativas para evitar mostrar una versión intermedia. Cuando quede lista, volverá con mejor diseño, más contexto y una experiencia más útil para el equipo.</p>
+                <div class="notification-placeholder-points">
+                    <article class="notification-placeholder-point">
+                        <strong>Estado actual</strong>
+                        <span>Oculto temporalmente</span>
+                    </article>
+                    <article class="notification-placeholder-point">
+                        <strong>Siguiente versión</strong>
+                        <span>Más robusta y visual</span>
+                    </article>
+                    <article class="notification-placeholder-point">
+                        <strong>Objetivo</strong>
+                        <span>Lanzarla cuando quede brutal</span>
+                    </article>
+                </div>
             </section>
         </main>
     </div>

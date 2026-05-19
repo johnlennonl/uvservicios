@@ -2,6 +2,91 @@
     padding-bottom: 96px;
 }
 
+.notification-placeholder-hero {
+    margin-bottom: 22px;
+}
+
+.notification-placeholder-card {
+    position: relative;
+    overflow: hidden;
+    padding: 34px 32px;
+    border-radius: 28px;
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)),
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.08), transparent 34%);
+    box-shadow: var(--card-shadow);
+}
+
+.notification-placeholder-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 6px;
+    background: linear-gradient(180deg, #0f766e, #14b8a6 55%, #0f172a);
+}
+
+.notification-placeholder-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.12);
+    border: 1px solid rgba(15, 118, 110, 0.18);
+    color: #115e59;
+    font-size: 0.82rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.notification-placeholder-card h2 {
+    margin: 0;
+    font-size: 1.7rem;
+    font-weight: 900;
+    color: var(--text-title);
+    letter-spacing: -0.03em;
+}
+
+.notification-placeholder-card > p {
+    max-width: 760px;
+    margin: 14px 0 0;
+    color: var(--text-body);
+    font-size: 1rem;
+    line-height: 1.7;
+}
+
+.notification-placeholder-points {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 26px;
+}
+
+.notification-placeholder-point {
+    padding: 18px 18px;
+    border-radius: 20px;
+    background: rgba(248, 250, 252, 0.92);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.notification-placeholder-point strong {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-title);
+    font-size: 0.9rem;
+    font-weight: 800;
+}
+
+.notification-placeholder-point span {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
 .notification-hero {
     margin-bottom: 26px;
 }
@@ -265,6 +350,10 @@
 }
 
 @media (max-width: 1100px) {
+    .notification-placeholder-points {
+        grid-template-columns: 1fr;
+    }
+
     .notification-summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -281,6 +370,15 @@
 @media (max-width: 720px) {
     .notification-main-container {
         padding-bottom: 120px;
+    }
+
+    .notification-placeholder-card {
+        padding: 24px 20px;
+        border-radius: 22px;
+    }
+
+    .notification-placeholder-card h2 {
+        font-size: 1.35rem;
     }
 
     .notification-summary-grid {
