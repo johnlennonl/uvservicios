@@ -1,6 +1,11 @@
 :root {
             --sidebar-width: 260px;
             --pbi-red: #800000;
+            --report-navy: #0F172A;
+            --report-steel: #334155;
+            --report-border: #D8E1EB;
+            --report-ink-soft: #64748B;
+            --report-paper: #F8FAFC;
         }
 
         body {
@@ -81,6 +86,7 @@
         .view-mode-report .page-hero::after,
         .view-mode-report .pozo-selector-card,
         .view-mode-report .tools-section,
+        .view-mode-report .ticket-tools-section,
         .view-mode-report .empty-state,
         .view-mode-report #empty-state,
         .view-mode-report .mobile-bottom-nav {
@@ -88,14 +94,38 @@
         }
 
         .report-export-header {
+            position: relative;
             display: none;
             gap: 18px;
             margin-bottom: 22px;
             padding: 24px 26px;
             border-radius: 24px;
-            border: 1px solid #E2E8F0;
-            background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
-            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+            border: 1px solid var(--report-border);
+            background:
+                linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%),
+                radial-gradient(circle at top right, rgba(185, 28, 28, 0.08), transparent 38%);
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+        }
+
+        .report-export-header::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 8px;
+            background: linear-gradient(180deg, #7F1D1D, #B91C1C 48%, #0F172A);
+        }
+
+        .report-export-header::after {
+            content: 'UV Servicios';
+            position: absolute;
+            top: 18px;
+            right: 24px;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: rgba(15, 23, 42, 0.12);
         }
 
         .view-mode-report .report-export-header {
@@ -109,25 +139,32 @@
             align-items: center;
             gap: 18px;
             min-width: 0;
+            padding-left: 10px;
         }
 
         .report-export-logo {
             width: 112px;
             flex: 0 0 auto;
+            padding: 10px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #FFFFFF, #F8FAFC);
+            border: 1px solid rgba(15, 23, 42, 0.08);
         }
 
         .report-export-copy h2 {
             margin: 0;
             font-size: 1.5rem;
             font-weight: 900;
-            color: #0F172A;
+            color: var(--report-navy);
+            letter-spacing: -0.02em;
         }
 
         .report-export-copy p {
             margin: 6px 0 0;
-            color: #475569;
+            color: var(--report-steel);
             line-height: 1.55;
             font-size: 0.9rem;
+            max-width: 60ch;
         }
 
         .report-export-kicker {
@@ -143,13 +180,15 @@
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
+            position: relative;
         }
 
         .report-export-pill {
             padding: 14px 16px;
             border-radius: 16px;
-            border: 1px solid #E2E8F0;
-            background: #FFFFFF;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
         }
 
         .report-export-pill-wide {
@@ -168,7 +207,7 @@
 
         .report-export-pill strong {
             display: block;
-            color: #0F172A;
+            color: var(--report-navy);
             font-size: 0.95rem;
             line-height: 1.35;
         }
@@ -228,6 +267,7 @@
             .sidebar,
             .pozo-selector-card,
             .tools-section,
+            .ticket-tools-section,
             .btn-report-toggle,
             .mobile-bottom-nav,
             #logout-btn,
@@ -631,10 +671,457 @@
 
         .pozo-selector-main {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 220px;
+            grid-template-columns: minmax(0, 1fr) 220px 240px;
             gap: 14px;
             align-items: start;
             align-content: start;
+        }
+
+        .ticket-tools-section {
+            margin-bottom: 18px;
+        }
+
+        .ticket-tools-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.9fr);
+            gap: 18px;
+            align-items: center;
+            padding: 18px 20px;
+            border-radius: 22px;
+            border: 1px solid #E2E8F0;
+            background: linear-gradient(135deg, #FFFFFF, #F8FAFC);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+        }
+
+        .ticket-tools-kicker {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #B91C1C;
+        }
+
+        .ticket-tools-copy h2 {
+            margin: 0;
+            font-size: 1.12rem;
+            font-weight: 800;
+            color: #0F172A;
+        }
+
+        .ticket-tools-copy p {
+            margin: 8px 0 0;
+            color: #64748B;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .ticket-mode-instructions {
+            margin-top: 14px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            background: linear-gradient(180deg, #FFFFFF, #F8FAFC);
+        }
+
+        .ticket-mode-instructions strong {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 0.78rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #0F172A;
+        }
+
+        .ticket-mode-instructions ol {
+            margin: 0;
+            padding-left: 18px;
+            color: #475569;
+        }
+
+        .ticket-mode-instructions li {
+            margin: 0 0 8px;
+            line-height: 1.45;
+            font-size: 0.84rem;
+        }
+
+        .ticket-mode-instructions li:last-child {
+            margin-bottom: 0;
+        }
+
+        .ticket-tools-actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .ticket-tools-field span {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #334155;
+        }
+
+        .ticket-tools-field input {
+            width: 100%;
+            padding: 13px 14px;
+            border-radius: 12px;
+            border: 1.5px solid #D9E2EC;
+            background: #F8FAFC;
+            font-weight: 700;
+            color: #1F2937;
+            font-size: 0.92rem;
+            outline: none;
+        }
+
+        .ticket-generate-btn {
+            border: none;
+            border-radius: 14px;
+            padding: 13px 18px;
+            background: linear-gradient(135deg, #991B1B, #B91C1C);
+            color: #FFFFFF;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 12px 22px rgba(185, 28, 28, 0.18);
+        }
+
+        .ticket-generate-btn:hover {
+            filter: brightness(1.04);
+            transform: translateY(-1px);
+        }
+
+        .daily-ticket-card {
+            overflow: hidden;
+        }
+
+        .daily-ticket-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 20px;
+            border-bottom: 1px solid #E2E8F0;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+        }
+
+        .daily-ticket-header h2 {
+            margin: 0;
+            font-size: 1.02rem;
+            font-weight: 800;
+            color: #0F172A;
+        }
+
+        .daily-ticket-header p {
+            margin: 6px 0 0;
+            color: #64748B;
+            font-size: 0.87rem;
+            line-height: 1.45;
+        }
+
+        .daily-ticket-count,
+        .daily-ticket-group-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: #DBEAFE;
+            color: #1D4ED8;
+            font-weight: 800;
+            font-size: 0.84rem;
+        }
+
+        .daily-ticket-groups {
+            display: grid;
+            gap: 16px;
+            padding: 18px;
+            background: #F8FAFC;
+        }
+
+        .daily-ticket-history-card {
+            overflow: hidden;
+        }
+
+        .daily-ticket-history-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 18px;
+            border-bottom: 1px solid #E2E8F0;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+        }
+
+        .daily-ticket-history-topbar h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: #0F172A;
+        }
+
+        .daily-ticket-history-topbar p {
+            margin: 6px 0 0;
+            color: #64748B;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .daily-ticket-history-table th:last-child,
+        .daily-ticket-history-table td:last-child {
+            display: none;
+        }
+
+        .daily-ticket-group {
+            border: 1px solid #E2E8F0;
+            border-radius: 18px;
+            background: #FFFFFF;
+            overflow: hidden;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+            position: relative;
+        }
+
+        .daily-ticket-group::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            background: linear-gradient(180deg, #0F172A, #2563EB);
+        }
+
+        .daily-ticket-group-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            padding: 18px 20px 16px;
+            border-bottom: 1px solid #EEF2F7;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+        }
+
+        .daily-ticket-group-head h3 {
+            margin: 0;
+            font-size: 0.96rem;
+            font-weight: 800;
+            color: #1E3A5F;
+        }
+
+        .daily-ticket-group-head p {
+            margin: 6px 0 0;
+            color: #64748B;
+            font-size: 0.82rem;
+        }
+
+        .daily-ticket-table-wrap {
+            overflow-x: auto;
+        }
+
+        .daily-ticket-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            min-width: 0;
+        }
+
+        .daily-ticket-table-caption {
+            display: none;
+        }
+
+        .daily-ticket-table-caption-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .daily-ticket-table-caption h3 {
+            margin: 0;
+            font-size: 0.96rem;
+            font-weight: 800;
+            color: #1E3A5F;
+        }
+
+        .daily-ticket-table-caption p {
+            margin: 6px 0 0;
+            color: #64748B;
+            font-size: 0.82rem;
+        }
+
+        .daily-ticket-table th {
+            padding: 12px 14px;
+            text-align: left;
+            background: #F8FAFC;
+            color: #475569;
+            font-size: 0.7rem;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            border-bottom: 1px solid #E2E8F0;
+        }
+
+        .daily-ticket-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #EEF2F7;
+            color: #334155;
+            font-size: 0.84rem;
+            vertical-align: top;
+            line-height: 1.35;
+        }
+
+        .daily-ticket-table tbody tr:nth-child(even) td {
+            background: rgba(248, 250, 252, 0.78);
+        }
+
+        .daily-ticket-table td span {
+            color: #64748B;
+            font-size: 0.78rem;
+        }
+
+        .ticket-col-datetime {
+            width: 15%;
+        }
+
+        .ticket-col-frequency,
+        .ticket-col-direction,
+        .ticket-col-current {
+            width: 9%;
+        }
+
+        .ticket-col-pip,
+        .ticket-col-status {
+            width: 12%;
+        }
+
+        .ticket-col-pressures,
+        .ticket-col-vsd {
+            width: 17%;
+        }
+
+        .ticket-cell-stack {
+            display: grid;
+            gap: 4px;
+        }
+
+        .ticket-cell-stack-tight {
+            gap: 2px;
+        }
+
+        .ticket-cell-stack strong {
+            color: #0F172A;
+        }
+
+        .ticket-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #EFF6FF;
+            color: #1D4ED8;
+            font-weight: 800;
+            font-size: 0.78rem;
+        }
+
+        .ticket-status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, #E2E8F0, #F8FAFC);
+            color: #1E293B;
+            font-weight: 800;
+            font-size: 0.76rem;
+            line-height: 1.25;
+            word-break: break-word;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+        }
+
+        .daily-ticket-observations {
+            padding: 16px 18px 18px;
+            border-top: 1px solid #E2E8F0;
+            background: linear-gradient(180deg, rgba(248, 250, 252, 0.66), rgba(255, 255, 255, 0.95));
+        }
+
+        .daily-ticket-observations-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .daily-ticket-observations-head h4 {
+            margin: 0;
+            font-size: 0.82rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #1E3A5F;
+        }
+
+        .daily-ticket-observations-head span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: #E0F2FE;
+            color: #0369A1;
+            font-weight: 800;
+            font-size: 0.76rem;
+        }
+
+        .daily-ticket-observations-body {
+            display: grid;
+            gap: 10px;
+        }
+
+        .daily-ticket-observation-item {
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(203, 213, 225, 0.75);
+            background: #FFFFFF;
+        }
+
+        .daily-ticket-observation-time {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.72rem;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #0F172A;
+        }
+
+        .daily-ticket-observation-item p,
+        .daily-ticket-observation-empty {
+            margin: 0;
+            color: #475569;
+            font-size: 0.84rem;
+            line-height: 1.5;
+        }
+
+        .daily-ticket-observation-empty {
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px dashed #CBD5E1;
+            background: #FFFFFF;
+        }
+
+        .daily-ticket-empty {
+            padding: 28px 22px;
+            border: 1px dashed #CBD5E1;
+            border-radius: 18px;
+            background: #FFFFFF;
+            color: #64748B;
+            font-weight: 700;
+            text-align: center;
         }
 
         .pozo-selector-field {
@@ -1266,6 +1753,15 @@
                 width: 100%;
             }
 
+            .ticket-tools-card,
+            .ticket-tools-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .ticket-mode-instructions {
+                margin-top: 12px;
+            }
+
             .history-mode-btn {
                 width: 100%;
                 justify-content: center;
@@ -1417,6 +1913,14 @@
                 grid-template-columns: 1fr;
             }
 
+            .daily-ticket-header,
+            .daily-ticket-group-head,
+            .daily-ticket-observations-head,
+            .daily-ticket-history-topbar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
             .pozo-selector-inline-note {
                 padding: 14px 15px;
                 border-radius: 16px;
@@ -1479,6 +1983,252 @@
                 border-radius: 10px;
             }
 
+            .daily-ticket-groups {
+                padding: 14px;
+            }
+
+            .daily-ticket-table th,
+            .daily-ticket-table td {
+                padding: 10px 11px;
+                font-size: 0.8rem;
+            }
+
+            .daily-ticket-observations {
+                padding: 14px;
+            }
+
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 10mm 9mm 12mm;
+            }
+
+            .page-hero {
+                display: none !important;
+            }
+
+            .ticket-tools-section {
+                display: none !important;
+            }
+
+            .daily-ticket-table-wrap {
+                overflow: visible !important;
+            }
+
+            .report-export-header {
+                margin-bottom: 10px !important;
+                padding: 16px 18px 14px 20px !important;
+                border-radius: 14px !important;
+                box-shadow: none !important;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .report-export-header::after {
+                top: 14px !important;
+                right: 18px !important;
+                font-size: 0.54rem !important;
+            }
+
+            .report-export-brand {
+                gap: 12px !important;
+                padding-left: 4px !important;
+            }
+
+            .report-export-logo {
+                width: 82px !important;
+                padding: 6px !important;
+                border-radius: 12px !important;
+            }
+
+            .report-export-copy h2 {
+                font-size: 13.5pt !important;
+            }
+
+            .report-export-copy p {
+                font-size: 7.2pt !important;
+                line-height: 1.35 !important;
+                max-width: none !important;
+            }
+
+            .report-export-meta {
+                gap: 8px !important;
+            }
+
+            .report-export-pill {
+                padding: 9px 10px !important;
+                border-radius: 10px !important;
+            }
+
+            .report-export-pill span {
+                margin-bottom: 3px !important;
+                font-size: 5.8pt !important;
+            }
+
+            .report-export-pill strong {
+                font-size: 7.2pt !important;
+                line-height: 1.2 !important;
+            }
+
+            .daily-ticket-groups {
+                gap: 8px !important;
+                padding: 8px 0 0 !important;
+                background: #FFFFFF !important;
+            }
+
+            .daily-ticket-group {
+                page-break-inside: auto;
+                break-inside: auto;
+                box-shadow: none !important;
+                overflow: visible !important;
+                border-radius: 10px !important;
+                margin-bottom: 8px !important;
+            }
+
+            .daily-ticket-group::before {
+                width: 3px !important;
+            }
+
+            .daily-ticket-history-topbar {
+                padding: 12px 14px !important;
+                page-break-after: avoid;
+                break-after: avoid;
+            }
+
+            .daily-ticket-history-topbar h3 {
+                font-size: 8.8pt !important;
+            }
+
+            .daily-ticket-history-topbar p,
+            .daily-ticket-history-topbar .daily-ticket-group-count,
+            .daily-ticket-count {
+                font-size: 6.8pt !important;
+            }
+
+            .daily-ticket-group-head {
+                display: none !important;
+            }
+
+            .daily-ticket-table-caption {
+                display: table-caption !important;
+                caption-side: top;
+                text-align: left;
+                padding: 10px 12px 8px !important;
+                background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%) !important;
+                border-bottom: 1px solid #EEF2F7;
+            }
+
+            .daily-ticket-table-caption-inner {
+                align-items: flex-start;
+            }
+
+            .daily-ticket-table-caption h3 {
+                font-size: 8.8pt !important;
+            }
+
+            .daily-ticket-table-caption p,
+            .daily-ticket-table-caption .daily-ticket-group-count,
+            .daily-ticket-group-count,
+            .daily-ticket-count {
+                font-size: 6.8pt !important;
+            }
+
+            .daily-ticket-table {
+                table-layout: fixed;
+            }
+
+            .daily-ticket-table thead {
+                display: table-header-group;
+            }
+
+            .daily-ticket-table tbody {
+                display: table-row-group;
+            }
+
+            .daily-ticket-table tr {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .daily-ticket-table th,
+            .daily-ticket-table td {
+                padding: 7px 8px !important;
+                font-size: 7.2pt !important;
+                line-height: 1.2 !important;
+
+            .daily-ticket-observations {
+                padding: 8px 10px 10px !important;
+                border-top: 1px solid #E2E8F0 !important;
+                background: #FFFFFF !important;
+            }
+
+            .daily-ticket-observations-head {
+                margin-bottom: 8px !important;
+            }
+
+            .daily-ticket-observations-head h4,
+            .daily-ticket-observations-head span,
+            .daily-ticket-observation-time {
+                font-size: 6.1pt !important;
+            }
+
+            .daily-ticket-observation-item,
+            .daily-ticket-observation-empty {
+                padding: 8px 9px !important;
+                border-radius: 8px !important;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .daily-ticket-observation-item p,
+            .daily-ticket-observation-empty {
+                font-size: 6.8pt !important;
+                line-height: 1.35 !important;
+            }
+                overflow-wrap: anywhere;
+                word-break: break-word;
+                white-space: normal !important;
+            }
+
+            .daily-ticket-table th {
+                font-size: 6.2pt !important;
+                letter-spacing: 0.04em !important;
+                background: #EEF2F7 !important;
+            }
+
+            .daily-ticket-table td span,
+            .ticket-chip,
+            .ticket-status-pill {
+                font-size: 6.8pt !important;
+            }
+
+            .ticket-col-datetime {
+                width: 14% !important;
+            }
+
+            .ticket-col-frequency,
+            .ticket-col-direction,
+            .ticket-col-current {
+                width: 8% !important;
+            }
+
+            .ticket-col-pip,
+            .ticket-col-status {
+                width: 13% !important;
+            }
+
+            .ticket-col-pressures,
+            .ticket-col-vsd {
+                width: 18% !important;
+            }
+
+            .ticket-chip,
+            .ticket-status-pill {
+                padding: 3px 6px !important;
+                min-width: 0 !important;
+            }
+        }
             .technical-detail-icon svg {
                 width: 16px;
                 height: 16px;

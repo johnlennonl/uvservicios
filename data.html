@@ -48,6 +48,13 @@
                     </svg>
                     Estadísticas
                 </a>
+                <a href="notificacion.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17a3 3 0 006 0" />
+                    </svg>
+                    Notificaciones
+                </a>
                 <a href="help.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.09 9a3 3 0 115.82 1c0 2-3 3-3 3" />
@@ -80,7 +87,7 @@
                     <img src="img/uvservicioslogo.png" alt="UV Logo" class="report-export-logo" width="112" height="81">
                     <div class="report-export-copy">
                         <p class="report-export-kicker">Exportacion ejecutiva</p>
-                        <h2>Reporte Historico BES</h2>
+                        <h2 id="report-export-title">Reporte Historico BES</h2>
                         <p id="report-export-summary">Resumen curado de registros historicos para auditoria y seguimiento operativo.</p>
                     </div>
                 </div>
@@ -105,6 +112,10 @@
                         <span>Registros</span>
                         <strong id="report-data-count">0</strong>
                     </div>
+                    <div class="report-export-pill">
+                        <span>Clasificacion</span>
+                        <strong id="report-data-classification">Uso interno UV Servicios</strong>
+                    </div>
                     <div class="report-export-pill report-export-pill-wide">
                         <span>Emitido</span>
                         <strong id="report-data-generated">--</strong>
@@ -114,7 +125,7 @@
 
             <section class="pozo-selector-card">
                 <div class="pozo-selector-main">
-                    <div class="pozo-selector-field">
+                    <div class="pozo-selector-field" id="pozo-selector-primary-field">
                         <label for="pozo-selector-input">Seleccionar Pozo</label>
                         <div class="pozo-selector-input-wrap">
                             <input type="text" id="pozo-selector-input" placeholder="Busca o selecciona un pozo">
@@ -135,7 +146,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="pozo-selector-field pozo-selector-filter">
+                    <div class="pozo-selector-field pozo-selector-filter" id="pozo-selector-activity-field">
                         <label for="pozo-activity-filter">Actividad Reciente</label>
                         <select id="pozo-activity-filter">
                             <option value="ALL">Todos los pozos</option>
@@ -143,6 +154,13 @@
                             <option value="7">Con registros en últimos 7 días</option>
                             <option value="30">Con registros en últimos 30 días</option>
                             <option value="90">Con registros en últimos 90 días</option>
+                        </select>
+                    </div>
+                    <div class="pozo-selector-field pozo-selector-filter" id="data-view-mode-field">
+                        <label for="data-view-mode">Modo de Consulta</label>
+                        <select id="data-view-mode">
+                            <option value="history" selected>Historial por pozo</option>
+                            <option value="daily-ticket">Ticket diario por fecha</option>
                         </select>
                     </div>
                 </div>
@@ -186,6 +204,31 @@
                     style="display: none; padding: 9px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; background: white;">
             </div>
 
+            <section class="ticket-tools-section" id="ticket-tools-section" style="display: none;">
+                <div class="ticket-tools-card">
+                    <div class="ticket-tools-copy">
+                        <span class="ticket-tools-kicker">Ticket diario</span>
+                        <h2>Monitoreos ejecutados por fecha</h2>
+                        <p>Selecciona una fecha para listar todos los pozos monitoreados ese día y exportar el ticket consolidado en PDF.</p>
+                        <div class="ticket-mode-instructions">
+                            <strong>Instrucciones del modo ticket</strong>
+                            <ol>
+                                <li>Selecciona la fecha exacta del seguimiento.</li>
+                                <li>Genera el ticket para consolidar todos los pozos intervenidos.</li>
+                                <li>Revisa las observaciones operativas debajo de cada contenedor antes de exportar.</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div class="ticket-tools-actions">
+                        <label class="ticket-tools-field" for="ticket-date">
+                            <span>Fecha del ticket</span>
+                            <input type="date" id="ticket-date">
+                        </label>
+                        <button type="button" id="btn-generate-daily-ticket" class="ticket-generate-btn">Generar ticket</button>
+                    </div>
+                </div>
+            </section>
+
             <!-- Tabla principal del historial -->
             <section class="history-card" id="history-container" style="display: none;">
                 <div
@@ -217,6 +260,19 @@
                             <!-- Las filas se generan desde JavaScript -->
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            <section class="history-card daily-ticket-card" id="daily-ticket-container" style="display: none;">
+                <div class="daily-ticket-header">
+                    <div>
+                        <h2 id="daily-ticket-title">Ticket diario de monitoreo</h2>
+                        <p id="daily-ticket-summary">Selecciona una fecha para consolidar los monitoreos realizados en todos los pozos.</p>
+                    </div>
+                    <span id="daily-ticket-count" class="daily-ticket-count">0 pozos</span>
+                </div>
+                <div class="daily-ticket-groups" id="daily-ticket-groups">
+                    <div class="daily-ticket-empty">Selecciona una fecha y genera el ticket diario para ver los monitoreos agrupados por pozo.</div>
                 </div>
             </section>
 
@@ -314,8 +370,10 @@
 
         let activePozo = null;
         let currentRecordData = [];
+        let currentTicketGroups = [];
         let pozoSummaries = [];
         let activeHistoryMode = 'operational';
+        let activeDataView = 'history';
         let currentAccessProfile = { isReadOnly: false, canViewManagement: true, canEditData: true };
 
         function applyDataAccessProfile() {
@@ -411,23 +469,253 @@
 
         // Prepara el resumen ejecutivo que se imprime/exporta en modo reporte.
         function updateReportExportHeader() {
+            const ticketDate = document.getElementById('ticket-date')?.value || '';
             const activeModeLabel = activeHistoryMode === 'technical'
                 ? 'Historial de medicion tecnica'
                 : 'Historial operativo';
-            const filterLabel = getActiveFilterLabel();
-            const recordCount = document.getElementById('record-count')?.textContent?.trim() || `${currentRecordData.length} Registros`;
+            const reportTitle = activeDataView === 'daily-ticket'
+                ? 'Ticket Diario de Monitoreo'
+                : 'Reporte Historico BES';
+            const filterLabel = activeDataView === 'daily-ticket'
+                ? (ticketDate ? `Fecha del ticket: ${ticketDate}` : 'Fecha del ticket pendiente')
+                : getActiveFilterLabel();
+            const recordCount = activeDataView === 'daily-ticket'
+                ? `${currentRecordData.length} monitoreos / ${currentTicketGroups.length} pozos`
+                : (document.getElementById('record-count')?.textContent?.trim() || `${currentRecordData.length} Registros`);
             const pumpType = document.getElementById('selected-pozo-profile-pump')?.textContent?.trim() || 'Pendiente por configurar';
-            const summary = activePozo
-                ? `${activeModeLabel} del pozo ${activePozo}. Filtro aplicado: ${filterLabel.toLowerCase()}.`
-                : 'Resumen curado de registros historicos para auditoria y seguimiento operativo.';
+            const summary = activeDataView === 'daily-ticket'
+                ? (ticketDate
+                    ? `Ticket diario del ${ticketDate} con monitoreos ejecutados en ${currentTicketGroups.length} pozo(s).`
+                    : 'Ticket diario pendiente por fecha.')
+                : (activePozo
+                    ? `${activeModeLabel} del pozo ${activePozo}. Filtro aplicado: ${filterLabel.toLowerCase()}.`
+                    : 'Resumen curado de registros historicos para auditoria y seguimiento operativo.');
 
-            document.getElementById('report-data-pozo').textContent = activePozo || 'Sin seleccion';
-            document.getElementById('report-data-pump').textContent = pumpType;
-            document.getElementById('report-data-mode').textContent = activeModeLabel;
+            document.getElementById('report-data-pozo').textContent = activeDataView === 'daily-ticket' ? 'Todos los pozos' : (activePozo || 'Sin seleccion');
+            document.getElementById('report-data-pump').textContent = activeDataView === 'daily-ticket' ? 'Ticket multipozo' : pumpType;
+            document.getElementById('report-data-mode').textContent = activeDataView === 'daily-ticket' ? 'Ticket diario operativo' : activeModeLabel;
             document.getElementById('report-data-filter').textContent = filterLabel;
             document.getElementById('report-data-count').textContent = recordCount;
+            document.getElementById('report-data-classification').textContent = activeDataView === 'daily-ticket'
+                ? 'Uso interno · Seguimiento operativo'
+                : 'Uso interno UV Servicios';
             document.getElementById('report-data-generated').textContent = new Date().toLocaleString();
+            document.getElementById('report-export-title').textContent = reportTitle;
             document.getElementById('report-export-summary').textContent = summary;
+        }
+
+        function setDataViewMode(mode) {
+            activeDataView = mode === 'daily-ticket' ? 'daily-ticket' : 'history';
+            const reportToggleLabel = document.getElementById('main-view-toggle')?.querySelector('span');
+
+            if (reportToggleLabel) {
+                reportToggleLabel.textContent = 'EXPORTAR REPORTE';
+            }
+
+            const pozoField = document.getElementById('pozo-selector-primary-field');
+            const activityField = document.getElementById('pozo-selector-activity-field');
+            const selectedProfile = document.getElementById('selected-pozo-profile');
+            const toolsSection = document.getElementById('tools-section');
+            const historyContainer = document.getElementById('history-container');
+            const ticketToolsSection = document.getElementById('ticket-tools-section');
+            const ticketContainer = document.getElementById('daily-ticket-container');
+            const emptyState = document.getElementById('empty-state');
+
+            if (activeDataView === 'daily-ticket') {
+                if (pozoField) pozoField.style.display = 'none';
+                if (activityField) activityField.style.display = 'none';
+                if (selectedProfile) selectedProfile.style.display = 'none';
+                if (toolsSection) toolsSection.style.display = 'none';
+                if (historyContainer) historyContainer.style.display = 'none';
+                if (emptyState) emptyState.style.display = 'none';
+                if (ticketToolsSection) ticketToolsSection.style.display = 'block';
+                if (ticketContainer) ticketContainer.style.display = 'block';
+
+                const ticketDate = document.getElementById('ticket-date')?.value || '';
+                if (ticketDate) {
+                    loadDailyTicketData();
+                } else {
+                    renderDailyTicket();
+                }
+                return;
+            }
+
+            if (pozoField) pozoField.style.display = 'block';
+            if (activityField) activityField.style.display = 'block';
+            if (ticketToolsSection) ticketToolsSection.style.display = 'none';
+            if (ticketContainer) ticketContainer.style.display = 'none';
+
+            if (activePozo) {
+                if (selectedProfile) selectedProfile.style.display = 'block';
+                if (toolsSection) toolsSection.style.display = 'flex';
+                if (historyContainer) historyContainer.style.display = 'block';
+                if (emptyState) emptyState.style.display = 'none';
+                loadPozoData();
+                return;
+            }
+
+            if (selectedProfile) selectedProfile.style.display = 'none';
+            if (toolsSection) toolsSection.style.display = 'none';
+            if (historyContainer) historyContainer.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'block';
+        }
+
+        function groupMonitoringRecordsByPozo(records = []) {
+            const grouped = new Map();
+
+            records.forEach(record => {
+                const pozoName = String(record?.pozo_name || '').trim() || 'POZO SIN IDENTIFICAR';
+                if (!grouped.has(pozoName)) {
+                    grouped.set(pozoName, []);
+                }
+                grouped.get(pozoName).push(record);
+            });
+
+            return [...grouped.entries()]
+                .map(([pozoName, recordsByPozo]) => ({
+                    pozoName,
+                    records: recordsByPozo.sort((left, right) => {
+                        const leftKey = `${left?.fecha || ''} ${left?.hora || ''}`;
+                        const rightKey = `${right?.fecha || ''} ${right?.hora || ''}`;
+                        return rightKey.localeCompare(leftKey);
+                    })
+                }))
+                .sort((left, right) => left.pozoName.localeCompare(right.pozoName));
+        }
+
+        function collectGroupObservations(records = []) {
+            const observations = [];
+
+            records.forEach(record => {
+                const observationText = String(record?.observaciones || '').trim();
+                if (!observationText) return;
+
+                const timeLabel = [record?.fecha, record?.hora].filter(Boolean).join(' ');
+                observations.push({
+                    text: observationText,
+                    timeLabel: timeLabel || 'Registro sin fecha visible'
+                });
+            });
+
+            return observations;
+        }
+
+        function formatMonitoringNumberCell(value, decimals = 1) {
+            const numeric = Number(value);
+            return Number.isFinite(numeric) ? numeric.toFixed(decimals) : '--';
+        }
+
+        function formatMonitoringTextCell(value, fallback = '--') {
+            return escapeHtml(value === undefined || value === null || value === '' ? fallback : value);
+        }
+
+        function buildOperationalRowHtml(record, includeActions = false) {
+            const recordId = record.id || record.ID || null;
+
+            return `
+                <tr>
+                    <td><b>${formatMonitoringTextCell(record.fecha)}</b> <br> <span style="font-size:0.75rem; color:#64748B;">${formatMonitoringTextCell(record.hora)}</span></td>
+                    <td><b>${formatMonitoringNumberCell(record.frecuencia)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Hz</span></td>
+                    <td><b>${formatMonitoringTextCell(record.sentido_giro ?? record.giro, '--')}</b></td>
+                    <td><b>${formatMonitoringNumberCell(record.corriente_motor)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Amp</span></td>
+                    <td><b>${formatMonitoringTextCell(record.pip)}</b> <span style="color:#9CA3AF; font-size:0.7rem;">PSI</span> <br> <span style="color:#EF4444;">${formatMonitoringTextCell(record.tm)}°F</span></td>
+                    <td><span style="color:#2563EB;">T: ${formatMonitoringTextCell(record.presion_thp)}</span> / <span style="color:#06B6D4;">C: ${formatMonitoringTextCell(record.presion_chp)}</span> <br> <span style="color:#F59E0B;">LF: ${formatMonitoringTextCell(record.presion_lf ?? record.lf, '--')}</span></td>
+                    <td style="font-family: monospace;">${formatMonitoringTextCell(record.vsd_a)} / ${formatMonitoringTextCell(record.vsd_b, '0')} / ${formatMonitoringTextCell(record.vsd_c, '0')}</td>
+                    <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}; font-weight: 800;">${formatMonitoringTextCell(record.estatus)}</span></td>
+                    <td style="text-align: right;">
+                        ${includeActions && currentAccessProfile.canEditData ? `<button class="btn-action btn-edit" data-id="${escapeHtml(recordId)}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
+                        <button class="btn-action btn-delete" data-id="${escapeHtml(recordId)}">Borrar</button>` : ''}
+                    </td>
+                </tr>
+            `;
+        }
+
+        function renderDailyTicket() {
+            const ticketDate = document.getElementById('ticket-date')?.value || '';
+            const title = document.getElementById('daily-ticket-title');
+            const summary = document.getElementById('daily-ticket-summary');
+            const count = document.getElementById('daily-ticket-count');
+            const groupsContainer = document.getElementById('daily-ticket-groups');
+
+            if (!title || !summary || !count || !groupsContainer) return;
+
+            if (!ticketDate) {
+                title.textContent = 'Ticket diario de monitoreo';
+                summary.textContent = 'Selecciona una fecha para consolidar los monitoreos realizados en todos los pozos.';
+                count.textContent = '0 pozos';
+                groupsContainer.innerHTML = '<div class="daily-ticket-empty">Selecciona una fecha y genera el ticket diario para ver los monitoreos agrupados por pozo.</div>';
+                return;
+            }
+
+            title.textContent = `Ticket diario de monitoreo · ${ticketDate}`;
+            summary.textContent = currentRecordData.length > 0
+                ? `Se detectaron ${currentRecordData.length} monitoreo(s) distribuidos en ${currentTicketGroups.length} pozo(s) para la fecha seleccionada.`
+                : 'No se encontraron monitoreos operativos para la fecha seleccionada.';
+            count.textContent = `${currentTicketGroups.length} pozos`;
+
+            if (currentTicketGroups.length === 0) {
+                groupsContainer.innerHTML = '<div class="daily-ticket-empty">No hay monitoreos operativos registrados para esta fecha.</div>';
+                return;
+            }
+
+            groupsContainer.innerHTML = currentTicketGroups.map(group => {
+                return `
+                <article class="history-card daily-ticket-history-card">
+                    <div class="daily-ticket-history-topbar">
+                        <div>
+                            <h3>${escapeHtml(group.pozoName)}</h3>
+                            <p>Historial operativo consolidado del pozo para la fecha seleccionada.</p>
+                        </div>
+                        <span class="daily-ticket-group-count">${group.records.length} registros</span>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="history-table daily-ticket-history-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha/Hora</th>
+                                    <th>Frecuencia</th>
+                                    <th>Giro</th>
+                                    <th>Corriente M.</th>
+                                    <th>PIP / TM</th>
+                                    <th>Presiones (THP/CHP/LF)</th>
+                                    <th>VSD A/B/C</th>
+                                    <th>Estatus</th>
+                                    <th style="text-align: right;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${group.records.map(record => buildOperationalRowHtml(record, false)).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            `;
+            }).join('');
+        }
+
+        async function loadDailyTicketData() {
+            const ticketDate = document.getElementById('ticket-date')?.value;
+            if (!ticketDate) {
+                renderDailyTicket();
+                return;
+            }
+
+            const groupsContainer = document.getElementById('daily-ticket-groups');
+            if (groupsContainer) {
+                groupsContainer.innerHTML = '<div class="daily-ticket-empty">Cargando ticket diario...</div>';
+            }
+
+            try {
+                const data = await getMonitoringData([], ticketDate, ticketDate);
+                currentRecordData = data;
+                currentTicketGroups = groupMonitoringRecordsByPozo(data);
+                renderDailyTicket();
+            } catch (err) {
+                currentRecordData = [];
+                currentTicketGroups = [];
+                Swal.fire({ icon: 'error', title: 'Error BD', text: err.message });
+                renderDailyTicket();
+            }
         }
 
         // Cambia la vista entre historial operativo y medicion tecnica.
@@ -530,6 +818,9 @@
             document.getElementById('mobile-logout-btn').addEventListener('click', logout);
             document.getElementById('btn-operational-history').addEventListener('click', () => setHistoryMode('operational'));
             document.getElementById('btn-technical-history').addEventListener('click', () => setHistoryMode('technical'));
+            document.getElementById('data-view-mode').addEventListener('change', (event) => setDataViewMode(event.target.value));
+            document.getElementById('ticket-date').addEventListener('change', loadDailyTicketData);
+            document.getElementById('btn-generate-daily-ticket').addEventListener('click', loadDailyTicketData);
 
             await initPozos();
         });
@@ -651,6 +942,7 @@
         });
 
         async function selectPozo(pozo) {
+            if (activeDataView !== 'history') return;
             activePozo = pozo;
             document.getElementById('pozo-selector-input').value = pozo;
             document.getElementById('pozo-selector-menu').classList.remove('active');
@@ -819,14 +1111,9 @@
             const tbody = document.getElementById('history-body');
             tbody.innerHTML = '';
 
-            const formatNumberCell = (value, decimals = 1) => {
-                const numeric = Number(value);
-                return Number.isFinite(numeric) ? numeric.toFixed(decimals) : '--';
-            };
+            const formatNumberCell = (value, decimals = 1) => formatMonitoringNumberCell(value, decimals);
 
-            const formatTextCell = (value, fallback = '--') => {
-                return escapeHtml(value === undefined || value === null || value === '' ? fallback : value);
-            };
+            const formatTextCell = (value, fallback = '--') => formatMonitoringTextCell(value, fallback);
 
             // DEBUG: mostrar muestra de registros en consola para verificar campos
             try { console.debug('DEBUG renderTable sample', currentRecordData.slice(0,3)); } catch(e) {}
@@ -914,20 +1201,7 @@
                     console.warn("ALERTA: Registro sin ID detectado. Campos:", Object.keys(record));
                 }
 
-                tr.innerHTML = `
-                    <td><b>${formatTextCell(record.fecha)}</b> <br> <span style="font-size:0.75rem; color:#64748B;">${formatTextCell(record.hora)}</span></td>
-                    <td><b>${formatNumberCell(record.frecuencia)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Hz</span></td>
-                    <td><b>${formatTextCell(record.sentido_giro ?? record.giro, '--')}</b></td>
-                    <td><b>${formatNumberCell(record.corriente_motor)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Amp</span></td>
-                    <td><b>${formatTextCell(record.pip)}</b> <span style="color:#9CA3AF; font-size:0.7rem;">PSI</span> <br> <span style="color:#EF4444;">${formatTextCell(record.tm)}°F</span></td>
-                    <td><span style="color:#2563EB;">T: ${formatTextCell(record.presion_thp)}</span> / <span style="color:#06B6D4;">C: ${formatTextCell(record.presion_chp)}</span> <br> <span style="color:#F59E0B;">LF: ${formatTextCell(record.presion_lf ?? record.lf, '--')}</span></td>
-                    <td style="font-family: monospace;">${formatTextCell(record.vsd_a)} / ${formatTextCell(record.vsd_b, '0')} / ${formatTextCell(record.vsd_c, '0')}</td>
-                    <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}; font-weight: 800;">${record.estatus}</span></td>
-                    <td style="text-align: right;">
-                        ${currentAccessProfile.canEditData ? `<button class="btn-action btn-edit" data-id="${escapeHtml(recordId)}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
-                        <button class="btn-action btn-delete" data-id="${escapeHtml(recordId)}">Borrar</button>` : ''}
-                    </td>
-                `;
+                tr.innerHTML = buildOperationalRowHtml({ ...record, id: recordId }, true);
                 tbody.appendChild(tr);
             });
 
@@ -978,6 +1252,21 @@
 
         // Alterna entre vista web normal y vista preparada para reporte.
         document.getElementById('main-view-toggle').addEventListener('click', () => {
+            if (activeDataView === 'daily-ticket' && !document.getElementById('ticket-date')?.value) {
+                Swal.fire({ icon: 'info', title: 'Fecha requerida', text: 'Selecciona una fecha antes de exportar el ticket diario.' });
+                return;
+            }
+
+            if (activeDataView === 'daily-ticket' && currentTicketGroups.length === 0) {
+                Swal.fire({ icon: 'info', title: 'Sin datos', text: 'No hay monitoreos para exportar en la fecha seleccionada.' });
+                return;
+            }
+
+            if (activeDataView === 'history' && !activePozo) {
+                Swal.fire({ icon: 'info', title: 'Selecciona un pozo', text: 'Primero selecciona un pozo o cambia al modo ticket diario.' });
+                return;
+            }
+
             const isStandard = !document.body.classList.contains('view-mode-report');
             if (isStandard) {
                 updateReportExportHeader();

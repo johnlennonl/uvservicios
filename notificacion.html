@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <title>UV Servicios | Notificaciones</title>
+    <meta name="description" content="Centro de notificaciones operativas para revisar los registros cargados hoy en UV Servicios.">
+    <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard-page.css">
+    <link rel="stylesheet" href="css/notificacion.css">
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
+            <nav>
+                <a href="dashboard.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="dashboard-data.html" class="nav-link" data-management-link>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    Gestión
+                </a>
+                <a href="monitoring-prep.html" class="nav-link" data-management-link>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                    </svg>
+                    Preparador Excel
+                </a>
+                <a href="data.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                    Data
+                </a>
+                <a href="stats.html" class="nav-link" data-management-link>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v18M12 7v14M19 11v10M3 21h18" />
+                    </svg>
+                    Estadísticas
+                </a>
+                <a href="notificacion.html" class="nav-link active" aria-current="page">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17a3 3 0 006 0" />
+                    </svg>
+                    Notificaciones
+                </a>
+                <a href="help.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.09 9a3 3 0 115.82 1c0 2-3 3-3 3" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 17h.01" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
+                    </svg>
+                    Ayuda
+                </a>
+            </nav>
+            <button id="logout-btn" class="nav-link">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Salir
+            </button>
+        </aside>
+
+        <main class="main-container notification-main-container">
+            <header class="page-hero notification-hero">
+                <div class="page-hero-copy notification-hero-copy">
+                    <span class="notification-kicker">Centro de notificaciones</span>
+                    <h1>Actividad operativa del día</h1>
+                    <p id="notification-hero-subtitle">Consulta cuántos registros se cargaron hoy, qué pozos fueron impactados y cuáles son las últimas altas visibles en la plataforma.</p>
+                    <div class="notification-meta-row">
+                        <span class="notification-pill" id="notification-role-pill">Cargando perfil...</span>
+                        <span class="notification-meta-text" id="notification-range-label">Cargando ventana operativa...</span>
+                    </div>
+                </div>
+                <div class="notification-hero-actions">
+                    <button id="notification-refresh-btn" class="btn-secondary notification-refresh-btn" type="button">Refrescar</button>
+                </div>
+            </header>
+
+            <section class="notification-warning" id="notification-warning" hidden>
+                <strong>Atención:</strong>
+                <span id="notification-warning-text">La auditoría diaria no está disponible todavía.</span>
+            </section>
+
+            <section class="notification-summary-grid" aria-label="Resumen del día">
+                <article class="notification-summary-card">
+                    <span class="notification-summary-label">Registros cargados hoy</span>
+                    <strong class="notification-summary-value" id="notification-total">--</strong>
+                    <p class="notification-summary-note" id="notification-last-refresh">Esperando actualización...</p>
+                </article>
+                <article class="notification-summary-card accent">
+                    <span class="notification-summary-label">Pozos impactados</span>
+                    <strong class="notification-summary-value" id="notification-pozos">--</strong>
+                    <p class="notification-summary-note" id="notification-latest-record">Sin actividad visible todavía.</p>
+                </article>
+                <article class="notification-summary-card soft">
+                    <span class="notification-summary-label">Últimas altas visibles</span>
+                    <strong class="notification-summary-value" id="notification-visible-count">--</strong>
+                    <p class="notification-summary-note">Vista rápida de los registros más recientes del día.</p>
+                </article>
+            </section>
+
+            <section class="notification-layout-grid">
+                <article class="notification-panel notification-feed-panel">
+                    <div class="notification-panel-header">
+                        <div>
+                            <span class="notification-panel-kicker">Bitácora reciente</span>
+                            <h2>Registros cargados hoy</h2>
+                        </div>
+                        <span class="notification-count-pill" id="notification-feed-count">0</span>
+                    </div>
+                    <div class="notification-feed-list" id="notification-feed-list">
+                        <p class="notification-empty-state">Todavía no hay registros para mostrar.</p>
+                    </div>
+                </article>
+
+                <article class="notification-panel notification-pozo-panel">
+                    <div class="notification-panel-header">
+                        <div>
+                            <span class="notification-panel-kicker">Resumen por pozo</span>
+                            <h2>Pozos con más carga hoy</h2>
+                        </div>
+                    </div>
+                    <div class="notification-pozo-list" id="notification-pozo-list">
+                        <p class="notification-empty-state">Todavía no hay pozos con actividad visible.</p>
+                    </div>
+                </article>
+
+                <article class="notification-panel notification-info-panel">
+                    <div class="notification-panel-header compact">
+                        <div>
+                            <span class="notification-panel-kicker">Uso recomendado</span>
+                            <h2>Cómo aprovechar esta sección</h2>
+                        </div>
+                    </div>
+                    <ul class="notification-tip-list">
+                        <li>Confirma al inicio del día cuántos registros entraron realmente a la plataforma.</li>
+                        <li>Usa la lista reciente para detectar pozos con cargas repetidas o inusuales.</li>
+                        <li>Si ves un pozo con muchas entradas, cruza el detalle luego en Data o Gestión.</li>
+                        <li>Si este módulo muestra advertencia técnica, falta created_at en monitoreo_pozos.</li>
+                    </ul>
+                </article>
+            </section>
+        </main>
+    </div>
+
+    <nav class="mobile-bottom-nav" aria-label="Navegacion movil principal">
+        <a href="dashboard.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+            </svg>
+            <span>Inicio</span>
+        </a>
+        <a href="dashboard-data.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            <span>Gestión</span>
+        </a>
+        <a href="data.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+            </svg>
+            <span>Data</span>
+        </a>
+        <a href="stats.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v18M12 7v14M19 11v10M3 21h18" />
+            </svg>
+            <span>Stats</span>
+        </a>
+        <a href="notificacion.html" class="mobile-nav-link active" aria-current="page">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17a3 3 0 006 0" />
+            </svg>
+            <span>Avisos</span>
+        </a>
+        <a href="help.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.09 9a3 3 0 115.82 1c0 2-3 3-3 3" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 17h.01" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
+            </svg>
+            <span>Ayuda</span>
+        </a>
+    </nav>
+
+    <script type="module" src="js/notificacion.js"></script>
+</body>
+
+</html>

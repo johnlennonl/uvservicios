@@ -143,6 +143,69 @@ export async function getLatestMonitoringRecords(pozoName, limit = 15) {
     return data || [];
 }
 
+export async function getMonitoringDailyActivity(limit = 12, referenceDate = new Date()) {
+    const safeLimit = Number.isFinite(Number(limit)) ? Number(limit) : 12;
+    const baseDate = referenceDate instanceof Date && !Number.isNaN(referenceDate.getTime())
+        ? referenceDate
+        : new Date();
+
+    const dayStart = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 0, 0, 0, 0);
+    const nextDayStart = new Date(dayStart);
+    nextDayStart.setDate(nextDayStart.getDate() + 1);
+
+    try {
+        const [allDayRows, recordsResult] = await Promise.all([
+            fetchAllRows('monitoreo_pozos', 'pozo_name, created_at', (query) => query
+                .gte('created_at', dayStart.toISOString())
+                .lt('created_at', nextDayStart.toISOString())),
+            supabase
+                .from('monitoreo_pozos')
+                .select('id, pozo_name, fecha, hora, estatus, created_at')
+                .gte('created_at', dayStart.toISOString())
+                .lt('created_at', nextDayStart.toISOString())
+                .order('created_at', { ascending: false })
+                .limit(safeLimit)
+        ]);
+
+        if (recordsResult.error) throw recordsResult.error;
+
+        const countsByPozo = new Map();
+        (allDayRows || []).forEach(record => {
+            const pozoName = String(record?.pozo_name || '').trim();
+            if (!pozoName) return;
+            countsByPozo.set(pozoName, (countsByPozo.get(pozoName) || 0) + 1);
+        });
+
+        return {
+            supported: true,
+            total: allDayRows.length,
+            uniquePozos: countsByPozo.size,
+            pozoCounts: [...countsByPozo.entries()]
+                .map(([pozo_name, count]) => ({ pozo_name, count }))
+                .sort((left, right) => right.count - left.count || left.pozo_name.localeCompare(right.pozo_name)),
+            records: recordsResult.data || [],
+            rangeStart: dayStart.toISOString(),
+            rangeEnd: nextDayStart.toISOString()
+        };
+    } catch (error) {
+        const message = String(error?.message || error || '');
+        if (/created_at/i.test(message)) {
+            return {
+                supported: false,
+                total: 0,
+                uniquePozos: 0,
+                pozoCounts: [],
+                records: [],
+                rangeStart: dayStart.toISOString(),
+                rangeEnd: nextDayStart.toISOString(),
+                error: 'Para mostrar cargas del dia hace falta la columna created_at en monitoreo_pozos.'
+            };
+        }
+
+        throw error;
+    }
+}
+
 export async function getRecordById(id) {
     const { data, error } = await supabase
         .from('monitoreo_pozos')
