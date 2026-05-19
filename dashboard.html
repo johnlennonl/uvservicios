@@ -414,9 +414,16 @@
                         <span class="trend-window-label">Graficas grandes</span>
                         <p>Enfoca los ultimos registros para revisar el comportamiento reciente del pozo.</p>
                     </div>
-                    <button type="button" id="btn-trend-last-7" class="btn-secondary trend-window-btn" aria-pressed="false">
-                        Ver ultimos 15 registros
-                    </button>
+                    <div class="trend-window-actions">
+                        <label class="trend-window-select-wrap" for="trend-window-select">
+                            <span class="trend-window-select-label">Vista</span>
+                            <select id="trend-window-select" class="trend-window-select" aria-label="Seleccionar ventana de graficas grandes">
+                                <option value="latest-1">Ultimo registro</option>
+                                <option value="latest-15" selected>Ultimos 15 registros</option>
+                                <option value="latest-30">Ultimos 30 registros</option>
+                            </select>
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Bloque de tendencias historicas -->

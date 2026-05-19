@@ -13,12 +13,26 @@ let isDarkMode = localStorage.getItem('theme-uv') === 'dark';
 let resizeFrame = null;
 let historicalRecordOptions = [];
 let pozoSummaries = [];
-let isLatestSevenTrendMode = (() => {
-    const v = sessionStorage.getItem('uv-latest-trend-mode');
-    if (v === null) return true; // por defecto ver últimos registros
-    return v === '1';
-})();
 const FOCUSED_TREND_RECORD_COUNT = 15;
+const MONITORING_RECORD_WINDOW = 30;
+const TREND_WINDOW_STORAGE_KEY = 'uv-trend-window-mode';
+const TREND_WINDOW_MODES = {
+    latest1: 'latest-1',
+    latest15: 'latest-15',
+    latest30: 'latest-30'
+};
+let trendWindowMode = (() => {
+    const storedMode = sessionStorage.getItem(TREND_WINDOW_STORAGE_KEY);
+    if (Object.values(TREND_WINDOW_MODES).includes(storedMode)) {
+        return storedMode;
+    }
+
+    const legacyThirty = sessionStorage.getItem('uv-monitoring-30d-mode') === '1';
+    const legacyFifteenRaw = sessionStorage.getItem('uv-latest-trend-mode');
+    if (legacyThirty) return TREND_WINDOW_MODES.latest30;
+    if (legacyFifteenRaw === null || legacyFifteenRaw === '1') return TREND_WINDOW_MODES.latest15;
+    return TREND_WINDOW_MODES.latest1;
+})();
 const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
 const TREND_AXIS_BASES = {
     frecuencia: { min: 0, max: 60, step: 5, decimals: 1 },
@@ -36,6 +50,74 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function getTrendWindowRecordCount() {
+    if (trendWindowMode === TREND_WINDOW_MODES.latest1) return 1;
+    if (trendWindowMode === TREND_WINDOW_MODES.latest30) return MONITORING_RECORD_WINDOW;
+    return FOCUSED_TREND_RECORD_COUNT;
+}
+
+function isFocusedTrendMode() {
+    return trendWindowMode === TREND_WINDOW_MODES.latest15 || trendWindowMode === TREND_WINDOW_MODES.latest30;
+}
+
+function syncTrendWindowControl(isAvailable) {
+    const select = document.getElementById('trend-window-select');
+    if (!select) return;
+
+    select.disabled = !isAvailable;
+    select.value = trendWindowMode;
+}
+
+function setTrendWindowMode(mode, syncControl = true) {
+    trendWindowMode = Object.values(TREND_WINDOW_MODES).includes(mode)
+        ? mode
+        : TREND_WINDOW_MODES.latest15;
+
+    sessionStorage.setItem(TREND_WINDOW_STORAGE_KEY, trendWindowMode);
+    sessionStorage.removeItem('uv-latest-trend-mode');
+    sessionStorage.removeItem('uv-monitoring-30d-mode');
+
+    if (syncControl) {
+        const pozoName = document.getElementById('filter-pozo')?.value || '';
+        syncTrendWindowControl(Boolean(pozoName && !isComparisonMode));
+    }
+}
+
+async function applyFocusedMonitoringRange(pozoName, latestDateOverride = null) {
+    const input = document.getElementById('historical-record-input');
+    const startInput = document.getElementById('filter-start');
+    const endInput = document.getElementById('filter-end');
+    const timeInput = document.getElementById('filter-time');
+    const dateJumpInput = document.getElementById('historical-date-jump');
+
+    if (!pozoName || !startInput || !endInput) return false;
+
+    const recordCount = getTrendWindowRecordCount();
+    const scopedOptions = historicalRecordOptions.slice(0, recordCount);
+    const latestOption = scopedOptions[0] || null;
+    const oldestOption = scopedOptions[scopedOptions.length - 1] || null;
+
+    const latestDate = latestOption?.date || latestDateOverride || getPozoSummary(pozoName)?.latest_fecha || await getLatestDate(pozoName);
+    const startDate = oldestOption?.date || latestDate;
+    const endDate = latestDate;
+    if (!startDate || !endDate) return false;
+
+    startInput.value = startDate;
+    endInput.value = endDate;
+    if (timeInput) timeInput.value = '';
+    if (input) {
+        input.value = recordCount === 1
+            ? 'Ultimo registro'
+            : `Ultimos ${scopedOptions.length || recordCount} registros`;
+        input.dataset.recordValue = '';
+    }
+    if (dateJumpInput) {
+        dateJumpInput.value = endDate;
+    }
+
+    return true;
 }
 
 // Mantiene el pozo activo entre Dashboard, Data y Gestion durante la sesion actual.
@@ -165,6 +247,10 @@ async function selectDashboardPozo(pozoName) {
     document.getElementById('filter-end').value = latestDate || '';
 
     await syncHistoricalRecordSelector(pozoName || '');
+    if (pozoName && !isComparisonMode && isFocusedTrendMode()) {
+        await applyFocusedMonitoringRange(pozoName, latestDate || historicalRecordOptions[0]?.date || null);
+    }
+    syncTrendWindowControl(Boolean(pozoName && !isComparisonMode));
     updateDashboard();
 }
 
@@ -281,6 +367,7 @@ function applyHistoricalRecordSelection(option, shouldUpdate = true) {
 
 function selectHistoricalDate(dateValue) {
     if (!dateValue) return;
+    setTrendWindowMode(TREND_WINDOW_MODES.latest1);
 
     const exactMatch = historicalRecordOptions.find(option => option.date === dateValue);
     if (exactMatch) {
@@ -327,6 +414,7 @@ async function openHistoricalDatePicker() {
 }
 
 function selectHistoricalRecord(dateValue) {
+    setTrendWindowMode(TREND_WINDOW_MODES.latest1);
     const selectedOption = historicalRecordOptions.find(option => option.value === dateValue) || null;
     applyHistoricalRecordSelection(selectedOption, false);
 
@@ -508,6 +596,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('filter-end').value = '';
                 }
                 await syncHistoricalRecordSelector(storedPozo);
+                if (!isComparisonMode && isFocusedTrendMode()) {
+                    await applyFocusedMonitoringRange(storedPozo, pozoDate || historicalRecordOptions[0]?.date || null);
+                }
+                syncTrendWindowControl(Boolean(storedPozo));
             }
         }
 
@@ -650,31 +742,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
     if (mobileLogoutBtn) mobileLogoutBtn.addEventListener('click', logout);
 
-    const trendWindowBtn = document.getElementById('btn-trend-last-7');
-    if (trendWindowBtn) {
-        trendWindowBtn.addEventListener('click', () => {
-            isLatestSevenTrendMode = !isLatestSevenTrendMode;
-            // Persistir la preferencia en la sesión para que dure hasta cerrar sesión.
-            sessionStorage.setItem('uv-latest-trend-mode', isLatestSevenTrendMode ? '1' : '0');
-            trendWindowBtn.classList.toggle('active', isLatestSevenTrendMode);
-            trendWindowBtn.setAttribute('aria-pressed', String(isLatestSevenTrendMode));
-            trendWindowBtn.textContent = isLatestSevenTrendMode
-                ? 'Volver a vista normal'
-                : `Ver ultimos ${FOCUSED_TREND_RECORD_COUNT} registros`;
+    const trendWindowSelect = document.getElementById('trend-window-select');
+    if (trendWindowSelect) {
+        trendWindowSelect.addEventListener('change', async () => {
+            const pozoName = document.getElementById('filter-pozo')?.value || '';
+            const nextMode = trendWindowSelect.value;
+
+            setTrendWindowMode(nextMode, false);
+
+            if (pozoName && !isComparisonMode) {
+                if (trendWindowMode === TREND_WINDOW_MODES.latest1) {
+                    await syncHistoricalRecordSelector(pozoName, false);
+                } else {
+                    await applyFocusedMonitoringRange(pozoName, historicalRecordOptions[0]?.date || null);
+                }
+            }
+
+            syncTrendWindowControl(Boolean(pozoName && !isComparisonMode));
             updateDashboard();
         });
-        // Inicializar el estado del botón según la preferencia/restauración
-        trendWindowBtn.classList.toggle('active', isLatestSevenTrendMode);
-        trendWindowBtn.setAttribute('aria-pressed', String(isLatestSevenTrendMode));
-        trendWindowBtn.textContent = isLatestSevenTrendMode
-            ? 'Volver a vista normal'
-            : `Ver ultimos ${FOCUSED_TREND_RECORD_COUNT} registros`;
+
+        syncTrendWindowControl(Boolean(document.getElementById('filter-pozo')?.value && !isComparisonMode));
     }
 
     // Activa o desactiva la comparacion simultanea entre pozos.
     const compareToggleBtn = document.getElementById('btn-toggle-compare');
     if (compareToggleBtn) {
-        compareToggleBtn.addEventListener('click', () => {
+        compareToggleBtn.addEventListener('click', async () => {
             isComparisonMode = !isComparisonMode;
             document.getElementById('comparison-panel').classList.toggle('active', isComparisonMode);
             document.getElementById('single-pozo-container').style.display = isComparisonMode ? 'none' : 'block';
@@ -682,7 +776,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             compareToggleBtn.textContent = isComparisonMode ? 'VISTA SIMPLE' : 'COMPARAR';
             compareToggleBtn.title = isComparisonMode ? 'Volver a vista simple' : 'Comparar pozos';
             compareToggleBtn.setAttribute('aria-label', isComparisonMode ? 'Volver a vista simple' : 'Comparar pozos');
-            syncHistoricalRecordSelector(document.getElementById('filter-pozo')?.value || '', true);
+            const currentPozo = document.getElementById('filter-pozo')?.value || '';
+            await syncHistoricalRecordSelector(currentPozo, true);
+            if (!isComparisonMode && currentPozo && isFocusedTrendMode()) {
+                await applyFocusedMonitoringRange(currentPozo, historicalRecordOptions[0]?.date || null);
+            }
+            syncTrendWindowControl(Boolean(currentPozo && !isComparisonMode));
         });
     }
 
@@ -695,6 +794,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const nextIndex = currentIndex + delta;
         if (nextIndex < 0 || nextIndex >= historicalRecordOptions.length) return;
 
+        setTrendWindowMode(TREND_WINDOW_MODES.latest1);
         applyHistoricalRecordSelection(historicalRecordOptions[nextIndex]);
     };
 
@@ -728,6 +828,7 @@ async function updateDashboard() {
         if (!isComparisonMode) {
             setStoredSelectedPozo('');
         }
+        syncTrendWindowControl(false);
         clearDashboard();
 
         const title = document.querySelector('.main-container header p');
@@ -741,6 +842,7 @@ async function updateDashboard() {
     const start = document.getElementById('filter-start').value || null;
     const end = document.getElementById('filter-end').value || null;
     const selectedRecordValue = getSelectedHistoricalRecordValue();
+    syncTrendWindowControl(selectedPozos.length === 1 && !isComparisonMode);
     
     // Activa skeletons mientras resolvemos consultas y volvemos a dibujar las visualizaciones.
     // Activa skeletons mientras llegan datos y se repinta la vista.
@@ -748,7 +850,11 @@ async function updateDashboard() {
     chartContainers.forEach(el => el.parentElement.classList.add('loading-skeleton'));
 
     try {
-        const data = await getMonitoringData(selectedPozos, start, end);
+        const requestedRecordCount = getTrendWindowRecordCount();
+        const shouldUseFixedRecordWindow = selectedPozos.length === 1 && !isComparisonMode && isFocusedTrendMode();
+        const data = shouldUseFixedRecordWindow
+            ? await getLatestMonitoringRecords(selectedPozos[0], requestedRecordCount)
+            : await getMonitoringData(selectedPozos, start, end);
         const ribbonData = selectedPozos.length === 1
             ? await getWellRibbonData(selectedPozos[0])
             : null;
@@ -775,8 +881,8 @@ async function updateDashboard() {
             const title = document.querySelector('.main-container header p');
             if (title && selectedPozos.length === 1) {
                 title.textContent = ribbonData
-                    ? `Pozo ${selectedPozos[0]} sin telemetria para la fecha seleccionada. Mostrando Produccion Tecnica.`
-                    : `Pozo ${selectedPozos[0]} sin telemetria ni Produccion Tecnica disponible.`;
+                    ? `Pozo ${selectedPozos[0]} sin telemetria para la seleccion actual.`
+                    : `Pozo ${selectedPozos[0]} sin telemetria disponible para la seleccion actual.`;
             }
             
             chartContainers.forEach(el => el.parentElement.classList.remove('loading-skeleton'));
@@ -795,7 +901,7 @@ async function updateDashboard() {
             updateDataRibbon(null);
         }
 
-        const shouldUseFocusedTrendData = isLatestSevenTrendMode && selectedPozos.length === 1 && !isComparisonMode;
+        const shouldUseFocusedTrendData = shouldUseFixedRecordWindow;
 
         // Trae vecinos anterior/siguiente para que las lineas no queden cortadas en filtros cerrados.
         let extendedData = [...data];
@@ -811,7 +917,7 @@ async function updateDashboard() {
         }
 
         const trendSourceData = shouldUseFocusedTrendData
-            ? await getLatestMonitoringRecords(selectedPozos[0], FOCUSED_TREND_RECORD_COUNT)
+            ? await getLatestMonitoringRecords(selectedPozos[0], requestedRecordCount)
             : extendedData;
 
         // Ordena por fecha y hora antes de alimentar las graficas de tendencia.
@@ -835,8 +941,8 @@ async function updateDashboard() {
         renderKPIs(activeRecord);
         renderStatusDonut(data);
         renderCoreTrends(timelineData, selectedPozos, {
-            latestRecordsOnly: isLatestSevenTrendMode,
-            latestRecordCount: FOCUSED_TREND_RECORD_COUNT
+            latestRecordsOnly: shouldUseFocusedTrendData,
+            latestRecordCount: requestedRecordCount
         });
         renderObservations(filteredObs);
     } catch (err) {
@@ -861,6 +967,7 @@ function clearDashboard() {
     if (welcomeView) welcomeView.style.display = 'block';
     if (dataRibbon) dataRibbon.style.display = 'none';
     if (brutalGrid) brutalGrid.style.display = 'none';
+    syncTrendWindowControl(false);
 
     const rotationBadge = document.getElementById('rotation-badge');
     const rotationValue = document.getElementById('rotation-badge-value');
@@ -898,7 +1005,11 @@ function renderKPIs(latest) {
     if (title) {
         title.textContent = isComparisonMode 
             ? `Comparando ${latest.pozo_name} y otros` 
-            : `Analizando Pozo: ${latest.pozo_name} (Último: ${latest.fecha} ${latest.hora})`;
+            : trendWindowMode === TREND_WINDOW_MODES.latest30
+                ? `Analizando Pozo: ${latest.pozo_name} (Ultimos ${MONITORING_RECORD_WINDOW} registros)`
+                : trendWindowMode === TREND_WINDOW_MODES.latest15
+                    ? `Analizando Pozo: ${latest.pozo_name} (Ultimos ${FOCUSED_TREND_RECORD_COUNT} registros)`
+                    : `Analizando Pozo: ${latest.pozo_name} (Último: ${latest.fecha} ${latest.hora})`;
     }
 }
 
@@ -997,7 +1108,18 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
     const trendBounds = getTrendWindowBounds(scopedTimeline, latestRecordsOnly, latestRecordCount);
     const pozosPresentes = [...new Set(scopedTimeline.map(d => d.pozo_name))];
     const isComparison = pozosPresentes.length > 1;
-    const useCompressedTrendAxis = latestRecordsOnly && !isComparison;
+    const useFocusedTrendAxis = latestRecordsOnly && !isComparison;
+    const useDenseFocusedAxis = useFocusedTrendAxis && latestRecordCount >= 30;
+    const viewportWidth = window.innerWidth || document.documentElement?.clientWidth || 1440;
+    const isMobileTrendViewport = viewportWidth <= 768;
+    const isTabletTrendViewport = viewportWidth > 768 && viewportWidth <= 1366;
+    const focusedAxisRotation = !useFocusedTrendAxis
+        ? 0
+        : useDenseFocusedAxis
+            ? (isMobileTrendViewport ? -45 : (isTabletTrendViewport ? -28 : 0))
+            : 0;
+    const focusedAxisFontSize = useDenseFocusedAxis && isMobileTrendViewport ? '10px' : '11px';
+    const shouldHideOverlappingFocusedLabels = useDenseFocusedAxis && isMobileTrendViewport;
 
     // Paleta principal de colores para tendencias y comparaciones.
     const REPSOL_ORANGE = '#FF8200';
@@ -1024,6 +1146,18 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
         }
 
         return date.toLocaleString('es-ES', opts);
+    };
+
+    const formatCompressedTrendAxisLabel = (value) => {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+
+        return date.toLocaleString('es-ES', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
 
 
@@ -1060,37 +1194,53 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             yaxis: { lines: { show: true } }
         },
         xaxis: {
-            type: useCompressedTrendAxis ? 'category' : 'datetime',
-            min: useCompressedTrendAxis ? undefined : trendBounds?.min,
-            max: useCompressedTrendAxis ? undefined : trendBounds?.max,
-            ...(useCompressedTrendAxis
-                ? { categories: scopedTimeline.map(d => {
-                    const fecha = d?.fecha;
-                    const hora = d?.hora || '00:00:00';
-                    if (!fecha) return '';
-                    const ts = new Date(`${fecha}T${hora}`).getTime();
-                    return Number.isFinite(ts) ? formatTrendPointLabel(ts) : '';
-                }) } // Fechas legibles (día/mes hora) en compacta
-                : {}),
+            type: 'datetime',
+            min: trendBounds?.min,
+            max: trendBounds?.max,
             labels: {
                 datetimeUTC: false,
-                style: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', fontSize: '11px', fontWeight: 600 },
-                formatter: useCompressedTrendAxis
-                    ? (value) => String(value) // Mostrar la categoría (fecha formateada) tal cual en compacta
-                    : (value) => {
-                        const date = new Date(value);
-                        if (Number.isNaN(date.getTime())) return '';
-                        return date.toLocaleString('es-ES', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
-                    },
-                rotate: useCompressedTrendAxis ? -45 : (latestRecordsOnly ? -20 : 0),
-                hideOverlappingLabels: useCompressedTrendAxis ? false : true,
+                style: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', fontSize: focusedAxisFontSize, fontWeight: 600 },
+                formatter: (value) => {
+                    const date = new Date(value);
+                    if (Number.isNaN(date.getTime())) return '';
+
+                    if (useFocusedTrendAxis) {
+                        return useDenseFocusedAxis && isMobileTrendViewport
+                            ? formatCompressedTrendAxisLabel(value)
+                            : formatTrendPointLabel(value);
+                    }
+
+                    return date.toLocaleString('es-ES', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                },
+                rotate: focusedAxisRotation,
+                rotateAlways: focusedAxisRotation !== 0,
+                trim: true,
+                hideOverlappingLabels: shouldHideOverlappingFocusedLabels,
                 showDuplicates: false
+            }
+        },
+        tooltip: {
+            shared: true,
+            intersect: false,
+            x: {
+                formatter: (value) => {
+                    const date = new Date(value);
+                    if (Number.isNaN(date.getTime())) return String(value || '');
+
+                    return date.toLocaleString('es-ES', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
             }
         },
         colors: Array.isArray(color) ? color : [color],
@@ -1144,14 +1294,17 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
                     ? Number(rawValue)
                     : null;
 
-                if (useCompressedTrendAxis && !Number.isFinite(numericValue)) {
+                if (useFocusedTrendAxis && !Number.isFinite(numericValue)) {
+                    return null;
+                }
+
+                const pointTimestamp = new Date(`${d.fecha}T${d.hora}`).getTime();
+                if (!Number.isFinite(pointTimestamp)) {
                     return null;
                 }
 
                 return {
-                    x: useCompressedTrendAxis
-                        ? formatTrendPointLabel(new Date(`${d.fecha}T${d.hora}`).getTime())
-                        : new Date(`${d.fecha}T${d.hora}`).getTime(),
+                    x: pointTimestamp,
                     y: Number.isFinite(numericValue) ? numericValue : null
                 };
             })
@@ -1268,12 +1421,10 @@ function getTrendWindowBounds(timeline, latestRecordsOnly, latestRecordCount) {
 
     const minTimestamp = Math.min(...timestamps);
     const maxTimestamp = Math.max(...timestamps);
-    const span = Math.max(maxTimestamp - minTimestamp, 60 * 60 * 1000);
-    const padding = Math.min(span * 0.12, 12 * 60 * 60 * 1000);
 
     return {
-        min: minTimestamp - padding,
-        max: maxTimestamp + padding
+        min: minTimestamp,
+        max: maxTimestamp
     };
 }
 

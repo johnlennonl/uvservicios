@@ -51,8 +51,36 @@ async function fetchAllRows(tableName, selectClause, configureQuery) {
 function buildMonitoringRecordKey(record = {}) {
     const pozoName = String(record.pozo_name || '').trim().toUpperCase();
     const fecha = String(record.fecha || '').trim();
-    const hora = String(record.hora || '00:00:00').trim() || '00:00:00';
+    const hora = normalizeMonitoringTime(record.hora);
     return `${pozoName}|${fecha}|${hora}`;
+}
+
+function normalizeMonitoringTime(value) {
+    const raw = String(value || '00:00:00').trim() || '00:00:00';
+    const match = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) return raw;
+
+    const hours = match[1].padStart(2, '0');
+    const minutes = match[2];
+    const seconds = match[3] || '00';
+    return `${hours}:${minutes}:${seconds}`;
+}
+
+async function fetchExistingMonitoringRecordsForSync(fechas = []) {
+    const sortedDates = (Array.isArray(fechas) ? fechas : []).filter(Boolean).sort();
+    let existingQuery = supabase
+        .from('monitoreo_pozos')
+        .select('id, pozo_name, fecha, hora');
+
+    if (sortedDates[0]) existingQuery = existingQuery.gte('fecha', sortedDates[0]);
+    if (sortedDates[sortedDates.length - 1]) existingQuery = existingQuery.lte('fecha', sortedDates[sortedDates.length - 1]);
+
+    return fetchAllRows('monitoreo_pozos', 'id, pozo_name, fecha, hora', (query) => {
+        let configured = query;
+        if (sortedDates[0]) configured = configured.gte('fecha', sortedDates[0]);
+        if (sortedDates[sortedDates.length - 1]) configured = configured.lte('fecha', sortedDates[sortedDates.length - 1]);
+        return configured;
+    });
 }
 
 function buildTechnicalRecordKey(record = {}) {
@@ -177,7 +205,7 @@ export async function syncMonitoringRecords(records = []) {
         .map(record => ({
             ...record,
             pozo_name: String(record.pozo_name).trim(),
-            hora: String(record.hora || '00:00:00').trim() || '00:00:00'
+            hora: normalizeMonitoringTime(record.hora)
         }));
 
     if (normalizedRecords.length === 0) {
@@ -190,19 +218,10 @@ export async function syncMonitoringRecords(records = []) {
     });
 
     const dedupedRecords = [...uniqueIncomingRecords.values()];
-    const pozoNames = [...new Set(dedupedRecords.map(record => record.pozo_name))];
     const fechas = dedupedRecords.map(record => record.fecha).filter(Boolean).sort();
-
-    let existingQuery = supabase
-        .from('monitoreo_pozos')
-        .select('id, pozo_name, fecha, hora')
-        .in('pozo_name', pozoNames);
-
-    if (fechas[0]) existingQuery = existingQuery.gte('fecha', fechas[0]);
-    if (fechas[fechas.length - 1]) existingQuery = existingQuery.lte('fecha', fechas[fechas.length - 1]);
-
-    const { data: existingRecords, error: existingError } = await existingQuery;
-    if (existingError) throw existingError;
+    const normalizedPozoNames = new Set(dedupedRecords.map(record => String(record.pozo_name || '').trim().toUpperCase()));
+    const existingRecords = (await fetchExistingMonitoringRecordsForSync(fechas))
+        .filter(record => normalizedPozoNames.has(String(record?.pozo_name || '').trim().toUpperCase()));
 
     const existingByKey = new Map();
     (existingRecords || []).forEach(record => {
@@ -255,7 +274,7 @@ export async function previewMonitoringSync(records = []) {
         .map(record => ({
             ...record,
             pozo_name: String(record.pozo_name).trim(),
-            hora: String(record.hora || '00:00:00').trim() || '00:00:00'
+            hora: normalizeMonitoringTime(record.hora)
         }));
 
     if (normalizedRecords.length === 0) {
@@ -268,19 +287,10 @@ export async function previewMonitoringSync(records = []) {
     });
 
     const dedupedRecords = [...uniqueIncomingRecords.values()];
-    const pozoNames = [...new Set(dedupedRecords.map(record => record.pozo_name))];
     const fechas = dedupedRecords.map(record => record.fecha).filter(Boolean).sort();
-
-    let existingQuery = supabase
-        .from('monitoreo_pozos')
-        .select('id, pozo_name, fecha, hora')
-        .in('pozo_name', pozoNames);
-
-    if (fechas[0]) existingQuery = existingQuery.gte('fecha', fechas[0]);
-    if (fechas[fechas.length - 1]) existingQuery = existingQuery.lte('fecha', fechas[fechas.length - 1]);
-
-    const { data: existingRecords, error: existingError } = await existingQuery;
-    if (existingError) throw existingError;
+    const normalizedPozoNames = new Set(dedupedRecords.map(record => String(record.pozo_name || '').trim().toUpperCase()));
+    const existingRecords = (await fetchExistingMonitoringRecordsForSync(fechas))
+        .filter(record => normalizedPozoNames.has(String(record?.pozo_name || '').trim().toUpperCase()));
 
     const existingByKey = new Map();
     (existingRecords || []).forEach(record => {
