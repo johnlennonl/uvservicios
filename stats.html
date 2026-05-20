@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard-page.css">
     <link rel="stylesheet" href="css/stats-page.css">
+    <link rel="stylesheet" href="css/help-page.css">
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 <body class="view-mode-standard">
@@ -206,6 +207,128 @@
                 </div>
             </section>
         </main>
+
+        <div class="help-assistant-dock" id="help-assistant-dock">
+            <button type="button" class="help-assistant-launcher" id="help-assistant-launcher" aria-expanded="false" aria-controls="help-assistant-panel">
+                <span class="help-assistant-launcher-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <rect x="5" y="8" width="14" height="10" rx="4"></rect>
+                        <path d="M12 4v4"></path>
+                        <circle cx="9.5" cy="13" r="1"></circle>
+                        <circle cx="14.5" cy="13" r="1"></circle>
+                        <path d="M9 16c.8.6 1.8.9 3 .9s2.2-.3 3-.9"></path>
+                    </svg>
+                </span>
+                <span class="help-assistant-launcher-copy">
+                    <strong>UVITO</strong>
+                    <span id="help-assistant-launcher-status">Consulta pozos, alarmas y producción</span>
+                </span>
+            </button>
+
+            <section class="help-assistant-panel" id="help-assistant-panel" hidden>
+                <header class="help-assistant-header">
+                    <div class="help-assistant-header-copy">
+                        <span class="help-assistant-kicker">Asistente fijo</span>
+                        <h2>UVITO</h2>
+                        <p id="help-assistant-subtitle">Consulta cobertura, pozos OFF, alertas, producción y dudas de uso de la app.</p>
+                    </div>
+                    <div class="help-assistant-header-actions">
+                        <button type="button" class="help-assistant-settings-toggle" id="help-assistant-settings-toggle" aria-expanded="false" aria-controls="help-assistant-settings-panel" aria-label="Abrir configuración de UVITO">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+                                <path stroke-linecap="round" d="M4 7h10"></path>
+                                <path stroke-linecap="round" d="M4 17h16"></path>
+                                <path stroke-linecap="round" d="M14 12h6"></path>
+                                <path stroke-linecap="round" d="M4 12h4"></path>
+                                <circle cx="16" cy="7" r="2"></circle>
+                                <circle cx="10" cy="12" r="2"></circle>
+                                <circle cx="14" cy="17" r="2"></circle>
+                            </svg>
+                        </button>
+                        <button type="button" class="help-assistant-close" id="help-assistant-close" aria-label="Minimizar asistente">−</button>
+                    </div>
+                </header>
+
+                <section class="help-assistant-settings-panel" id="help-assistant-settings-panel" hidden>
+                    <div class="help-assistant-settings-head">
+                        <div>
+                            <span>Configuración</span>
+                            <strong id="help-assistant-current-name">Modo general</strong>
+                            <p>Tema activo: <span id="help-assistant-current-theme">Verde UV</span></p>
+                        </div>
+                    </div>
+
+                    <form class="help-assistant-settings-form" id="help-assistant-settings-form">
+                        <label class="help-assistant-settings-field" for="help-assistant-name-input">
+                            <span>¿Cómo quieres que te llame UVITO?</span>
+                            <input type="text" id="help-assistant-name-input" maxlength="24" placeholder="Ej: John, Ingeniero, Luis">
+                        </label>
+
+                        <div class="help-assistant-theme-picker">
+                            <span>Color del asistente</span>
+                            <div class="help-assistant-theme-options">
+                                <button type="button" class="help-assistant-theme-option" data-assistant-theme="teal">Verde</button>
+                                <button type="button" class="help-assistant-theme-option" data-assistant-theme="blue">Azul</button>
+                                <button type="button" class="help-assistant-theme-option" data-assistant-theme="red">Rojo</button>
+                            </div>
+                        </div>
+
+                        <div class="help-assistant-settings-actions">
+                            <button type="button" class="help-assistant-reset-name" id="help-assistant-reset-name">Quitar nombre</button>
+                            <button type="submit" class="help-assistant-settings-save">Guardar</button>
+                        </div>
+                    </form>
+                </section>
+
+                <div class="help-assistant-context" id="help-assistant-context">
+                    <span class="help-assistant-context-label">Contexto actual</span>
+                    <strong id="help-assistant-context-value">Estadísticas</strong>
+                    <p id="help-assistant-context-copy">UVITO priorizará respuestas sobre cobertura, pozos OFF, seguimiento y análisis por rango.</p>
+                </div>
+
+                <details class="help-assistant-guide" open>
+                    <summary>¿Qué preguntarle a UVITO?</summary>
+                    <div class="help-assistant-guide-body">
+                        <p>En Estadísticas, UVITO te ayuda a interpretar el rango actual y también a ubicar funciones del módulo y del resto de la plataforma.</p>
+                        <div class="help-assistant-guide-group">
+                            <strong>Consultas para este módulo</strong>
+                            <div class="help-assistant-suggestions" aria-label="Consultas de estadísticas sugeridas">
+                                <button type="button" class="help-assistant-chip" data-assistant-query="cuántos pozos están OFF">¿Cuántos pozos están OFF?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="cuántos pozos no tienen registros">¿Cuántos pozos no tienen registros?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="qué hace estadísticas">¿Qué hace Estadísticas?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="generar reporte">Generar reporte</button>
+                            </div>
+                        </div>
+                        <div class="help-assistant-guide-group">
+                            <strong>Preguntas de navegación</strong>
+                            <div class="help-assistant-suggestions" aria-label="Preguntas de navegación sugeridas">
+                                <button type="button" class="help-assistant-chip" data-assistant-query="cómo reviso el historial de un pozo">¿Cómo reviso el historial de un pozo?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="qué hace dashboard">¿Qué hace Dashboard?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="qué hace data">¿Qué hace Data?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="cómo importo excel">¿Cómo importo Excel?</button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <div class="help-assistant-thread" id="help-assistant-thread" aria-live="polite">
+                    <article class="help-assistant-message robot">
+                        <span class="help-assistant-avatar" aria-hidden="true">UV</span>
+                        <div class="help-assistant-bubble">
+                            <strong>UVITO</strong>
+                            <p id="help-assistant-welcome">Pregúntame cuántos pozos están OFF, cómo va la cobertura o qué hace este módulo.</p>
+                        </div>
+                    </article>
+                </div>
+
+                <form class="help-assistant-form" id="help-assistant-form">
+                    <label class="help-assistant-field" for="help-assistant-input">
+                        <span>Consulta operativa o duda rápida</span>
+                        <input type="search" id="help-assistant-input" placeholder="Ej: cuántos pozos están OFF, cobertura, qué hace estadísticas">
+                    </label>
+                    <button type="submit" class="help-assistant-submit">Buscar</button>
+                </form>
+            </section>
+        </div>
     </div>
 
     <script type="module">
@@ -1228,5 +1351,6 @@
         });
     });
     </script>
+    <script type="module" src="js/help.js"></script>
 </body>
 </html>

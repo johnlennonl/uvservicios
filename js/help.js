@@ -1,18 +1,133 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
+import {
+    getLatestMonitoringRecords,
+    getLatestMonitoringSnapshot,
+    getLatestTechnicalSnapshot,
+    getMonitoringAlertSummary,
+    getOperationalAlertSignals,
+    getPozosHistorySummary,
+    getWellTechnicalData
+} from './data-service.js';
 
 const SEARCH_SELECTOR = '[data-help-card]';
 const ASSISTANT_TYPING_DELAY = 14;
 const ASSISTANT_NAME_KEY = 'uvito-session-name';
+const ASSISTANT_THEME_KEY = 'uvito-session-theme';
+const ASSISTANT_THREAD_KEY = 'uvito-session-thread-v1';
 const HELP_ONBOARDING_KEY = 'uvito-help-onboarding-v2';
 const ASSISTANT_LABEL = 'UVITO';
+const LIVE_ASSISTANT_CACHE_TTL_MS = 60 * 1000;
+const ASSISTANT_THEME_OPTIONS = ['teal', 'blue', 'red'];
 let currentAccessProfile = null;
 let currentAssistantContext = {
     id: 'general',
     label: 'General',
     description: 'UVITO priorizará respuestas del bloque que estás leyendo en este momento.'
 };
+let liveAssistantCache = {
+    loadedAt: 0,
+    snapshot: null,
+    historySummary: null,
+    technicalSnapshot: null,
+    alertSummary: null
+};
 
 const ASSISTANT_KNOWLEDGE_ENTRIES = [
+    {
+        type: 'module',
+        title: 'Dashboard',
+        sourceId: 'dashboard',
+        keywords: 'dashboard pozo grafica tendencias historico sensores corriente temperatura produccion reporte tecnico',
+        summary: 'Sirve para analizar el comportamiento de un pozo con su último monitoreo o con registros históricos, comparando variables operativas, sensores y producción visible.',
+        steps: [
+            'Abre Dashboard y selecciona el pozo que quieres revisar.',
+            'Usa el selector histórico si quieres validar una fecha y hora específicas.',
+            'Revisa tendencia de temperatura motor, corriente motor, frecuencia y presiones.',
+            'Activa el modo reporte cuando necesites resumir el análisis técnico.'
+        ],
+        quickChecks: [
+            'Es la mejor vista para diagnóstico rápido por pozo.',
+            'Combina snapshot actual, histórico y referencia técnica.',
+            'Desde aquí puedes validar OFF, sensores y producción visible.'
+        ],
+        action: { href: 'dashboard.html', label: 'Abrir Dashboard' }
+    },
+    {
+        type: 'module',
+        title: 'Gestión',
+        sourceId: 'gestion',
+        keywords: 'gestion importar excel carga manual corregir datos deduplicar registros monitoreo tecnico',
+        summary: 'Sirve para importar archivos, cargar mediciones manuales y corregir registros operativos o técnicos dentro del sistema.',
+        steps: [
+            'Entra a Gestión cuando vayas a importar o corregir información.',
+            'Carga el Excel limpio o usa el formulario manual para registros puntuales.',
+            'Confirma la fecha, hora y pozo antes de guardar.',
+            'Luego valida el resultado en Dashboard, Data o Estadísticas.'
+        ],
+        quickChecks: [
+            'Es el módulo de mantenimiento de datos.',
+            'No es la vista ideal para análisis operativo.',
+            'Te ayuda a evitar duplicados y errores de captura.'
+        ],
+        action: { href: 'dashboard-data.html', label: 'Abrir Gestión' }
+    },
+    {
+        type: 'module',
+        title: 'Data',
+        sourceId: 'data',
+        keywords: 'data historial ticket diario fecha auditoria registros pozo consulta detalle',
+        summary: 'Sirve para auditar registros, revisar historial por pozo y consultar tickets diarios o fechas específicas sin pasar por el análisis gráfico.',
+        steps: [
+            'Abre Data cuando necesites validar si un registro existe.',
+            'Busca por fecha, pozo o criterio operativo.',
+            'Usa esta vista para auditoría y revisión de detalle tabular.',
+            'Si detectas faltantes, corrige el dato desde Gestión.'
+        ],
+        quickChecks: [
+            'Es la vista más directa para historial tabular.',
+            'Sirve para revisar registros puntuales y exportables.',
+            'Complementa a Dashboard y Estadísticas.'
+        ],
+        action: { href: 'data.html', label: 'Abrir Data' }
+    },
+    {
+        type: 'module',
+        title: 'Estadísticas',
+        sourceId: 'estadisticas',
+        keywords: 'estadisticas cobertura pozos off sin monitoreo alertas seguimiento top pozos rango fechas actividad',
+        summary: 'Sirve para consolidar monitoreos por rango, ver pozos OFF, medir cobertura, detectar pozos sin actividad y priorizar seguimiento administrativo.',
+        steps: [
+            'Selecciona fecha inicio, fecha fin y pozos opcionales.',
+            'Genera el rango para construir KPIs, top de pozos y monitoreos por día.',
+            'Revisa cobertura, pozos OFF y alertas de seguimiento.',
+            'Usa el drilldown para abrir el detalle operativo del bloque que te llamó la atención.'
+        ],
+        quickChecks: [
+            'Es la vista ideal para saber cómo estuvo la operación en un período.',
+            'Desde aquí salen pozos OFF, cobertura y rezagos.',
+            'Complementa la consulta en vivo de UVITO con contexto administrativo.'
+        ],
+        action: { href: 'stats.html', label: 'Abrir Estadísticas' }
+    },
+    {
+        type: 'module',
+        title: 'Preparador Excel',
+        sourceId: 'preparador',
+        keywords: 'preparador excel limpiar archivo columnas vista previa exportar importar',
+        summary: 'Sirve para limpiar archivos de monitoreo antes de importarlos, normalizando columnas y preparando una salida lista para Gestión.',
+        steps: [
+            'Sube el archivo original al Preparador Excel.',
+            'Revisa la vista previa y confirma que las columnas quedaron alineadas.',
+            'Exporta el resultado preparado.',
+            'Importa el archivo limpio desde Gestión.'
+        ],
+        quickChecks: [
+            'Úsalo cuando el Excel venga mezclado o sucio.',
+            'Reduce errores antes de importar.',
+            'Es el paso previo recomendado para cargas masivas.'
+        ],
+        action: { href: 'monitoring-prep.html', label: 'Abrir Preparador Excel' }
+    },
     {
         type: 'module',
         title: 'Notificaciones',
@@ -118,6 +233,10 @@ function normalizeText(value) {
         .trim();
 }
 
+function normalizeCompactText(value) {
+    return normalizeText(value).replace(/[^a-z0-9]+/g, '');
+}
+
 function getRoleLabel(profile) {
     if (profile?.isFieldOperator) return 'Perfil activo: Campo';
     if (profile?.canViewManagement && !profile?.isReadOnly) return 'Perfil activo: Administración y supervisión';
@@ -207,6 +326,11 @@ function getAssistantUserName() {
     return sanitizeAssistantName(sessionStorage.getItem(ASSISTANT_NAME_KEY) || '');
 }
 
+function getAssistantTheme() {
+    const storedTheme = String(sessionStorage.getItem(ASSISTANT_THEME_KEY) || 'teal').trim().toLowerCase();
+    return ASSISTANT_THEME_OPTIONS.includes(storedTheme) ? storedTheme : 'teal';
+}
+
 function setAssistantUserName(value) {
     const normalized = sanitizeAssistantName(value);
     if (!normalized) {
@@ -217,6 +341,17 @@ function setAssistantUserName(value) {
     return normalized;
 }
 
+function setAssistantTheme(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    const theme = ASSISTANT_THEME_OPTIONS.includes(normalized) ? normalized : 'teal';
+    sessionStorage.setItem(ASSISTANT_THEME_KEY, theme);
+    return theme;
+}
+
+function applyAssistantTheme(theme = getAssistantTheme()) {
+    document.body.dataset.uvitoTheme = theme;
+}
+
 function getAssistantGreetingName() {
     const userName = getAssistantUserName();
     return userName || 'equipo';
@@ -224,6 +359,304 @@ function getAssistantGreetingName() {
 
 function includesAny(query, phrases) {
     return phrases.some(phrase => query.includes(phrase));
+}
+
+function formatAssistantNumber(value) {
+    return new Intl.NumberFormat('es-CO').format(Number(value) || 0);
+}
+
+function formatAssistantDate(value) {
+    if (!value) return '--';
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString('es-CO');
+}
+
+function formatAssistantHour(value) {
+    return String(value || '--').slice(0, 5) || '--';
+}
+
+function formatPozoList(pozos = [], limit = 8) {
+    const names = pozos.filter(Boolean).slice(0, limit);
+    if (!names.length) {
+        return '⚠ No se encontraron registros disponibles actualmente.';
+    }
+
+    const suffix = pozos.length > limit
+        ? `\n- y ${pozos.length - limit} pozo(s) más`
+        : '';
+
+    return names.map(name => `- ${name}`).join('\n') + suffix;
+}
+
+function getAssistantReportRoute() {
+    return currentAccessProfile?.canViewManagement ? 'stats.html' : 'data.html';
+}
+
+function getAssistantOperationsRoute() {
+    return currentAccessProfile?.canViewManagement ? 'stats.html' : 'data.html';
+}
+
+function getAssistantOperationalKeywords() {
+    return [
+        'pozo',
+        'pozos',
+        'operativo',
+        'operativos',
+        'run',
+        'off',
+        'detenido',
+        'detenidos',
+        'apagado',
+        'alarm',
+        'alarma',
+        'alarmas',
+        'alerta',
+        'alertas',
+        'sin registros',
+        'produccion',
+        'bbpd',
+        'bnpd',
+        'ays',
+        'temperatura',
+        'tm',
+        'amperaje',
+        'corriente',
+        'sensor',
+        'sensores',
+        'historial',
+        'falla',
+        'fallas',
+        'evento',
+        'eventos',
+        'mantenimiento',
+        'exportar',
+        'reporte'
+    ];
+}
+
+function isOperationalAssistantQuery(rawQuery) {
+    const query = normalizeText(rawQuery);
+    return getAssistantOperationalKeywords().some(keyword => query.includes(keyword));
+}
+
+function getSnapshotStatusCounts(snapshot = []) {
+    return snapshot.reduce((accumulator, record) => {
+        const status = record?.normalized_estatus || 'UNKNOWN';
+        accumulator[status] = (accumulator[status] || 0) + 1;
+        return accumulator;
+    }, {});
+}
+
+function findPozoNameInQuery(rawQuery, pozoNames = []) {
+    const compactQuery = normalizeCompactText(rawQuery);
+    if (!compactQuery) return null;
+
+    const sortedPozos = [...pozoNames]
+        .filter(Boolean)
+        .sort((left, right) => String(right).length - String(left).length);
+
+    const directMatch = sortedPozos.find(pozoName => compactQuery.includes(normalizeCompactText(pozoName)));
+    if (directMatch) return directMatch;
+
+    const explicitPozoMatch = String(rawQuery || '').match(/pozo\s+([a-z0-9-]+)/i);
+    if (!explicitPozoMatch) return null;
+
+    const explicitToken = normalizeCompactText(explicitPozoMatch[1]);
+    return sortedPozos.find(pozoName => normalizeCompactText(pozoName) === explicitToken) || null;
+}
+
+async function getAssistantOperationalData({ includeAlertSummary = false } = {}) {
+    const now = Date.now();
+    const cacheIsFresh = now - liveAssistantCache.loadedAt < LIVE_ASSISTANT_CACHE_TTL_MS;
+
+    if (!cacheIsFresh || !liveAssistantCache.snapshot || !liveAssistantCache.historySummary || !liveAssistantCache.technicalSnapshot) {
+        const [snapshot, historySummary, technicalSnapshot] = await Promise.all([
+            getLatestMonitoringSnapshot(),
+            getPozosHistorySummary(),
+            getLatestTechnicalSnapshot().catch(() => [])
+        ]);
+
+        liveAssistantCache = {
+            loadedAt: now,
+            snapshot,
+            historySummary,
+            technicalSnapshot,
+            alertSummary: cacheIsFresh ? liveAssistantCache.alertSummary : null
+        };
+    }
+
+    if (includeAlertSummary && !liveAssistantCache.alertSummary) {
+        liveAssistantCache.alertSummary = await getMonitoringAlertSummary(7).catch(() => []);
+    }
+
+    return liveAssistantCache;
+}
+
+function buildOperationalOverviewResponse(snapshot = [], historySummary = [], technicalSnapshot = []) {
+    const counts = getSnapshotStatusCounts(snapshot);
+    const noRecords = historySummary.filter(item => !item.has_records);
+    const alertPozos = snapshot.filter(record => getOperationalAlertSignals(record).length > 0);
+    const totalProduction = technicalSnapshot.reduce((sum, row) => sum + (Number(row?.bbpd) || 0), 0);
+
+    return `📊 Consultando sistema...\n\nResumen operativo actual:\n- Pozos operativos: ${formatAssistantNumber(counts.RUN || 0)}\n- Pozos OFF o detenidos: ${formatAssistantNumber(counts.OFF || 0)}\n- Pozos sin registros: ${formatAssistantNumber(noRecords.length)}\n- Pozos con alertas visibles: ${formatAssistantNumber(alertPozos.length)}\n- Producción BBPD consolidada: ${formatAssistantNumber(totalProduction)}`;
+}
+
+function buildPozoOperationalSnapshot(record, technicalRecord) {
+    if (!record && !technicalRecord) {
+        return '⚠ No se encontraron registros disponibles actualmente.';
+    }
+
+    const statusLabel = record?.normalized_estatus || record?.estatus || 'Sin estatus visible';
+    const productionLine = technicalRecord
+        ? `- Producción: BBPD ${formatAssistantNumber(technicalRecord.bbpd)} · BNPD ${formatAssistantNumber(technicalRecord.bnpd)} · AYS ${formatAssistantNumber(technicalRecord.ays_percentage)}%`
+        : '- Producción: sin snapshot técnico visible';
+
+    return `🔎 Consultando sistema...\n\nEstado actual del pozo ${record?.pozo_name || technicalRecord?.pozo_name}:\n- Estatus: ${statusLabel}\n- Último monitoreo: ${formatAssistantDate(record?.fecha)} ${formatAssistantHour(record?.hora)}\n- Frecuencia: ${record?.frecuencia ?? '--'}\n- Corriente motor: ${record?.corriente_motor ?? '--'}\n- Temperatura motor: ${record?.tm ?? '--'}\n${productionLine}`;
+}
+
+async function buildOperationalAssistantResponse(rawQuery) {
+    const query = normalizeText(rawQuery);
+    if (!isOperationalAssistantQuery(query)) {
+        return null;
+    }
+
+    if (includesAny(query, ['generar reporte', 'genera reporte', 'reporte diario', 'reporte semanal', 'reporte de alarmas', 'reporte de produccion', 'exportar datos', 'exportacion de datos'])) {
+        return {
+            text: '📄 Procesando información operativa...\n\nSeleccione:\n1. Reporte diario\n2. Reporte semanal\n3. Alarmas\n4. Producción',
+            action: { href: getAssistantReportRoute(), label: 'Abrir módulo de reportes' }
+        };
+    }
+
+    const wantsAlerts = includesAny(query, ['alarma', 'alarmas', 'alerta', 'alertas', 'falla', 'fallas', 'trip', 'evento']);
+    const { snapshot, historySummary, technicalSnapshot, alertSummary } = await getAssistantOperationalData({ includeAlertSummary: wantsAlerts });
+    const pozoNames = [...new Set([
+        ...snapshot.map(item => item?.pozo_name),
+        ...historySummary.map(item => item?.pozo_name),
+        ...technicalSnapshot.map(item => item?.pozo_name)
+    ].filter(Boolean))];
+    const pozoName = findPozoNameInQuery(rawQuery, pozoNames);
+    const statusCounts = getSnapshotStatusCounts(snapshot);
+    const noRecordPozos = historySummary.filter(item => !item.has_records).map(item => item.pozo_name);
+    const currentAlertPozos = snapshot.filter(record => getOperationalAlertSignals(record).length > 0);
+
+    if (includesAny(query, ['resumen', 'estado general', 'como estan los pozos', 'panel operativo'])) {
+        return { text: buildOperationalOverviewResponse(snapshot, historySummary, technicalSnapshot) };
+    }
+
+    if (!pozoName && includesAny(query, ['operativo', 'operativos', 'run'])) {
+        return {
+            text: `✅ Consultando sistema...\n\nActualmente hay ${formatAssistantNumber(statusCounts.RUN || 0)} pozos operativos.`
+        };
+    }
+
+    if (!pozoName && includesAny(query, ['off', 'detenido', 'detenidos', 'apagado', 'apagados', 'parado', 'parados'])) {
+        const offPozos = snapshot.filter(record => record?.normalized_estatus === 'OFF').map(record => record.pozo_name);
+        return {
+            text: `📊 Consultando sistema...\n\nActualmente hay ${formatAssistantNumber(offPozos.length)} pozos en estado OFF.\n${formatPozoList(offPozos)}`,
+            action: offPozos.length ? { href: getAssistantOperationsRoute(), label: currentAccessProfile?.canViewManagement ? 'Abrir Estadísticas' : 'Revisar historial en Data' } : null
+        };
+    }
+
+    if (!pozoName && includesAny(query, ['sin registros', 'no tienen registros', 'sin data', 'sin monitoreo'])) {
+        return {
+            text: `⚠ Verificando registros...\n\nSe detectaron ${formatAssistantNumber(noRecordPozos.length)} pozos sin registros recientes.\n${formatPozoList(noRecordPozos)}`,
+            action: noRecordPozos.length ? { href: getAssistantOperationsRoute(), label: currentAccessProfile?.canViewManagement ? 'Abrir Estadísticas' : 'Abrir Data' } : null
+        };
+    }
+
+    if (!pozoName && includesAny(query, ['alarma', 'alarmas', 'alerta', 'alertas'])) {
+        const pozoNamesWithAlerts = currentAlertPozos.map(record => record.pozo_name);
+        return {
+            text: `🚨 Analizando datos...\n\nPozos con alertas visibles en el último monitoreo:\n${formatPozoList(pozoNamesWithAlerts)}`,
+            action: pozoNamesWithAlerts.length ? { href: 'notificacion.html', label: 'Abrir Notificaciones' } : null
+        };
+    }
+
+    if (!pozoName && includesAny(query, ['mas fallas', 'más fallas', 'mas eventos', 'más eventos'])) {
+        const top = (alertSummary || [])[0];
+        if (!top) {
+            return {
+                text: '⚠ Analizando datos...\n\nNo se encontraron eventos de alerta visibles en la ventana analizada actualmente.'
+            };
+        }
+
+        return {
+            text: `📈 Analizando historial...\n\nEl pozo ${top.pozo_name} presenta la mayor cantidad de eventos visibles en los últimos 7 días, con ${formatAssistantNumber(top.count)} registro(s) asociados a ${top.signals.join(', ')}.`
+        };
+    }
+
+    if (!pozoName && includesAny(query, ['produccion', 'producción', 'bbpd', 'bnpd'])) {
+        const totalProduction = technicalSnapshot.reduce((sum, row) => sum + (Number(row?.bbpd) || 0), 0);
+        const topProduction = [...technicalSnapshot]
+            .sort((left, right) => (Number(right?.bbpd) || 0) - (Number(left?.bbpd) || 0))
+            .slice(0, 5)
+            .map(row => `${row.pozo_name}: ${formatAssistantNumber(row.bbpd)} BBPD`);
+
+        return {
+            text: `🛢 Procesando información operativa...\n\nProducción consolidada visible: ${formatAssistantNumber(totalProduction)} BBPD.\nTop de producción actual:\n${formatPozoList(topProduction, 5)}`
+        };
+    }
+
+    if (pozoName) {
+        const monitoringRecord = snapshot.find(item => item.pozo_name === pozoName) || null;
+        const technicalRecord = technicalSnapshot.find(item => item.pozo_name === pozoName)
+            || await getWellTechnicalData(pozoName).catch(() => null);
+
+        if (includesAny(query, ['temperatura', 'tm', 'amperaje', 'corriente', 'sensor', 'sensores'])) {
+            if (!monitoringRecord) {
+                return { text: '⚠ No se encontraron registros disponibles actualmente.' };
+            }
+
+            return {
+                text: `🧪 Verificando registros...\n\nÚltimas variables visibles para ${pozoName}:\n- Corriente motor: ${monitoringRecord.corriente_motor ?? '--'}\n- Temperatura motor: ${monitoringRecord.tm ?? '--'}\n- Frecuencia: ${monitoringRecord.frecuencia ?? '--'}\n- PIP: ${monitoringRecord.pip ?? '--'}\n- Presiones THP/CHP/LF: ${monitoringRecord.presion_thp ?? '--'} / ${monitoringRecord.presion_chp ?? '--'} / ${monitoringRecord.presion_lf ?? '--'}`,
+                action: { href: 'dashboard.html', label: 'Abrir Dashboard' }
+            };
+        }
+
+        if (includesAny(query, ['produccion', 'producción', 'bbpd', 'bnpd', 'ays'])) {
+            if (!technicalRecord) {
+                return { text: `⚠ Verificando registros...\n\nNo se encontró snapshot técnico visible para ${pozoName} actualmente.` };
+            }
+
+            return {
+                text: `🛢 Consultando sistema...\n\nProducción visible para ${pozoName}:\n- Fecha técnica: ${formatAssistantDate(technicalRecord.fecha)}\n- BBPD: ${formatAssistantNumber(technicalRecord.bbpd)}\n- BNPD: ${formatAssistantNumber(technicalRecord.bnpd)}\n- AYS: ${formatAssistantNumber(technicalRecord.ays_percentage)}%\n- CAT: ${formatAssistantNumber(technicalRecord.cat_number)}`,
+                action: { href: 'dashboard.html', label: 'Abrir Dashboard' }
+            };
+        }
+
+        if (includesAny(query, ['historial', 'fallas', 'eventos', 'ultimos registros', 'últimos registros'])) {
+            const latestRecords = await getLatestMonitoringRecords(pozoName, 5).catch(() => []);
+            if (!latestRecords.length) {
+                return { text: `⚠ Verificando registros...\n\nNo se encontraron registros recientes para ${pozoName}.` };
+            }
+
+            const historyLines = latestRecords.map(record => {
+                const signals = getOperationalAlertSignals(record);
+                const signalText = signals.length ? ` · Señales: ${signals.join(', ')}` : '';
+                return `- ${formatAssistantDate(record.fecha)} ${formatAssistantHour(record.hora)} · ${record.estatus || 'Sin estatus'}${signalText}`;
+            });
+
+            return {
+                text: `📚 Analizando datos...\n\nÚltimos registros visibles para ${pozoName}:\n${historyLines.join('\n')}`,
+                action: { href: 'data.html', label: 'Abrir Data' }
+            };
+        }
+
+        const alertSignals = monitoringRecord ? getOperationalAlertSignals(monitoringRecord) : [];
+        const alertLine = alertSignals.length
+            ? `\n- Alertas visibles: ${alertSignals.join(', ')}`
+            : '\n- Alertas visibles: sin señales explícitas en el último monitoreo';
+
+        return {
+            text: `${buildPozoOperationalSnapshot(monitoringRecord, technicalRecord)}${alertLine}`,
+            action: { href: 'dashboard.html', label: 'Abrir Dashboard' }
+        };
+    }
+
+    return {
+        text: buildOperationalOverviewResponse(snapshot, historySummary, technicalSnapshot)
+    };
 }
 
 function getAssistantKnowledgeEntries() {
@@ -276,49 +709,54 @@ function getAssistantDirectResponse(rawQuery) {
 
 function updateAssistantIdentityUi() {
     const userName = getAssistantUserName();
+    const activeTheme = getAssistantTheme();
     const launcherStatus = document.getElementById('help-assistant-launcher-status');
     const subtitle = document.getElementById('help-assistant-subtitle');
     const welcome = document.getElementById('help-assistant-welcome');
     const nameInput = document.getElementById('help-assistant-name-input');
-    const identityForm = document.getElementById('help-assistant-identity-form');
-    const identitySummary = document.getElementById('help-assistant-identity-summary');
-    const identityName = document.getElementById('help-assistant-identity-name');
+    const currentName = document.getElementById('help-assistant-current-name');
+    const themeLabel = document.getElementById('help-assistant-current-theme');
+
+    applyAssistantTheme(activeTheme);
 
     if (launcherStatus) {
         launcherStatus.textContent = userName
             ? `Listo para ayudarte, ${userName}`
-            : 'Busca por palabras clave';
+            : 'Consulta pozos, alarmas y producción';
     }
 
     if (subtitle) {
         subtitle.textContent = userName
-            ? `${userName}, escribe una palabra clave y te llevaré al bloque más útil con respuesta tipeada.`
-            : 'Escribe una palabra clave y te llevaré al bloque más útil con respuesta tipeada.';
+            ? `${userName}, consulta pozos OFF, alarmas, producción, sensores o historial y responderé con datos visibles del sistema.`
+            : 'Consulta pozos OFF, alarmas, producción, sensores o historial y responderé con datos visibles del sistema.';
     }
 
     if (welcome) {
         welcome.textContent = userName
-            ? `${userName}, soy ${ASSISTANT_LABEL}. Pregúntame algo como importar Excel, historial, ticket diario o estadísticas.`
-            : `Soy ${ASSISTANT_LABEL}. Pregúntame algo como importar Excel, historial, ticket diario o estadísticas.`;
+            ? `${userName}, soy ${ASSISTANT_LABEL}. Pregúntame cuántos pozos están OFF, qué alarmas hay o la producción de un pozo.`
+            : `Soy ${ASSISTANT_LABEL}. Pregúntame cuántos pozos están OFF, qué alarmas hay o la producción de un pozo.`;
     }
 
     if (nameInput) {
         nameInput.value = userName;
     }
 
-    if (identityForm) {
-        identityForm.hidden = Boolean(userName);
+    if (currentName) {
+        currentName.textContent = userName || 'Modo general';
     }
 
-    if (identitySummary) {
-        identitySummary.hidden = !userName;
+    if (themeLabel) {
+        const labels = {
+            teal: 'Verde UV',
+            blue: 'Azul técnico',
+            red: 'Rojo alerta'
+        };
+        themeLabel.textContent = labels[activeTheme] || 'Verde UV';
     }
 
-    if (identityName) {
-        identityName.textContent = userName
-            ? `${ASSISTANT_LABEL} te llamará ${userName}.`
-            : `${ASSISTANT_LABEL} te llamará por tu nombre de sesión.`;
-    }
+    document.querySelectorAll('[data-assistant-theme]').forEach(button => {
+        button.classList.toggle('active', button.dataset.assistantTheme === activeTheme);
+    });
 
     const contextValue = document.getElementById('help-assistant-context-value');
     const contextCopy = document.getElementById('help-assistant-context-copy');
@@ -365,6 +803,64 @@ function buildSectionContext(section) {
     };
 }
 
+function inferAssistantContextFromPage() {
+    const pageName = String(window.location.pathname || '').split('/').pop().toLowerCase();
+
+    if (pageName === 'stats.html') {
+        return {
+            id: 'estadisticas',
+            label: 'Estadísticas',
+            description: 'UVITO priorizará respuestas sobre cobertura, pozos OFF, alertas de seguimiento y análisis por rango de fechas.'
+        };
+    }
+
+    if (pageName === 'dashboard.html') {
+        return {
+            id: 'dashboard',
+            label: 'Dashboard',
+            description: 'UVITO priorizará respuestas sobre análisis de pozo, sensores, histórico y reporte técnico.'
+        };
+    }
+
+    if (pageName === 'data.html') {
+        return {
+            id: 'data',
+            label: 'Data',
+            description: 'UVITO priorizará respuestas sobre historial por pozo, auditoría y revisión tabular.'
+        };
+    }
+
+    if (pageName === 'dashboard-data.html') {
+        return {
+            id: 'gestion',
+            label: 'Gestión',
+            description: 'UVITO priorizará respuestas sobre importación, carga manual y corrección de registros.'
+        };
+    }
+
+    if (pageName === 'monitoring-prep.html') {
+        return {
+            id: 'preparador',
+            label: 'Preparador Excel',
+            description: 'UVITO priorizará respuestas sobre limpieza y preparación de archivos Excel.'
+        };
+    }
+
+    if (pageName === 'notificacion.html') {
+        return {
+            id: 'notificaciones',
+            label: 'Notificaciones',
+            description: 'UVITO priorizará respuestas sobre actividad reciente, trazabilidad y cambios del día.'
+        };
+    }
+
+    return {
+        id: 'general',
+        label: 'General',
+        description: 'UVITO priorizará respuestas del bloque que estás leyendo en este momento.'
+    };
+}
+
 function setAssistantContext(context) {
     currentAssistantContext = context || currentAssistantContext;
     updateAssistantIdentityUi();
@@ -373,11 +869,7 @@ function setAssistantContext(context) {
 function updateAssistantContextFromViewport() {
     const sections = Array.from(document.querySelectorAll(SEARCH_SELECTOR)).filter(section => !section.hidden && !section.classList.contains('is-help-hidden'));
     if (!sections.length) {
-        setAssistantContext({
-            id: 'general',
-            label: 'General',
-            description: 'UVITO priorizará respuestas del bloque que estás leyendo en este momento.'
-        });
+        setAssistantContext(inferAssistantContextFromPage());
         return;
     }
 
@@ -615,6 +1107,86 @@ function createAssistantMessage(author, title, text, action = null) {
     return paragraph;
 }
 
+function serializeAssistantThread() {
+    const thread = document.getElementById('help-assistant-thread');
+    if (!thread) return [];
+
+    return Array.from(thread.querySelectorAll('.help-assistant-message')).map(message => {
+        const bubble = message.querySelector('.help-assistant-bubble');
+        const link = bubble?.querySelector('.help-assistant-link');
+        return {
+            author: message.classList.contains('user') ? 'user' : 'robot',
+            title: bubble?.querySelector('strong')?.textContent || ASSISTANT_LABEL,
+            text: bubble?.querySelector('p')?.textContent || '',
+            action: link?.getAttribute('href') && link?.textContent
+                ? { href: link.getAttribute('href'), label: link.textContent }
+                : null
+        };
+    });
+}
+
+function persistAssistantThread() {
+    try {
+        sessionStorage.setItem(ASSISTANT_THREAD_KEY, JSON.stringify(serializeAssistantThread()));
+    } catch (error) {
+        console.warn('No fue posible persistir la conversación de UVITO:', error);
+    }
+}
+
+function restoreAssistantThread() {
+    const thread = document.getElementById('help-assistant-thread');
+    if (!thread) return false;
+
+    try {
+        const raw = sessionStorage.getItem(ASSISTANT_THREAD_KEY);
+        if (!raw) return false;
+
+        const messages = JSON.parse(raw);
+        if (!Array.isArray(messages) || !messages.length) return false;
+
+        thread.innerHTML = '';
+        messages.forEach(message => {
+            createAssistantMessage(message.author, message.title, message.text, message.action || null);
+        });
+        return true;
+    } catch (error) {
+        console.warn('No fue posible restaurar la conversación de UVITO:', error);
+        return false;
+    }
+}
+
+function setAssistantMessageAction(paragraph, action = null) {
+    const bubble = paragraph?.parentElement;
+    if (!bubble) return;
+
+    const existingActions = bubble.querySelector('.help-assistant-actions');
+    if (existingActions) {
+        existingActions.remove();
+    }
+
+    if (!action?.href || !action?.label) {
+        return;
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'help-assistant-actions';
+
+    const link = document.createElement('a');
+    link.className = 'help-assistant-link';
+    link.href = action.href;
+    link.textContent = action.label;
+
+    actions.appendChild(link);
+    bubble.appendChild(actions);
+}
+
+function scrollAssistantThreadToBottom() {
+    const thread = document.getElementById('help-assistant-thread');
+    if (!thread) return;
+
+    thread.scrollTop = thread.scrollHeight;
+}
+
 function typeAssistantText(element, text) {
     if (!element) return Promise.resolve();
 
@@ -625,12 +1197,14 @@ function typeAssistantText(element, text) {
             element.textContent = visibleText;
             if (index < text.length) {
                 element.innerHTML = `${visibleText}<span class="help-assistant-cursor">|</span>`;
+                scrollAssistantThreadToBottom();
                 index += 1;
                 window.setTimeout(tick, ASSISTANT_TYPING_DELAY);
                 return;
             }
 
             element.textContent = text;
+            scrollAssistantThreadToBottom();
             resolve();
         };
 
@@ -642,49 +1216,85 @@ async function answerAssistantQuery(rawQuery) {
     const query = String(rawQuery || '').trim();
     if (!query) return;
 
+    const assistantGuide = document.querySelector('#help-assistant-panel .help-assistant-guide');
+    if (assistantGuide instanceof HTMLDetailsElement) {
+        assistantGuide.open = false;
+    }
+
+    const settingsPanel = document.getElementById('help-assistant-settings-panel');
+    const settingsButton = document.getElementById('help-assistant-settings-toggle');
+    if (settingsPanel) {
+        settingsPanel.hidden = true;
+    }
+    if (settingsButton) {
+        settingsButton.setAttribute('aria-expanded', 'false');
+    }
+
     const userName = getAssistantUserName();
     createAssistantMessage('user', userName ? `Consulta de ${userName}` : 'Tu consulta', query);
+    persistAssistantThread();
 
-    const directResponse = getAssistantDirectResponse(query);
-    if (directResponse) {
-        const paragraph = createAssistantMessage('robot', ASSISTANT_LABEL, '', directResponse.action || null);
-        await typeAssistantText(paragraph, directResponse.text);
-        return;
+    const loadingParagraph = createAssistantMessage('robot', ASSISTANT_LABEL, 'Consultando sistema...');
+
+    const resolveAssistantResponse = async ({ text, action = null }) => {
+        if (!loadingParagraph) return;
+        setAssistantMessageAction(loadingParagraph, action);
+        await typeAssistantText(loadingParagraph, text);
+        persistAssistantThread();
+    };
+
+    try {
+        const directResponse = getAssistantDirectResponse(query);
+        if (directResponse) {
+            await resolveAssistantResponse(directResponse);
+            return;
+        }
+
+        const operationalResponse = await buildOperationalAssistantResponse(query);
+        if (operationalResponse) {
+            await resolveAssistantResponse(operationalResponse);
+            return;
+        }
+
+        const searchInput = document.getElementById('help-search-input');
+        if (searchInput) {
+            searchInput.value = query;
+            applyFilters();
+        }
+
+        const match = findAssistantAnswer(query);
+        if (!match) {
+            const fallbackText = `${getAssistantGreetingName()}, no encontré una coincidencia exacta. Prueba con preguntas como cuántos pozos están OFF, muéstrame los pozos con alarmas, producción de CEI0006 o cómo importo Excel.`;
+            await resolveAssistantResponse({ text: fallbackText });
+            return;
+        }
+
+        const responseText = buildAssistantResponse(match);
+        await resolveAssistantResponse({
+            text: responseText,
+            action: match.anchor ? { href: match.anchor, label: 'Ir al bloque' } : null
+        });
+    } catch (error) {
+        console.error('UVITO no pudo responder la consulta:', error);
+
+        const message = String(error?.message || error || '').trim();
+        const fallbackText = message
+            ? `⚠ Verificando registros...\n\nNo pude completar la consulta operativa en este momento. ${message}`
+            : '⚠ Verificando registros...\n\nNo pude completar la consulta operativa en este momento. Intenta nuevamente en unos segundos.';
+
+        await resolveAssistantResponse({ text: fallbackText });
     }
-
-    const searchInput = document.getElementById('help-search-input');
-    if (searchInput) {
-        searchInput.value = query;
-        applyFilters();
-    }
-
-    const match = findAssistantAnswer(query);
-    if (!match) {
-        const fallbackText = `${getAssistantGreetingName()}, no encontré una coincidencia exacta. Prueba con palabras como importar Excel, ticket diario, historial, dashboard o estadísticas.`;
-        const paragraph = createAssistantMessage('robot', ASSISTANT_LABEL, fallbackText);
-        await typeAssistantText(paragraph, fallbackText);
-        return;
-    }
-
-    const responseText = buildAssistantResponse(match);
-    const paragraph = createAssistantMessage('robot', ASSISTANT_LABEL, '', match.anchor ? { href: match.anchor, label: 'Ir al bloque' } : null);
-    await typeAssistantText(paragraph, responseText);
 }
 
-async function saveAssistantIdentity(rawName) {
-    const normalized = setAssistantUserName(rawName);
+function saveAssistantIdentity(rawName) {
+    setAssistantUserName(rawName);
     updateAssistantIdentityUi();
-
-    const responseText = normalized
-        ? `Perfecto, ${normalized}. Desde ahora te llamaré así durante esta sesión.`
-        : `Listo. Volví al modo general y te hablaré sin nombre personalizado en esta sesión.`;
-
-    const paragraph = createAssistantMessage('robot', ASSISTANT_LABEL, '');
-    await typeAssistantText(paragraph, responseText);
 }
 
 async function handleHelpLogout() {
     sessionStorage.removeItem(ASSISTANT_NAME_KEY);
+    sessionStorage.removeItem(ASSISTANT_THEME_KEY);
+    sessionStorage.removeItem(ASSISTANT_THREAD_KEY);
     await logout();
 }
 
@@ -725,16 +1335,37 @@ function bindHelpAssistant() {
     const launcher = document.getElementById('help-assistant-launcher');
     const panel = document.getElementById('help-assistant-panel');
     const closeButton = document.getElementById('help-assistant-close');
+    const settingsButton = document.getElementById('help-assistant-settings-toggle');
+    const settingsPanel = document.getElementById('help-assistant-settings-panel');
+    const assistantGuide = panel?.querySelector('.help-assistant-guide');
+    const settingsForm = document.getElementById('help-assistant-settings-form');
     const form = document.getElementById('help-assistant-form');
     const input = document.getElementById('help-assistant-input');
-    const identityForm = document.getElementById('help-assistant-identity-form');
     const nameInput = document.getElementById('help-assistant-name-input');
-    const editIdentityButton = document.getElementById('help-assistant-identity-edit');
-    if (!launcher || !panel || !form || !input || !identityForm || !nameInput || !editIdentityButton) return;
+    const resetNameButton = document.getElementById('help-assistant-reset-name');
+    if (!launcher || !panel || !form || !input || !settingsButton || !settingsPanel || !settingsForm || !nameInput || !resetNameButton) return;
 
     const setOpen = (open) => {
         panel.hidden = !open;
         launcher.setAttribute('aria-expanded', String(open));
+        if (!open) {
+            settingsPanel.hidden = true;
+            settingsButton.setAttribute('aria-expanded', 'false');
+        }
+    };
+
+    const setSettingsOpen = (open) => {
+        settingsPanel.hidden = !open;
+        settingsButton.setAttribute('aria-expanded', String(open));
+        if (open && assistantGuide instanceof HTMLDetailsElement) {
+            assistantGuide.open = false;
+        }
+    };
+
+    const collapseAssistantGuide = () => {
+        if (assistantGuide instanceof HTMLDetailsElement) {
+            assistantGuide.open = false;
+        }
     };
 
     launcher.addEventListener('click', () => {
@@ -743,23 +1374,54 @@ function bindHelpAssistant() {
         if (nextState) input.focus();
     });
 
-    closeButton?.addEventListener('click', () => setOpen(false));
-
-    identityForm.addEventListener('submit', async event => {
-        event.preventDefault();
-        await saveAssistantIdentity(nameInput.value);
+    closeButton?.addEventListener('click', () => {
+        setSettingsOpen(false);
+        collapseAssistantGuide();
+        setOpen(false);
     });
 
-    editIdentityButton.addEventListener('click', () => {
+    settingsButton.addEventListener('click', event => {
+        event.stopPropagation();
+        const nextState = settingsPanel.hidden;
+        setSettingsOpen(nextState);
+        if (nextState) {
+            nameInput.focus();
+        }
+    });
+
+    if (assistantGuide instanceof HTMLDetailsElement) {
+        assistantGuide.addEventListener('toggle', () => {
+            if (assistantGuide.open) {
+                setSettingsOpen(false);
+            }
+        });
+    }
+
+    settingsForm.addEventListener('submit', event => {
+        event.preventDefault();
+        saveAssistantIdentity(nameInput.value);
+        setSettingsOpen(false);
+    });
+
+    resetNameButton.addEventListener('click', () => {
         sessionStorage.removeItem(ASSISTANT_NAME_KEY);
         updateAssistantIdentityUi();
         nameInput.focus();
+    });
+
+    document.querySelectorAll('[data-assistant-theme]').forEach(button => {
+        button.addEventListener('click', () => {
+            setAssistantTheme(button.dataset.assistantTheme || 'teal');
+            updateAssistantIdentityUi();
+        });
     });
 
     form.addEventListener('submit', async event => {
         event.preventDefault();
         const query = input.value.trim();
         if (!query) return;
+        collapseAssistantGuide();
+        setSettingsOpen(false);
         input.value = '';
         await answerAssistantQuery(query);
     });
@@ -767,6 +1429,8 @@ function bindHelpAssistant() {
     document.querySelectorAll('[data-assistant-query]').forEach(button => {
         button.addEventListener('click', async () => {
             const query = button.dataset.assistantQuery || '';
+            collapseAssistantGuide();
+            setSettingsOpen(false);
             await answerAssistantQuery(query);
         });
     });
@@ -778,7 +1442,23 @@ function bindHelpAssistant() {
         navigateToHelpAnchor(link.getAttribute('href') || '');
     });
 
+    document.addEventListener('click', event => {
+        if (settingsPanel.hidden) return;
+        if (settingsPanel.contains(event.target) || settingsButton.contains(event.target)) return;
+        setSettingsOpen(false);
+    });
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !settingsPanel.hidden) {
+            setSettingsOpen(false);
+        }
+    });
+
     updateAssistantIdentityUi();
+
+    if (!restoreAssistantThread()) {
+        persistAssistantThread();
+    }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

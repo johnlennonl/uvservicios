@@ -48,6 +48,70 @@ async function fetchAllRows(tableName, selectClause, configureQuery) {
     return rows;
 }
 
+function normalizeSearchText(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function normalizeOperationalStatus(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+
+    const normalized = raw
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, '');
+
+    const runValues = new Set(['RUN', 'RUNNING', 'ON', 'ENCENDIDO', 'OPERANDO', 'OPERATIVO', 'ACTIVO', 'MARCHA', '1']);
+    const offValues = new Set(['OFF', 'OFFLINE', 'STOP', 'STOPPED', 'PARADO', 'APAGADO', 'INACTIVO', 'DETENIDO', '0']);
+
+    if (runValues.has(normalized)) return 'RUN';
+    if (offValues.has(normalized)) return 'OFF';
+    if (normalized.includes('RUN')) return 'RUN';
+    if (normalized.includes('OFF') || normalized.includes('STOP')) return 'OFF';
+    return raw.toUpperCase();
+}
+
+function compareMonitoringMoments(left = {}, right = {}) {
+    return String(left?.fecha || '').localeCompare(String(right?.fecha || ''))
+        || normalizeMonitoringTime(left?.hora).localeCompare(normalizeMonitoringTime(right?.hora))
+        || String(left?.created_at || '').localeCompare(String(right?.created_at || ''));
+}
+
+export function getOperationalAlertSignals(record = {}) {
+    const normalizedStatus = normalizeOperationalStatus(record?.estatus);
+    const normalizedNotes = normalizeSearchText(record?.observaciones);
+    const signals = [];
+
+    if (normalizedStatus && !['RUN', 'OFF'].includes(normalizedStatus)) {
+        signals.push(`estatus ${normalizedStatus}`);
+    }
+
+    const keywordSignals = [
+        ['alarma', 'alarma reportada'],
+        ['alerta', 'alerta reportada'],
+        ['falla', 'falla reportada'],
+        ['trip', 'trip reportado'],
+        ['proteccion', 'proteccion reportada'],
+        ['sobrecorr', 'sobrecorriente reportada'],
+        ['sobrecarga', 'sobrecarga reportada'],
+        ['temperatura alta', 'temperatura alta reportada'],
+        ['vibracion', 'vibracion reportada']
+    ];
+
+    keywordSignals.forEach(([needle, label]) => {
+        if (normalizedNotes.includes(needle)) {
+            signals.push(label);
+        }
+    });
+
+    return [...new Set(signals)];
+}
+
 function buildMonitoringRecordKey(record = {}) {
     const pozoName = String(record.pozo_name || '').trim().toUpperCase();
     const fecha = String(record.fecha || '').trim();
@@ -141,6 +205,30 @@ export async function getLatestMonitoringRecords(pozoName, limit = 15) {
 
     if (error) throw error;
     return data || [];
+}
+
+export async function getLatestMonitoringSnapshot() {
+    const rows = await fetchAllRows('monitoreo_pozos', '*');
+
+    const latestByPozo = new Map();
+
+    (rows || []).forEach(record => {
+        const pozoName = String(record?.pozo_name || '').trim();
+        if (!pozoName) return;
+
+        const current = latestByPozo.get(pozoName);
+        if (!current || compareMonitoringMoments(record, current) > 0) {
+            latestByPozo.set(pozoName, {
+                ...record,
+                pozo_name: pozoName,
+                campo_name: String(record?.campo || '').trim() || null,
+                normalized_estatus: normalizeOperationalStatus(record?.estatus)
+            });
+        }
+    });
+
+    return [...latestByPozo.values()]
+        .sort((left, right) => left.pozo_name.localeCompare(right.pozo_name));
 }
 
 export async function getMonitoringDailyActivity(limit = 12, referenceDate = new Date()) {
@@ -493,6 +581,17 @@ export async function getWellTechnicalData(pozoName) {
     }
 
     return data && data.length > 0 ? data[0] : null;
+}
+
+export async function getLatestTechnicalSnapshot() {
+    const rows = await fetchAllRows('well_production', 'pozo_name, campo_name, ef, fecha, bbpd, ays_percentage, bnpd, cat_number');
+    return (rows || [])
+        .map(row => ({
+            ...row,
+            pozo_name: String(row?.pozo_name || '').trim()
+        }))
+        .filter(row => row.pozo_name)
+        .sort((left, right) => left.pozo_name.localeCompare(right.pozo_name));
 }
 
 export async function getRecentTechnicalMeasurements(limit = 10) {
@@ -890,6 +989,56 @@ export async function getRecentWellBESProfiles(limit = 10) {
         }
         throw wrapBESProfileError(error);
     }
+}
+
+export async function getMonitoringAlertSummary(days = 7) {
+    const safeDays = Number.isFinite(Number(days)) ? Math.max(Number(days), 1) : 7;
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - safeDays + 1);
+    const sinceKey = sinceDate.toISOString().slice(0, 10);
+
+    const rows = await fetchAllRows(
+        'monitoreo_pozos',
+        'pozo_name, fecha, hora, estatus, observaciones',
+        (query) => query.gte('fecha', sinceKey)
+    );
+
+    const grouped = new Map();
+    (rows || []).forEach(record => {
+        const pozoName = String(record?.pozo_name || '').trim();
+        if (!pozoName) return;
+
+        const signals = getOperationalAlertSignals(record);
+        if (!signals.length) return;
+
+        const current = grouped.get(pozoName) || {
+            pozo_name: pozoName,
+            count: 0,
+            latest_fecha: null,
+            latest_hora: null,
+            latest_estatus: null,
+            signals: new Set()
+        };
+
+        current.count += 1;
+        current.latest_estatus = record?.estatus || current.latest_estatus;
+
+        if (!current.latest_fecha || compareMonitoringMoments(record, { fecha: current.latest_fecha, hora: current.latest_hora }) > 0) {
+            current.latest_fecha = record?.fecha || current.latest_fecha;
+            current.latest_hora = record?.hora || current.latest_hora;
+            current.latest_estatus = record?.estatus || current.latest_estatus;
+        }
+
+        signals.forEach(signal => current.signals.add(signal));
+        grouped.set(pozoName, current);
+    });
+
+    return [...grouped.values()]
+        .map(item => ({
+            ...item,
+            signals: [...item.signals]
+        }))
+        .sort((left, right) => right.count - left.count || left.pozo_name.localeCompare(right.pozo_name));
 }
 
 export async function upsertWellBESProfile(data) {

@@ -399,24 +399,51 @@
                         <h2>UVITO</h2>
                         <p id="help-assistant-subtitle">Escribe una palabra clave y te llevaré al bloque más útil con respuesta tipeada.</p>
                     </div>
-                    <button type="button" class="help-assistant-close" id="help-assistant-close" aria-label="Cerrar asistente">×</button>
+                    <div class="help-assistant-header-actions">
+                        <button type="button" class="help-assistant-settings-toggle" id="help-assistant-settings-toggle" aria-expanded="false" aria-controls="help-assistant-settings-panel" aria-label="Abrir configuración de UVITO">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+                                <path stroke-linecap="round" d="M4 7h10"></path>
+                                <path stroke-linecap="round" d="M4 17h16"></path>
+                                <path stroke-linecap="round" d="M14 12h6"></path>
+                                <path stroke-linecap="round" d="M4 12h4"></path>
+                                <circle cx="16" cy="7" r="2"></circle>
+                                <circle cx="10" cy="12" r="2"></circle>
+                                <circle cx="14" cy="17" r="2"></circle>
+                            </svg>
+                        </button>
+                        <button type="button" class="help-assistant-close" id="help-assistant-close" aria-label="Minimizar asistente">−</button>
+                    </div>
                 </header>
 
-                <form class="help-assistant-identity" id="help-assistant-identity-form">
-                    <label class="help-assistant-identity-field" for="help-assistant-name-input">
-                        <span>¿Cómo quieres que te llame UVITO?</span>
-                        <input type="text" id="help-assistant-name-input" maxlength="24" placeholder="Ej: John, Ingeniero, Luis">
-                    </label>
-                    <button type="submit" class="help-assistant-identity-save">Guardar</button>
-                </form>
-
-                <section class="help-assistant-identity-summary" id="help-assistant-identity-summary" hidden>
-                    <div class="help-assistant-identity-summary-copy">
-                        <span>Identidad activa</span>
-                        <strong id="help-assistant-identity-name">UVITO te llamará por tu nombre de sesión.</strong>
-                        <p>Este nombre dura solo hasta que cierres sesión.</p>
+                <section class="help-assistant-settings-panel" id="help-assistant-settings-panel" hidden>
+                    <div class="help-assistant-settings-head">
+                        <div>
+                            <span>Configuración</span>
+                            <strong id="help-assistant-current-name">Modo general</strong>
+                            <p>Tema activo: <span id="help-assistant-current-theme">Verde UV</span></p>
+                        </div>
                     </div>
-                    <button type="button" class="help-assistant-identity-edit" id="help-assistant-identity-edit">Cambiar</button>
+
+                    <form class="help-assistant-settings-form" id="help-assistant-settings-form">
+                        <label class="help-assistant-settings-field" for="help-assistant-name-input">
+                            <span>¿Cómo quieres que te llame UVITO?</span>
+                            <input type="text" id="help-assistant-name-input" maxlength="24" placeholder="Ej: John, Ingeniero, Luis">
+                        </label>
+
+                        <div class="help-assistant-theme-picker">
+                            <span>Color del asistente</span>
+                            <div class="help-assistant-theme-options">
+                                <button type="button" class="help-assistant-theme-option" data-assistant-theme="teal">Verde</button>
+                                <button type="button" class="help-assistant-theme-option" data-assistant-theme="blue">Azul</button>
+                                <button type="button" class="help-assistant-theme-option" data-assistant-theme="red">Rojo</button>
+                            </div>
+                        </div>
+
+                        <div class="help-assistant-settings-actions">
+                            <button type="button" class="help-assistant-reset-name" id="help-assistant-reset-name">Quitar nombre</button>
+                            <button type="submit" class="help-assistant-settings-save">Guardar</button>
+                        </div>
+                    </form>
                 </section>
 
                 <div class="help-assistant-context" id="help-assistant-context">
@@ -425,27 +452,45 @@
                     <p id="help-assistant-context-copy">UVITO priorizará respuestas del bloque que estás leyendo en este momento.</p>
                 </div>
 
-                <div class="help-assistant-suggestions" aria-label="Consultas rápidas">
-                    <button type="button" class="help-assistant-chip" data-assistant-query="importar excel">Importar Excel</button>
-                    <button type="button" class="help-assistant-chip" data-assistant-query="ticket diario por fecha">Ticket diario</button>
-                    <button type="button" class="help-assistant-chip" data-assistant-query="estadisticas monitoreos">Estadísticas</button>
-                    <button type="button" class="help-assistant-chip" data-assistant-query="corregir un dato puntual">Corregir dato</button>
-                </div>
+                <details class="help-assistant-guide" open>
+                    <summary>¿Qué preguntarle a UVITO?</summary>
+                    <div class="help-assistant-guide-body">
+                        <p>Haz preguntas cortas y directas. Puedes pedir ayuda para usar la app o consultar información operativa visible del sistema.</p>
+                        <div class="help-assistant-guide-group">
+                            <strong>Consultas operativas</strong>
+                            <div class="help-assistant-suggestions" aria-label="Consultas operativas sugeridas">
+                                <button type="button" class="help-assistant-chip" data-assistant-query="cuántos pozos están OFF">¿Cuántos pozos están OFF?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="muéstrame los pozos con alarmas">Muéstrame los pozos con alarmas</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="cuántos pozos no tienen registros">¿Cuántos pozos no tienen registros?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="producción de CEI0006">Producción de CEI0006</button>
+                            </div>
+                        </div>
+                        <div class="help-assistant-guide-group">
+                            <strong>Preguntas sobre la app</strong>
+                            <div class="help-assistant-suggestions" aria-label="Preguntas de ayuda sugeridas">
+                                <button type="button" class="help-assistant-chip" data-assistant-query="qué hace estadísticas">¿Qué hace Estadísticas?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="cómo reviso el historial de un pozo">¿Cómo reviso el historial de un pozo?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="cómo importo excel">¿Cómo importo Excel?</button>
+                                <button type="button" class="help-assistant-chip" data-assistant-query="generar reporte">Generar reporte</button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
 
                 <div class="help-assistant-thread" id="help-assistant-thread" aria-live="polite">
                     <article class="help-assistant-message robot">
                         <span class="help-assistant-avatar" aria-hidden="true">UV</span>
                         <div class="help-assistant-bubble">
                             <strong>UVITO</strong>
-                            <p id="help-assistant-welcome">Pregúntame algo como importar Excel, historial, ticket diario o estadísticas.</p>
+                            <p id="help-assistant-welcome">Pregúntame cuántos pozos están OFF, qué alarmas hay o la producción de un pozo.</p>
                         </div>
                     </article>
                 </div>
 
                 <form class="help-assistant-form" id="help-assistant-form">
                     <label class="help-assistant-field" for="help-assistant-input">
-                        <span>Palabra clave o duda rápida</span>
-                        <input type="search" id="help-assistant-input" placeholder="Ej: importar excel, pozo, ticket diario, dashboard">
+                        <span>Consulta operativa o duda rápida</span>
+                        <input type="search" id="help-assistant-input" placeholder="Ej: cuántos pozos están OFF, alarmas, producción de CEI0006">
                     </label>
                     <button type="submit" class="help-assistant-submit">Buscar</button>
                 </form>
@@ -463,8 +508,8 @@
                     </div>
                     <div class="help-onboarding-copy">
                         <p class="help-onboarding-kicker">Asistencia inteligente integrada</p>
-                        <h2 id="help-onboarding-title">Ahora tienes a UVITO dentro de Ayuda</h2>
-                        <p>UVITO puede orientarte por módulos, responder saludos, explicarte qué hace cada pantalla y decirte los pasos exactos para importar, corregir, revisar o generar información dentro de la app.</p>
+                        <h2 id="help-onboarding-title">Ahora UVITO te responde con ayuda real y datos operativos</h2>
+                        <p>Desde Ayuda, UVITO ya no solo te orienta por módulos. También puede responder consultas visibles del sistema como pozos OFF, alarmas, pozos sin registros, producción por pozo y rutas para generar reportes, además de explicarte cómo usar cada pantalla.</p>
                     </div>
                 </div>
 
@@ -472,19 +517,22 @@
                     <article class="help-onboarding-feature help-onboarding-feature-primary">
                         <strong>Qué puede hacer por ti</strong>
                         <ul>
-                            <li>Decirte dónde resolver una tarea.</li>
-                            <li>Explicarte pasos concretos por módulo.</li>
-                            <li>Guiarte entre Dashboard, Gestión, Data, Estadísticas, Notificaciones y Campo.</li>
+                            <li>Responder por pozos OFF, alarmas, producción e historial visible.</li>
+                            <li>Explicarte pasos concretos en Dashboard, Gestión, Data, Estadísticas y Preparador Excel.</li>
+                            <li>Mantener la conversación entre Ayuda, Gestión y Estadísticas en la misma sesión.</li>
+                            <li>Dejarte personalizar nombre y color del asistente desde configuración.</li>
                         </ul>
                     </article>
                     <article class="help-onboarding-feature">
                         <strong>Preguntas que ya entiende</strong>
                         <div class="help-onboarding-pills">
-                            <span>Hola UVITO</span>
+                            <span>¿Cuántos pozos están OFF?</span>
+                            <span>Muéstrame los pozos con alarmas</span>
+                            <span>¿Cuántos pozos no tienen registros?</span>
+                            <span>Producción de CEI0006</span>
+                            <span>¿Qué hace Estadísticas?</span>
                             <span>¿Cómo importo Excel?</span>
-                            <span>¿Dónde corrijo un dato?</span>
-                            <span>¿Qué hace Data?</span>
-                            <span>¿Qué módulos tiene la app?</span>
+                            <span>Generar reporte</span>
                         </div>
                     </article>
                 </div>
