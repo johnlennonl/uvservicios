@@ -374,6 +374,127 @@
                 <p>Prueba con palabras como dashboard, importar, historial, excel, pozo o estadísticas.</p>
             </section>
         </main>
+
+        <div class="help-assistant-dock" id="help-assistant-dock">
+            <button type="button" class="help-assistant-launcher" id="help-assistant-launcher" aria-expanded="false" aria-controls="help-assistant-panel">
+                <span class="help-assistant-launcher-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <rect x="5" y="8" width="14" height="10" rx="4"></rect>
+                        <path d="M12 4v4"></path>
+                        <circle cx="9.5" cy="13" r="1"></circle>
+                        <circle cx="14.5" cy="13" r="1"></circle>
+                        <path d="M9 16c.8.6 1.8.9 3 .9s2.2-.3 3-.9"></path>
+                    </svg>
+                </span>
+                <span class="help-assistant-launcher-copy">
+                    <strong>UVITO</strong>
+                    <span id="help-assistant-launcher-status">Busca por palabras clave</span>
+                </span>
+            </button>
+
+            <section class="help-assistant-panel" id="help-assistant-panel" hidden>
+                <header class="help-assistant-header">
+                    <div class="help-assistant-header-copy">
+                        <span class="help-assistant-kicker">Asistente fijo</span>
+                        <h2>UVITO</h2>
+                        <p id="help-assistant-subtitle">Escribe una palabra clave y te llevaré al bloque más útil con respuesta tipeada.</p>
+                    </div>
+                    <button type="button" class="help-assistant-close" id="help-assistant-close" aria-label="Cerrar asistente">×</button>
+                </header>
+
+                <form class="help-assistant-identity" id="help-assistant-identity-form">
+                    <label class="help-assistant-identity-field" for="help-assistant-name-input">
+                        <span>¿Cómo quieres que te llame UVITO?</span>
+                        <input type="text" id="help-assistant-name-input" maxlength="24" placeholder="Ej: John, Ingeniero, Luis">
+                    </label>
+                    <button type="submit" class="help-assistant-identity-save">Guardar</button>
+                </form>
+
+                <section class="help-assistant-identity-summary" id="help-assistant-identity-summary" hidden>
+                    <div class="help-assistant-identity-summary-copy">
+                        <span>Identidad activa</span>
+                        <strong id="help-assistant-identity-name">UVITO te llamará por tu nombre de sesión.</strong>
+                        <p>Este nombre dura solo hasta que cierres sesión.</p>
+                    </div>
+                    <button type="button" class="help-assistant-identity-edit" id="help-assistant-identity-edit">Cambiar</button>
+                </section>
+
+                <div class="help-assistant-context" id="help-assistant-context">
+                    <span class="help-assistant-context-label">Contexto actual</span>
+                    <strong id="help-assistant-context-value">General</strong>
+                    <p id="help-assistant-context-copy">UVITO priorizará respuestas del bloque que estás leyendo en este momento.</p>
+                </div>
+
+                <div class="help-assistant-suggestions" aria-label="Consultas rápidas">
+                    <button type="button" class="help-assistant-chip" data-assistant-query="importar excel">Importar Excel</button>
+                    <button type="button" class="help-assistant-chip" data-assistant-query="ticket diario por fecha">Ticket diario</button>
+                    <button type="button" class="help-assistant-chip" data-assistant-query="estadisticas monitoreos">Estadísticas</button>
+                    <button type="button" class="help-assistant-chip" data-assistant-query="corregir un dato puntual">Corregir dato</button>
+                </div>
+
+                <div class="help-assistant-thread" id="help-assistant-thread" aria-live="polite">
+                    <article class="help-assistant-message robot">
+                        <span class="help-assistant-avatar" aria-hidden="true">UV</span>
+                        <div class="help-assistant-bubble">
+                            <strong>UVITO</strong>
+                            <p id="help-assistant-welcome">Pregúntame algo como importar Excel, historial, ticket diario o estadísticas.</p>
+                        </div>
+                    </article>
+                </div>
+
+                <form class="help-assistant-form" id="help-assistant-form">
+                    <label class="help-assistant-field" for="help-assistant-input">
+                        <span>Palabra clave o duda rápida</span>
+                        <input type="search" id="help-assistant-input" placeholder="Ej: importar excel, pozo, ticket diario, dashboard">
+                    </label>
+                    <button type="submit" class="help-assistant-submit">Buscar</button>
+                </form>
+            </section>
+        </div>
+
+        <section class="help-onboarding-modal" id="help-onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="help-onboarding-title" hidden>
+            <div class="help-onboarding-backdrop" data-help-onboarding-close></div>
+            <div class="help-onboarding-card">
+                <button type="button" class="help-onboarding-close" id="help-onboarding-close" aria-label="Cerrar bienvenida">×</button>
+                <div class="help-onboarding-hero">
+                    <span class="help-onboarding-badge">Nuevo en UV Servicios 2.0</span>
+                    <div class="help-onboarding-robot" aria-hidden="true">
+                        <span>UV</span>
+                    </div>
+                    <div class="help-onboarding-copy">
+                        <p class="help-onboarding-kicker">Asistencia inteligente integrada</p>
+                        <h2 id="help-onboarding-title">Ahora tienes a UVITO dentro de Ayuda</h2>
+                        <p>UVITO puede orientarte por módulos, responder saludos, explicarte qué hace cada pantalla y decirte los pasos exactos para importar, corregir, revisar o generar información dentro de la app.</p>
+                    </div>
+                </div>
+
+                <div class="help-onboarding-grid">
+                    <article class="help-onboarding-feature help-onboarding-feature-primary">
+                        <strong>Qué puede hacer por ti</strong>
+                        <ul>
+                            <li>Decirte dónde resolver una tarea.</li>
+                            <li>Explicarte pasos concretos por módulo.</li>
+                            <li>Guiarte entre Dashboard, Gestión, Data, Estadísticas, Notificaciones y Campo.</li>
+                        </ul>
+                    </article>
+                    <article class="help-onboarding-feature">
+                        <strong>Preguntas que ya entiende</strong>
+                        <div class="help-onboarding-pills">
+                            <span>Hola UVITO</span>
+                            <span>¿Cómo importo Excel?</span>
+                            <span>¿Dónde corrijo un dato?</span>
+                            <span>¿Qué hace Data?</span>
+                            <span>¿Qué módulos tiene la app?</span>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="help-onboarding-actions">
+                    <button type="button" class="help-onboarding-button primary" id="help-onboarding-open-assistant">Conocer a UVITO</button>
+                    <button type="button" class="help-onboarding-button secondary" data-help-onboarding-close>Seguir explorando</button>
+                </div>
+            </div>
+        </section>
     </div>
 
     <nav class="mobile-bottom-nav help-mobile-nav" aria-label="Navegacion movil principal">
