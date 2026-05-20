@@ -532,6 +532,30 @@
             color: #64748B;
         }
 
+        .manual-import-alert {
+            display: grid;
+            gap: 6px;
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(37, 99, 235, 0.16);
+            background: linear-gradient(135deg, rgba(219, 234, 254, 0.58), rgba(239, 246, 255, 0.9));
+        }
+
+        .manual-import-alert strong {
+            color: #1D4ED8;
+            font-size: 0.74rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .manual-import-alert span {
+            color: #334155;
+            font-size: 0.77rem;
+            line-height: 1.45;
+        }
+
         .technical-import-copy {
             text-align: right;
         }

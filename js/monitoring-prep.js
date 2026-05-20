@@ -136,7 +136,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('mobile-logout-btn')?.addEventListener('click', logout);
     document.getElementById('download-xlsx-btn')?.addEventListener('click', () => downloadPreparedFile('xlsx'));
     document.getElementById('download-csv-btn')?.addEventListener('click', () => downloadPreparedFile('csv'));
-    document.getElementById('download-template-btn')?.addEventListener('click', downloadTemplateFile);
     bindUploadZone();
 });
 
@@ -462,18 +461,6 @@ function downloadPreparedFile(format) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'monitoreo_limpio');
     XLSX.writeFile(workbook, buildExportFileName('xlsx'));
-}
-
-function downloadTemplateFile() {
-    const worksheet = XLSX.utils.json_to_sheet([], { header: OUTPUT_COLUMNS });
-    worksheet['!cols'] = OUTPUT_COLUMNS.map(column => ({ wch: Math.max(column.length + 2, 14) }));
-
-    forceWorksheetTextColumn(worksheet, 'fecha');
-    forceWorksheetTextColumn(worksheet, 'hora');
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'plantilla_monitoreo');
-    XLSX.writeFile(workbook, 'plantilla_monitoreo_uv.xlsx');
 }
 
 function buildExportRows(rows = []) {

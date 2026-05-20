@@ -33,7 +33,7 @@
                     </svg>
                     Gestión
                 </a>
-                <a href="monitoring-prep.html" class="nav-link" data-management-link>
+                <a href="monitoring-prep.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
@@ -229,7 +229,7 @@
                 </div>
             </section>
 
-            <section id="data" class="help-section help-section-tonal help-section-data" data-help-card data-category="modulo" data-keywords="data historial base datos pozo actividad registros tecnicos operativos editar consultar">
+            <section id="data" class="help-section help-section-tonal help-section-data" data-help-card data-category="modulo" data-keywords="data historial base datos pozo actividad registros tecnicos operativos editar consultar fecha ticket diario pozos monitoreados">
                 <div class="help-section-header">
                     <div>
                         <span class="help-section-kicker">Módulo</span>
@@ -243,6 +243,7 @@
                         <ul>
                             <li>Consultar la base histórica por pozo.</li>
                             <li>Ver si un pozo tiene registros, actividad reciente y tipo de historial.</li>
+                            <li>Filtrar por fecha para ver qué pozos fueron monitoreados en un día específico.</li>
                             <li>Auditar si la información cargada coincide con lo esperado.</li>
                         </ul>
                     </div>
@@ -255,9 +256,18 @@
                             <li>Filtra por fecha para auditar un día puntual o revisar continuidad.</li>
                         </ol>
                     </div>
+                    <div class="help-checklist-card">
+                        <h3>Nueva función: pozos monitoreados por fecha</h3>
+                        <ol>
+                            <li>En Modo de Consulta, cambia de Historial por pozo a Ticket diario por fecha.</li>
+                            <li>Selecciona la fecha exacta que quieres revisar.</li>
+                            <li>Genera el ticket para listar todos los pozos monitoreados ese día.</li>
+                            <li>Revisa cada bloque por pozo y exporta el consolidado si necesitas compartirlo.</li>
+                        </ol>
+                    </div>
                     <div class="help-tip-card">
                         <h3>Uso recomendado</h3>
-                        <p>Data es la mejor vista para confirmar si el problema es de captura, de importación o de interpretación. Úsala como punto de auditoría antes de modificar datos.</p>
+                        <p>Data es la mejor vista para confirmar si el problema es de captura, de importación o de interpretación. Usa Historial por pozo cuando investigues un caso puntual y Ticket diario por fecha cuando necesites ver todos los pozos atendidos en una fecha específica.</p>
                     </div>
                 </div>
             </section>
@@ -349,6 +359,10 @@
                         <p>Usa Gestión para crear o ajustar registros y luego confirma el resultado en Data o Dashboard según el caso.</p>
                     </details>
                     <details class="help-faq-item">
+                        <summary>¿Cómo veo todos los pozos monitoreados en una fecha?</summary>
+                        <p>En Data cambia el Modo de Consulta a Ticket diario por fecha, selecciona el día exacto y genera el ticket. Así verás el consolidado de todos los pozos monitoreados en esa fecha.</p>
+                    </details>
+                    <details class="help-faq-item">
                         <summary>¿Qué módulo uso primero?</summary>
                         <p>Si vas a analizar, entra a Dashboard. Si vas a cargar datos, usa Gestión. Si el archivo está sucio, arranca en Preparador. Si quieres auditar históricos, usa Data. Si vas a medir cobertura, usa Estadísticas.</p>
                     </details>
@@ -375,7 +389,7 @@
             </svg>
             <span>Gestión</span>
         </a>
-        <a href="monitoring-prep.html" class="mobile-nav-link" data-management-link>
+        <a href="monitoring-prep.html" class="mobile-nav-link">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />

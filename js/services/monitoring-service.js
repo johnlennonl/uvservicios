@@ -154,20 +154,19 @@ export async function getMonitoringDailyActivity(limit = 12, referenceDate = new
     nextDayStart.setDate(nextDayStart.getDate() + 1);
 
     try {
-        const [allDayRows, recordsResult] = await Promise.all([
+        const [allDayRows, detailedDayRows] = await Promise.all([
             fetchAllRows('monitoreo_pozos', 'pozo_name, created_at', (query) => query
                 .gte('created_at', dayStart.toISOString())
                 .lt('created_at', nextDayStart.toISOString())),
-            supabase
-                .from('monitoreo_pozos')
-                .select('id, pozo_name, fecha, hora, estatus, created_at')
+            fetchAllRows(
+                'monitoreo_pozos',
+                'id, pozo_name, fecha, hora, estatus, created_at, frecuencia, corriente_motor, pip, tm, presion_thp, presion_chp, presion_lf, vsd_a, vsd_b, vsd_c, sentido_giro, observaciones',
+                (query) => query
                 .gte('created_at', dayStart.toISOString())
                 .lt('created_at', nextDayStart.toISOString())
                 .order('created_at', { ascending: false })
-                .limit(safeLimit)
+            )
         ]);
-
-        if (recordsResult.error) throw recordsResult.error;
 
         const countsByPozo = new Map();
         (allDayRows || []).forEach(record => {
@@ -183,7 +182,7 @@ export async function getMonitoringDailyActivity(limit = 12, referenceDate = new
             pozoCounts: [...countsByPozo.entries()]
                 .map(([pozo_name, count]) => ({ pozo_name, count }))
                 .sort((left, right) => right.count - left.count || left.pozo_name.localeCompare(right.pozo_name)),
-            records: recordsResult.data || [],
+            records: (detailedDayRows || []).slice(0, Math.max(safeLimit, detailedDayRows?.length || 0)),
             rangeStart: dayStart.toISOString(),
             rangeEnd: nextDayStart.toISOString()
         };
@@ -867,6 +866,27 @@ export async function getWellBESProfile(pozoName) {
         if (/well_bes_profile/i.test(message)) {
             console.warn('Tabla well_bes_profile no disponible todavía.');
             return null;
+        }
+        throw wrapBESProfileError(error);
+    }
+}
+
+export async function getRecentWellBESProfiles(limit = 10) {
+    const safeLimit = Number.isFinite(Number(limit)) ? Number(limit) : 10;
+
+    try {
+        const { data, error } = await supabase
+            .from('well_bes_profile')
+            .select('*')
+            .order('updated_at', { ascending: false })
+            .limit(safeLimit);
+
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        const message = String(error?.message || error || '');
+        if (/well_bes_profile/i.test(message) || /updated_at/i.test(message)) {
+            return [];
         }
         throw wrapBESProfileError(error);
     }

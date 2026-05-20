@@ -33,7 +33,7 @@
                     </svg>
                     Gestión
                 </a>
-                <a href="monitoring-prep.html" class="nav-link" data-management-link>
+                <a href="monitoring-prep.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
@@ -77,35 +77,130 @@
         </aside>
 
         <main class="main-container notification-main-container">
-            <header class="page-hero notification-hero notification-placeholder-hero">
+            <header class="page-hero notification-hero">
                 <div class="page-hero-copy notification-hero-copy">
-                    <span class="notification-kicker">Centro de notificaciones</span>
-                    <h1>En desarrollo</h1>
-                    <p>Esta sección estará disponible cuando terminemos una versión más sólida, visualmente cuidada y lista para producción.</p>
+                    <span class="notification-kicker">Centro de actividad y trazabilidad</span>
+                    <h1>Notificaciones operativas</h1>
+                    <p>Aquí queda documentada la actividad reciente del sistema: cargas de monitoreo, cambios de medición técnica y actualizaciones del perfil BES con su fecha y hora visible.</p>
                     <div class="notification-meta-row">
                         <span class="notification-pill" id="notification-role-pill">Cargando perfil...</span>
-                        <span class="notification-meta-text">Módulo temporalmente oculto mientras se prepara su lanzamiento.</span>
+                        <span class="notification-meta-text" id="notification-last-refresh">Actualizando actividad...</span>
                     </div>
                 </div>
+                <button type="button" id="notification-refresh-btn" class="btn-secondary notification-refresh-btn">Actualizar</button>
             </header>
 
-            <section class="notification-placeholder-card" aria-label="Estado del módulo de notificaciones">
-                <div class="notification-placeholder-badge">EN DESARROLLO</div>
-                <h2>Estamos puliendo esta sección antes de activarla</h2>
-                <p>Por ahora ocultamos las notificaciones operativas para evitar mostrar una versión intermedia. Cuando quede lista, volverá con mejor diseño, más contexto y una experiencia más útil para el equipo.</p>
-                <div class="notification-placeholder-points">
-                    <article class="notification-placeholder-point">
-                        <strong>Estado actual</strong>
-                        <span>Oculto temporalmente</span>
-                    </article>
-                    <article class="notification-placeholder-point">
-                        <strong>Siguiente versión</strong>
-                        <span>Más robusta y visual</span>
-                    </article>
-                    <article class="notification-placeholder-point">
-                        <strong>Objetivo</strong>
-                        <span>Lanzarla cuando quede brutal</span>
-                    </article>
+            <section class="notification-summary-grid" aria-label="Resumen de actividad documentada">
+                <article class="notification-summary-card accent">
+                    <span class="notification-summary-label">
+                        <span class="notification-summary-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                                <path d="M12 3c4.5 0 8 1.7 8 4s-3.5 4-8 4-8-1.7-8-4 3.5-4 8-4Z"></path>
+                                <path d="M4 7v5c0 2.3 3.5 4 8 4s8-1.7 8-4V7"></path>
+                                <path d="M4 12v5c0 2.3 3.5 4 8 4s8-1.7 8-4v-5"></path>
+                            </svg>
+                        </span>
+                        <span>Cargas de monitoreo</span>
+                    </span>
+                    <strong id="summary-monitoring-total" class="notification-summary-value">0</strong>
+                    <p id="summary-monitoring-note" class="notification-summary-note">Sin actividad registrada todavía.</p>
+                </article>
+                <article class="notification-summary-card soft">
+                    <span class="notification-summary-label">
+                        <span class="notification-summary-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                                <path d="M6 20V10"></path>
+                                <path d="M12 20V4"></path>
+                                <path d="M18 20v-7"></path>
+                                <path d="M4 20h16"></path>
+                            </svg>
+                        </span>
+                        <span>Mediciones técnicas recientes</span>
+                    </span>
+                    <strong id="summary-technical-total" class="notification-summary-value">0</strong>
+                    <p id="summary-technical-note" class="notification-summary-note">Sin movimientos técnicos visibles.</p>
+                </article>
+                <article class="notification-summary-card">
+                    <span class="notification-summary-label">
+                        <span class="notification-summary-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                                <rect x="4" y="3" width="16" height="18" rx="3"></rect>
+                                <path d="M8 8h8"></path>
+                                <path d="M8 12h8"></path>
+                                <path d="M8 16h5"></path>
+                            </svg>
+                        </span>
+                        <span>Perfiles BES actualizados</span>
+                    </span>
+                    <strong id="summary-bes-total" class="notification-summary-value">0</strong>
+                    <p id="summary-bes-note" class="notification-summary-note">Sin cambios recientes en la configuración BES.</p>
+                </article>
+            </section>
+
+            <section class="notification-layout-grid">
+                <article class="notification-panel notification-feed-panel">
+                    <header class="notification-panel-header">
+                        <div>
+                            <span class="notification-panel-kicker">Monitoreo diario</span>
+                            <h2>Actividad agrupada por pozo</h2>
+                        </div>
+                        <span id="notification-feed-count" class="notification-count-pill">0</span>
+                    </header>
+                    <div id="notification-feed-list" class="notification-feed-list">
+                        <p class="notification-empty-state">Cargando actividad reciente de monitoreo...</p>
+                    </div>
+                </article>
+
+                <article class="notification-panel notification-technical-panel">
+                    <header class="notification-panel-header compact">
+                        <div>
+                            <span class="notification-panel-kicker">Producción técnica</span>
+                            <h2>Cambios de medición</h2>
+                        </div>
+                        <span id="notification-technical-count" class="notification-count-pill">0</span>
+                    </header>
+                    <div id="notification-technical-list" class="notification-pozo-list">
+                        <p class="notification-empty-state">Cargando mediciones técnicas recientes...</p>
+                    </div>
+                </article>
+
+                <article class="notification-panel notification-bes-panel">
+                    <header class="notification-panel-header compact">
+                        <div>
+                            <span class="notification-panel-kicker">Perfil BES</span>
+                            <h2>Configuración actualizada</h2>
+                        </div>
+                        <span id="notification-bes-count" class="notification-count-pill">0</span>
+                    </header>
+                    <div id="notification-bes-list" class="notification-pozo-list">
+                        <p class="notification-empty-state">Cargando actualizaciones de perfil BES...</p>
+                    </div>
+                </article>
+
+                <article class="notification-panel notification-documentation-panel">
+                    <header class="notification-panel-header compact">
+                        <div>
+                            <span class="notification-panel-kicker">Qué queda documentado</span>
+                            <h2>Alcance actual de la trazabilidad</h2>
+                        </div>
+                    </header>
+                    <ul class="notification-tip-list">
+                        <li>Las cargas de monitoreo muestran la fecha y hora en que el registro quedó guardado, además del pozo y la fecha operativa del monitoreo.</li>
+                        <li>Las mediciones técnicas muestran pozo, fecha de medición y los niveles registrados más recientes de BBPD, AYS, BNPD y CAT.</li>
+                        <li>Las actualizaciones del perfil BES muestran pozo, tipo de bomba y la última hora de actualización disponible.</li>
+                        <li>Hoy no existe un historial detallado por campo para cada edición manual de THP, CHP, LF, VSD o PIP. Esta vista documenta la actividad visible que el sistema ya persiste.</li>
+                    </ul>
+                </article>
+            </section>
+
+            <section id="notification-modal" class="notification-modal" hidden aria-hidden="true">
+                <div class="notification-modal-backdrop" data-modal-close></div>
+                <div class="notification-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="notification-modal-title">
+                    <button type="button" class="notification-modal-close" id="notification-modal-close" aria-label="Cerrar detalle">×</button>
+                    <span class="notification-panel-kicker">Detalle por pozo</span>
+                    <h2 id="notification-modal-title">Actividad del pozo</h2>
+                    <p id="notification-modal-summary" class="notification-summary-note">Aquí verás los registros documentados para este pozo.</p>
+                    <div id="notification-modal-body" class="notification-modal-body"></div>
                 </div>
             </section>
         </main>
