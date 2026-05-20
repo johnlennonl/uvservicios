@@ -8,7 +8,6 @@ import { getMonitoringData, getLatestDate, getLatestMonitoringRecords, getNeighb
 import { hideFullLoader, showFullLoader } from './ui.js';
 
 let charts = {};
-let isComparisonMode = false;
 let isDarkMode = localStorage.getItem('theme-uv') === 'dark';
 let resizeFrame = null;
 let historicalRecordOptions = [];
@@ -81,7 +80,7 @@ function setTrendWindowMode(mode, syncControl = true) {
 
     if (syncControl) {
         const pozoName = document.getElementById('filter-pozo')?.value || '';
-        syncTrendWindowControl(Boolean(pozoName && !isComparisonMode));
+        syncTrendWindowControl(Boolean(pozoName));
     }
 }
 
@@ -247,10 +246,10 @@ async function selectDashboardPozo(pozoName) {
     document.getElementById('filter-end').value = latestDate || '';
 
     await syncHistoricalRecordSelector(pozoName || '');
-    if (pozoName && !isComparisonMode && isFocusedTrendMode()) {
+    if (pozoName && isFocusedTrendMode()) {
         await applyFocusedMonitoringRange(pozoName, latestDate || historicalRecordOptions[0]?.date || null);
     }
-    syncTrendWindowControl(Boolean(pozoName && !isComparisonMode));
+    syncTrendWindowControl(Boolean(pozoName));
     updateDashboard();
 }
 
@@ -456,7 +455,7 @@ async function syncHistoricalRecordSelector(pozoName, preserveSelection = false)
 
     if (!input || !startInput || !endInput || !timeInput) return;
 
-    const shouldEnable = Boolean(pozoName && !isComparisonMode);
+    const shouldEnable = Boolean(pozoName);
     input.disabled = !shouldEnable;
     if (dateJumpButton) {
         dateJumpButton.disabled = !shouldEnable;
@@ -566,7 +565,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const pozos = pozoSummaries.map(item => item.pozo_name);
         const pozoFilter = document.getElementById('filter-pozo');
         const pozoFilterDisplay = document.getElementById('filter-pozo-display');
-        const comparePanel = document.getElementById('comparison-panel');
         const storedPozo = getStoredSelectedPozo();
 
         // Toma la fecha mas reciente de la base para no abrir el dashboard vacio.
@@ -596,26 +594,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('filter-end').value = '';
                 }
                 await syncHistoricalRecordSelector(storedPozo);
-                if (!isComparisonMode && isFocusedTrendMode()) {
+                if (isFocusedTrendMode()) {
                     await applyFocusedMonitoringRange(storedPozo, pozoDate || historicalRecordOptions[0]?.date || null);
                 }
                 syncTrendWindowControl(Boolean(storedPozo));
             }
-        }
-
-        if (comparePanel) {
-            comparePanel.innerHTML = '';
-            pozos.sort().forEach(pozo => {
-                const label = document.createElement('label');
-                label.className = 'checkbox-item';
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.name = 'compare-pozo';
-                checkbox.value = pozo;
-                label.appendChild(checkbox);
-                label.appendChild(document.createTextNode(` ${pozo}`));
-                comparePanel.appendChild(label);
-            });
         }
     } catch (err) { console.error('Filter load error:', err); }
 
@@ -634,7 +617,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 1000);
     }
 
-    // Conecta eventos de filtros, logout, comparacion y navegacion historica.
+    // Conecta eventos de filtros, logout y navegacion historica.
     const applyBtn = document.getElementById('apply-filters');
     if (applyBtn) applyBtn.addEventListener('click', updateDashboard);
     
@@ -750,7 +733,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             setTrendWindowMode(nextMode, false);
 
-            if (pozoName && !isComparisonMode) {
+            if (pozoName) {
                 if (trendWindowMode === TREND_WINDOW_MODES.latest1) {
                     await syncHistoricalRecordSelector(pozoName, false);
                 } else {
@@ -758,31 +741,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            syncTrendWindowControl(Boolean(pozoName && !isComparisonMode));
+            syncTrendWindowControl(Boolean(pozoName));
             updateDashboard();
         });
 
-        syncTrendWindowControl(Boolean(document.getElementById('filter-pozo')?.value && !isComparisonMode));
-    }
-
-    // Activa o desactiva la comparacion simultanea entre pozos.
-    const compareToggleBtn = document.getElementById('btn-toggle-compare');
-    if (compareToggleBtn) {
-        compareToggleBtn.addEventListener('click', async () => {
-            isComparisonMode = !isComparisonMode;
-            document.getElementById('comparison-panel').classList.toggle('active', isComparisonMode);
-            document.getElementById('single-pozo-container').style.display = isComparisonMode ? 'none' : 'block';
-            compareToggleBtn.classList.toggle('active', isComparisonMode);
-            compareToggleBtn.textContent = isComparisonMode ? 'VISTA SIMPLE' : 'COMPARAR';
-            compareToggleBtn.title = isComparisonMode ? 'Volver a vista simple' : 'Comparar pozos';
-            compareToggleBtn.setAttribute('aria-label', isComparisonMode ? 'Volver a vista simple' : 'Comparar pozos');
-            const currentPozo = document.getElementById('filter-pozo')?.value || '';
-            await syncHistoricalRecordSelector(currentPozo, true);
-            if (!isComparisonMode && currentPozo && isFocusedTrendMode()) {
-                await applyFocusedMonitoringRange(currentPozo, historicalRecordOptions[0]?.date || null);
-            }
-            syncTrendWindowControl(Boolean(currentPozo && !isComparisonMode));
-        });
+        syncTrendWindowControl(Boolean(document.getElementById('filter-pozo')?.value));
     }
 
     // Permite moverse entre registros historicos del pozo activo.
@@ -814,20 +777,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function updateDashboard() {
-    let selectedPozos = [];
-    
-    if (isComparisonMode) {
-        const checkboxes = document.querySelectorAll('input[name="compare-pozo"]:checked');
-        selectedPozos = Array.from(checkboxes).map(c => c.value);
-    } else {
-        const val = document.getElementById('filter-pozo').value;
-        if (val) selectedPozos = [val];
-    }
+    const selectedPozos = [];
+    const selectedPozo = document.getElementById('filter-pozo')?.value || '';
+    if (selectedPozo) selectedPozos.push(selectedPozo);
 
     if (selectedPozos.length === 0) {
-        if (!isComparisonMode) {
-            setStoredSelectedPozo('');
-        }
+        setStoredSelectedPozo('');
         syncTrendWindowControl(false);
         clearDashboard();
 
@@ -842,7 +797,7 @@ async function updateDashboard() {
     const start = document.getElementById('filter-start').value || null;
     const end = document.getElementById('filter-end').value || null;
     const selectedRecordValue = getSelectedHistoricalRecordValue();
-    syncTrendWindowControl(selectedPozos.length === 1 && !isComparisonMode);
+    syncTrendWindowControl(selectedPozos.length === 1);
     
     // Activa skeletons mientras resolvemos consultas y volvemos a dibujar las visualizaciones.
     // Activa skeletons mientras llegan datos y se repinta la vista.
@@ -851,7 +806,7 @@ async function updateDashboard() {
 
     try {
         const requestedRecordCount = getTrendWindowRecordCount();
-        const shouldUseFixedRecordWindow = selectedPozos.length === 1 && !isComparisonMode && isFocusedTrendMode();
+        const shouldUseFixedRecordWindow = selectedPozos.length === 1 && isFocusedTrendMode();
         const data = shouldUseFixedRecordWindow
             ? await getLatestMonitoringRecords(selectedPozos[0], requestedRecordCount)
             : await getMonitoringData(selectedPozos, start, end);
@@ -905,7 +860,7 @@ async function updateDashboard() {
 
         // Trae vecinos anterior/siguiente para que las lineas no queden cortadas en filtros cerrados.
         let extendedData = [...data];
-        if (!shouldUseFocusedTrendData && data.length > 0 && selectedPozos.length === 1 && !isComparisonMode) {
+        if (!shouldUseFocusedTrendData && data.length > 0 && selectedPozos.length === 1) {
             // Busca el registro mas viejo del bloque filtrado.
             const oldestDate = data[data.length - 1].fecha; 
             // Busca el registro mas reciente del bloque filtrado.
@@ -929,9 +884,8 @@ async function updateDashboard() {
 
         // Filtra observaciones para que solo queden las del contexto visible.
         const filteredObs = data.filter(d => {
-            if (isComparisonMode) return selectedPozos.includes(d.pozo_name);
             if (selectedPozos.length === 1) return d.pozo_name === selectedPozos[0];
-            return true; // Caso comodin cuando no hay filtro puntual.
+            return true;
         });
 
         const activeRecord = selectedPozos.length === 1 && selectedRecordValue
@@ -991,7 +945,7 @@ function renderKPIs(latest) {
     const rawRotation = String(latest?.sentido_giro || '').trim();
 
     if (rotationBadge && rotationValue) {
-        if (!isComparisonMode && rawRotation) {
+        if (rawRotation) {
             rotationValue.textContent = rawRotation;
             rotationBadge.style.display = 'inline-flex';
         } else {
@@ -1003,13 +957,11 @@ function renderKPIs(latest) {
     // Actualiza el subtitulo superior con el contexto de analisis actual.
     const title = document.querySelector('.main-container header p');
     if (title) {
-        title.textContent = isComparisonMode 
-            ? `Comparando ${latest.pozo_name} y otros` 
-            : trendWindowMode === TREND_WINDOW_MODES.latest30
-                ? `Analizando Pozo: ${latest.pozo_name} (Ultimos ${MONITORING_RECORD_WINDOW} registros)`
-                : trendWindowMode === TREND_WINDOW_MODES.latest15
-                    ? `Analizando Pozo: ${latest.pozo_name} (Ultimos ${FOCUSED_TREND_RECORD_COUNT} registros)`
-                    : `Analizando Pozo: ${latest.pozo_name} (Último: ${latest.fecha} ${latest.hora})`;
+        title.textContent = trendWindowMode === TREND_WINDOW_MODES.latest30
+            ? `Analizando Pozo: ${latest.pozo_name} (Ultimos ${MONITORING_RECORD_WINDOW} registros)`
+            : trendWindowMode === TREND_WINDOW_MODES.latest15
+                ? `Analizando Pozo: ${latest.pozo_name} (Ultimos ${FOCUSED_TREND_RECORD_COUNT} registros)`
+                : `Analizando Pozo: ${latest.pozo_name} (Último: ${latest.fecha} ${latest.hora})`;
     }
 }
 

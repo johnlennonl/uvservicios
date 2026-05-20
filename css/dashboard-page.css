@@ -1102,22 +1102,6 @@
             }
         }
 
-        /* Comparison Panel */
-        .comparison-panel {
-            background: var(--bg-card);
-            border: 1.5px dashed var(--border-color);
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: none;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 10px;
-            color: var(--text-body);
-        }
-
-        .comparison-panel.active {
-            display: grid;
-        }
 
         .checkbox-item {
             display: flex;

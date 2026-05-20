@@ -1148,6 +1148,7 @@ function restoreAssistantThread() {
         messages.forEach(message => {
             createAssistantMessage(message.author, message.title, message.text, message.action || null);
         });
+        scrollAssistantThreadToBottom();
         return true;
     } catch (error) {
         console.warn('No fue posible restaurar la conversación de UVITO:', error);
@@ -1348,6 +1349,10 @@ function bindHelpAssistant() {
     const setOpen = (open) => {
         panel.hidden = !open;
         launcher.setAttribute('aria-expanded', String(open));
+        if (open) {
+            collapseAssistantGuide();
+            scrollAssistantThreadToBottom();
+        }
         if (!open) {
             settingsPanel.hidden = true;
             settingsButton.setAttribute('aria-expanded', 'false');
