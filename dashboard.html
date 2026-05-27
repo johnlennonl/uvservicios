@@ -163,21 +163,15 @@
 
                 <div class="page-hero-actions">
                     <!-- Estado rapido del sistema -->
-                    <div class="system-status-widget"
-                        style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 12px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                            <span
-                                style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Estatus
-                                de Conexión</span>
-                            <span style="font-size: 0.95rem; font-weight: 800; color: #059669;">SISTEMA ONLINE</span>
+                    <div class="system-status-widget">
+                        <div class="system-status-copy">
+                            <span class="system-status-label">Estado de conexion:</span>
+                            <span id="dashboard-connection-status" class="system-status-value">SISTEMA ONLINE</span>
+                            <span id="dashboard-live-datetime" class="system-status-timestamp">--/--/---- --:--:--</span>
                         </div>
-                        <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-                            <div
-                                style="width: 12px; height: 12px; background: #10B981; border-radius: 50%; z-index: 2;">
-                            </div>
-                            <div
-                                style="position: absolute; width: 12px; height: 12px; background: #10B981; border-radius: 50%; opacity: 0.6; animation: pulseRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;">
-                            </div>
+                        <div class="system-status-indicator" aria-hidden="true">
+                            <div class="system-status-dot"></div>
+                            <div class="system-status-pulse"></div>
                         </div>
                     </div>
                 </div>
@@ -420,6 +414,9 @@
                         <h3>Estatus BES</h3>
                     </div>
                     <div id="donut-status" class="chart-space"></div>
+                    <div class="status-donut-actions">
+                        <button type="button" id="status-donut-toggle" class="status-donut-toggle">Ver historial RUN/OFF</button>
+                    </div>
                     <div id="rotation-badge" class="rotation-badge" style="display: none;">
                         <span class="rotation-badge-label">Giro</span>
                         <span id="rotation-badge-value" class="rotation-badge-value">--</span>

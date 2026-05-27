@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function bindStaticActions() {
     document.getElementById('logout-btn')?.addEventListener('click', logout);
+    document.getElementById('mobile-logout-btn')?.addEventListener('click', logout);
     document.getElementById('field-clear-form-btn')?.addEventListener('click', clearForm);
     document.getElementById('field-add-report-btn')?.addEventListener('click', addCurrentReportToJourney);
     document.getElementById('field-copy-btn')?.addEventListener('click', copyMessage);

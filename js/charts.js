@@ -12,6 +12,10 @@ let isDarkMode = localStorage.getItem('theme-uv') === 'dark';
 let resizeFrame = null;
 let historicalRecordOptions = [];
 let pozoSummaries = [];
+let latestKpiSnapshot = null;
+let latestStatusSnapshot = [];
+let latestStatusRecordSnapshot = null;
+let statusDonutMode = 'latest';
 const FOCUSED_TREND_RECORD_COUNT = 15;
 const MONITORING_RECORD_WINDOW = 30;
 const TREND_WINDOW_STORAGE_KEY = 'uv-trend-window-mode';
@@ -184,6 +188,35 @@ function applyDashboardAccessProfile(accessProfile) {
         badge.textContent = 'Panel de Visualizacion';
         heroCopy.appendChild(badge);
     }
+}
+
+function initializeDashboardConnectionClock() {
+    const statusLabel = document.getElementById('dashboard-connection-status');
+    const dateTimeLabel = document.getElementById('dashboard-live-datetime');
+    if (!statusLabel && !dateTimeLabel) return;
+
+    const dateTimeFormatter = new Intl.DateTimeFormat('es-MX', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+
+    const renderConnectionClock = () => {
+        if (statusLabel) {
+            statusLabel.textContent = 'SISTEMA ONLINE';
+        }
+
+        if (dateTimeLabel) {
+            dateTimeLabel.textContent = dateTimeFormatter.format(new Date());
+        }
+    };
+
+    renderConnectionClock();
+    window.setInterval(renderConnectionClock, 1000);
 }
 
 // Renderiza el selector personalizado del pozo y conserva el estado de cada opcion.
@@ -529,6 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     applyDashboardAccessProfile(accessProfile);
+    initializeDashboardConnectionClock();
 
     const isFirstEntry = !sessionStorage.getItem('dashboard-visited');
 
@@ -772,8 +806,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             Object.values(charts).forEach(chart => {
                 if (chart) chart.updateOptions({}, false, false, false);
             });
+            if (latestKpiSnapshot) {
+                renderKPIs(latestKpiSnapshot);
+            }
+            if (latestStatusSnapshot.length > 0) {
+                renderStatusDonut(latestStatusSnapshot, latestStatusRecordSnapshot);
+            }
         });
     });
+
+    initializeStatusDonutInteractions();
 });
 
 async function updateDashboard() {
@@ -893,7 +935,7 @@ async function updateDashboard() {
             : data[0];
 
         renderKPIs(activeRecord);
-        renderStatusDonut(data);
+        renderStatusDonut(data, activeRecord);
         renderCoreTrends(timelineData, selectedPozos, {
             latestRecordsOnly: shouldUseFocusedTrendData,
             latestRecordCount: requestedRecordCount
@@ -927,6 +969,11 @@ function clearDashboard() {
     const rotationValue = document.getElementById('rotation-badge-value');
     if (rotationBadge) rotationBadge.style.display = 'none';
     if (rotationValue) rotationValue.textContent = '--';
+    latestKpiSnapshot = null;
+    latestStatusSnapshot = [];
+    latestStatusRecordSnapshot = null;
+    statusDonutMode = 'latest';
+    updateStatusDonutToggleControl();
 
     const tbody = document.getElementById('obs-body');
     if (tbody) tbody.innerHTML = '<tr><td style="padding: 20px; text-align: center; color: var(--text-muted);">No hay registros</td></tr>';
@@ -936,6 +983,7 @@ function clearDashboard() {
  * Indicadores rapidos y gauges del encabezado operativo.
  */
 function renderKPIs(latest) {
+    latestKpiSnapshot = latest || null;
     createEliteGauge('gauge-frecuencia', latest.frecuencia, 0, 60, 'Hz', '#2563EB');
     createEliteGauge('gauge-pip', latest.pip, 0, 5000, 'PSI', '#DC2626');
     createEliteGauge('gauge-tm', latest.tm, 0, 450, '°F', '#9333EA');
@@ -965,9 +1013,33 @@ function renderKPIs(latest) {
     }
 }
 
+function getGaugeLayout(id, valueLabel = '') {
+    const container = document.getElementById(id);
+    const parentWidth = container?.parentElement?.clientWidth || container?.clientWidth || 260;
+    const safeWidth = Math.max(parentWidth, 220);
+    const chartHeight = Math.max(190, Math.min(250, Math.round(safeWidth * 0.7)));
+    const baseValueFontSize = Math.max(24, Math.min(38, Math.round(safeWidth * 0.105)));
+    const labelLength = String(valueLabel).trim().length;
+    const lengthScale = labelLength > 8
+        ? Math.max(0.64, 1 - ((labelLength - 8) * 0.065))
+        : 1;
+    const valueFontSize = Math.max(21, Math.round(baseValueFontSize * lengthScale));
+    const offsetY = Math.max(6, Math.min(16, Math.round(chartHeight * 0.055)));
+    const hollowSize = Math.max(57, Math.min(68, Math.round(safeWidth * 0.215)));
+
+    return {
+        chartHeight,
+        valueFontSize: `${valueFontSize}px`,
+        offsetY,
+        hollowSize: `${hollowSize}%`
+    };
+}
+
 function createEliteGauge(id, value, min, max, unit, color) {
     const val = Number(value) || 0;
     const percentage = Math.min(100, Math.max(0, ((val - min) / (max - min)) * 100));
+    const valueLabel = `${val.toFixed(1)} ${unit}`;
+    const gaugeLayout = getGaugeLayout(id, valueLabel);
     
     const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
 
@@ -985,7 +1057,7 @@ function createEliteGauge(id, value, min, max, unit, color) {
         series: [Number(percentage.toFixed(1))],
         chart: { 
             type: 'radialBar', 
-            height: 200, 
+            height: gaugeLayout.chartHeight,
             sparkline: { enabled: true },
         },
         theme: { mode: effectiveMode },
@@ -993,21 +1065,21 @@ function createEliteGauge(id, value, min, max, unit, color) {
             radialBar: {
                 startAngle: -115,
                 endAngle: 115,
-                hollow: { size: '68%', background: 'transparent' },
+                hollow: { size: gaugeLayout.hollowSize, background: 'transparent' },
                 track: { 
                     background: effectiveMode === 'dark' ? '#1E293B' : '#E2E8F0', 
-                    strokeWidth: '97%', 
+                    strokeWidth: '100%', 
                     dropShadow: { enabled: true, top: 0, left: 0, blur: 3, opacity: 0.1 } 
                 },
                 dataLabels: {
                     name: { show: false },
                     value: {
-                        offsetY: 10,
-                        fontSize: '28px',
+                        offsetY: gaugeLayout.offsetY,
+                        fontSize: gaugeLayout.valueFontSize,
                         fontFamily: 'Inter, sans-serif',
                         fontWeight: '900',
                         color: effectiveMode === 'dark' ? '#F8FAFC' : '#1E293B',
-                        formatter: () => `${val.toFixed(1)} ${unit}`
+                        formatter: () => valueLabel
                     }
                 }
             }
@@ -1027,25 +1099,116 @@ function createEliteGauge(id, value, min, max, unit, color) {
     renderOrUpdate(id, options);
 }
 
+function getLatestStatusLabel(record = null) {
+    const normalizedStatus = String(record?.normalized_estatus || record?.estatus || '').trim().toUpperCase();
+    if (normalizedStatus === 'RUN' || normalizedStatus === 'ON') return 'RUN';
+    if (normalizedStatus === 'OFF') return 'OFF';
+    return '--';
+}
+
+function updateStatusDonutToggleControl() {
+    const toggleButton = document.getElementById('status-donut-toggle');
+    if (!toggleButton) return;
+
+    const hasHistory = latestStatusSnapshot.length > 0;
+    toggleButton.disabled = !hasHistory;
+    toggleButton.textContent = statusDonutMode === 'history'
+        ? 'Ver ultimo RUN/OFF'
+        : 'Ver historial RUN/OFF';
+}
+
+function initializeStatusDonutInteractions() {
+    const donutContainer = document.getElementById('donut-status');
+    const toggleButton = document.getElementById('status-donut-toggle');
+    if (!donutContainer && !toggleButton) return;
+
+    const handleToggle = () => {
+        if (!latestStatusSnapshot.length) return;
+        statusDonutMode = statusDonutMode === 'latest' ? 'history' : 'latest';
+        renderStatusDonut(latestStatusSnapshot, latestStatusRecordSnapshot);
+    };
+
+    donutContainer?.addEventListener('click', handleToggle);
+    toggleButton?.addEventListener('click', handleToggle);
+    updateStatusDonutToggleControl();
+}
+
 /**
  * Estado general del pozo segun sus registros operativos.
  */
-function renderStatusDonut(data) {
+function renderStatusDonut(data, latestRecord = null) {
+    latestStatusSnapshot = Array.isArray(data) ? [...data] : [];
+    latestStatusRecordSnapshot = latestRecord || latestStatusSnapshot[0] || null;
     const runCount = data.filter(d => d.estatus === 'RUN').length;
     const offCount = data.filter(d => d.estatus === 'OFF').length;
+    const donutContainer = document.getElementById('donut-status');
+    const parentWidth = donutContainer?.parentElement?.clientWidth || donutContainer?.clientWidth || 260;
+    const chartHeight = Math.max(180, Math.min(240, Math.round(parentWidth * 0.64)));
+    const totalFontSize = Math.max(26, Math.min(38, Math.round(parentWidth * 0.1)));
+    const latestStatusLabel = getLatestStatusLabel(latestStatusRecordSnapshot);
+    const isHistoryMode = statusDonutMode === 'history';
 
     const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
-    
-    const options = {
-        series: [runCount, offCount],
-        labels: ['RUN', 'OFF'],
-        chart: { type: 'donut', height: 180 },
-        theme: { mode: effectiveMode },
-        colors: ['#10B981', '#F43F5E'],
-        dataLabels: { enabled: false },
-        plotOptions: { pie: { donut: { size: '75%', labels: { show: true, total: { show: true, label: 'Registros', color: effectiveMode === 'dark' ? '#94A3B8' : '#64748B', formatter: () => data.length } } } } },
-        legend: { position: 'bottom', labels: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#6B7280' } }
-    };
+    const options = isHistoryMode
+        ? {
+            series: [runCount, offCount],
+            labels: ['RUN', 'OFF'],
+            chart: { type: 'donut', height: chartHeight },
+            theme: { mode: effectiveMode },
+            colors: ['#10B981', '#F43F5E'],
+            dataLabels: { enabled: false },
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: '78%',
+                        labels: {
+                            show: true,
+                            total: {
+                                show: true,
+                                label: 'Registros',
+                                fontSize: '13px',
+                                color: effectiveMode === 'dark' ? '#94A3B8' : '#64748B',
+                                formatter: () => data.length
+                            },
+                            value: {
+                                fontSize: `${totalFontSize}px`,
+                                fontWeight: 800,
+                                color: effectiveMode === 'dark' ? '#F8FAFC' : '#111827'
+                            }
+                        }
+                    }
+                }
+            },
+            legend: { position: 'bottom', labels: { colors: effectiveMode === 'dark' ? '#94A3B8' : '#6B7280' } }
+        }
+        : {
+            series: [1],
+            labels: [latestStatusLabel],
+            chart: { type: 'donut', height: chartHeight },
+            theme: { mode: effectiveMode },
+            colors: [latestStatusLabel === 'OFF' ? '#F43F5E' : latestStatusLabel === 'RUN' ? '#10B981' : '#94A3B8'],
+            dataLabels: { enabled: false },
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: '78%',
+                        labels: {
+                            show: true,
+                            total: {
+                                show: true,
+                                label: 'Ultimo registro',
+                                fontSize: '13px',
+                                color: effectiveMode === 'dark' ? '#94A3B8' : '#64748B',
+                                formatter: () => latestStatusLabel
+                            }
+                        }
+                    }
+                }
+            },
+            legend: { show: false }
+        };
+
+    updateStatusDonutToggleControl();
     renderOrUpdate('donut-status', options);
 }
 

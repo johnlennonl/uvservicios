@@ -211,7 +211,7 @@
             }
 
             .main-container {
-                padding: 20px 15px 96px 15px;
+                padding: 20px 15px 176px 15px;
             }
 
             .page-hero {
@@ -242,7 +242,7 @@
                 right: 12px;
                 bottom: 12px;
                 display: grid;
-                grid-template-columns: repeat(6, 1fr);
+                grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
                 gap: 8px;
                 padding: 10px;
                 background: rgba(255, 255, 255, 0.96);
@@ -257,7 +257,7 @@
             .mobile-nav-link,
             .mobile-nav-action {
                 min-width: 0;
-                min-height: 58px;
+                min-height: 54px;
                 border: 0;
                 border-radius: 14px;
                 background: transparent;
@@ -268,11 +268,12 @@
                 align-items: center;
                 justify-content: center;
                 gap: 4px;
-                font-size: 0.64rem;
+                font-size: 0.61rem;
                 font-weight: 800;
                 letter-spacing: 0.02em;
                 cursor: pointer;
                 transition: all 0.2s ease;
+                text-align: center;
             }
 
             .mobile-nav-link svg,

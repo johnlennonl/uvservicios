@@ -14,4 +14,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     document.getElementById('logout-btn')?.addEventListener('click', logout);
+    document.getElementById('mobile-logout-btn')?.addEventListener('click', logout);
 });
