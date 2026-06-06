@@ -5,16 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
-    <title>UV Servicios | Captura y Envío</title>
-    <meta name="description" content="Captura y envío de monitoreos de campo listos para compartir por WhatsApp y exportar después.">
+    <title>UV Servicios | Captura de Campo</title>
+    <meta name="description" content="Captura por secciones para consolidado operativo del dashboard general desde el rol de Campo.">
     <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/data-page.css">
-    <link rel="stylesheet" href="css/field-page.css">
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="css/field-page.css?v=20260531d">
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
@@ -28,12 +26,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z" />
                     </svg>
                     Jornada
-                </a>
-                <a href="jornada-history.html" class="nav-link field-nav-link">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Historial de Jornada
                 </a>
                 <a href="field.html" class="nav-link field-nav-link active">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,195 +46,322 @@
             <header class="page-hero field-hero">
                 <div class="page-hero-copy">
                     <span class="field-kicker">Operacion de Campo</span>
-                    <h1>Captura y envío del monitoreo</h1>
-                    <p>Esta vista está diseñada para registrar el pozo, generar el texto operativo y compartirlo sin pasar por dashboard, gestión ni Excel manual.</p>
+                    <h1>Captura del consolidado operativo</h1>
+                    <p>Registra cada pozo por secciones y arma la jornada paso a paso para que luego administración procese el consolidado desde su panel.</p>
                     <div class="field-role-badge">Rol Campo</div>
                 </div>
                 <div class="field-hero-panel">
                     <div class="field-hero-stat">
-                        <span>Misión</span>
-                        <strong>Capturar y enviar cada jornada</strong>
+                        <span>Enfoque</span>
+                        <strong>Captura estructurada por secciones</strong>
                     </div>
                     <div class="field-hero-stat">
-                        <span>Acción</span>
-                        <strong>WhatsApp listo en un clic</strong>
+                        <span>Salida</span>
+                        <strong>Captura lista para revisión admin</strong>
                     </div>
                 </div>
             </header>
 
-            <section class="field-grid">
+            <section id="field-capture-workspace" class="field-grid field-grid-capture">
                 <section class="field-card field-form-card">
                     <div class="field-card-header">
                         <div>
-                            <h2>Reporte operativo</h2>
-                            <p>Completa los datos del pozo y deja listo el mensaje de envío de la jornada.</p>
+                            <h2>Captura del pozo</h2>
+                            <p>Completa solo lo necesario por bloque. No todas las secciones son obligatorias en esta etapa.</p>
                         </div>
                     </div>
 
-                    <div id="field-continue-banner" class="field-continue-banner" hidden></div>
+                    <div id="field-editing-context" class="field-continue-banner" hidden></div>
 
-                    <form id="field-report-form" class="field-form" novalidate>
-                        <div class="field-form-grid field-form-grid-top">
-                            <label class="field-input-group">
-                                <span>Equipo de guardia</span>
-                                <input type="text" name="equipo_guardia" id="field-equipo-guardia" placeholder="Ej: Carlos Ruiz, Ana Perez, Luis Mora" required>
-                                <small class="field-input-hint">Escribe los nombres separados por coma. El placeholder es solo una guía visual.</small>
-                            </label>
-                            <label class="field-input-group">
-                                <span>Locación de la jornada</span>
-                                <input type="text" name="locacion_jornada" id="field-locacion-jornada" placeholder="Ej: Bateria TOM - Estacion Norte" required>
-                            </label>
-                            <label class="field-input-group">
-                                <span>Fecha</span>
-                                <input type="date" name="fecha" id="field-fecha" required>
-                            </label>
-                            <label class="field-input-group">
-                                <span>Hora</span>
-                                <input type="time" name="hora" id="field-hora" required>
-                            </label>
-                            <label class="field-input-group">
-                                <span>Pozo</span>
-                                <input type="text" name="pozo" id="field-pozo" placeholder="TOM0012" required>
-                            </label>
-                            <label class="field-input-group">
-                                <span>Jornada</span>
-                                <select name="jornada" id="field-jornada">
-                                    <option value="Diurna">Diurna</option>
-                                    <option value="Nocturna">Nocturna</option>
-                                    <option value="Especial">Especial</option>
-                                </select>
-                            </label>
-                        </div>
+                    <form id="field-report-form" class="field-form field-capture-form" novalidate>
+                        <section class="field-section-block">
+                            <div class="field-section-heading">
+                                <h3>Jornada</h3>
+                                <p>Datos comunes de la visita y del equipo que toma la jornada.</p>
+                            </div>
+                            <div class="field-form-grid field-form-grid-top">
+                                <label class="field-input-group">
+                                    <span>Ingenieros / equipo de guardia</span>
+                                    <input type="text" name="equipo_guardia" id="field-equipo-guardia" placeholder="Ej: Carlos Ruiz, Ana Perez, Luis Mora" required>
+                                    <small class="field-input-hint">Escribe los nombres separados por coma.</small>
+                                </label>
+                                <label class="field-input-group">
+                                    <span>Locación de la jornada</span>
+                                    <input type="text" name="locacion_jornada" id="field-locacion-jornada" placeholder="Ej: Batería TOM - Estación Norte">
+                                </label>
+                                <label class="field-input-group">
+                                    <span>Fecha</span>
+                                    <input type="date" name="fecha" id="field-fecha" required>
+                                </label>
+                                <label class="field-input-group">
+                                    <span>Hora</span>
+                                    <input type="time" name="hora" id="field-hora" required>
+                                </label>
+                                <label class="field-input-group">
+                                    <span>Pozo</span>
+                                    <input type="hidden" name="pozo" id="field-pozo">
+                                    <div class="field-pozo-selector" id="field-pozo-selector">
+                                        <div class="field-pozo-selector-wrap">
+                                            <input type="text" id="field-pozo-display" placeholder="Busca o selecciona un pozo" autocomplete="off" aria-label="Buscar o seleccionar pozo">
+                                            <button type="button" id="field-pozo-toggle" class="pozo-selector-toggle" aria-label="Abrir lista de pozos" aria-expanded="false" title="Abrir lista de pozos">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                    <path d="M6 9l6 6 6-6" />
+                                                </svg>
+                                            </button>
+                                            <div class="pozo-selector-menu" id="field-pozo-menu">
+                                                <div class="pozo-selector-empty">Cargando pozos...</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <small class="field-input-hint">Busca el pozo en la lista para evitar errores de escritura.</small>
+                                </label>
+                                <label class="field-input-group">
+                                    <span>Jornada</span>
+                                    <select name="jornada" id="field-jornada">
+                                        <option value="Diurna">Diurna · 06:00 a.m. - 06:00 p.m.</option>
+                                        <option value="Nocturna">Nocturna · 06:00 p.m. - 06:00 a.m.</option>
+                                        <option value="Especial">Especial</option>
+                                    </select>
+                                    <small class="field-input-hint">La jornada se mantiene fija mientras agregas todos los pozos monitoreados en ese turno.</small>
+                                </label>
+                            </div>
+                        </section>
 
-                        <div class="field-section-title">Variables operativas</div>
-                        <div class="field-form-grid">
-                            <label class="field-input-group">
-                                <span>Hz</span>
-                                <input type="number" step="0.1" name="hz" id="field-hz" placeholder="57">
-                            </label>
-                            <label class="field-input-group">
-                                <span>Sentido</span>
-                                <select name="sentido_giro" id="field-sentido">
-                                    <option value="FWD">FWD</option>
-                                    <option value="REV">REV</option>
-                                </select>
-                            </label>
-                            <label class="field-input-group">
-                                <span>V VSD</span>
-                                <input type="number" step="0.1" name="v_vsd" id="field-v-vsd" placeholder="451">
-                            </label>
-                            <label class="field-input-group">
-                                <span>I Motor</span>
-                                <input type="number" step="0.1" name="i_mot" id="field-i-mot" placeholder="36">
-                            </label>
-                            <label class="field-input-group">
-                                <span>V Motor</span>
-                                <input type="number" step="0.1" name="v_mot" id="field-v-mot" placeholder="2899">
-                            </label>
-                            <label class="field-input-group">
-                                <span>THP</span>
-                                <input type="number" step="0.1" name="thp" id="field-thp" placeholder="120">
-                            </label>
-                            <label class="field-input-group">
-                                <span>LF</span>
-                                <input type="number" step="0.1" name="lf" id="field-lf" placeholder="110">
-                            </label>
-                            <label class="field-input-group">
-                                <span>CHP</span>
-                                <input type="number" step="0.1" name="chp" id="field-chp" placeholder="110">
-                            </label>
-                            <label class="field-input-group">
-                                <span>PI</span>
-                                <input type="number" step="0.1" name="pi" id="field-pi" placeholder="853">
-                            </label>
-                            <label class="field-input-group">
-                                <span>PD</span>
-                                <input type="number" step="0.1" name="pd" id="field-pd" placeholder="840">
-                            </label>
-                            <label class="field-input-group">
-                                <span>TI</span>
-                                <input type="number" step="0.1" name="ti" id="field-ti" placeholder="269">
-                            </label>
-                            <label class="field-input-group">
-                                <span>TM</span>
-                                <input type="number" step="0.1" name="tm" id="field-tm" placeholder="298">
-                            </label>
-                        </div>
+                        <details class="field-accordion" open>
+                            <summary>Información General</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group"><span>Campo</span><input type="text" name="campo" placeholder="TOMOPORO"></label>
+                                <label class="field-input-group"><span>EF</span><input type="text" name="ef" placeholder="VLG-11-7"></label>
+                                <label class="field-input-group"><span>Estado</span><input type="text" name="estado" placeholder="PC"></label>
+                                <label class="field-input-group"><span>Categoría</span><input type="text" name="categoria" placeholder="1"></label>
+                                <label class="field-input-group"><span>Potencial</span><input type="number" step="0.01" name="potencial" placeholder="1400"></label>
+                                <label class="field-input-group"><span>Bruta</span><input type="number" step="0.01" name="bruta" placeholder="1387"></label>
+                                <label class="field-input-group"><span>Neta</span><input type="number" step="0.01" name="neta" placeholder="1301"></label>
+                                <label class="field-input-group"><span>% AyS</span><input type="number" step="0.01" name="ays_percentage" placeholder="3"></label>
+                                <label class="field-input-group"><span>Actividad</span><input type="text" name="actividad" placeholder="MONITOREO"></label>
+                                <label class="field-input-group"><span>Estatus</span><input type="text" name="estatus" placeholder="RUN"></label>
+                                <label class="field-input-group"><span>Frec</span><input type="number" step="0.01" name="frecuencia" placeholder="50"></label>
+                                <label class="field-input-group"><span>Modo de operación</span><input type="text" name="modo_operacion" placeholder="FRECUENCIA"></label>
+                                <label class="field-input-group"><span>Sentido de giro</span><select name="sentido_giro"><option value="FWD">FWD</option><option value="REV">REV</option></select></label>
+                            </div>
+                        </details>
 
-                        <div class="field-section-title">Corriente VSD</div>
-                        <div class="field-form-grid field-form-grid-vsd">
-                            <label class="field-input-group">
-                                <span>Fase A</span>
-                                <input type="number" step="0.1" name="ivsd_a" id="field-ivsd-a" placeholder="232">
-                            </label>
-                            <label class="field-input-group">
-                                <span>Fase B</span>
-                                <input type="number" step="0.1" name="ivsd_b" id="field-ivsd-b" placeholder="232">
-                            </label>
-                            <label class="field-input-group">
-                                <span>Fase C</span>
-                                <input type="number" step="0.1" name="ivsd_c" id="field-ivsd-c" placeholder="239">
-                            </label>
-                        </div>
+                        <details class="field-accordion" open>
+                            <summary>Parámetros Operacionales</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group"><span>I Motor [A]</span><input type="number" step="0.01" name="i_motor" placeholder="36"></label>
+                                <label class="field-input-group"><span>V Motor [V]</span><input type="number" step="0.01" name="v_motor" placeholder="2899"></label>
+                                <label class="field-input-group"><span>Out VSD [V]</span><input type="number" step="0.01" name="out_vsd" placeholder="451"></label>
+                                <label class="field-input-group"><span>I VSD A [A]</span><input type="number" step="0.01" name="i_vsd_a" placeholder="232"></label>
+                                <label class="field-input-group"><span>I VSD B [A]</span><input type="number" step="0.01" name="i_vsd_b" placeholder="232"></label>
+                                <label class="field-input-group"><span>I VSD C [A]</span><input type="number" step="0.01" name="i_vsd_c" placeholder="239"></label>
+                                <label class="field-input-group field-input-group-readonly"><span>PROM I VSD [A]</span><input type="number" step="0.01" name="prom_i_vsd" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. Fase A</span><input type="number" step="0.01" name="desv_fase_a" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. Fase B</span><input type="number" step="0.01" name="desv_fase_b" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. Fase C</span><input type="number" step="0.01" name="desv_fase_c" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="max_desviacion_vsd" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% Desbalance Corriente VSD [A]</span><input type="number" step="0.01" name="desbalance_corriente_vsd" readonly></label>
+                                <label class="field-input-group"><span>PIP [psi]</span><input type="number" step="0.01" name="pip_psi" placeholder="853"></label>
+                                <label class="field-input-group"><span>PD [psi]</span><input type="number" step="0.01" name="pd_psi" placeholder="840"></label>
+                                <label class="field-input-group"><span>Ti [°F]</span><input type="number" step="0.01" name="ti_f" placeholder="269"></label>
+                                <label class="field-input-group"><span>Tm [°F]</span><input type="number" step="0.01" name="tm_f" placeholder="298"></label>
+                                <label class="field-input-group"><span>Vx [G]</span><input type="number" step="0.01" name="vx_g"></label>
+                                <label class="field-input-group"><span>Vy [G]</span><input type="number" step="0.01" name="vy_g"></label>
+                                <label class="field-input-group"><span>Vz [G]</span><input type="number" step="0.01" name="vz_g"></label>
+                            </div>
+                        </details>
 
-                        <label class="field-input-group field-comment-group">
-                            <span>Comentario operativo</span>
-                            <textarea name="comentario" id="field-comentario" rows="4" placeholder="Operando en condiciones normales"></textarea>
-                        </label>
+                        <details class="field-accordion">
+                            <summary>Configuración del Sistema BES</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group"><span>AMP NOMINAL MOTOR [A]</span><input type="number" step="0.01" name="amp_nominal_motor"></label>
+                                <label class="field-input-group"><span>VOLT NOMINAL MOTOR [V]</span><input type="number" step="0.01" name="volt_nominal_motor"></label>
+                                <label class="field-input-group"><span>FREC MAX [Hz]</span><input type="number" step="0.01" name="frec_max_hz"></label>
+                                <label class="field-input-group"><span>LOW SPEED [Hz]</span><input type="number" step="0.01" name="low_speed_hz"></label>
+                                <label class="field-input-group"><span>UL [A]</span><input type="number" step="0.01" name="ul_a"></label>
+                                <label class="field-input-group"><span>OL [A]</span><input type="number" step="0.01" name="ol_a"></label>
+                                <label class="field-input-group"><span>I-LIMIT [A]</span><input type="number" step="0.01" name="i_limit_a"></label>
+                                <label class="field-input-group"><span>TIEMPO DE DESACELERACIÓN [SEG]</span><input type="number" step="0.01" name="tiempo_desaceleracion_seg"></label>
+                                <label class="field-input-group"><span>LOW PIP SHUT DOWN [PSI]</span><input type="number" step="0.01" name="low_pip_shutdown_psi"></label>
+                                <label class="field-input-group"><span>MAX HIGH TEMP. SHUT DOWN [°F]</span><input type="number" step="0.01" name="max_high_temp_shutdown_f"></label>
+                            </div>
+                        </details>
+
+                        <details class="field-accordion">
+                            <summary>Condiciones de Superficie</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group"><span>BAJA DATOS?</span><select name="baja_datos"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
+                                <label class="field-input-group"><span>VSD [KVA]</span><input type="number" step="0.01" name="vsd_kva"></label>
+                                <label class="field-input-group"><span>MARCA VSD</span><input type="text" name="marca_vsd"></label>
+                                <label class="field-input-group"><span>MODELO VSD</span><input type="text" name="modelo_vsd"></label>
+                                <label class="field-input-group"><span>Tx (KVA)</span><input type="number" step="0.01" name="tx_kva"></label>
+                                <label class="field-input-group"><span>TAP [V]</span><input type="number" step="0.01" name="tap_v"></label>
+                                <label class="field-input-group"><span>R.T</span><input type="text" name="rt"></label>
+                                <label class="field-input-group"><span>ESTADO DEL Tx</span><input type="text" name="estado_tx"></label>
+                                <label class="field-input-group"><span>ESTADO DEL VSD</span><input type="text" name="estado_vsd"></label>
+                                <label class="field-input-group"><span>ESTADO DE PANEL DE SENSOR / CHOQUES</span><input type="text" name="estado_panel_sensor_choques"></label>
+                                <label class="field-input-group"><span>ESTADO DEL ATERRAMIENTO</span><input type="text" name="estado_aterramiento"></label>
+                                <label class="field-input-group"><span>CONDICIÓN DEL CABLEADO</span><input type="text" name="condicion_cableado"></label>
+                                <label class="field-input-group"><span>CONDICIÓN DE LA CASETA</span><input type="text" name="condicion_caseta"></label>
+                                <label class="field-input-group"><span>TEMPERATURA DE LA CASETA</span><input type="number" step="0.01" name="temperatura_caseta"></label>
+                                <label class="field-input-group">
+                                    <span>ESTADO DE FOSA</span>
+                                    <div class="field-input-suffix-shell">
+                                        <input type="number" step="0.1" name="estado_fosa_porcentaje" placeholder="10">
+                                        <span class="field-input-suffix">%</span>
+                                    </div>
+                                </label>
+                                <label class="field-input-group"><span>ESTADO DEL BIW/CONECTOR</span><input type="text" name="estado_biw_conector"></label>
+                                <label class="field-input-group"><span>ESTADO DE MANÓMETROS</span><input type="text" name="estado_manometros"></label>
+                                <label class="field-input-group"><span>ESTADO DEL CABEZAL</span><input type="text" name="estado_cabezal"></label>
+                                <label class="field-input-group"><span>ESTADO DE TOMAMUESTRAS</span><input type="text" name="estado_tomamuestras"></label>
+                                <label class="field-input-group"><span>ESTADO CAJA DE VENTEO</span><input type="text" name="estado_caja_venteo"></label>
+                            </div>
+                        </details>
+
+                        <details class="field-accordion">
+                            <summary>Sensor y Presiones</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group"><span>POSEE SENSOR DE FONDO?</span><select name="posee_sensor_fondo"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
+                                <label class="field-input-group"><span>DESCARGA DATAS DEL SENSOR</span><select name="descarga_datas_sensor"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
+                                <label class="field-input-group"><span>THP [psi]</span><input type="number" step="0.01" name="thp_psi"></label>
+                                <label class="field-input-group"><span>CHP [psi]</span><input type="number" step="0.01" name="chp_psi"></label>
+                                <label class="field-input-group"><span>LF [psi]</span><input type="number" step="0.01" name="lf_psi"></label>
+                                <label class="field-input-group"><span>COND. CHP</span><input type="text" name="cond_chp"></label>
+                                <label class="field-input-group"><span>ECHOMETER?</span><select name="echometer"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
+                                <label class="field-input-group"><span>NIVEL DE FLUIDO [ft]</span><input type="number" step="0.01" name="nivel_fluido_ft"></label>
+                                <label class="field-input-group"><span>SUMERGENCIA [ft]</span><input type="number" step="0.01" name="sumergencia_ft"></label>
+                                <label class="field-input-group"><span>PIP ECHOMETER [psi]</span><input type="number" step="0.01" name="pip_echometer_psi"></label>
+                                <label class="field-input-group field-input-group-full"><span>DIAGNÓSTICO</span><textarea name="diagnostico" rows="3" placeholder="Observaciones técnicas del pozo"></textarea></label>
+                            </div>
+                        </details>
+
+                        <details class="field-accordion">
+                            <summary>Prueba Eléctrica</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group"><span>RESISTENCIA A-B [Ohm]</span><input type="number" step="0.01" name="resistencia_ab_ohm"></label>
+                                <label class="field-input-group"><span>RESISTENCIA B-C [Ohm]</span><input type="number" step="0.01" name="resistencia_bc_ohm"></label>
+                                <label class="field-input-group"><span>RESISTENCIA C-A [Ohm]</span><input type="number" step="0.01" name="resistencia_ca_ohm"></label>
+                                <label class="field-input-group"><span>AISLAMIENTO FASE-TIERRA [MOhm]</span><input type="number" step="0.01" name="aislamiento_fase_tierra_mohm"></label>
+                            </div>
+                        </details>
+
+                        <details class="field-accordion">
+                            <summary>Transformador (Bobina Primaria)</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group"><span>FASE-FASE X1-X2 [Volt]</span><input type="number" step="0.01" name="ff_x1_x2_v"></label>
+                                <label class="field-input-group"><span>FASE-FASE X2-X3 [Volt]</span><input type="number" step="0.01" name="ff_x2_x3_v"></label>
+                                <label class="field-input-group"><span>FASE-FASE X3-X1 [Volt]</span><input type="number" step="0.01" name="ff_x3_x1_v"></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Promedio Fase-Fase</span><input type="number" step="0.01" name="promedio_fase_fase" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. X1-X2</span><input type="number" step="0.01" name="desv_ff_x1_x2" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. X2-X3</span><input type="number" step="0.01" name="desv_ff_x2_x3" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. X3-X1</span><input type="number" step="0.01" name="desv_ff_x3_x1" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="max_desviacion_ff" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% Desbalance Fase-Fase</span><input type="number" step="0.01" name="desbalance_fase_fase" readonly></label>
+                            </div>
+                        </details>
+
+                        <details class="field-accordion">
+                            <summary>Transformador (Fase-Tierra)</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group"><span>FASE-TIERRA X1-Tierra [Volt]</span><input type="number" step="0.01" name="ft_x1_tierra_v"></label>
+                                <label class="field-input-group"><span>FASE-TIERRA X2-Tierra [Volt]</span><input type="number" step="0.01" name="ft_x2_tierra_v"></label>
+                                <label class="field-input-group"><span>FASE-TIERRA X3-Tierra [Volt]</span><input type="number" step="0.01" name="ft_x3_tierra_v"></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Promedio Fase-Tierra</span><input type="number" step="0.01" name="promedio_fase_tierra" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. X1-Tierra</span><input type="number" step="0.01" name="desv_ft_x1_tierra" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. X2-Tierra</span><input type="number" step="0.01" name="desv_ft_x2_tierra" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. X3-Tierra</span><input type="number" step="0.01" name="desv_ft_x3_tierra" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="max_desviacion_ft" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% Desbalance Fase-Tierra</span><input type="number" step="0.01" name="desbalance_fase_tierra" readonly></label>
+                            </div>
+                        </details>
+
+                        <details class="field-accordion">
+                            <summary>Tx Bobina Secundaria</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group"><span>FASE-FASE H1-H2 [Volt]</span><input type="number" step="0.01" name="sec_ff_h1_h2_v"></label>
+                                <label class="field-input-group"><span>FASE-FASE H2-H3 [Volt]</span><input type="number" step="0.01" name="sec_ff_h2_h3_v"></label>
+                                <label class="field-input-group"><span>FASE-FASE H3-H1 [Volt]</span><input type="number" step="0.01" name="sec_ff_h3_h1_v"></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% DESBALANCE FASE/FASE [Volt]</span><input type="number" step="0.01" name="sec_desbalance_fase_fase" readonly></label>
+                                <label class="field-input-group"><span>FASE-TIERRA H1-Tierra [Volt]</span><input type="number" step="0.01" name="sec_ft_h1_tierra_v"></label>
+                                <label class="field-input-group"><span>FASE-TIERRA H2-Tierra [Volt]</span><input type="number" step="0.01" name="sec_ft_h2_tierra_v"></label>
+                                <label class="field-input-group"><span>FASE-TIERRA H3-Tierra [Volt]</span><input type="number" step="0.01" name="sec_ft_h3_tierra_v"></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% DESBALANCE FASE/TIERRA [Volt]</span><input type="number" step="0.01" name="sec_desbalance_fase_tierra" readonly></label>
+                            </div>
+                        </details>
+
+                        <details class="field-accordion">
+                            <summary>Corrientes</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group"><span>CORRIENTE X1-X2 [Amp]</span><input type="number" step="0.01" name="corriente_x1_x2_amp"></label>
+                                <label class="field-input-group"><span>CORRIENTE H1-H2 [Amp]</span><input type="number" step="0.01" name="corriente_h1_h2_amp"></label>
+                                <label class="field-input-group"><span>CORRIENTE H2-H3 [Amp]</span><input type="number" step="0.01" name="corriente_h2_h3_amp"></label>
+                                <label class="field-input-group"><span>CORRIENTE H3-H1 [Amp]</span><input type="number" step="0.01" name="corriente_h3_h1_amp"></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% DESBALANCE CORRIENTE [Amp]</span><input type="number" step="0.01" name="desbalance_corriente_secundaria" readonly></label>
+                            </div>
+                        </details>
+
+                        <details class="field-accordion" open>
+                            <summary>Indicadores Operacionales</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group field-input-group-readonly"><span>RELACIÓN A. CON. / A. NOM</span><input type="number" step="0.01" name="relacion_a_con_a_nom" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% AMP</span><input type="number" step="0.01" name="porcentaje_amp" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>RELACIÓN V. MOT / V. NOM</span><input type="number" step="0.01" name="relacion_v_mot_v_nom" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% VOLT</span><input type="number" step="0.01" name="porcentaje_volt" readonly></label>
+                                <label class="field-input-group"><span>PD MAX [psi]</span><input type="number" step="0.01" name="pd_max_psi"></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Δ PRESIÓN [psi]</span><input type="number" step="0.01" name="delta_presion_psi" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% Δ PRESIÓN</span><input type="number" step="0.01" name="porcentaje_delta_presion" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Tm / T MAX PERMISIBLE</span><input type="number" step="0.01" name="relacion_tm_t_max" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% TEMP</span><input type="number" step="0.01" name="porcentaje_temp" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>PIP MIN / PIP</span><input type="number" step="0.01" name="relacion_pip_min_pip" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% PIP</span><input type="number" step="0.01" name="porcentaje_pip" readonly></label>
+                            </div>
+                        </details>
+
+                        <details class="field-accordion" open>
+                            <summary>Observaciones</summary>
+                            <div class="field-accordion-body field-form-grid">
+                                <label class="field-input-group field-input-group-full"><span>OBSERVACIONES</span><textarea name="observaciones_pozo" rows="4" placeholder="Condiciones generales observadas en el pozo"></textarea></label>
+                            </div>
+                        </details>
 
                         <div class="field-form-actions">
-                            <button type="button" id="field-add-report-btn" class="btn-submit field-add-btn">Agregar pozo a la jornada</button>
+                            <button type="button" id="field-add-report-btn" class="btn-submit field-add-btn">Agregar registro a la jornada</button>
                             <button type="button" id="field-clear-form-btn" class="btn-secondary field-clear-btn">Limpiar formulario</button>
                         </div>
 
-                        <div id="field-form-status" class="field-form-status">Completa los datos y el mensaje se arma automáticamente.</div>
+                        <div id="field-form-status" class="field-form-status">Completa el bloque mínimo y agrega el pozo a la jornada. Por ahora esta vista solo captura registros.</div>
                     </form>
                 </section>
 
-                <section class="field-card field-preview-card">
+                <aside class="field-card field-summary-panel">
                     <div class="field-card-header">
                         <div>
-                            <h2>Mensaje de envío</h2>
-                            <p>Texto listo para copiar, compartir por WhatsApp y después exportar a PDF o Excel.</p>
+                            <h2>Resumen de captura</h2>
+                            <p>Acumula pozos dentro de la jornada actual y, al finalizar, envíalos a una bandeja de revisión administrativa simulada.</p>
                         </div>
                     </div>
 
-                    <div class="field-preview-shell">
-                        <pre id="field-message-preview" class="field-message-preview">Hora: --
-Pozo: --
-Hz: --
-FWD
-I vsd: -- -- -- amp
-V vsd: -- volt
-I mot: --
-V mot: --
-PI: --
-PD: --
-TI: --
-TM: --
-THP: --
-LF: --
-CHP: --
-
-Comentario: --</pre>
-                    </div>
-
-                    <div class="field-action-stack">
-                        <button type="button" id="field-copy-btn" class="btn-submit">Copiar mensaje</button>
-                        <button type="button" id="field-whatsapp-btn" class="btn-secondary field-whatsapp-btn">Abrir WhatsApp</button>
-                    </div>
-
-                    <div class="field-export-stack">
-                        <button type="button" id="field-save-supabase-btn" class="btn-submit field-save-btn">Guardar Jornada</button>
-                        <button type="button" id="field-export-pdf-btn" class="btn-secondary field-export-btn">Exportar PDF</button>
-                        <button type="button" id="field-export-xlsx-btn" class="btn-secondary field-export-btn">Exportar Excel</button>
+                    <div class="field-metric-grid">
+                        <article class="field-metric-card">
+                            <span>Jornada</span>
+                            <strong id="field-summary-journey">Diurna</strong>
+                        </article>
+                        <article class="field-metric-card">
+                            <span>Pozos capturados</span>
+                            <strong id="field-summary-count">0</strong>
+                        </article>
+                        <article class="field-metric-card">
+                            <span>Último pozo</span>
+                            <strong id="field-summary-last">--</strong>
+                        </article>
                     </div>
 
                     <div class="field-journey-shell">
                         <div class="field-journey-header">
                             <div>
                                 <h3>Jornada en construcción</h3>
-                                <p>Agrega cada pozo monitoreado y lleva control de lo capturado durante la guardia.</p>
+                                <p>Cada registro queda temporalmente en el navegador mientras armas la jornada para revisión administrativa.</p>
                             </div>
                             <span id="field-journey-count" class="field-journey-count">0 pozos</span>
                         </div>
@@ -251,11 +370,51 @@ Comentario: --</pre>
                         </div>
                     </div>
 
-                    <div class="field-note-box">
-                        <strong>Flujo de Campo:</strong>
-                        capturar el monitoreo, revisar el mensaje, enviarlo y dejarlo luego consolidado en historial de jornada.
+                    <div class="field-submit-shell">
+                        <button type="button" id="field-submit-journey-btn" class="btn-submit field-submit-btn">Enviar jornada a revisión</button>
+                        <p>Esto no cambia de rol todavía: solo simula cómo la recibiría Campo dentro del panel administrativo.</p>
                     </div>
-                </section>
+
+                    <div class="field-note-box">
+                        <strong>Etapa actual:</strong>
+                        captura por secciones. Sin mensaje de envío, sin exportación local y sin publicación administrativa todavía.
+                    </div>
+                </aside>
+            </section>
+
+            <section class="field-card field-admin-preview-panel">
+                <div class="field-card-header">
+                    <div>
+                        <h2>Bandeja Campo Admin · Simulada</h2>
+                        <p>Así se verían aquí las jornadas enviadas desde Campo antes de conectar la integración real entre roles.</p>
+                    </div>
+                </div>
+
+                <div class="field-admin-preview-shell">
+                    <div class="field-admin-preview-headline">
+                        <span class="field-admin-preview-badge">Prueba local</span>
+                        <div class="field-admin-preview-toolbar">
+                            <strong id="field-admin-preview-count">0 jornadas pendientes</strong>
+                            <button type="button" id="field-back-to-capture-btn" class="btn-secondary field-back-btn">Volver a captura</button>
+                        </div>
+                    </div>
+                    <div id="field-admin-preview-list" class="field-admin-preview-list">
+                        <div class="field-admin-preview-empty">Todavía no has enviado ninguna jornada a revisión.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="field-report-preview-modal" class="field-report-preview-modal" hidden>
+                <div class="field-report-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="field-report-preview-title">
+                    <div class="field-report-preview-header">
+                        <div>
+                            <span class="field-report-preview-kicker">Vista previa</span>
+                            <h2 id="field-report-preview-title">Informe</h2>
+                        </div>
+                        <button type="button" id="field-report-preview-close" class="field-report-preview-close" aria-label="Cerrar vista previa">×</button>
+                    </div>
+                    <div id="field-report-preview-body" class="field-report-preview-body"></div>
+                </div>
             </section>
         </main>
     </div>
@@ -264,10 +423,6 @@ Comentario: --</pre>
         <a href="jornada.html" class="mobile-nav-link">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z" /></svg>
             <span>Jornada</span>
-        </a>
-        <a href="jornada-history.html" class="mobile-nav-link">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span>Historial</span>
         </a>
         <a href="field.html" class="mobile-nav-link active" aria-current="page">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -279,7 +434,7 @@ Comentario: --</pre>
         </button>
     </nav>
 
-    <script type="module" src="js/modules/field/field-controller.js?v=20260425d"></script>
+    <script type="module" src="js/modules/field/field-controller.js?v=20260531f"></script>
 </body>
 
 </html>

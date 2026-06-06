@@ -1090,12 +1090,14 @@ function createAssistantMessage(author, title, text, action = null) {
 
     bubble.append(strong, paragraph);
 
-    if (action?.href && action?.label) {
+    const safeActionHref = sanitizeAssistantActionHref(action?.href);
+
+    if (safeActionHref && action?.label) {
         const actions = document.createElement('div');
         actions.className = 'help-assistant-actions';
         const link = document.createElement('a');
         link.className = 'help-assistant-link';
-        link.href = action.href;
+        link.href = safeActionHref;
         link.textContent = action.label;
         actions.appendChild(link);
         bubble.appendChild(actions);
@@ -1165,7 +1167,9 @@ function setAssistantMessageAction(paragraph, action = null) {
         existingActions.remove();
     }
 
-    if (!action?.href || !action?.label) {
+    const safeActionHref = sanitizeAssistantActionHref(action?.href);
+
+    if (!safeActionHref || !action?.label) {
         return;
     }
 
@@ -1174,11 +1178,30 @@ function setAssistantMessageAction(paragraph, action = null) {
 
     const link = document.createElement('a');
     link.className = 'help-assistant-link';
-    link.href = action.href;
+    link.href = safeActionHref;
     link.textContent = action.label;
 
     actions.appendChild(link);
     bubble.appendChild(actions);
+}
+
+function sanitizeAssistantActionHref(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    if (/^(javascript|data|vbscript):/i.test(raw)) {
+        return '';
+    }
+
+    if (/^(https?:|mailto:|tel:)/i.test(raw)) {
+        return raw;
+    }
+
+    if (/^[./#?]/.test(raw) || /^[a-z0-9_-]+\.html(?:[?#].*)?$/i.test(raw)) {
+        return raw;
+    }
+
+    return '';
 }
 
 function scrollAssistantThreadToBottom() {
@@ -1195,9 +1218,12 @@ function typeAssistantText(element, text) {
         let index = 0;
         const tick = () => {
             const visibleText = text.slice(0, index);
-            element.textContent = visibleText;
             if (index < text.length) {
-                element.innerHTML = `${visibleText}<span class="help-assistant-cursor">|</span>`;
+                element.textContent = visibleText;
+                const cursor = document.createElement('span');
+                cursor.className = 'help-assistant-cursor';
+                cursor.textContent = '|';
+                element.appendChild(cursor);
                 scrollAssistantThreadToBottom();
                 index += 1;
                 window.setTimeout(tick, ASSISTANT_TYPING_DELAY);

@@ -250,19 +250,30 @@ function renderPreview(rows) {
 
     body.innerHTML = rows.slice(0, 30).map(row => `
         <tr class="${row.__offOnlyIncluded ? 'prep-row-off-only' : ''}">
-            ${OUTPUT_COLUMNS.map(column => `<td>${formatPreviewCell(row[column], column, row)}</td>`).join('')}
+            ${OUTPUT_COLUMNS.map(column => `<td>${formatPreviewCellHtml(row[column], column, row)}</td>`).join('')}
         </tr>
     `).join('');
 }
 
-function formatPreviewCell(value, columnName = '', row = null) {
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatPreviewCellHtml(value, columnName = '', row = null) {
     if (value === undefined || value === null || value === '') return '--';
 
+    const safeValue = escapeHtml(String(value));
+
     if (columnName === 'estatus' && row?.__offOnlyIncluded) {
-        return `${String(value)} <span class="prep-cell-flag">OFF sin telemetría</span>`;
+        return `${safeValue} <span class="prep-cell-flag">OFF sin telemetría</span>`;
     }
 
-    return String(value);
+    return safeValue;
 }
 
 function isOffOnlyIncludedRow(row) {
@@ -285,7 +296,7 @@ function renderIssues(issues) {
 
     list.innerHTML = issues
         .slice(0, 8)
-        .map(issue => `<li>Fila ${issue.rowNumber}: ${issue.reason}</li>`)
+        .map(issue => `<li>Fila ${escapeHtml(issue.rowNumber)}: ${escapeHtml(issue.reason)}</li>`)
         .join('');
 }
 

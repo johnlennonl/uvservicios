@@ -169,10 +169,10 @@ function renderTechnicalFeed(rows = []) {
     container.innerHTML = rows.map(row => `
         <article class="notification-pozo-item">
             <div class="notification-pozo-main">
-                <strong>${row.pozo_name || 'Pozo sin nombre'}</strong>
-                <span class="notification-pozo-meta">Fecha de medición: ${formatDate(row.fecha)} · BBPD ${row.bbpd ?? 0} · AYS ${row.ays_percentage ?? 0}% · BNPD ${row.bnpd ?? 0} · CAT ${row.cat_number ?? 0}</span>
+                <strong>${escapeHtml(row.pozo_name || 'Pozo sin nombre')}</strong>
+                <span class="notification-pozo-meta">Fecha de medición: ${escapeHtml(formatDate(row.fecha))} · BBPD ${escapeHtml(row.bbpd ?? 0)} · AYS ${escapeHtml(row.ays_percentage ?? 0)}% · BNPD ${escapeHtml(row.bnpd ?? 0)} · CAT ${escapeHtml(row.cat_number ?? 0)}</span>
             </div>
-            <span class="notification-pozo-count">${formatDateTime(row.created_at || row.updated_at || row.fecha)}</span>
+            <span class="notification-pozo-count">${escapeHtml(formatDateTime(row.created_at || row.updated_at || row.fecha))}</span>
         </article>
     `).join('');
 }
@@ -191,10 +191,10 @@ function renderBESFeed(rows = []) {
     container.innerHTML = rows.map(row => `
         <article class="notification-pozo-item">
             <div class="notification-pozo-main">
-                <strong>${row.pozo_name || 'Pozo sin nombre'}</strong>
-                <span class="notification-pozo-meta">Tipo de bomba registrado: ${row.pump_type || '--'}</span>
+                <strong>${escapeHtml(row.pozo_name || 'Pozo sin nombre')}</strong>
+                <span class="notification-pozo-meta">Tipo de bomba registrado: ${escapeHtml(row.pump_type || '--')}</span>
             </div>
-            <span class="notification-pozo-count">${formatDateTime(row.updated_at)}</span>
+            <span class="notification-pozo-count">${escapeHtml(formatDateTime(row.updated_at))}</span>
         </article>
     `).join('');
 }
