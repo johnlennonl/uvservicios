@@ -186,13 +186,21 @@ function bindUploadZone() {
 async function handleSourceFile(file) {
     if (!file) return;
 
+    let processingFinished = false;
+    showProcessingModal(file.name);
+    updateProcessingStep('reading', 'Cargando archivo', `Leyendo ${file.name} para identificar su estructura y columnas útiles.`);
     setStatus(`Procesando ${file.name}...`, 'processing');
 
     try {
         lastFileName = file.name;
+        await nextPaint(2);
+        await pause(320);
         const { rows, sheetName } = await parseMonitoringSourceFile(file);
         currentSheetName = sheetName || '--';
 
+        updateProcessingStep('summary', 'Realizando resumen de limpieza', 'Validando filas útiles, descartes y duplicados antes de exportar.');
+        await nextPaint(2);
+        await pause(360);
         const normalizedRows = (rows || []).map(normalizeImportedRow);
         const { validRows, issues, duplicates } = buildPreparedRows(normalizedRows);
 
@@ -200,6 +208,9 @@ async function handleSourceFile(file) {
         discardedRows = issues;
         duplicateCount = duplicates;
 
+        updateProcessingStep('preview', 'Preparando vista previa', 'Armando una muestra visual con el último registro disponible por pozo.');
+        await nextPaint(2);
+        await pause(360);
         renderMetrics(normalizedRows.length, preparedRows, discardedRows, duplicateCount);
         renderPreview(preparedRows);
         renderIssues(discardedRows);
@@ -215,6 +226,8 @@ async function handleSourceFile(file) {
             : '';
 
         setStatus(`Archivo listo. ${preparedRows.length} fila(s) quedaron preparadas para exportación.${duplicatesMessage}`, 'success');
+        await completeProcessingFlow(preparedRows.length, duplicateCount);
+        processingFinished = true;
     } catch (error) {
         preparedRows = [];
         discardedRows = [];
@@ -225,6 +238,10 @@ async function handleSourceFile(file) {
         renderIssues([]);
         setStatus(error.message || 'No se pudo procesar el archivo.', 'error');
         Swal.fire({ icon: 'error', title: 'Error de preparación', text: error.message || 'No se pudo procesar el archivo.' });
+    } finally {
+        if (!processingFinished) {
+            hideProcessingModal();
+        }
     }
 }
 
@@ -244,15 +261,64 @@ function renderPreview(rows) {
     head.innerHTML = `<tr>${OUTPUT_COLUMNS.map(column => `<th>${column}</th>`).join('')}</tr>`;
 
     if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="17" class="prep-table-empty">Todavía no hay datos preparados.</td></tr>';
+        body.innerHTML = `
+            <tr>
+                <td colspan="${OUTPUT_COLUMNS.length}" class="prep-table-empty">
+                    <div class="prep-empty-state">
+                        <strong>Vista previa pendiente</strong>
+                        <span>Todavía no hay datos preparados. Carga un archivo para revisar cómo quedará antes de exportar.</span>
+                    </div>
+                </td>
+            </tr>
+        `;
         return;
     }
 
-    body.innerHTML = rows.slice(0, 30).map(row => `
+    body.innerHTML = buildPreviewRows(rows).map(row => `
         <tr class="${row.__offOnlyIncluded ? 'prep-row-off-only' : ''}">
             ${OUTPUT_COLUMNS.map(column => `<td>${formatPreviewCellHtml(row[column], column, row)}</td>`).join('')}
         </tr>
     `).join('');
+}
+
+function buildPreviewRows(rows, limit = 24) {
+    const safeRows = Array.isArray(rows) ? rows : [];
+    if (safeRows.length <= limit) return safeRows;
+
+    const latestByPozo = new Map();
+    safeRows.forEach(row => {
+        const pozoName = String(row?.pozo_name || '').trim();
+        if (!pozoName) return;
+
+        const current = latestByPozo.get(pozoName);
+        if (!current || comparePreparedMoments(row, current) > 0) {
+            latestByPozo.set(pozoName, row);
+        }
+    });
+
+    const prioritized = [...latestByPozo.values()]
+        .sort((left, right) => comparePreparedMoments(right, left) || String(left?.pozo_name || '').localeCompare(String(right?.pozo_name || '')))
+        .slice(0, limit);
+
+    if (prioritized.length >= limit) {
+        return prioritized;
+    }
+
+    const selectedKeys = new Set(prioritized.map(buildPreparedRowPreviewKey));
+    const remaining = [...safeRows]
+        .sort((left, right) => comparePreparedMoments(right, left) || String(left?.pozo_name || '').localeCompare(String(right?.pozo_name || '')))
+        .filter(row => !selectedKeys.has(buildPreparedRowPreviewKey(row)));
+
+    return prioritized.concat(remaining).slice(0, limit);
+}
+
+function buildPreparedRowPreviewKey(row = {}) {
+    return `${String(row?.pozo_name || '').trim().toUpperCase()}|${String(row?.fecha || '').trim()}|${String(row?.hora || '').trim()}`;
+}
+
+function comparePreparedMoments(left = {}, right = {}) {
+    return `${String(left?.fecha || '')}T${String(left?.hora || '00:00:00')}`
+        .localeCompare(`${String(right?.fecha || '')}T${String(right?.hora || '00:00:00')}`);
 }
 
 function escapeHtml(value) {
@@ -305,6 +371,88 @@ function toggleExportButtons(enabled) {
     document.getElementById('download-csv-btn').disabled = !enabled;
 }
 
+function showProcessingModal(fileName = '') {
+    const modal = document.getElementById('prep-processing-modal');
+    if (!modal) return;
+
+    modal.hidden = false;
+    document.body.classList.add('prep-processing-open');
+    updateProcessingStep('reading', 'Cargando archivo', fileName
+        ? `Leyendo ${fileName} para identificar su estructura y columnas útiles.`
+        : 'Leyendo el consolidado para identificar su estructura y columnas útiles.');
+}
+
+function hideProcessingModal() {
+    const modal = document.getElementById('prep-processing-modal');
+    if (!modal) return;
+
+    modal.hidden = true;
+    document.body.classList.remove('prep-processing-open');
+}
+
+function updateProcessingStep(stepId, title, message) {
+    const titleElement = document.getElementById('prep-processing-title');
+    const messageElement = document.getElementById('prep-processing-message');
+
+    if (titleElement) titleElement.textContent = title;
+    if (messageElement) messageElement.textContent = message;
+
+    const stepOrder = ['reading', 'summary', 'preview'];
+    const activeIndex = stepOrder.indexOf(stepId);
+
+    document.querySelectorAll('[data-prep-step]').forEach((element) => {
+        const stepIndex = stepOrder.indexOf(element.dataset.prepStep);
+        element.classList.toggle('is-active', stepIndex === activeIndex);
+        element.classList.toggle('is-done', stepIndex > -1 && activeIndex > stepIndex);
+        element.classList.toggle('is-complete', false);
+    });
+}
+
+async function completeProcessingFlow(validCount, duplicates) {
+    const titleElement = document.getElementById('prep-processing-title');
+    const messageElement = document.getElementById('prep-processing-message');
+    const duplicatesMessage = duplicates > 0
+        ? ` Se consolidaron ${duplicates} duplicado(s) internos.`
+        : '';
+
+    if (titleElement) {
+        titleElement.textContent = 'Archivo listo';
+    }
+
+    if (messageElement) {
+        messageElement.textContent = `${validCount} fila(s) quedaron preparadas para exportación.${duplicatesMessage}`;
+    }
+
+    document.querySelectorAll('[data-prep-step]').forEach((element) => {
+        element.classList.remove('is-active');
+        element.classList.add('is-done');
+        element.classList.add('is-complete');
+    });
+
+    await nextPaint(2);
+    await pause(1100);
+    hideProcessingModal();
+}
+
+function nextPaint(frames = 1) {
+    return new Promise(resolve => {
+        const step = (remaining) => {
+            if (remaining <= 0) {
+                resolve();
+                return;
+            }
+
+            requestAnimationFrame(() => step(remaining - 1));
+        };
+
+        step(frames);
+    });
+}
+
+function pause(ms) {
+    return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
 function setStatus(message, type = 'neutral') {
     const status = document.getElementById('prep-status');
     if (!status) return;
@@ -339,20 +487,33 @@ async function parseMonitoringSourceFile(file) {
         raw: true
     });
 
+    const dataRows = rows.slice(1);
+    const detectedLayout = detectDailyExcelLayout(dataRows);
+    const layoutRows = dataRows.map(row => detectedLayout.mapRow(row));
+    const layoutScore = scoreParsedDailyRows(layoutRows);
+
     const headerRowIndex = findDailyHeaderRowIndex(rows);
     if (headerRowIndex >= 0) {
         const headerFields = getDailyHeaderFields(rows[headerRowIndex] || []);
         const headerRows = parseDailyExcelWithHeaders(rows, headerRowIndex);
+        if (headerFields.includes('pip')) {
+            return {
+                rows: headerRows,
+                sheetName: `${firstSheetName} · encabezados`
+            };
+        }
+
+        const headerScore = scoreParsedDailyRows(headerRows);
         return {
-            rows: headerRows,
-            sheetName: headerFields.includes('pip') ? `${firstSheetName} · encabezados` : firstSheetName
+            rows: headerScore >= layoutScore ? headerRows : layoutRows,
+            sheetName: headerScore >= layoutScore
+                ? `${firstSheetName} · encabezados`
+                : `${firstSheetName} · ${detectedLayout.name}`
         };
     }
 
-    const dataRows = rows.slice(1);
-    const detectedLayout = detectDailyExcelLayout(dataRows);
     return {
-        rows: dataRows.map(row => detectedLayout.mapRow(row)),
+        rows: layoutRows,
         sheetName: `${firstSheetName} · ${detectedLayout.name}`
     };
 }
@@ -671,9 +832,8 @@ function scoreDailyExcelLayout(rows = [], layout) {
 }
 
 function detectDailyExcelLayout(rows = []) {
-    const layoutRows = rows.slice(1);
     const scoredLayouts = DAILY_EXCEL_LAYOUTS
-        .map(layout => ({ layout, score: scoreDailyExcelLayout(layoutRows, layout) }))
+        .map(layout => ({ layout, score: scoreDailyExcelLayout(rows, layout) }))
         .sort((a, b) => b.score - a.score);
 
     return scoredLayouts[0]?.layout || DAILY_EXCEL_LAYOUTS[0];
@@ -738,13 +898,14 @@ function normalizeOperationalStatus(value) {
         .toUpperCase()
         .replace(/[^A-Z0-9]+/g, '');
 
-    const runValues = new Set(['RUN', 'RUNNING', 'ON', 'ENCENDIDO', 'OPERANDO', 'OPERATIVO', 'ACTIVO', 'MARCHA', '1']);
-    const offValues = new Set(['OFF', 'OFFLINE', 'STOP', 'STOPPED', 'PARADO', 'APAGADO', 'INACTIVO', 'DETENIDO', '0']);
+    const runValues = new Set(['RUN', 'RUNNING', 'ON', 'OC', 'ENCENDIDO', 'OPERANDO', 'OPERATIVO', 'OPERATIVA', 'ACTIVO', 'ACTIVA', 'MARCHA', 'ENMARCHA', 'FUNCIONANDO', 'FUNCIONA', 'OPERA', 'PRODUCCION', 'PRODUCIENDO', 'SERVICIO', 'LISTO', 'NORMAL', 'OK', '1']);
+    const offValues = new Set(['OFF', 'OFFLINE', 'STOP', 'STOPPED', 'PARADO', 'PARADA', 'APAGADO', 'APAGADA', 'INACTIVO', 'INACTIVA', 'DETENIDO', 'DETENIDA', 'CAIDO', 'FUERADESERVICIO', 'FUERA', 'NOOPERATIVO', 'NOOPERATIVA', 'NOOPERA', 'SINOPERACION', 'SINOPERAR', '0']);
 
     if (runValues.has(normalized)) return 'RUN';
     if (offValues.has(normalized)) return 'OFF';
     if (normalized.includes('RUN')) return 'RUN';
-    if (normalized.includes('OFF') || normalized.includes('STOP')) return 'OFF';
+    if (normalized.includes('OFF') || normalized.includes('STOP') || normalized.includes('PARAD') || normalized.includes('APAG')) return 'OFF';
+    if (normalized.includes('OPER') || normalized.includes('PRODUC') || normalized.includes('MARCHA') || normalized.includes('FUNCION')) return 'RUN';
     return raw.toUpperCase();
 }
 

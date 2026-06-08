@@ -93,7 +93,7 @@
                     <p>Encuentra rutas de trabajo, pasos recomendados y buenas prácticas para usar Dashboard, Gestión, Data, Estadísticas y Preparador de Excel sin depender de soporte cada vez.</p>
                     <div class="help-role-row">
                         <span class="help-role-pill" id="help-role-pill">Cargando perfil...</span>
-                        <span class="help-last-update">Última actualización operativa: mayo 2026</span>
+                        <span class="help-last-update">Última actualización operativa: junio 2026</span>
                     </div>
                 </div>
                 <div class="help-hero-panel">
@@ -227,13 +227,31 @@
                         <ol>
                             <li>Si el archivo está desordenado, pásalo primero por Preparador Excel.</li>
                             <li>Importa el archivo o abre el formulario manual correspondiente.</li>
-                            <li>Confirma estado del pozo y fecha antes de guardar.</li>
+                            <li>En el preview operativo elige si quieres solo insertar nuevos, insertar y actualizar, o solo previsualizar sin guardar.</li>
                             <li>Después valida el resultado en Dashboard o en Data.</li>
                         </ol>
                     </div>
+                    <div class="help-checklist-card">
+                        <h3>Nueva función: modos de importación</h3>
+                        <ol>
+                            <li>Solo insertar nuevos: carga únicamente registros que no existen todavía.</li>
+                            <li>Insertar y actualizar: además corrige registros existentes que coincidan por pozo, fecha y hora.</li>
+                            <li>Solo previsualizar sin guardar: te deja revisar el archivo sin persistir cambios.</li>
+                            <li>Usa este selector antes de confirmar cuando quieras evitar actualizar históricos existentes.</li>
+                        </ol>
+                    </div>
+                    <div class="help-checklist-card">
+                        <h3>Cómo leer el preview</h3>
+                        <ul>
+                            <li>Nuevos: registros que no existen en la plataforma.</li>
+                            <li>Se actualizarán: existentes que sí cambiaron y necesitan corrección.</li>
+                            <li>Sin cambios: existentes que ya están iguales y no requieren acción.</li>
+                            <li>Duplicados en archivo: filas repetidas dentro del mismo Excel, consolidadas antes de guardar.</li>
+                        </ul>
+                    </div>
                     <div class="help-tip-card wide">
                         <h3>Qué evita duplicados</h3>
-                        <p>La lógica de importación actual actualiza coincidencias exactas de pozo y fecha cuando aplica. Por eso es clave revisar que el archivo tenga fecha y pozo consistentes antes de cargar.</p>
+                        <p>La lógica de importación actual cruza por pozo, fecha y hora. Por eso un preview con pocos actualizados no significa error: parte del archivo puede quedar como nuevos, sin cambios o duplicados internos ya consolidados.</p>
                     </div>
                 </div>
             </section>
@@ -340,6 +358,14 @@
                             <li>Ve a Gestión e importa ese archivo ya normalizado.</li>
                         </ol>
                     </div>
+                    <div class="help-checklist-card">
+                        <h3>Nueva validación útil</h3>
+                        <ul>
+                            <li>El Preparador ya reconoce variantes reales de estatus operativo, incluyendo abreviaturas como OC.</li>
+                            <li>Si el archivo trae filas repetidas, el preview las consolidará antes de la carga final.</li>
+                            <li>Si una fila queda descartada, revisa primero pozo, fecha y estatus antes de corregir a mano.</li>
+                        </ul>
+                    </div>
                     <div class="help-tip-card wide">
                         <h3>Resultado esperado</h3>
                         <p>El archivo exportado debe conservar solo columnas útiles para el importador actual. Si el preview sale incoherente, corrige primero el origen en vez de forzar la carga.</p>
@@ -362,6 +388,14 @@
                     <details class="help-faq-item">
                         <summary>Importé un archivo y no veo cambios</summary>
                         <p>Revisa si la carga terminó sin errores, valida la fecha del registro y luego refresca la vista destino. Si el archivo fue limpiado antes, verifica la vista previa del Preparador.</p>
+                    </details>
+                    <details class="help-faq-item">
+                        <summary>¿Por qué el preview no suma todo en nuevos y actualizaciones?</summary>
+                        <p>Porque ahora el preview también distingue registros sin cambios y duplicados dentro del mismo archivo. Nuevos y actualizaciones solo muestran lo que realmente requiere inserción o corrección.</p>
+                    </details>
+                    <details class="help-faq-item">
+                        <summary>¿Qué modo debo elegir al importar en Gestión?</summary>
+                        <p>Elige Solo insertar nuevos si no quieres tocar históricos existentes. Usa Insertar y actualizar cuando sí debas corregir registros previos. Usa Solo previsualizar sin guardar cuando solo quieras revisar el archivo antes de decidir.</p>
                     </details>
                     <details class="help-faq-item">
                         <summary>¿Dónde corrijo un dato puntual?</summary>

@@ -93,9 +93,44 @@
                     <p>Convierte el consolidado operativo en un archivo limpio, listo para importar en Gestión sin tocar el Excel original.</p>
                 </div>
                 <div class="prep-hero-actions">
-                    <a href="dashboard-data.html" class="btn-submit prep-action-link">Volver a Gestión</a>
+                    <a href="dashboard-data.html" class="prep-action-link" aria-label="Volver a Gestión de Datos BES">
+                        <span class="prep-action-link-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"></path>
+                            </svg>
+                        </span>
+                        <span class="prep-action-link-copy">
+                            <strong>Gestión de datos</strong>
+                            <span>Volver al importador y edición manual</span>
+                        </span>
+                    </a>
                 </div>
             </header>
+
+            <div id="prep-processing-modal" class="prep-processing-modal" hidden aria-live="polite" aria-busy="true">
+                <div class="prep-processing-panel" role="status" aria-atomic="true">
+                    <div class="prep-processing-loader" aria-hidden="true"></div>
+                    <div class="prep-processing-copy">
+                        <span class="prep-processing-kicker">Preparando archivo</span>
+                        <h2 id="prep-processing-title">Cargando archivo</h2>
+                        <p id="prep-processing-message">Leyendo el consolidado para identificar su estructura y columnas útiles.</p>
+                    </div>
+                    <div class="prep-processing-steps">
+                        <div class="prep-processing-step is-active" data-prep-step="reading">
+                            <strong>Cargando archivo</strong>
+                            <span>Lectura inicial del consolidado.</span>
+                        </div>
+                        <div class="prep-processing-step" data-prep-step="summary">
+                            <strong>Realizando resumen de limpieza</strong>
+                            <span>Validando filas útiles, descartes y duplicados.</span>
+                        </div>
+                        <div class="prep-processing-step" data-prep-step="preview">
+                            <strong>Preparando vista previa</strong>
+                            <span>Armando la muestra visual antes de exportar.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <section class="prep-shell">
                 <section class="prep-card prep-uploader-card">
@@ -109,8 +144,15 @@
                     <div id="prep-drop-zone" class="prep-drop-zone" role="button" tabindex="0" aria-label="Cargar archivo consolidado de monitoreo">
                         <div class="prep-drop-icon">XLSX</div>
                         <div class="prep-drop-copy">
-                            <h3>Arrastra tu archivo aquí o haz clic para buscarlo</h3>
-                            <p>El resultado se exporta con columnas limpias: pozo, campo, fecha, hora, THP, CHP, LF, giro y demás telemetría.</p>
+                            <span class="prep-drop-kicker">Carga guiada</span>
+                            <h3>Arrastra el archivo aquí</h3>
+                            <p>o haz clic para seleccionar el consolidado de monitoreo que quieres limpiar antes de importarlo en Gestión.</p>
+                            <div class="prep-drop-format-row" aria-hidden="true">
+                                <span class="prep-drop-format-pill">CSV</span>
+                                <span class="prep-drop-format-pill">XLSX</span>
+                                <span class="prep-drop-format-pill">XLS</span>
+                            </div>
+                            <span class="prep-drop-link-hint">Se generará un archivo limpio con pozo, campo, fecha, hora, THP, CHP, LF, giro y demás telemetría útil.</span>
                         </div>
                         <input type="file" id="prep-file-input" accept=".csv,.xlsx,.xls" hidden>
                     </div>
@@ -162,9 +204,17 @@
                         </div>
                     </div>
 
-                    <div class="prep-export-actions">
-                        <button type="button" id="download-xlsx-btn" class="btn-submit prep-export-btn" disabled>Descargar XLSX limpio</button>
-                        <button type="button" id="download-csv-btn" class="btn-secondary prep-export-btn" disabled>Descargar CSV limpio</button>
+                    <div class="prep-export-stack">
+                        <div class="prep-export-note" aria-hidden="true">
+                            <span class="prep-export-note-kicker">Salida recomendada</span>
+                            <strong>XLSX para Gestión</strong>
+                            <p>Usa XLSX como formato principal. CSV queda disponible como alternativa ligera para revisión rápida.</p>
+                        </div>
+
+                        <div class="prep-export-actions">
+                            <button type="button" id="download-xlsx-btn" class="prep-export-btn prep-export-btn-primary" disabled>Descargar XLSX limpio</button>
+                            <button type="button" id="download-csv-btn" class="prep-export-btn prep-export-btn-secondary" disabled>Descargar CSV limpio</button>
+                        </div>
                     </div>
                 </section>
 
@@ -172,7 +222,7 @@
                     <div class="prep-card-header">
                         <div>
                             <h2>Vista previa</h2>
-                            <p>Se muestran los primeros registros normalizados para verificar que el archivo quedó como esperas.</p>
+                            <p>Se prioriza una muestra con el último registro disponible por pozo para revisar varios pozos rápido sin alterar el modelo del archivo.</p>
                         </div>
                     </div>
 
@@ -181,7 +231,12 @@
                             <thead id="prep-table-head"></thead>
                             <tbody id="prep-table-body">
                                 <tr>
-                                    <td colspan="18" class="prep-table-empty">Todavía no hay datos preparados.</td>
+                                    <td colspan="17" class="prep-table-empty">
+                                        <div class="prep-empty-state">
+                                            <strong>Vista previa pendiente</strong>
+                                            <span>Todavía no hay datos preparados. Carga un archivo para revisar cómo quedará antes de exportar.</span>
+                                        </div>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>

@@ -678,7 +678,7 @@
 
     <script type="module">
         import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession } from './js/auth.js';
-        import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, previewMonitoringSync, saveTechnicalMeasurement, syncTechnicalMeasurements, previewTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile } from './js/data-service.js';
+        import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, previewMonitoringSync, saveTechnicalMeasurement, syncTechnicalMeasurements, previewTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile, buildMonitoringRecordKey } from './js/data-service.js';
 
         let isEditing = false;
         let knownPozos = new Set();
@@ -1720,7 +1720,39 @@
         async function confirmImportSummary({ title, fileName, recordsCount, pozoCount, detailText, previewResult, kind = 'operational' }) {
             const recordsToInsert = previewResult?.recordsToInsert || [];
             const recordsToUpdate = previewResult?.recordsToUpdate || [];
-            const defaultTab = recordsToInsert.length > 0 || recordsToUpdate.length === 0 ? 'insert' : 'update';
+            const skippedCount = previewResult?.skipped ?? 0;
+            const dedupedTotal = previewResult?.total ?? (recordsToInsert.length + recordsToUpdate.length + skippedCount);
+            const duplicateCount = Math.max(recordsCount - dedupedTotal, 0);
+            const hasInsertions = recordsToInsert.length > 0;
+            const hasUpdates = recordsToUpdate.length > 0;
+            const defaultTab = hasInsertions && hasUpdates
+                ? 'both'
+                : (hasInsertions || !hasUpdates ? 'insert' : 'update');
+            const supportsImportModes = kind === 'operational';
+            const defaultImportMode = supportsImportModes
+                ? (hasUpdates ? 'sync-all' : 'insert-only')
+                : 'sync-all';
+            const getImportModeCopy = (mode) => {
+                if (mode === 'insert-only') {
+                    return {
+                        buttonText: 'Si, insertar solo nuevos',
+                        summaryText: 'Solo se insertaran registros nuevos. Los existentes detectados en el preview no se modificaran.'
+                    };
+                }
+
+                if (mode === 'preview-only') {
+                    return {
+                        buttonText: 'Cerrar preview sin guardar',
+                        summaryText: 'No se guardara nada. Este modo sirve solo para revisar el preview antes de salir.'
+                    };
+                }
+
+                return {
+                    buttonText: 'Si, insertar y actualizar',
+                    summaryText: 'Se insertaran los nuevos y tambien se actualizaran los existentes que coincidan por pozo, fecha y hora.'
+                };
+            };
+            const initialModeCopy = getImportModeCopy(defaultImportMode);
 
             const result = await Swal.fire({
                 icon: 'question',
@@ -1749,8 +1781,45 @@
                                 <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #C2410C;">Se actualizarán</p>
                                 <p style="margin: 0; font-weight: 700; color: #9A3412;">${previewResult?.updated ?? 0}</p>
                             </div>
+                            <div style="padding: 12px; border-radius: 12px; background: #F8FAFC; border: 1px solid #CBD5E1;">
+                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B;">Sin cambios</p>
+                                <p style="margin: 0; font-weight: 700; color: #334155;">${skippedCount}</p>
+                            </div>
+                            <div style="padding: 12px; border-radius: 12px; background: #F8FAFC; border: 1px solid #CBD5E1;">
+                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B;">Duplicados en archivo</p>
+                                <p style="margin: 0; font-weight: 700; color: #334155;">${duplicateCount}</p>
+                            </div>
                         </div>
-                        <p style="margin: 0 0 14px 0;">${escapeHtml(detailText)}</p>
+                        <p style="margin: 0 0 6px 0;">${escapeHtml(detailText)}</p>
+                        <p style="margin: 0 0 12px 0; font-size: 0.84rem; color: #475569;">De ${recordsCount} filas validas, ${dedupedTotal} quedaron como registros unicos por pozo, fecha y hora. De esos unicos, ${recordsToInsert.length} son nuevos, ${recordsToUpdate.length} cambiaron y ${skippedCount} ya existian igual.</p>
+                        ${supportsImportModes
+                            ? `
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 0 0 12px 0;">
+                                    <label data-import-mode-option="insert-only" style="display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 14px; border: 1px solid #CBD5E1; background: #FFFFFF; cursor: pointer;">
+                                        <input type="radio" name="import-mode" value="insert-only" ${defaultImportMode === 'insert-only' ? 'checked' : ''} style="margin-top: 2px;">
+                                        <span>
+                                            <span style="display: block; font-weight: 700; color: #0F172A;">Solo insertar nuevos</span>
+                                            <span style="display: block; font-size: 0.82rem; color: #475569;">Carga solo los registros que no existen todavia.</span>
+                                        </span>
+                                    </label>
+                                    <label data-import-mode-option="sync-all" style="display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 14px; border: 1px solid #CBD5E1; background: #FFFFFF; cursor: pointer;">
+                                        <input type="radio" name="import-mode" value="sync-all" ${defaultImportMode === 'sync-all' ? 'checked' : ''} style="margin-top: 2px;">
+                                        <span>
+                                            <span style="display: block; font-weight: 700; color: #0F172A;">Insertar y actualizar</span>
+                                            <span style="display: block; font-size: 0.82rem; color: #475569;">Inserta nuevos y actualiza existentes que cambiaron.</span>
+                                        </span>
+                                    </label>
+                                    <label data-import-mode-option="preview-only" style="display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 14px; border: 1px solid #CBD5E1; background: #FFFFFF; cursor: pointer;">
+                                        <input type="radio" name="import-mode" value="preview-only" ${defaultImportMode === 'preview-only' ? 'checked' : ''} style="margin-top: 2px;">
+                                        <span>
+                                            <span style="display: block; font-weight: 700; color: #0F172A;">Solo previsualizar sin guardar</span>
+                                            <span style="display: block; font-size: 0.82rem; color: #475569;">No guarda cambios; solo permite revisar el contenido.</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <p id="import-mode-summary" style="margin: 0 0 14px 0; font-size: 0.88rem; color: #334155;"><strong>Accion de la sincronizacion:</strong> ${escapeHtml(initialModeCopy.summaryText)}</p>
+                            `
+                            : `<p style="margin: 0 0 14px 0; font-size: 0.88rem; color: #334155;"><strong>Accion de la sincronizacion:</strong> ${escapeHtml(initialModeCopy.summaryText)}</p>`}
                         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
                             <input id="import-preview-search" type="search" placeholder="Filtrar por pozo..." style="flex: 1 1 220px; min-width: 220px; border: 1px solid #CBD5E1; background: #FFFFFF; color: #0F172A; border-radius: 12px; padding: 10px 14px; outline: none;">
                             <button type="button" id="import-preview-export" style="border: 1px solid #BFDBFE; background: #EFF6FF; color: #1D4ED8; border-radius: 12px; padding: 10px 16px; font-weight: 700; cursor: pointer;">Exportar preview</button>
@@ -1761,22 +1830,41 @@
                             <button type="button" data-preview-tab="both" style="border: 1px solid #CBD5E1; background: #FFFFFF; color: #0F172A; border-radius: 999px; padding: 10px 16px; font-weight: 700; cursor: pointer;">Ver ambos</button>
                         </div>
                         <div id="import-preview-panel" style="flex: 1; min-height: 0; overflow: hidden;">
-                            ${defaultTab === 'update'
+                            ${defaultTab === 'both'
+                                ? `
+                                    <div style="display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start;">
+                                        ${buildImportPreviewCard({ title: 'Nuevos', items: recordsToInsert, kind, tone: 'neutral' })}
+                                        ${buildImportPreviewCard({ title: 'Se actualizarán', items: recordsToUpdate, kind, tone: 'warm' })}
+                                    </div>
+                                `
+                                : defaultTab === 'update'
                                 ? buildImportPreviewCard({ title: 'Se actualizarán', items: recordsToUpdate, kind, tone: 'warm' })
                                 : buildImportPreviewCard({ title: 'Nuevos', items: recordsToInsert, kind, tone: 'neutral' })}
                         </div>
                     </div>
                 `,
                 showCancelButton: true,
-                confirmButtonText: 'Sí, cargar registros',
+                confirmButtonText: initialModeCopy.buttonText,
                 cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#1D4ED8',
                 reverseButtons: true,
+                preConfirm: () => {
+                    if (!supportsImportModes) {
+                        return { confirmed: true, mode: 'sync-all' };
+                    }
+
+                    const selectedMode = document.querySelector('input[name="import-mode"]:checked')?.value || defaultImportMode;
+                    return { confirmed: selectedMode !== 'preview-only', mode: selectedMode };
+                },
                 didOpen: (popup) => {
                     const panel = popup.querySelector('#import-preview-panel');
                     const buttons = [...popup.querySelectorAll('[data-preview-tab]')];
                     const searchInput = popup.querySelector('#import-preview-search');
                     const exportButton = popup.querySelector('#import-preview-export');
+                    const importModeInputs = [...popup.querySelectorAll('input[name="import-mode"]')];
+                    const importModeOptions = [...popup.querySelectorAll('[data-import-mode-option]')];
+                    const importModeSummary = popup.querySelector('#import-mode-summary');
+                    const confirmButton = Swal.getConfirmButton();
                     let activeTab = defaultTab;
                     let currentQuery = '';
 
@@ -1784,6 +1872,24 @@
                         button.style.background = isActive ? '#0F172A' : '#FFFFFF';
                         button.style.color = isActive ? '#FFFFFF' : '#0F172A';
                         button.style.borderColor = isActive ? '#0F172A' : '#CBD5E1';
+                    };
+
+                    const setImportModeState = (mode) => {
+                        importModeOptions.forEach(option => {
+                            const isActive = option.dataset.importModeOption === mode;
+                            option.style.borderColor = isActive ? '#1D4ED8' : '#CBD5E1';
+                            option.style.background = isActive ? '#EFF6FF' : '#FFFFFF';
+                            option.style.boxShadow = isActive ? '0 0 0 1px rgba(29, 78, 216, 0.08)' : 'none';
+                        });
+
+                        const modeCopy = getImportModeCopy(mode);
+                        if (importModeSummary) {
+                            importModeSummary.innerHTML = `<strong>Accion de la sincronizacion:</strong> ${escapeHtml(modeCopy.summaryText)}`;
+                        }
+
+                        if (confirmButton) {
+                            confirmButton.textContent = modeCopy.buttonText;
+                        }
                     };
 
                     const renderBothPreviewCards = (insertItems, updateItems) => {
@@ -1866,7 +1972,12 @@
                     popup.dataset.previewResizeBound = 'true';
                     popup._previewResizeHandler = handleResize;
 
+                    importModeInputs.forEach(input => {
+                        input.addEventListener('change', () => setImportModeState(input.value));
+                    });
+
                     renderPreviewTab(defaultTab);
+                    setImportModeState(defaultImportMode);
                 },
                 willClose: (popup) => {
                     if (popup?._previewResizeHandler) {
@@ -1875,7 +1986,11 @@
                 }
             });
 
-            return result.isConfirmed;
+            if (!result.isConfirmed) {
+                return null;
+            }
+
+            return result.value?.mode || 'sync-all';
         }
 
         function bindDropImport(zone, input, handler) {
@@ -2072,11 +2187,24 @@
                 'RUN',
                 'RUNNING',
                 'ON',
+                'OC',
                 'ENCENDIDO',
                 'OPERANDO',
                 'OPERATIVO',
+                'OPERATIVA',
                 'ACTIVO',
+                'ACTIVA',
                 'MARCHA',
+                'ENMARCHA',
+                'FUNCIONANDO',
+                'FUNCIONA',
+                'OPERA',
+                'PRODUCCION',
+                'PRODUCIENDO',
+                'SERVICIO',
+                'LISTO',
+                'NORMAL',
+                'OK',
                 '1'
             ]);
 
@@ -2086,16 +2214,29 @@
                 'STOP',
                 'STOPPED',
                 'PARADO',
+                'PARADA',
                 'APAGADO',
+                'APAGADA',
                 'INACTIVO',
+                'INACTIVA',
                 'DETENIDO',
+                'DETENIDA',
+                'CAIDO',
+                'FUERADESERVICIO',
+                'FUERA',
+                'NOOPERATIVO',
+                'NOOPERATIVA',
+                'NOOPERA',
+                'SINOPERACION',
+                'SINOPERAR',
                 '0'
             ]);
 
             if (runValues.has(normalized)) return 'RUN';
             if (offValues.has(normalized)) return 'OFF';
             if (normalized.includes('RUN')) return 'RUN';
-            if (normalized.includes('OFF') || normalized.includes('STOP')) return 'OFF';
+            if (normalized.includes('OFF') || normalized.includes('STOP') || normalized.includes('PARAD') || normalized.includes('APAG')) return 'OFF';
+            if (normalized.includes('OPER') || normalized.includes('PRODUC') || normalized.includes('MARCHA') || normalized.includes('FUNCION')) return 'RUN';
             return null;
         }
 
@@ -2289,6 +2430,7 @@
             normalizedRow.fecha_tech = toIsoDate(normalizedRow.fecha_tech) || normalizedRow.fecha_tech;
             normalizedRow.fecha_medicion = toIsoDate(normalizedRow.fecha_medicion) || normalizedRow.fecha_medicion;
             normalizedRow.hora = toIsoTime(normalizedRow.hora) || '00:00:00';
+            normalizedRow.estatus_original = normalizedRow.estatus;
             normalizedRow.estatus = normalizeOperationalStatus(normalizedRow.estatus);
 
             return normalizedRow;
@@ -2607,7 +2749,14 @@
                 }
 
                 if (invalidStatusRows.length > 0) {
-                    throw new Error(`No pude interpretar el estatus en ${invalidStatusRows.length} fila(s). El layout de este Excel no coincide con el formato esperado para monitoreo diario actual.`);
+                    const invalidExamples = invalidStatusRows
+                        .slice(0, 3)
+                        .map(row => String(row.estatus_original || row.estatus || row.estado || '').trim())
+                        .filter(Boolean);
+                    const detail = invalidExamples.length > 0
+                        ? ` Valores detectados: ${invalidExamples.join(', ')}.`
+                        : '';
+                    throw new Error(`No pude interpretar el estatus en ${invalidStatusRows.length} fila(s). El layout de este Excel no coincide con el formato esperado para monitoreo diario actual.${detail}`);
                 }
 
                 const telemetryColumns = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c', 'sentido_giro', 'estatus', 'observaciones', 'user_id'];
@@ -2627,7 +2776,7 @@
 
                 const previewResult = await previewMonitoringSync(telemetryData);
 
-                const confirmed = await confirmImportSummary({
+                const importMode = await confirmImportSummary({
                     title: 'Confirmar carga operativa',
                     fileName: file.name,
                     recordsCount: telemetryRows.length,
@@ -2637,27 +2786,56 @@
                     kind: 'operational'
                 });
 
-                if (!confirmed) {
+                if (!importMode) {
                     statusDiv.style.display = 'block';
                     statusText.textContent = 'Carga operativa cancelada por el usuario.';
+                    return;
+                }
+
+                if (importMode === 'preview-only') {
+                    statusDiv.style.display = 'block';
+                    statusText.textContent = 'Preview revisado. No se guardaron cambios en la plataforma.';
+                    return;
+                }
+
+                const recordsToSync = importMode === 'insert-only'
+                    ? (previewResult?.recordsToInsert || [])
+                    : telemetryData;
+
+                if (recordsToSync.length === 0) {
+                    statusDiv.style.display = 'block';
+                    statusText.textContent = importMode === 'insert-only'
+                        ? 'No hay registros nuevos para insertar. No se guardaron cambios.'
+                        : 'No hay registros pendientes por sincronizar.';
                     return;
                 }
 
                 beginImportSession({
                     kind: 'operational',
                     fileName: file.name,
-                    recordsCount: telemetryRows.length,
+                    recordsCount: recordsToSync.length,
                     pozoCount: countUniquePozos(telemetryRows)
                 });
 
-                updateImportSession(`Sincronizando ${telemetryData.length} registro(s) operativos...`, 'Guardando mediciones diarias en la plataforma.');
-                const syncResult = await syncMonitoringRecords(telemetryData);
+                updateImportSession(
+                    importMode === 'insert-only'
+                        ? `Insertando ${recordsToSync.length} registro(s) nuevos...`
+                        : `Sincronizando ${recordsToSync.length} registro(s) operativos...`,
+                    importMode === 'insert-only'
+                        ? 'Guardando solo las mediciones nuevas detectadas en el preview.'
+                        : 'Guardando mediciones diarias en la plataforma.'
+                );
+                const syncResult = await syncMonitoringRecords(recordsToSync);
 
-                const uniquePozos = [...new Set(telemetryRows.map(r => r.pozo_name))];
+                const syncedTelemetryRows = importMode === 'insert-only'
+                    ? telemetryRows.filter(row => recordsToSync.some(record => buildMonitoringRecordKey(record) === buildMonitoringRecordKey(row)))
+                    : telemetryRows;
+
+                const uniquePozos = [...new Set(syncedTelemetryRows.map(r => r.pozo_name))];
 
                 updateImportSession('Actualizando resumen tecnico por pozo...', 'Consolidando informacion relacionada antes de cerrar la carga.');
                 for (const pozo of uniquePozos) {
-                    const pozoRecords = telemetryRows.filter(r => r.pozo_name === pozo);
+                    const pozoRecords = syncedTelemetryRows.filter(r => r.pozo_name === pozo);
                     const latest = pozoRecords[0];
 
                     if (latest.bbpd !== undefined || latest.ef !== undefined) {

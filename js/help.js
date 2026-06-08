@@ -56,17 +56,18 @@ const ASSISTANT_KNOWLEDGE_ENTRIES = [
         type: 'module',
         title: 'Gestión',
         sourceId: 'gestion',
-        keywords: 'gestion importar excel carga manual corregir datos deduplicar registros monitoreo tecnico',
-        summary: 'Sirve para importar archivos, cargar mediciones manuales y corregir registros operativos o técnicos dentro del sistema.',
+        keywords: 'gestion importar excel carga manual corregir datos deduplicar registros monitoreo tecnico preview actualizar nuevos sin cambios duplicados',
+        summary: 'Sirve para importar archivos, cargar mediciones manuales y corregir registros operativos o técnicos dentro del sistema, con preview operativo antes de guardar.',
         steps: [
             'Entra a Gestión cuando vayas a importar o corregir información.',
             'Carga el Excel limpio o usa el formulario manual para registros puntuales.',
-            'Confirma la fecha, hora y pozo antes de guardar.',
+            'En el preview operativo elige si vas a solo insertar nuevos, insertar y actualizar, o solo previsualizar sin guardar.',
             'Luego valida el resultado en Dashboard, Data o Estadísticas.'
         ],
         quickChecks: [
             'Es el módulo de mantenimiento de datos.',
             'No es la vista ideal para análisis operativo.',
+            'El preview ahora separa nuevos, actualizaciones, sin cambios y duplicados del archivo.',
             'Te ayuda a evitar duplicados y errores de captura.'
         ],
         action: { href: 'dashboard-data.html', label: 'Abrir Gestión' }
@@ -113,7 +114,7 @@ const ASSISTANT_KNOWLEDGE_ENTRIES = [
         type: 'module',
         title: 'Preparador Excel',
         sourceId: 'preparador',
-        keywords: 'preparador excel limpiar archivo columnas vista previa exportar importar',
+        keywords: 'preparador excel limpiar archivo columnas vista previa exportar importar estatus oc descartes',
         summary: 'Sirve para limpiar archivos de monitoreo antes de importarlos, normalizando columnas y preparando una salida lista para Gestión.',
         steps: [
             'Sube el archivo original al Preparador Excel.',
@@ -124,6 +125,7 @@ const ASSISTANT_KNOWLEDGE_ENTRIES = [
         quickChecks: [
             'Úsalo cuando el Excel venga mezclado o sucio.',
             'Reduce errores antes de importar.',
+            'Reconoce variantes reales de estatus operativo, incluyendo abreviaturas como OC.',
             'Es el paso previo recomendado para cargas masivas.'
         ],
         action: { href: 'monitoring-prep.html', label: 'Abrir Preparador Excel' }
