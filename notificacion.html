@@ -147,59 +147,86 @@
             </section>
 
             <section class="notification-layout-grid">
-                <article class="notification-panel notification-feed-panel">
-                    <header class="notification-panel-header">
-                        <div>
-                            <span class="notification-panel-kicker">Monitoreo diario</span>
-                            <h2>Actividad agrupada por pozo</h2>
+                <div class="notification-main-stack">
+                    <article class="notification-panel notification-feed-panel">
+                        <header class="notification-panel-header">
+                            <div>
+                                <span class="notification-panel-kicker">Monitoreo diario</span>
+                                <h2>Actividad agrupada por pozo</h2>
+                            </div>
+                            <span id="notification-feed-count" class="notification-count-pill">0</span>
+                        </header>
+                        <div id="notification-feed-list" class="notification-feed-list">
+                            <p class="notification-empty-state">Cargando actividad reciente de monitoreo...</p>
                         </div>
-                        <span id="notification-feed-count" class="notification-count-pill">0</span>
-                    </header>
-                    <div id="notification-feed-list" class="notification-feed-list">
-                        <p class="notification-empty-state">Cargando actividad reciente de monitoreo...</p>
-                    </div>
-                </article>
+                    </article>
 
-                <article class="notification-panel notification-technical-panel">
-                    <header class="notification-panel-header compact">
-                        <div>
-                            <span class="notification-panel-kicker">Producción técnica</span>
-                            <h2>Cambios de medición</h2>
-                        </div>
-                        <span id="notification-technical-count" class="notification-count-pill">0</span>
-                    </header>
-                    <div id="notification-technical-list" class="notification-pozo-list">
-                        <p class="notification-empty-state">Cargando mediciones técnicas recientes...</p>
-                    </div>
-                </article>
+                    <article class="notification-panel notification-documentation-panel">
+                        <header class="notification-panel-header compact">
+                            <div>
+                                <span class="notification-panel-kicker">Qué queda documentado</span>
+                                <h2>Alcance actual de la trazabilidad</h2>
+                            </div>
+                        </header>
+                        <ul class="notification-tip-list">
+                            <li>Las cargas de monitoreo muestran la fecha y hora en que el registro quedó guardado, además del pozo y la fecha operativa del monitoreo.</li>
+                            <li>Las mediciones técnicas muestran pozo, fecha de medición y los niveles registrados más recientes de BBPD, AYS, BNPD y CAT.</li>
+                            <li>Las actualizaciones del perfil BES muestran pozo, tipo de bomba y la última hora de actualización disponible.</li>
+                            <li>Hoy no existe un historial detallado por campo para cada edición manual de THP, CHP, LF, VSD o PIP. Esta vista documenta la actividad visible que el sistema ya persiste.</li>
+                        </ul>
+                    </article>
+                </div>
 
-                <article class="notification-panel notification-bes-panel">
-                    <header class="notification-panel-header compact">
-                        <div>
-                            <span class="notification-panel-kicker">Perfil BES</span>
-                            <h2>Configuración actualizada</h2>
+                <div class="notification-side-stack">
+                    <article class="notification-panel notification-technical-panel">
+                        <header class="notification-panel-header compact">
+                            <div>
+                                <span class="notification-panel-kicker">Producción técnica</span>
+                                <h2>Cambios de medición</h2>
+                            </div>
+                            <span id="notification-technical-count" class="notification-count-pill">0</span>
+                        </header>
+                        <div id="notification-technical-list" class="notification-pozo-list">
+                            <p class="notification-empty-state">Cargando mediciones técnicas recientes...</p>
                         </div>
-                        <span id="notification-bes-count" class="notification-count-pill">0</span>
-                    </header>
-                    <div id="notification-bes-list" class="notification-pozo-list">
-                        <p class="notification-empty-state">Cargando actualizaciones de perfil BES...</p>
-                    </div>
-                </article>
+                    </article>
 
-                <article class="notification-panel notification-documentation-panel">
-                    <header class="notification-panel-header compact">
-                        <div>
-                            <span class="notification-panel-kicker">Qué queda documentado</span>
-                            <h2>Alcance actual de la trazabilidad</h2>
+                    <article class="notification-panel notification-bridge-panel">
+                        <header class="notification-panel-header compact">
+                            <div>
+                                <span class="notification-panel-kicker">Persistencia visible</span>
+                                <h2>Último movimiento documentado</h2>
+                            </div>
+                        </header>
+                        <div class="notification-bridge-content">
+                            <div class="notification-bridge-highlight">
+                                <strong id="notification-last-event-title">Buscando último registro visible</strong>
+                                <span id="notification-last-event-detail">En cuanto termine la carga te mostraré cuál fue el último movimiento documentado y en qué módulo apareció.</span>
+                            </div>
+                            <div class="notification-bridge-item">
+                                <strong id="notification-last-event-source">Fuente</strong>
+                                <span id="notification-last-event-source-copy">Monitoreo, técnica o perfil BES según la marca más reciente disponible.</span>
+                            </div>
+                            <div class="notification-bridge-item">
+                                <strong id="notification-last-event-date-label">Fecha visible</strong>
+                                <span id="notification-last-event-date">--</span>
+                            </div>
                         </div>
-                    </header>
-                    <ul class="notification-tip-list">
-                        <li>Las cargas de monitoreo muestran la fecha y hora en que el registro quedó guardado, además del pozo y la fecha operativa del monitoreo.</li>
-                        <li>Las mediciones técnicas muestran pozo, fecha de medición y los niveles registrados más recientes de BBPD, AYS, BNPD y CAT.</li>
-                        <li>Las actualizaciones del perfil BES muestran pozo, tipo de bomba y la última hora de actualización disponible.</li>
-                        <li>Hoy no existe un historial detallado por campo para cada edición manual de THP, CHP, LF, VSD o PIP. Esta vista documenta la actividad visible que el sistema ya persiste.</li>
-                    </ul>
-                </article>
+                    </article>
+
+                    <article class="notification-panel notification-bes-panel">
+                        <header class="notification-panel-header compact">
+                            <div>
+                                <span class="notification-panel-kicker">Perfil BES</span>
+                                <h2>Configuración actualizada</h2>
+                            </div>
+                            <span id="notification-bes-count" class="notification-count-pill">0</span>
+                        </header>
+                        <div id="notification-bes-list" class="notification-pozo-list">
+                            <p class="notification-empty-state">Cargando actualizaciones de perfil BES...</p>
+                        </div>
+                    </article>
+                </div>
             </section>
 
             <section id="notification-modal" class="notification-modal" hidden aria-hidden="true">

@@ -123,6 +123,71 @@ function renderSummary(monitoringActivity, technicalRows, besRows) {
         : 'No se detectaron cambios recientes en perfil BES.';
 }
 
+function buildNotificationMoments(monitoringActivity, technicalRows = [], besRows = []) {
+    const moments = [];
+
+    if (monitoringActivity?.supported) {
+        const monitoringRecords = Array.isArray(monitoringActivity?.records) ? monitoringActivity.records : [];
+        monitoringRecords.forEach(record => {
+            if (!record?.created_at) return;
+            moments.push({
+                source: 'Monitoreo diario',
+                title: `Último registro cargado para ${record.pozo_name || 'pozo sin nombre'}`,
+                detail: `Monitoreo operativo ${formatDate(record.fecha)} a las ${formatHour(record.hora)}.` ,
+                moment: String(record.created_at)
+            });
+        });
+    }
+
+    technicalRows.forEach(row => {
+        const moment = row?.created_at || row?.updated_at || row?.fecha;
+        if (!moment) return;
+        moments.push({
+            source: 'Medición técnica',
+            title: `Última medición visible para ${row.pozo_name || 'pozo sin nombre'}`,
+            detail: `BBPD ${row.bbpd ?? 0} · BNPD ${row.bnpd ?? 0} · AYS ${row.ays_percentage ?? 0}% · CAT ${row.cat_number ?? 0}.`,
+            moment: String(moment)
+        });
+    });
+
+    besRows.forEach(row => {
+        if (!row?.updated_at) return;
+        moments.push({
+            source: 'Perfil BES',
+            title: `Última configuración visible para ${row.pozo_name || 'pozo sin nombre'}`,
+            detail: `Tipo de bomba registrado: ${row.pump_type || '--'}.`,
+            moment: String(row.updated_at)
+        });
+    });
+
+    return moments.sort((left, right) => String(right.moment || '').localeCompare(String(left.moment || '')));
+}
+
+function renderLastEventPanel(monitoringActivity, technicalRows = [], besRows = []) {
+    const title = document.getElementById('notification-last-event-title');
+    const detail = document.getElementById('notification-last-event-detail');
+    const source = document.getElementById('notification-last-event-source');
+    const sourceCopy = document.getElementById('notification-last-event-source-copy');
+    const date = document.getElementById('notification-last-event-date');
+    if (!title || !detail || !source || !sourceCopy || !date) return;
+
+    const latest = buildNotificationMoments(monitoringActivity, technicalRows, besRows)[0] || null;
+    if (!latest) {
+        title.textContent = 'No hay movimientos recientes visibles';
+        detail.textContent = 'Cuando vuelva a existir actividad documentada, aquí verás el último registro detectado aunque la bandeja del día esté vacía.';
+        source.textContent = 'Fuente';
+        sourceCopy.textContent = 'Sin actividad visible en monitoreo, técnica o perfil BES.';
+        date.textContent = '--';
+        return;
+    }
+
+    title.textContent = latest.title;
+    detail.textContent = latest.detail;
+    source.textContent = latest.source;
+    sourceCopy.textContent = `Último movimiento documentado dentro de ${latest.source.toLowerCase()}.`;
+    date.textContent = formatDateTime(latest.moment);
+}
+
 function renderMonitoringFeed(activity) {
     const container = document.getElementById('notification-feed-list');
     const count = document.getElementById('notification-feed-count');
@@ -273,12 +338,14 @@ async function loadNotificationCenter() {
         renderMonitoringFeed(monitoringActivity);
         renderTechnicalFeed(technicalRows || []);
         renderBESFeed(besRows || []);
+        renderLastEventPanel(monitoringActivity, technicalRows || [], besRows || []);
         setLastRefreshLabel();
     } catch (error) {
         console.error('Error cargando notificaciones:', error);
         renderMonitoringFeed({ supported: true, records: [], total: 0, uniquePozos: 0 });
         renderTechnicalFeed([]);
         renderBESFeed([]);
+        renderLastEventPanel({ supported: true, records: [] }, [], []);
         document.getElementById('summary-monitoring-note').textContent = error?.message || 'No fue posible cargar la actividad reciente.';
     } finally {
         setRefreshLoadingState(false);
