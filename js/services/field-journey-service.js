@@ -395,6 +395,23 @@ export async function getAdminFieldJourneys(options = {}) {
     }
 }
 
+export async function getAdminFieldJourneyPendingCount(statuses = ['submitted', 'under_review']) {
+    await ensureFieldAdminReadAccess();
+
+    try {
+        const { count, error } = await supabase
+            .from('field_journeys')
+            .select('id', { count: 'exact', head: true })
+            .in('status', normalizeJourneyStatuses(statuses));
+
+        if (error) throw error;
+
+        return Number.isFinite(count) ? count : 0;
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
 export async function getFieldWorkflowDiagnostics() {
     const { session, accessProfile } = await ensureFieldSessionAccess();
 

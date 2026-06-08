@@ -27,6 +27,48 @@ body {
     overflow-y: auto;
 }
 
+.field-admin-alert-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    margin-left: auto;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #DC2626;
+    color: #FFFFFF;
+    font-size: 0.65rem;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 8px 18px rgba(220, 38, 38, 0.28);
+}
+
+.field-admin-alert-badge[hidden] {
+    display: none;
+}
+
+.field-admin-has-alert {
+    position: relative;
+}
+
+.field-admin-has-alert .field-admin-alert-badge {
+    animation: field-admin-badge-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes field-admin-badge-pulse {
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: 0 8px 18px rgba(220, 38, 38, 0.28);
+    }
+
+    45% {
+        transform: scale(1.08);
+        box-shadow: 0 10px 24px rgba(220, 38, 38, 0.38);
+    }
+}
+
 .auth-page {
     height: 100vh;
     overflow: hidden;
