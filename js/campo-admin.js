@@ -394,7 +394,8 @@ const state = {
     diagnostics: null,
     selectedRecordId: '',
     recordPanelMode: 'view',
-    recordSaving: false
+    recordSaving: false,
+    selectedIncidentIndex: -1
 };
 
 const elements = {
@@ -411,6 +412,8 @@ const elements = {
     detailShell: document.getElementById('campo-admin-detail-shell'),
     recordModal: document.getElementById('campo-admin-record-modal'),
     recordModalBody: document.getElementById('campo-admin-record-modal-body'),
+    incidentModal: document.getElementById('campo-admin-incident-modal'),
+    incidentModalBody: document.getElementById('campo-admin-incident-modal-body'),
     logoutButton: document.getElementById('logout-btn'),
     mobileLogoutButton: document.getElementById('mobile-logout-btn')
 };
@@ -437,7 +440,7 @@ function getLocalFieldTicketsByJourney(journeyId) {
     }
 }
 
-function buildAdminTicketMarkup(ticket) {
+function buildAdminTicketMarkup(ticket, index) {
     const attachments = Array.isArray(ticket.attachments) ? ticket.attachments : [];
     const attachmentsMarkup = attachments.length > 0
         ? `
@@ -459,7 +462,7 @@ function buildAdminTicketMarkup(ticket) {
         : '';
 
     return `
-        <article class="campo-admin-incident-card">
+        <article class="campo-admin-incident-card" data-incident-open="${escapeHtml(String(index))}" tabindex="0" role="button" aria-label="Abrir incidencia ${escapeHtml(ticket.subject || 'sin asunto')}">
             <div class="campo-admin-incident-head">
                 <div>
                     <strong>${escapeHtml(ticket.subject || 'Incidencia sin asunto')}</strong>
@@ -474,6 +477,105 @@ function buildAdminTicketMarkup(ticket) {
             ${attachmentsMarkup}
         </article>
     `;
+}
+
+function closeIncidentModal() {
+    state.selectedIncidentIndex = -1;
+    if (elements.incidentModal) elements.incidentModal.hidden = true;
+    if (elements.incidentModalBody) elements.incidentModalBody.innerHTML = '';
+}
+
+function downloadIncidentMessage(ticket) {
+    const lines = [
+        `Asunto: ${ticket.subject || 'Incidencia sin asunto'}`,
+        `Fecha: ${formatDateTime(ticket.submitted_at || ticket.created_at)}`,
+        `Correo: ${ticket.submitted_by_email || 'Sin correo'}`,
+        `Origen: ${ticket._local ? 'Local' : 'Enviado'}`,
+        '',
+        String(ticket.message || 'Sin detalle adicional.')
+    ];
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `incidencia-${String(ticket.subject || 'campo').toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'campo'}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+function renderIncidentModal() {
+    const ticket = state.currentDetail?.tickets?.[state.selectedIncidentIndex];
+    if (!ticket || !elements.incidentModal || !elements.incidentModalBody) {
+        closeIncidentModal();
+        return;
+    }
+
+    const attachments = Array.isArray(ticket.attachments) ? ticket.attachments : [];
+    const attachmentsMarkup = attachments.length > 0
+        ? attachments.map(file => {
+            const src = file?.url || file?.dataUrl || file?.publicUrl || '';
+            const name = escapeHtml(file?.name || 'Adjunto');
+            if (!src) return `<div class="campo-admin-incident-gallery-fallback">${name}</div>`;
+            return `
+                <button type="button" class="campo-admin-incident-gallery-item" data-ticket-src="${escapeHtml(src)}" title="Abrir ${name}">
+                    <img src="${escapeHtml(src)}" alt="${name}">
+                    <span>${name}</span>
+                </button>
+            `;
+        }).join('')
+        : '<div class="campo-admin-empty"><strong>Sin adjuntos</strong><p>Esta incidencia no incluye imágenes o archivos.</p></div>';
+
+    elements.incidentModal.hidden = false;
+    elements.incidentModalBody.innerHTML = `
+        <div class="campo-admin-modal-head">
+            <div>
+                <span class="campo-admin-tag campo-admin-tag-soft">${ticket._local ? 'Ticket local' : 'Ticket enviado'}</span>
+                <h3 id="campo-admin-incident-modal-title">${escapeHtml(ticket.subject || 'Incidencia sin asunto')}</h3>
+                <p>${escapeHtml(formatDateTime(ticket.submitted_at || ticket.created_at))} · ${escapeHtml(ticket.submitted_by_email || 'Sin correo')}</p>
+            </div>
+            <button type="button" class="campo-admin-modal-close" data-incident-modal-close aria-label="Cerrar detalle de incidencia">×</button>
+        </div>
+        <div class="campo-admin-modal-review-strip">
+            <span class="campo-admin-tag">${escapeHtml(state.currentDetail?.journey?.locacion_jornada || 'Sin locación')}</span>
+            <span class="campo-admin-tag">${escapeHtml(state.currentDetail?.journey?.jornada || 'Sin jornada')}</span>
+            <span class="campo-admin-tag">${escapeHtml(String(attachments.length))} adjunto(s)</span>
+        </div>
+        <section class="campo-admin-modal-section" open>
+            <summary>Mensaje reportado</summary>
+            <div class="campo-admin-incident-message">${escapeHtml(ticket.message || 'Sin detalle adicional.').replace(/\n/g, '<br>')}</div>
+        </section>
+        <section class="campo-admin-modal-section" open>
+            <summary>Adjuntos</summary>
+            <div class="campo-admin-incident-gallery">${attachmentsMarkup}</div>
+        </section>
+        <div class="campo-admin-modal-actions">
+            <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-incident-export>Exportar mensaje</button>
+            <button type="button" class="campo-admin-action-btn" data-incident-modal-close>Cerrar</button>
+        </div>
+    `;
+
+    elements.incidentModalBody.querySelectorAll('[data-incident-modal-close]').forEach(button => {
+        button.addEventListener('click', closeIncidentModal);
+    });
+
+    elements.incidentModalBody.querySelector('[data-incident-export]')?.addEventListener('click', () => {
+        downloadIncidentMessage(ticket);
+    });
+
+    elements.incidentModalBody.querySelectorAll('[data-ticket-src]').forEach(button => {
+        button.addEventListener('click', () => {
+            const src = button.getAttribute('data-ticket-src');
+            if (!src) return;
+            window.open(src, '_blank', 'noopener,noreferrer');
+        });
+    });
+}
+
+function openIncidentModal(index) {
+    state.selectedIncidentIndex = Number(index);
+    renderIncidentModal();
 }
 
 function formatDate(value) {
@@ -1335,8 +1437,8 @@ function renderEmptyDetail(message = 'Selecciona una jornada para ver su detalle
 }
 
 async function renderDetail(detail) {
-    state.currentDetail = detail;
     closeRecordModal();
+    closeIncidentModal();
 
     const { journey, records, reviewLog } = detail;
     const [serverTickets, localTickets] = await Promise.all([
@@ -1347,6 +1449,10 @@ async function renderDetail(detail) {
         ...serverTickets.map(ticket => ({ ...ticket, _local: false })),
         ...localTickets.map(ticket => ({ ...ticket, _local: true }))
     ];
+    state.currentDetail = {
+        ...detail,
+        tickets: mergedTickets
+    };
     const reviewSummary = summarizeJourneyReview(records, journey);
     const recordsMarkup = records.length > 0
         ? records.map((record, index) => {
@@ -1414,7 +1520,7 @@ async function renderDetail(detail) {
         `;
 
     const ticketsMarkup = mergedTickets.length > 0
-        ? mergedTickets.map(buildAdminTicketMarkup).join('')
+        ? mergedTickets.map((ticket, index) => buildAdminTicketMarkup(ticket, index)).join('')
         : `
             <div class="campo-admin-empty">
                 <strong>Sin incidencias reportadas</strong>
@@ -1568,6 +1674,16 @@ async function renderDetail(detail) {
             const src = button.getAttribute('data-ticket-src');
             if (!src) return;
             window.open(src, '_blank', 'noopener,noreferrer');
+        });
+    });
+
+    elements.detailShell.querySelectorAll('[data-incident-open]').forEach(button => {
+        button.addEventListener('click', () => openIncidentModal(button.getAttribute('data-incident-open')));
+        button.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openIncidentModal(button.getAttribute('data-incident-open'));
+            }
         });
     });
 }
@@ -1795,6 +1911,11 @@ async function bootstrap() {
     elements.recordModal?.addEventListener('click', event => {
         if (event.target === elements.recordModal) {
             closeRecordModal();
+        }
+    });
+    elements.incidentModal?.addEventListener('click', event => {
+        if (event.target === elements.incidentModal) {
+            closeIncidentModal();
         }
     });
 
