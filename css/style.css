@@ -1,6 +1,13 @@
 :root {
     --primary-blue: #1E3A8A;
     --primary-dark: #0F172A;
+    /* Brand palette (centralizar colores) */
+    --brand: #2563EB; /* azul principal - usado para rol Campo */
+    --brand-600: #1D4ED8;
+    --brand-300: #93C5FD;
+    --brand-surface: rgba(37,99,235,0.08);
+    --brand-soft: rgba(37,99,235,0.05);
+
     --uv-red: #E11D48;
     --uv-red-hover: #BE123C;
     --text-main: #111827;

@@ -288,11 +288,19 @@ export async function saveFieldJourneyReports(reports = []) {
 
 export async function getFieldJourneyHistory(limit = 150) {
     const session = await ensureFieldWriteAccess();
+    const accessProfile = getAccessProfile(session);
 
     try {
+        // If the current user is a field operator, only return a limited set of columns
+        // to avoid exposing sensitive measurement fields. Administrators and supervisors
+        // continue receiving the full record set.
+        const selectColumns = accessProfile?.isFieldOperator
+            ? 'id, client_report_id, report_date, report_time, jornada, equipo_guardia, locacion_jornada, pozo, updated_at'
+            : '*';
+
         const { data, error } = await supabase
             .from('field_journey_reports')
-            .select('*')
+            .select(selectColumns)
             .eq('user_email', session.user.email)
             .order('report_date', { ascending: false })
             .order('report_time', { ascending: false })
@@ -887,5 +895,239 @@ export async function publishAdminFieldJourneyToDashboard(journeyId) {
         };
     } catch (error) {
         throw wrapFieldJourneyError(error);
+    }
+}
+
+export async function submitFieldTicket(journeyKey = null, subject = '', message = '', attachments = []) {
+    const { session } = await ensureFieldSessionAccess();
+
+    if (!subject || !message) {
+        throw new Error('Asunto y mensaje son obligatorios para enviar un ticket.');
+    }
+
+    // If attachments come as data URLs or the readFilesAsDataURLs shape, try uploading them
+    let processedAttachments = Array.isArray(attachments) ? attachments : [];
+    try {
+        // detect objects from readFilesAsDataURLs: have .dataUrl property
+        const hasDataUrls = processedAttachments.some(a => a && (a.dataUrl || (typeof a === 'string' && a.startsWith('data:'))));
+        if (hasDataUrls) {
+            processedAttachments = await uploadAttachments(processedAttachments);
+        }
+    } catch (uploadErr) {
+        // If upload fails, continue with original attachments so fallback to localStorage still works
+        console.warn('uploadAttachments failed', uploadErr);
+    }
+
+    const row = {
+        journey_key: journeyKey || null,
+        subject: String(subject).slice(0, 200),
+        message: String(message).slice(0, 4000),
+        attachments: processedAttachments,
+        submitted_by_user_id: session.user.id,
+        submitted_by_email: session.user.email,
+        submitted_at: new Date().toISOString(),
+        source: 'field-web'
+    };
+
+    try {
+        const { data, error } = await supabase
+            .from('field_tickets')
+            .insert(row)
+            .select('*')
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        // If insert fails for any reason, try to recover: detect missing columns and retry without them,
+        // but ultimately always persist locally so user workflow is not blocked.
+        const messageText = String(error?.message || error || '');
+        try {
+            const missingCols = [];
+            const m1 = messageText.match(/column\s+(?:\S+\.)?([a-z0-9_]+)\s+does not exist/i);
+            if (m1 && m1[1]) missingCols.push(m1[1]);
+            const m2 = messageText.match(/could not find the '?([a-z0-9_]+)'? column of '?field_tickets'? in the schema cache/i);
+            if (m2 && m2[1]) missingCols.push(m2[1]);
+
+            if (missingCols.length > 0) {
+                const cleanedRow = { ...row };
+                missingCols.forEach(col => delete cleanedRow[col]);
+                try {
+                    const { data: retryData, error: retryErr } = await supabase
+                        .from('field_tickets')
+                        .insert(cleanedRow)
+                        .select('*')
+                        .single();
+                    if (!retryErr) return retryData;
+                    console.warn('Retry insert without missing columns failed', retryErr);
+                } catch (retryCatch) {
+                    console.warn('Retry insert error', retryCatch);
+                }
+            }
+        } catch (e) {
+            console.warn('Error parsing missing-columns from insert error', e);
+        }
+
+        // Always attempt local fallback so UX continues working.
+        try {
+            const localKey = 'uv-field-tickets';
+            const raw = localStorage.getItem(localKey);
+            const existing = raw ? JSON.parse(raw) : [];
+            const localId = (Date.now()).toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+            const saved = {
+                id: localId,
+                journey_key: row.journey_key,
+                subject: row.subject,
+                message: row.message,
+                attachments: row.attachments || [],
+                submitted_by_user_id: row.submitted_by_user_id,
+                submitted_by_email: row.submitted_by_email,
+                submitted_at: row.submitted_at,
+                source: row.source,
+                status: 'open',
+                _local: true,
+                _error: messageText
+            };
+            existing.push(saved);
+            localStorage.setItem(localKey, JSON.stringify(existing));
+            console.warn('Ticket saved locally due to insert error:', messageText);
+            return saved;
+        } catch (innerErr) {
+            console.error('Failed to save ticket locally after insert error', innerErr);
+            throw wrapFieldJourneyError(innerErr);
+        }
+    }
+}
+
+// --- Attachments upload helpers ---
+const FIELD_TICKET_BUCKET = 'field-ticket-attachments';
+
+function dataUrlToBlob(dataUrl) {
+    const parts = dataUrl.split(',');
+    const matches = parts[0].match(/data:([^;]+);base64/);
+    const mime = matches ? matches[1] : 'application/octet-stream';
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+}
+
+function safeFileName(name = '') {
+    return String(name).replace(/[^a-z0-9_.-]/gi, '_').slice(0, 120);
+}
+
+async function uploadAttachments(attachments = []) {
+    if (!Array.isArray(attachments) || attachments.length === 0) return [];
+
+    const uploaded = [];
+    for (let i = 0; i < attachments.length; i++) {
+        const att = attachments[i];
+
+        // support objects from readFilesAsDataURLs: {name,type,size,dataUrl}
+        if (att && att.dataUrl) {
+            const blob = dataUrlToBlob(att.dataUrl);
+            const extName = (att.name && att.name.split('.').pop()) || (blob.type.split('/').pop()) || 'bin';
+            const name = safeFileName(att.name || `attachment_${i}.${extName}`);
+            const path = `tickets/${Date.now()}_${Math.random().toString(36).slice(2,8)}_${name}`;
+
+            try {
+                const { data: upData, error: upErr } = await supabase.storage
+                    .from(FIELD_TICKET_BUCKET)
+                    .upload(path, blob, { cacheControl: '3600', upsert: false });
+
+                if (upErr) throw upErr;
+
+                // try signed url (preferred), fallback to public url
+                let url = null;
+                try {
+                    const { data: signed, error: signErr } = await supabase.storage
+                        .from(FIELD_TICKET_BUCKET)
+                        .createSignedUrl(path, 60 * 60);
+                    if (!signErr && signed && signed.signedURL) url = signed.signedURL;
+                } catch (e) {
+                    // ignore
+                }
+
+                if (!url) {
+                    try {
+                        const pub = supabase.storage.from(FIELD_TICKET_BUCKET).getPublicUrl(path);
+                        if (pub && pub.data && pub.data.publicUrl) url = pub.data.publicUrl;
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+
+                uploaded.push({ name: att.name || name, type: att.type || blob.type, size: att.size || blob.size, path, url });
+            } catch (err) {
+                // upload failed: include inline dataUrl fallback so admin still sees image
+                uploaded.push({ name: att.name || `attachment_${i}`, type: att.type || 'application/octet-stream', size: att.size || 0, url: att.dataUrl, _local_fallback: true });
+            }
+        } else if (att && typeof att === 'string' && att.startsWith('data:')) {
+            // simple dataUrl string
+            const blob = dataUrlToBlob(att);
+            const name = safeFileName(`attachment_${i}`);
+            const path = `tickets/${Date.now()}_${Math.random().toString(36).slice(2,8)}_${name}`;
+            try {
+                const { data: upData, error: upErr } = await supabase.storage
+                    .from(FIELD_TICKET_BUCKET)
+                    .upload(path, blob, { cacheControl: '3600', upsert: false });
+                if (upErr) throw upErr;
+
+                let url = null;
+                try {
+                    const { data: signed, error: signErr } = await supabase.storage
+                        .from(FIELD_TICKET_BUCKET)
+                        .createSignedUrl(path, 60 * 60);
+                    if (!signErr && signed && signed.signedURL) url = signed.signedURL;
+                } catch (e) {}
+
+                if (!url) {
+                    try {
+                        const pub = supabase.storage.from(FIELD_TICKET_BUCKET).getPublicUrl(path);
+                        if (pub && pub.data && pub.data.publicUrl) url = pub.data.publicUrl;
+                    } catch (e) {}
+                }
+
+                uploaded.push({ name, type: blob.type, size: blob.size, path, url });
+            } catch (err) {
+                uploaded.push({ name: `attachment_${i}`, type: blob.type, size: blob.size, url: att, _local_fallback: true });
+            }
+        } else if (att && att.url) {
+            // already uploaded
+            uploaded.push(att);
+        }
+    }
+
+    return uploaded;
+}
+
+export async function getFieldTicketsByJourney(journeyKey = null) {
+    try {
+        if (!journeyKey) return [];
+        // try ordering by submitted_at, but some schemas may not have that column
+        try {
+            const { data, error } = await supabase
+                .from('field_tickets')
+                .select('*')
+                .eq('journey_key', journeyKey)
+                .order('submitted_at', { ascending: false });
+            if (error) throw error;
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            // retry without ordering if column missing
+            const { data, error } = await supabase
+                .from('field_tickets')
+                .select('*')
+                .eq('journey_key', journeyKey);
+            if (error) throw error;
+            return Array.isArray(data) ? data : [];
+        }
+    } catch (err) {
+        // on errors (table missing, RLS) return empty and let client fallback to local
+        console.warn('getFieldTicketsByJourney error', err?.message || err);
+        return [];
     }
 }

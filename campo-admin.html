@@ -685,6 +685,75 @@
             line-height: 1.55;
         }
 
+        .campo-admin-incident-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .campo-admin-incident-card {
+            display: grid;
+            gap: 10px;
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            background: linear-gradient(180deg, #ffffff, rgba(248, 250, 252, 0.96));
+        }
+
+        .campo-admin-incident-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .campo-admin-incident-head strong {
+            display: block;
+            margin: 0 0 4px;
+            color: var(--text-title);
+            font-size: 0.98rem;
+        }
+
+        .campo-admin-incident-head p {
+            margin: 0;
+            color: var(--text-muted);
+            line-height: 1.55;
+        }
+
+        .campo-admin-incident-attachments {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .campo-admin-incident-thumb {
+            width: 72px;
+            height: 72px;
+            padding: 0;
+            border: 1px solid rgba(203, 213, 225, 0.9);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .campo-admin-incident-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .campo-admin-incident-attachment-fallback {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.05);
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
         .campo-admin-action-btn-ghost {
             background: linear-gradient(135deg, #475569, #94a3b8);
             box-shadow: 0 14px 28px rgba(71, 85, 105, 0.2);

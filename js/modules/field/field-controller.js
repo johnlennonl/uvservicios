@@ -1,11 +1,12 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from '../../auth.js';
 import { getUniquePozos } from '../../services/monitoring-service.js';
-import { submitFieldJourneyWorkflow } from '../../services/field-journey-service.js';
+import { submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney } from '../../services/field-journey-service.js';
 import { validateFieldReport } from './field-validation.js';
 
 const DRAFT_STORAGE_KEY = 'uv-field-capture-draft';
 const REPORTS_STORAGE_KEY = 'uv-field-capture-reports';
 const SUBMITTED_JOURNEYS_STORAGE_KEY = 'uv-field-submitted-journeys-preview';
+const DRAFT_JOURNEY_KEY_STORAGE_KEY = 'uv-field-draft-journey-key';
 
 const REPORT_COLUMNS = [
     ['INGENIEROS / EQUIPO DE GUARDIA', 'equipo_guardia'],
@@ -357,6 +358,7 @@ const WELL_PREVIEW_SECTIONS = [
 
 let currentEditingReportId = null;
 let currentEditingJourneyId = null;
+let CURRENT_ACCESS_PROFILE = null;
 let availablePozos = [];
 let isSubmittingJourney = false;
 
@@ -368,6 +370,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const accessProfile = getAccessProfile(session);
+    CURRENT_ACCESS_PROFILE = accessProfile;
     if (!accessProfile.canViewFieldModule) {
         window.location.href = getDefaultRouteForAccessProfile(accessProfile);
         return;
@@ -397,7 +400,15 @@ function bindStaticActions() {
     document.getElementById('field-submit-journey-btn')?.addEventListener('click', submitJourneyForAdminPreview);
     document.getElementById('field-back-to-capture-btn')?.addEventListener('click', scrollBackToCapture);
     document.getElementById('field-report-preview-close')?.addEventListener('click', closeReportPreview);
+    document.getElementById('field-send-ticket-btn')?.addEventListener('click', openTicketModal);
+    document.getElementById('field-ticket-close')?.addEventListener('click', closeTicketModal);
+    document.getElementById('field-ticket-cancel')?.addEventListener('click', closeTicketModal);
+    document.getElementById('field-ticket-send')?.addEventListener('click', handleSendTicket);
+    document.getElementById('field-ticket-viewer-close')?.addEventListener('click', closeTicketViewer);
+    document.getElementById('ticket-attachments-btn')?.addEventListener('click', () => document.getElementById('ticket-attachments')?.click());
+    document.getElementById('ticket-attachments')?.addEventListener('change', updateTicketAttachmentsLabel);
     document.getElementById('field-report-preview-modal')?.addEventListener('click', handlePreviewBackdropClick);
+    document.getElementById('field-pozo-list-close')?.addEventListener('click', closePozoList);
     document.querySelector('.field-report-preview-dialog')?.addEventListener('click', event => event.stopPropagation());
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('keydown', handlePreviewKeydown);
@@ -720,6 +731,8 @@ async function submitJourneyForAdminPreview() {
     let workflowResult;
     const submitButton = document.getElementById('field-submit-journey-btn');
 
+    // show processing modal with steps
+    showProcessingModal();
     isSubmittingJourney = true;
     if (submitButton) {
         submitButton.disabled = true;
@@ -728,9 +741,22 @@ async function submitJourneyForAdminPreview() {
     updateStatus('Sincronizando jornada con Admin Campo...');
 
     try {
+        // step 1 - ensure visible at least 5s
+        setProcessingStep(1, 'Generando jornada');
+        const s1 = Date.now();
+        await ensureStepMinDuration(s1, 5000);
+        // execute server workflow (step 2 visible during network call)
+        setProcessingStep(2, 'Cargando jornada al servidor');
+        const s2 = Date.now();
         workflowResult = await submitFieldJourneyWorkflow(reports, {
             journeyId: previousJourney?.id || currentEditingJourneyId || null
         });
+        await ensureStepMinDuration(s2, 5000);
+        // step 3
+        setProcessingStep(3, 'Finalizando y marcando como enviada');
+        const s3 = Date.now();
+        await ensureStepMinDuration(s3, 5000);
+        setProcessingStep(3, 'Jornada enviada exitosamente');
     } catch (error) {
         showAlert(error?.message || 'No se pudo enviar la jornada al workflow de Admin Campo.', 'error');
         updateStatus(error?.message || 'La jornada no pudo sincronizarse con Admin Campo.', true);
@@ -759,6 +785,7 @@ async function submitJourneyForAdminPreview() {
         submittedJourneys.unshift(journeyRecord);
     }
 
+    relinkDraftTicketsToJourney(workflowResult.journeyId);
     localStorage.setItem(SUBMITTED_JOURNEYS_STORAGE_KEY, JSON.stringify(submittedJourneys));
     renderAdminPreview();
     resetJourneyWorkspace();
@@ -770,6 +797,7 @@ async function submitJourneyForAdminPreview() {
         submitButton.disabled = false;
         submitButton.textContent = 'Enviar jornada a revisión';
     }
+    hideProcessingModal();
 }
 
 function updateSummary() {
@@ -808,7 +836,17 @@ function renderAdminPreview() {
                     <h3>${escapeHtml(journey.locacion_jornada || 'Locación sin definir')}</h3>
                     <p>${escapeHtml(journey.equipo_guardia || '--')} | ${escapeHtml(journey.fecha || '--')} | ${escapeHtml(journey.jornada || '--')}</p>
                 </div>
-                <span class="field-admin-ticket-count">${escapeHtml(String(journey.reportCount || 0))} ${Number(journey.reportCount || 0) === 1 ? 'pozo' : 'pozos'}</span>
+                <div style="display:flex; align-items:flex-start; gap:12px;">
+                    <button type="button" class="field-admin-ticket-count-btn" data-journey-id="${journey.id}">${escapeHtml(String(journey.reportCount || 0))} ${Number(journey.reportCount || 0) === 1 ? 'pozo' : 'pozos'}</button>
+                    <div class="field-admin-ticket-actions">
+                        ${(hasLocalTicketForJourney(journey.id) || Number(journey.reportCount || 0) > 0) ? `<button type="button" class="field-admin-ticket-action field-admin-ticket-viewticket" data-journey-id="${journey.id}" title="Ver tickets"><i class="fa-solid fa-envelope-circle-check"></i></button>` : ''}
+                        <button type="button" class="field-admin-ticket-action" data-preview-mode="journey" data-journey-id="${journey.id}" title="Ver jornada"><i class="fa-solid fa-eye"></i></button>
+                        <button type="button" class="field-admin-ticket-action" data-preview-mode="well" data-journey-id="${journey.id}" title="Ver por pozo"><i class="fa-solid fa-list"></i></button>
+                        ${!CURRENT_ACCESS_PROFILE?.isFieldOperator ? `<button type="button" class="field-admin-ticket-action field-admin-ticket-excel" data-journey-id="${journey.id}" title="Obtener Excel"><i class="fa-solid fa-file-excel"></i></button>` : ''}
+                        <button type="button" class="field-admin-ticket-action field-admin-ticket-recover" data-journey-id="${journey.id}" title="Recuperar"><i class="fa-solid fa-rotate-left"></i></button>
+                        <button type="button" class="field-admin-ticket-action field-admin-ticket-delete" data-journey-id="${journey.id}" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
             </div>
             <div class="field-admin-ticket-meta">
                 <span>Ventana monitoreada: ${escapeHtml(journey.firstHour || '--')} a ${escapeHtml(journey.lastHour || '--')}</span>
@@ -817,18 +855,18 @@ function renderAdminPreview() {
             <div class="field-admin-ticket-tags">
                 ${journey.pozoNames.map(pozo => `<span class="field-admin-ticket-tag">${escapeHtml(pozo)}</span>`).join('')}
             </div>
-            <div class="field-admin-ticket-actions">
-                <button type="button" class="field-admin-ticket-action" data-preview-mode="journey" data-journey-id="${journey.id}">Ver jornada</button>
-                <button type="button" class="field-admin-ticket-action" data-preview-mode="well" data-journey-id="${journey.id}">Ver por pozo</button>
-                <button type="button" class="field-admin-ticket-action field-admin-ticket-excel" data-journey-id="${journey.id}">Obtener Excel</button>
-                <button type="button" class="field-admin-ticket-action field-admin-ticket-recover" data-journey-id="${journey.id}">Recuperar para editar</button>
-                <button type="button" class="field-admin-ticket-action field-admin-ticket-delete" data-journey-id="${journey.id}">Eliminar jornada</button>
-            </div>
         </article>
     `).join('');
 
     list.querySelectorAll('.field-admin-ticket-action[data-preview-mode]').forEach(button => {
         button.addEventListener('click', () => openReportPreview(button.dataset.journeyId, button.dataset.previewMode));
+    });
+
+    list.querySelectorAll('.field-admin-ticket-viewticket').forEach(btn => {
+        btn.addEventListener('click', () => openTicketViewer(btn.dataset.journeyId));
+    });
+    list.querySelectorAll('.field-admin-ticket-count-btn').forEach(btn => {
+        btn.addEventListener('click', () => openPozoList(btn.dataset.journeyId));
     });
 
     list.querySelectorAll('.field-admin-ticket-recover').forEach(button => {
@@ -1289,6 +1327,10 @@ function removeSubmittedJourneyReport(journeyId, reportId, mode = 'well') {
 }
 
 async function exportJourneyToExcel(journeyId) {
+    if (CURRENT_ACCESS_PROFILE?.isFieldOperator) {
+        showAlert('No tienes permisos para exportar jornadas.', 'error');
+        return;
+    }
     if (!window.ExcelJS) {
         showAlert('La libreria de Excel no esta disponible en esta vista.', 'error');
         return;
@@ -1687,6 +1729,7 @@ function escapeHtml(value) {
 function resetJourneyWorkspace() {
     localStorage.removeItem(DRAFT_STORAGE_KEY);
     localStorage.removeItem(REPORTS_STORAGE_KEY);
+    localStorage.removeItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
     currentEditingReportId = null;
     currentEditingJourneyId = null;
 
@@ -1926,4 +1969,289 @@ function handlePreviewKeydown(event) {
     const modal = document.getElementById('field-report-preview-modal');
     if (!modal || modal.hidden) return;
     closeReportPreview();
+}
+
+function openTicketModal() {
+    const modal = document.getElementById('field-ticket-modal');
+    if (!modal) return;
+    modal.hidden = false;
+    try { document.getElementById('ticket-subject').value = ''; } catch(e) {}
+    try { document.getElementById('ticket-message').value = ''; } catch(e) {}
+    try { document.getElementById('ticket-include-journey').checked = true; } catch(e) {}
+    try { const att = document.getElementById('ticket-attachments'); if (att) att.value = ''; } catch(e) {}
+    try { updateTicketAttachmentsLabel(); } catch(e) {}
+}
+
+function updateTicketAttachmentsLabel() {
+    const input = document.getElementById('ticket-attachments');
+    const label = document.getElementById('ticket-attachments-label');
+    if (!label) return;
+    if (!input || !input.files || input.files.length === 0) {
+        label.textContent = 'No hay archivos';
+        return;
+    }
+    if (input.files.length === 1) label.textContent = input.files[0].name;
+    else label.textContent = `${input.files.length} archivos seleccionados`;
+}
+
+function closeTicketModal() {
+    const modal = document.getElementById('field-ticket-modal');
+    if (!modal) return;
+    modal.hidden = true;
+}
+
+async function handleSendTicket() {
+    const subjectEl = document.getElementById('ticket-subject');
+    const messageEl = document.getElementById('ticket-message');
+    const includeEl = document.getElementById('ticket-include-journey');
+    if (!subjectEl || !messageEl) {
+        showAlert('Formulario de ticket no disponible.', 'error');
+        return;
+    }
+
+    const subject = String(subjectEl.value || '').trim();
+    const message = String(messageEl.value || '').trim();
+    const includeJourney = Boolean(includeEl?.checked);
+
+    if (!subject || !message) {
+        showAlert('Por favor completa asunto y mensaje del ticket.', 'error');
+        return;
+    }
+
+    const journeyKey = includeJourney ? ensureDraftJourneyKey() : null;
+
+    try {
+        // collect attachments (images) and convert to data URLs
+        const attachmentsInput = document.getElementById('ticket-attachments');
+        let attachments = [];
+        if (attachmentsInput && attachmentsInput.files && attachmentsInput.files.length > 0) {
+            attachments = await readFilesAsDataURLs(Array.from(attachmentsInput.files));
+        }
+
+        await submitFieldTicket(journeyKey, subject, message, attachments);
+        showAlert('Ticket enviado al equipo administrativo.', 'success');
+        closeTicketModal();
+        // refresh preview so ticket pill appears
+        renderAdminPreview();
+    } catch (err) {
+        console.error('Error enviando ticket', err);
+        showAlert(String(err?.message || err) || 'No se pudo enviar el ticket.', 'error');
+    }
+}
+
+function getLocalTickets() {
+    try {
+        const raw = localStorage.getItem('uv-field-tickets');
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+        return [];
+    }
+}
+
+function hasLocalTicketForJourney(journeyId) {
+    if (journeyId === null || journeyId === undefined) return false;
+    const tickets = getLocalTickets();
+    return tickets.some(t => {
+        if (!t) return false;
+        if (t.journey_key === null || t.journey_key === undefined) return false;
+        return String(t.journey_key) === String(journeyId);
+    });
+}
+
+function showProcessingModal() {
+    const modal = document.getElementById('field-processing-modal');
+    if (!modal) return;
+    modal.hidden = false;
+    const steps = document.querySelectorAll('#field-processing-steps [data-step]');
+    steps.forEach(el => el.style.opacity = '0.6');
+}
+
+function hideProcessingModal() {
+    const modal = document.getElementById('field-processing-modal');
+    if (!modal) return;
+    modal.hidden = true;
+}
+
+function setProcessingStep(stepNumber, text) {
+    const el = document.querySelector(`#field-processing-steps [data-step="${stepNumber}"]`);
+    if (!el) return;
+    el.textContent = `✓ ${text}`;
+    el.style.color = '#0f172a';
+    el.style.fontWeight = '800';
+    el.style.opacity = '1';
+}
+
+function pause(ms = 300) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function ensureStepMinDuration(startTime, minMs = 5000) {
+    const elapsed = Date.now() - startTime;
+    if (elapsed < minMs) {
+        await pause(minMs - elapsed);
+    }
+}
+
+function readFilesAsDataURLs(files) {
+    const tasks = files.map(file => new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            resolve({ name: file.name, type: file.type, size: file.size, dataUrl: reader.result });
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+    }));
+    return Promise.all(tasks).then(results => results.filter(Boolean));
+}
+
+async function openTicketViewer(journeyId) {
+    const modal = document.getElementById('field-ticket-viewer-modal');
+    if (!modal) return;
+    await renderTicketViewer(journeyId);
+    modal.hidden = false;
+}
+
+function closeTicketViewer() {
+    const modal = document.getElementById('field-ticket-viewer-modal');
+    if (!modal) return;
+    modal.hidden = true;
+}
+
+function openPozoList(journeyId) {
+    const modal = document.getElementById('field-pozo-list-modal');
+    if (!modal) return;
+    renderPozoList(journeyId);
+    modal.hidden = false;
+}
+
+function closePozoList() {
+    const modal = document.getElementById('field-pozo-list-modal');
+    if (!modal) return;
+    modal.hidden = true;
+}
+
+function renderPozoList(journeyId) {
+    const listEl = document.getElementById('field-pozo-list');
+    if (!listEl) return;
+    const journeys = getSubmittedJourneys();
+    const journey = journeys.find(j => String(j.id) === String(journeyId));
+    if (!journey) {
+        listEl.innerHTML = '<li>No se encontraron pozos para esta jornada.</li>';
+        return;
+    }
+    const pozos = Array.isArray(journey.pozoNames) ? journey.pozoNames : [];
+    if (pozos.length === 0) {
+        listEl.innerHTML = '<li>No hay pozos registrados en esta jornada.</li>';
+        return;
+    }
+    listEl.innerHTML = pozos.map(p => `<li style="margin:6px 0;">• ${escapeHtml(p)}</li>`).join('');
+}
+
+async function renderTicketViewer(journeyId) {
+    const container = document.getElementById('field-ticket-list');
+    if (!container) return;
+
+    // local tickets
+    const local = getLocalTickets().filter(t => String(t.journey_key) === String(journeyId));
+
+    // server tickets (if any)
+    let server = [];
+    try {
+        server = await getFieldTicketsByJourney(journeyId);
+    } catch (e) {
+        server = [];
+    }
+
+    const combined = [
+        ...server.map(s => ({ ...s, _source: 'server' })),
+        ...local.map(l => ({ ...l, _source: 'local' }))
+    ];
+
+    if (!combined || combined.length === 0) {
+        container.innerHTML = '<div class="field-ticket-empty">No hay tickets vinculados a esta jornada.</div>';
+        return;
+    }
+
+    container.innerHTML = combined.map(t => {
+        const submitted = escapeHtml(t.submitted_at || t.createdAt || '');
+        const subject = escapeHtml(t.subject || 'Sin asunto');
+        const body = escapeHtml(t.message || '');
+
+        const attsHtml = Array.isArray(t.attachments) && t.attachments.length ? `<div class="field-ticket-attachments">${t.attachments.map(a => {
+            const src = a.url || a.dataUrl || a.publicUrl || '';
+            const name = escapeHtml(a.name || 'archivo');
+            return `<button class="ticket-thumb-btn" data-src="${src}"><img src="${src}" alt="${name}"/></button>`;
+        }).join('')}</div>` : '';
+
+        const badge = t._source === 'server' ? '<small style="color:#0f172a; opacity:0.7; margin-left:8px;">(enviado)</small>' : '<small style="color:#2563EB; opacity:0.9; margin-left:8px;">(local)</small>';
+
+        return `
+        <div class="field-ticket-card">
+            <div class="field-ticket-card-header">
+                <strong>${subject}${badge}</strong>
+                <small>${submitted}</small>
+            </div>
+            <div class="field-ticket-card-body">
+                <p>${body}</p>
+                ${attsHtml}
+            </div>
+        </div>`;
+    }).join('');
+
+    // bind thumbnails to open in new tab/window
+    container.querySelectorAll('.ticket-thumb-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const src = btn.dataset.src;
+            if (!src) return;
+            const w = window.open();
+            w.document.write(`<img src="${src}" style="max-width:100%; height:auto; display:block; margin:20px auto;"/>`);
+        });
+    });
+}
+
+function createDraftJourneyKey() {
+    return `draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function ensureDraftJourneyKey() {
+    if (currentEditingJourneyId) return currentEditingJourneyId;
+    const current = localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
+    if (current) return current;
+    const nextKey = createDraftJourneyKey();
+    localStorage.setItem(DRAFT_JOURNEY_KEY_STORAGE_KEY, nextKey);
+    return nextKey;
+}
+
+function getStoredLocalTickets() {
+    try {
+        const raw = localStorage.getItem('uv-field-tickets');
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function saveStoredLocalTickets(tickets) {
+    localStorage.setItem('uv-field-tickets', JSON.stringify(Array.isArray(tickets) ? tickets : []));
+}
+
+function relinkDraftTicketsToJourney(finalJourneyId) {
+    const draftKey = localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
+    if (!draftKey || !finalJourneyId) return;
+    const tickets = getStoredLocalTickets();
+    let changed = false;
+    const nextTickets = tickets.map(ticket => {
+        if (String(ticket?.journey_key) !== String(draftKey)) return ticket;
+        changed = true;
+        return {
+            ...ticket,
+            journey_key: finalJourneyId
+        };
+    });
+    if (changed) saveStoredLocalTickets(nextTickets);
+    localStorage.removeItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
 }

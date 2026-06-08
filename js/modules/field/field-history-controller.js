@@ -2,6 +2,7 @@ import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile }
 import { getFieldJourneyHistory } from '../../services/field-journey-service.js';
 
 const PENDING_HISTORY_CONTINUE_STORAGE_KEY = 'uv-field-pending-history-continue';
+let CURRENT_ACCESS_PROFILE = null;
 let historyRecords = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -20,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('logout-btn')?.addEventListener('click', logout);
     document.getElementById('mobile-logout-btn')?.addEventListener('click', logout);
     document.getElementById('field-history-search')?.addEventListener('input', renderHistoryView);
+    CURRENT_ACCESS_PROFILE = accessProfile;
     await loadJourneyHistory();
     maybeShowSavedMessage();
 });
@@ -150,8 +152,8 @@ function renderHistoryTable(group) {
                 </div>
                 <div class="field-history-group-tools">
                     <button type="button" class="field-history-continue-btn" data-journey-key="${escapeHtml(group.key)}">Continuar jornada</button>
-                    <button type="button" class="field-history-export-btn" data-export-type="pdf" data-journey-key="${escapeHtml(group.key)}">Obtener PDF</button>
-                    <button type="button" class="field-history-export-btn" data-export-type="xlsx" data-journey-key="${escapeHtml(group.key)}">Obtener Excel</button>
+                    ${!CURRENT_ACCESS_PROFILE?.isFieldOperator ? `<button type="button" class="field-history-export-btn" data-export-type="pdf" data-journey-key="${escapeHtml(group.key)}">Obtener PDF</button>
+                    <button type="button" class="field-history-export-btn" data-export-type="xlsx" data-journey-key="${escapeHtml(group.key)}">Obtener Excel</button>` : ''}
                     <span class="field-history-group-pill">${group.records.length} ${group.records.length === 1 ? 'registro' : 'registros'}</span>
                 </div>
             </div>
@@ -265,6 +267,10 @@ function buildJourneyKey(record = {}) {
 }
 
 function exportJourneyGroupToExcel(group) {
+    if (CURRENT_ACCESS_PROFILE?.isFieldOperator) {
+        showStatusMessage('No tienes permisos para exportar jornadas.', 'error');
+        return;
+    }
     if (!window.XLSX) {
         showStatusMessage('La librería de Excel no está disponible en esta vista.', 'error');
         return;
@@ -302,6 +308,10 @@ function exportJourneyGroupToExcel(group) {
 }
 
 async function exportJourneyGroupToPdf(group) {
+    if (CURRENT_ACCESS_PROFILE?.isFieldOperator) {
+        showStatusMessage('No tienes permisos para exportar jornadas.', 'error');
+        return;
+    }
     if (!window.jspdf?.jsPDF) {
         showStatusMessage('La librería de PDF no está disponible en esta vista.', 'error');
         return;

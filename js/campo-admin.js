@@ -1,5 +1,5 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
-import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard } from './services/field-journey-service.js';
+import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney } from './services/field-journey-service.js';
 import { exportFieldJourneyToExcel, openFieldJourneyPdf } from './services/field-journey-export.js';
 import { validateFieldReport } from './modules/field/field-validation.js';
 
@@ -422,6 +422,58 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function getLocalFieldTicketsByJourney(journeyId) {
+    try {
+        const raw = localStorage.getItem('uv-field-tickets');
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter(item => String(item?.journey_key) === String(journeyId));
+    } catch (error) {
+        console.warn('No se pudieron leer tickets locales de Campo Admin', error);
+        return [];
+    }
+}
+
+function buildAdminTicketMarkup(ticket) {
+    const attachments = Array.isArray(ticket.attachments) ? ticket.attachments : [];
+    const attachmentsMarkup = attachments.length > 0
+        ? `
+            <div class="campo-admin-incident-attachments">
+                ${attachments.map(file => {
+                    const src = file?.url || file?.dataUrl || file?.publicUrl || '';
+                    const label = escapeHtml(file?.name || 'Adjunto');
+                    if (!src) {
+                        return `<span class="campo-admin-incident-attachment-fallback">${label}</span>`;
+                    }
+                    return `
+                        <button type="button" class="campo-admin-incident-thumb" data-ticket-src="${escapeHtml(src)}" title="Abrir adjunto">
+                            <img src="${escapeHtml(src)}" alt="${label}">
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        `
+        : '';
+
+    return `
+        <article class="campo-admin-incident-card">
+            <div class="campo-admin-incident-head">
+                <div>
+                    <strong>${escapeHtml(ticket.subject || 'Incidencia sin asunto')}</strong>
+                    <p>${escapeHtml(ticket.message || 'Sin detalle adicional.')}</p>
+                </div>
+                <span class="campo-admin-tag campo-admin-tag-soft">${ticket._local ? 'Local' : 'Enviado'}</span>
+            </div>
+            <div class="campo-admin-detail-meta">
+                <span class="campo-admin-tag">${escapeHtml(formatDateTime(ticket.submitted_at || ticket.created_at))}</span>
+                <span class="campo-admin-tag">${escapeHtml(ticket.submitted_by_email || 'Sin correo')}</span>
+            </div>
+            ${attachmentsMarkup}
+        </article>
+    `;
 }
 
 function formatDate(value) {
@@ -1282,11 +1334,19 @@ function renderEmptyDetail(message = 'Selecciona una jornada para ver su detalle
     `;
 }
 
-function renderDetail(detail) {
+async function renderDetail(detail) {
     state.currentDetail = detail;
     closeRecordModal();
 
     const { journey, records, reviewLog } = detail;
+    const [serverTickets, localTickets] = await Promise.all([
+        getFieldTicketsByJourney(journey.id),
+        Promise.resolve(getLocalFieldTicketsByJourney(journey.id))
+    ]);
+    const mergedTickets = [
+        ...serverTickets.map(ticket => ({ ...ticket, _local: false })),
+        ...localTickets.map(ticket => ({ ...ticket, _local: true }))
+    ];
     const reviewSummary = summarizeJourneyReview(records, journey);
     const recordsMarkup = records.length > 0
         ? records.map((record, index) => {
@@ -1350,6 +1410,15 @@ function renderDetail(detail) {
             <div class="campo-admin-empty">
                 <strong>Sin historial todavía</strong>
                 <p>La jornada aún no tiene eventos en la bitácora de revisión.</p>
+            </div>
+        `;
+
+    const ticketsMarkup = mergedTickets.length > 0
+        ? mergedTickets.map(buildAdminTicketMarkup).join('')
+        : `
+            <div class="campo-admin-empty">
+                <strong>Sin incidencias reportadas</strong>
+                <p>Cuando Campo reporte una incidencia asociada a esta jornada, aparecerá aquí.</p>
             </div>
         `;
 
@@ -1432,6 +1501,31 @@ function renderDetail(detail) {
             </div>
         </section>
 
+        <details class="campo-admin-panel campo-admin-drawer-panel" open>
+            <summary class="campo-admin-drawer-summary">
+                <span class="campo-admin-drawer-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 14h5"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"></path>
+                    </svg>
+                    Incidencias reportadas
+                </span>
+                <span class="campo-admin-drawer-summary-side">
+                    <span class="campo-admin-count-badge">${escapeHtml(String(mergedTickets.length))} ticket(s)</span>
+                    <span class="campo-admin-drawer-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"></path>
+                        </svg>
+                    </span>
+                </span>
+            </summary>
+            <div class="campo-admin-drawer-content campo-admin-drawer-content-panel">
+                <p class="campo-admin-drawer-copy">Incidencias generadas desde Campo para esta jornada.</p>
+                <div class="campo-admin-incident-list">${ticketsMarkup}</div>
+            </div>
+        </details>
+
         <details class="campo-admin-panel campo-admin-drawer-panel">
             <summary class="campo-admin-drawer-summary">
                 <span class="campo-admin-drawer-label">
@@ -1467,6 +1561,14 @@ function renderDetail(detail) {
 
     elements.detailShell.querySelectorAll('[data-record-edit]').forEach(button => {
         button.addEventListener('click', () => openRecordModal(button.dataset.recordEdit, 'edit'));
+    });
+
+    elements.detailShell.querySelectorAll('[data-ticket-src]').forEach(button => {
+        button.addEventListener('click', () => {
+            const src = button.getAttribute('data-ticket-src');
+            if (!src) return;
+            window.open(src, '_blank', 'noopener,noreferrer');
+        });
     });
 }
 
@@ -1598,7 +1700,7 @@ async function selectJourney(journeyId, options = {}) {
 
     try {
         const detail = await getAdminFieldJourneyDetail(journeyId);
-        renderDetail(detail);
+        await renderDetail(detail);
     } catch (error) {
         console.error('Admin Campo selectJourney error:', error);
         elements.detailShell.innerHTML = `

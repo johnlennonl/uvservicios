@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>UV Servicios | Captura de Campo</title>
     <meta name="description" content="Captura por secciones para consolidado operativo del dashboard general desde el rol de Campo.">
     <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/data-page.css">
     <link rel="stylesheet" href="css/field-page.css?v=20260531d">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -326,7 +327,16 @@
                         </details>
 
                         <div class="field-form-actions">
-                            <button type="button" id="field-add-report-btn" class="btn-submit field-add-btn">Agregar registro a la jornada</button>
+                            <button type="button" id="field-add-report-btn" class="btn-submit field-add-btn">
+                                <span class="icon-wrap" aria-hidden="true">
+                                    <!-- icon: plus inside circle -->
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="10" stroke="#ffffff" stroke-width="0" fill="#DBEAFE" opacity="0.12"></circle>
+                                        <path d="M12 7v10M7 12h10" stroke="#2563EB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                                    </svg>
+                                </span>
+                                <span>Agregar registro</span>
+                            </button>
                             <button type="button" id="field-clear-form-btn" class="btn-secondary field-clear-btn">Limpiar formulario</button>
                         </div>
 
@@ -373,6 +383,13 @@
                     <div class="field-submit-shell">
                         <button type="button" id="field-submit-journey-btn" class="btn-submit field-submit-btn">Enviar jornada a revisión</button>
                         <p>Esto no cambia de rol todavía: solo simula cómo la recibiría Campo dentro del panel administrativo.</p>
+                        <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+                            <button type="button" id="field-send-ticket-btn" class="btn-submit" style="padding:10px 16px; display:inline-flex; gap:8px; align-items:center;" title="Reportar incidencia">
+                                <i class="fa-solid fa-envelope-open-text" aria-hidden="true" style="font-size:18px"></i>
+                                <span>Reportar incidencia</span>
+                            </button>
+                            <small style="color:#6b7280;">Reporta incidencias o consultas por jornada.</small>
+                        </div>
                     </div>
 
                     <div class="field-note-box">
@@ -414,6 +431,94 @@
                         <button type="button" id="field-report-preview-close" class="field-report-preview-close" aria-label="Cerrar vista previa">×</button>
                     </div>
                     <div id="field-report-preview-body" class="field-report-preview-body"></div>
+                </div>
+            </section>
+
+            <!-- Processing modal for sending journey -->
+            <section id="field-processing-modal" class="field-report-preview-modal" hidden>
+                <div class="field-report-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="field-processing-title">
+                    <div class="field-report-preview-header">
+                        <div>
+                            <span class="field-report-preview-kicker">Envío de jornada</span>
+                            <h2 id="field-processing-title">Procesando envío</h2>
+                        </div>
+                        <button type="button" id="field-processing-close" class="field-report-preview-close" aria-label="Cerrar" hidden>×</button>
+                    </div>
+                    <div id="field-processing-body" class="field-report-preview-body">
+                        <ol id="field-processing-steps" style="list-style:none; padding:0; margin:0; display:grid; gap:12px;">
+                            <li data-step="1">• Generando jornada...</li>
+                            <li data-step="2">• Cargando jornada al servidor...</li>
+                            <li data-step="3">• Finalizando y marcando como enviada...</li>
+                        </ol>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Ticket modal -->
+            <section id="field-ticket-modal" class="field-report-preview-modal" hidden>
+                <div class="field-report-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="field-ticket-title">
+                    <div class="field-report-preview-header">
+                        <div>
+                            <span class="field-report-preview-kicker">Ticket a Administración</span>
+                            <h2 id="field-ticket-title">Enviar ticket</h2>
+                        </div>
+                        <button type="button" id="field-ticket-close" class="field-report-preview-close" aria-label="Cerrar">×</button>
+                    </div>
+                    <div class="field-report-preview-body">
+                        <form id="field-ticket-form" class="field-ticket-form">
+                            <label class="field-input-group"><span>Asunto</span><input type="text" id="ticket-subject" maxlength="140" placeholder="Breve título del ticket" required></label>
+                            <label class="field-input-group field-input-group-full"><span>Mensaje</span><textarea id="ticket-message" rows="6" placeholder="Describe la incidencia o consulta. Incluye la jornada o pozo si aplica." required></textarea></label>
+                            <label style="margin-top:8px; font-weight:700; color:#334155; display:block;">Adjuntar imágenes (opcional)</label>
+                            <input id="ticket-attachments" type="file" accept="image/*" multiple style="display:none;" />
+                            <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+                                <button type="button" id="ticket-attachments-btn" class="icon-btn" title="Adjuntar imágenes"><i class="fa-solid fa-paperclip"></i></button>
+                                <span id="ticket-attachments-label" style="color:#6b7280; font-size:13px;">No hay archivos</span>
+                            </div>
+
+                            <div class="ticket-footer" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                                <div class="ticket-include" style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" id="ticket-include-journey" checked>
+                                    <label for="ticket-include-journey" style="margin:0; font-weight:700; color:#334155;">Incluir jornada actual</label>
+                                </div>
+                                <div class="ticket-actions" style="display:flex; gap:10px;">
+                                    <button type="button" id="field-ticket-send" class="btn-submit" title="Enviar ticket"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
+                                    <button type="button" id="field-ticket-cancel" class="btn-secondary" title="Cancelar">Cancelar</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Ticket viewer modal -->
+            <section id="field-ticket-viewer-modal" class="field-report-preview-modal" hidden>
+                <div class="field-report-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="field-ticket-viewer-title">
+                    <div class="field-report-preview-header">
+                        <div>
+                            <span class="field-report-preview-kicker">Tickets</span>
+                            <h2 id="field-ticket-viewer-title">Tickets vinculados</h2>
+                        </div>
+                        <button type="button" id="field-ticket-viewer-close" class="field-report-preview-close" aria-label="Cerrar">×</button>
+                    </div>
+                    <div id="field-ticket-viewer-body" class="field-report-preview-body">
+                        <div id="field-ticket-list" class="field-ticket-list"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pozo list modal -->
+            <section id="field-pozo-list-modal" class="field-report-preview-modal" hidden>
+                <div class="field-report-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="field-pozo-list-title">
+                    <div class="field-report-preview-header">
+                        <div>
+                            <span class="field-report-preview-kicker">Pozos incluidos</span>
+                            <h2 id="field-pozo-list-title">Pozos en la jornada</h2>
+                        </div>
+                        <button type="button" id="field-pozo-list-close" class="field-report-preview-close" aria-label="Cerrar">×</button>
+                    </div>
+                    <div id="field-pozo-list-body" class="field-report-preview-body">
+                        <ul id="field-pozo-list" style="margin:0; padding:0 0 0 18px; color:#0f172a;"></ul>
+                    </div>
                 </div>
             </section>
         </main>
