@@ -1240,6 +1240,10 @@
             background: #ffffff;
         }
 
+        .campo-admin-historical-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .campo-admin-record {
             padding: 18px;
             display: grid;
@@ -1816,6 +1820,7 @@
             <section class="campo-admin-toolbar" aria-label="Filtros de jornadas de Campo">
                 <input type="search" id="campo-admin-search" class="campo-admin-search" placeholder="Buscar por pozo, locación, equipo o correo del ingeniero">
                 <div class="campo-admin-filter-group" id="campo-admin-filter-group">
+                    <button type="button" class="campo-admin-filter-chip" id="campo-admin-historical-export-btn">Exportar historico</button>
                     <button type="button" class="campo-admin-filter-chip is-active" data-status-filter="pending">Pendientes</button>
                     <button type="button" class="campo-admin-filter-chip" data-status-filter="under_review">En revisión</button>
                     <button type="button" class="campo-admin-filter-chip" data-status-filter="approved">Aprobadas</button>
@@ -1861,6 +1866,12 @@
             <div id="campo-admin-incident-modal" class="campo-admin-modal" hidden>
                 <div class="campo-admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="campo-admin-incident-modal-title">
                     <div id="campo-admin-incident-modal-body" class="campo-admin-modal-body"></div>
+                </div>
+            </div>
+
+            <div id="campo-admin-historical-modal" class="campo-admin-modal" hidden>
+                <div class="campo-admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="campo-admin-historical-modal-title">
+                    <div id="campo-admin-historical-modal-body" class="campo-admin-modal-body"></div>
                 </div>
             </div>
 

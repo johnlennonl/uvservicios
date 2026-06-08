@@ -344,6 +344,49 @@ export async function getFieldJourneyReportsRange(startDate, endDate, limit = 50
     }
 }
 
+export async function getHistoricalFieldReports(filters = {}) {
+    await ensureFieldAdminReadAccess();
+
+    const {
+        startDate = '',
+        endDate = '',
+        pozo = '',
+        limit = 10000
+    } = filters || {};
+
+    let query = supabase
+        .from('field_journey_reports')
+        .select('*')
+        .order('report_date', { ascending: false })
+        .order('report_time', { ascending: false });
+
+    if (startDate) {
+        query = query.gte('report_date', startDate);
+    }
+
+    if (endDate) {
+        query = query.lte('report_date', endDate);
+    }
+
+    const normalizedPozo = String(pozo || '').trim().toUpperCase();
+    if (normalizedPozo) {
+        query = query.ilike('pozo', `%${normalizedPozo}%`);
+    }
+
+    const safeLimit = Number(limit);
+    if (Number.isFinite(safeLimit) && safeLimit > 0) {
+        query = query.limit(safeLimit);
+    }
+
+    try {
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
 export const getFieldJourneyReportsRangePublic = getFieldJourneyReportsRange;
 
 export async function getAdminFieldJourneys(options = {}) {

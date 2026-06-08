@@ -199,6 +199,46 @@ export async function exportFieldJourneyToExcel(journey, records, excelJs = wind
     downloadBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), buildJourneyExcelFileName(normalizedJourney));
 }
 
+export async function exportHistoricalFieldReportsToExcel(records = [], filters = {}, excelJs = window.ExcelJS) {
+    if (!excelJs) {
+        throw new Error('La libreria de Excel no esta disponible en esta vista.');
+    }
+
+    const normalizedRecords = sortJourneyRecords((Array.isArray(records) ? records : []).map(normalizeRecordForExport));
+    if (normalizedRecords.length === 0) {
+        throw new Error('No hay registros historicos para exportar con los filtros actuales.');
+    }
+
+    const workbook = new excelJs.Workbook();
+    workbook.creator = 'UV Servicios Campo';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+    workbook.company = 'UV Servicios';
+
+    const summarySheet = workbook.addWorksheet('Resumen historico', {
+        views: [{ state: 'frozen', ySplit: 4 }]
+    });
+    const detailSheet = workbook.addWorksheet('Historico Campo', {
+        views: [{ state: 'frozen', ySplit: 6, xSplit: 4 }]
+    });
+
+    const logoDataUrl = await loadLogoForExcel();
+    if (logoDataUrl) {
+        const imageId = workbook.addImage({ base64: logoDataUrl, extension: 'png' });
+        summarySheet.addImage(imageId, EXCEL_LOGO_PLACEMENT);
+        detailSheet.addImage(imageId, EXCEL_LOGO_PLACEMENT);
+    }
+
+    buildHistoricalExcelSummarySheet(summarySheet, normalizedRecords, filters);
+    buildHistoricalExcelDetailSheet(detailSheet, normalizedRecords, filters);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    downloadBlob(
+        new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        buildHistoricalExcelFileName(filters)
+    );
+}
+
 export function openFieldJourneyPdf(journey, records) {
     const normalizedJourney = normalizeJourney(journey, records);
     const normalizedRecords = sortJourneyRecords(records.map(normalizeRecordForExport));
@@ -444,6 +484,130 @@ function buildExcelDetailSheet(worksheet, journey, records) {
     worksheet.getRow(6).height = 28;
 }
 
+function buildHistoricalExcelSummarySheet(worksheet, records, filters = {}) {
+    worksheet.headerFooter.oddFooter = '&LUV Servicios Campo&CHistorico consolidado&RGenerado &D &T';
+    worksheet.mergeCells('C1:J1');
+    worksheet.mergeCells('C2:J2');
+    worksheet.mergeCells('C3:J3');
+    worksheet.getCell('C1').value = 'UV SERVICIOS CAMPO';
+    worksheet.getCell('C2').value = 'EXPORTACION HISTORICA DE MONITOREOS BES';
+    worksheet.getCell('C3').value = buildHistoricalSummarySubtitle(records, filters);
+
+    styleExcelTitleBlock(worksheet, ['C1', 'C2', 'C3']);
+
+    const pozos = [...new Set(records.map(record => String(record.pozo || '').toUpperCase()).filter(Boolean))];
+    const summaryRows = [
+        ['Fecha inicial', filters.startDate || '--'],
+        ['Fecha final', filters.endDate || '--'],
+        ['Filtro por pozo', String(filters.pozo || '').trim().toUpperCase() || 'Todos'],
+        ['Registros exportados', records.length],
+        ['Pozos incluidos', pozos.length],
+        ['Lista de pozos', pozos.join(', ') || '--']
+    ];
+
+    let rowNumber = 7;
+    summaryRows.forEach(([label, value]) => {
+        const row = worksheet.getRow(rowNumber);
+        row.getCell(2).value = label;
+        row.getCell(3).value = value;
+        row.getCell(2).font = { bold: true, color: { argb: '1D4ED8' } };
+        row.getCell(3).font = { color: { argb: '0F172A' } };
+        row.getCell(2).fill = solidFill('DBEAFE');
+        row.getCell(3).fill = solidFill('FFFFFF');
+        row.getCell(2).border = borderedCell();
+        row.getCell(3).border = borderedCell();
+        row.height = label === 'Lista de pozos' ? 40 : 24;
+        rowNumber += 1;
+    });
+
+    worksheet.columns = [{ width: 6 }, { width: 28 }, { width: 84 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 18 }, { width: 18 }, { width: 18 }];
+    worksheet.getRow(1).height = 28;
+    worksheet.getRow(2).height = 42;
+    worksheet.getRow(3).height = 24;
+    worksheet.getRow(4).height = 18;
+    worksheet.getRow(5).height = 12;
+    worksheet.getRow(6).height = 10;
+}
+
+function buildHistoricalExcelDetailSheet(worksheet, records, filters = {}) {
+    worksheet.headerFooter.oddFooter = '&LUV Servicios Campo&CHistorico consolidado&RPagina &P de &N';
+    const totalColumns = EXCEL_EXPORT_COLUMNS.length;
+    const lastColumnLetter = getExcelColumnLetter(totalColumns);
+
+    worksheet.mergeCells(`C1:${lastColumnLetter}1`);
+    worksheet.mergeCells(`C2:${lastColumnLetter}2`);
+    worksheet.mergeCells(`C3:${lastColumnLetter}3`);
+    worksheet.getCell('C1').value = 'UV SERVICIOS';
+    worksheet.getCell('C2').value = 'HISTORICO CONSOLIDADO DE MONITOREOS BES';
+    worksheet.getCell('C3').value = buildHistoricalSummarySubtitle(records, filters);
+    styleExcelTitleBlock(worksheet, ['C1', 'C2', 'C3']);
+
+    worksheet.columns = EXCEL_EXPORT_COLUMNS.map(({ label, fieldName }) => ({
+        width: calculateExcelColumnWidth(label, fieldName, records)
+    }));
+
+    const groupRowIndex = 6;
+    const headerRowIndex = 7;
+    let currentColumn = 1;
+
+    EXCEL_SECTION_GROUPS.forEach((group, index) => {
+        const columnsForGroup = EXCEL_EXPORT_COLUMNS.filter(column => column.groupTitle === group.title);
+        if (columnsForGroup.length === 0) return;
+
+        const startColumn = currentColumn;
+        const endColumn = currentColumn + columnsForGroup.length - 1;
+        worksheet.mergeCells(groupRowIndex, startColumn, groupRowIndex, endColumn);
+        const groupCell = worksheet.getCell(groupRowIndex, startColumn);
+        groupCell.value = group.title;
+        groupCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        groupCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        groupCell.fill = solidFill(EXCEL_GROUP_COLORS[index % EXCEL_GROUP_COLORS.length]);
+        groupCell.border = borderedCell();
+
+        columnsForGroup.forEach(({ label }, groupIndex) => {
+            const headerCell = worksheet.getCell(headerRowIndex, currentColumn + groupIndex);
+            headerCell.value = label;
+            headerCell.font = { bold: true, color: { argb: '0F172A' }, size: 10 };
+            headerCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            headerCell.fill = solidFill('F8FAFC');
+            headerCell.border = borderedCell();
+        });
+
+        currentColumn = endColumn + 1;
+    });
+
+    records.forEach((record, recordIndex) => {
+        const rowIndex = headerRowIndex + 1 + recordIndex;
+        const row = worksheet.getRow(rowIndex);
+        EXCEL_EXPORT_COLUMNS.forEach(({ fieldName }, columnIndex) => {
+            const cell = row.getCell(columnIndex + 1);
+            cell.value = formatExcelCellValue(record[fieldName], fieldName);
+            cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+            cell.border = borderedCell('E2E8F0');
+            cell.fill = solidFill(recordIndex % 2 === 0 ? 'FFFFFF' : 'FCFCFD');
+            cell.font = { color: { argb: '111827' }, size: 10 };
+        });
+    });
+
+    worksheet.autoFilter = {
+        from: { row: headerRowIndex, column: 1 },
+        to: { row: headerRowIndex, column: EXCEL_EXPORT_COLUMNS.length }
+    };
+    worksheet.getRow(1).height = 28;
+    worksheet.getRow(2).height = 54;
+    worksheet.getRow(3).height = 24;
+    worksheet.getRow(4).height = 18;
+    worksheet.getRow(5).height = 12;
+    worksheet.getRow(6).height = 28;
+}
+
+function buildHistoricalSummarySubtitle(records, filters = {}) {
+    const from = filters.startDate || 'sin inicio';
+    const to = filters.endDate || 'sin fin';
+    const pozo = String(filters.pozo || '').trim().toUpperCase() || 'TODOS LOS POZOS';
+    return `${pozo} · ${from} a ${to} · ${records.length} registro(s)`;
+}
+
 function styleExcelTitleBlock(worksheet, cellAddresses) {
     cellAddresses.forEach(address => {
         const cell = worksheet.getCell(address);
@@ -506,6 +670,16 @@ function getExcelColumnLetter(columnNumber) {
 
 function buildJourneyExcelFileName(journey) {
     const parts = ['uvs-campo', sanitizeFileNameSegment(journey.locacion_jornada || 'jornada'), sanitizeFileNameSegment(journey.fecha || new Date().toISOString().slice(0, 10)), sanitizeFileNameSegment(journey.jornada || 'turno')].filter(Boolean);
+    return `${parts.join('_')}.xlsx`;
+}
+
+function buildHistoricalExcelFileName(filters = {}) {
+    const parts = [
+        'uvs-campo-historico',
+        sanitizeFileNameSegment(filters.pozo || 'todos-los-pozos'),
+        sanitizeFileNameSegment(filters.startDate || 'sin-inicio'),
+        sanitizeFileNameSegment(filters.endDate || 'sin-fin')
+    ].filter(Boolean);
     return `${parts.join('_')}.xlsx`;
 }
 

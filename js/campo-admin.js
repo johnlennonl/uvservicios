@@ -1,6 +1,6 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
-import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney } from './services/field-journey-service.js';
-import { exportFieldJourneyToExcel, openFieldJourneyPdf } from './services/field-journey-export.js';
+import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports } from './services/field-journey-service.js';
+import { exportFieldJourneyToExcel, openFieldJourneyPdf, exportHistoricalFieldReportsToExcel } from './services/field-journey-export.js';
 import { validateFieldReport } from './modules/field/field-validation.js';
 
 const STATUS_FILTERS = {
@@ -395,12 +395,14 @@ const state = {
     selectedRecordId: '',
     recordPanelMode: 'view',
     recordSaving: false,
-    selectedIncidentIndex: -1
+    selectedIncidentIndex: -1,
+    historicalExporting: false
 };
 
 const elements = {
     refreshButton: document.getElementById('campo-admin-refresh-btn'),
     searchInput: document.getElementById('campo-admin-search'),
+    historicalExportButton: document.getElementById('campo-admin-historical-export-btn'),
     filterGroup: document.getElementById('campo-admin-filter-group'),
     toolbarStatus: document.getElementById('campo-admin-toolbar-status'),
     sideCopy: document.getElementById('campo-admin-side-copy'),
@@ -414,6 +416,8 @@ const elements = {
     recordModalBody: document.getElementById('campo-admin-record-modal-body'),
     incidentModal: document.getElementById('campo-admin-incident-modal'),
     incidentModalBody: document.getElementById('campo-admin-incident-modal-body'),
+    historicalModal: document.getElementById('campo-admin-historical-modal'),
+    historicalModalBody: document.getElementById('campo-admin-historical-modal-body'),
     logoutButton: document.getElementById('logout-btn'),
     mobileLogoutButton: document.getElementById('mobile-logout-btn')
 };
@@ -483,6 +487,88 @@ function closeIncidentModal() {
     state.selectedIncidentIndex = -1;
     if (elements.incidentModal) elements.incidentModal.hidden = true;
     if (elements.incidentModalBody) elements.incidentModalBody.innerHTML = '';
+}
+
+function closeHistoricalModal() {
+    if (elements.historicalModal) elements.historicalModal.hidden = true;
+}
+
+function buildHistoricalModalMarkup() {
+    return `
+        <div class="campo-admin-modal-head">
+            <div>
+                <span class="campo-admin-tag campo-admin-tag-soft">Exportacion historica</span>
+                <h3 id="campo-admin-historical-modal-title">Consolidado historico Campo</h3>
+                <p>Exporta los monitoreos completos por pozo, por rango de fechas o todo el historico disponible.</p>
+            </div>
+            <button type="button" class="campo-admin-modal-close" data-historical-close aria-label="Cerrar exportacion historica">×</button>
+        </div>
+        <form id="campo-admin-historical-form" class="campo-admin-record-form">
+            <div class="campo-admin-editor-grid campo-admin-historical-grid">
+                <label class="campo-admin-editor-field campo-admin-editor-field-long">
+                    <span>Pozo</span>
+                    <input type="text" name="pozo" placeholder="Ej: CEI0004 o dejar vacio para todos">
+                </label>
+                <label class="campo-admin-editor-field">
+                    <span>Fecha inicial</span>
+                    <input type="date" name="startDate">
+                </label>
+                <label class="campo-admin-editor-field">
+                    <span>Fecha final</span>
+                    <input type="date" name="endDate">
+                </label>
+            </div>
+            <div class="campo-admin-modal-actions">
+                <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-historical-export-mode="all">Exportar todo</button>
+                <button type="submit" class="campo-admin-action-btn" ${state.historicalExporting ? 'disabled' : ''}>${state.historicalExporting ? 'Exportando...' : 'Exportar filtrado'}</button>
+            </div>
+        </form>
+    `;
+}
+
+function openHistoricalModal() {
+    if (!elements.historicalModal || !elements.historicalModalBody) return;
+    elements.historicalModal.hidden = false;
+    elements.historicalModalBody.innerHTML = buildHistoricalModalMarkup();
+
+    elements.historicalModalBody.querySelectorAll('[data-historical-close]').forEach(button => {
+        button.addEventListener('click', closeHistoricalModal);
+    });
+
+    elements.historicalModalBody.querySelector('[data-historical-export-mode="all"]')?.addEventListener('click', () => {
+        handleHistoricalExport({});
+    });
+
+    elements.historicalModalBody.querySelector('#campo-admin-historical-form')?.addEventListener('submit', event => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        handleHistoricalExport({
+            pozo: String(formData.get('pozo') || '').trim(),
+            startDate: String(formData.get('startDate') || '').trim(),
+            endDate: String(formData.get('endDate') || '').trim()
+        });
+    });
+}
+
+async function handleHistoricalExport(filters = {}) {
+    if (state.historicalExporting) return;
+    if (!window.ExcelJS) {
+        await notify('La libreria de Excel no esta disponible en esta vista.', 'error');
+        return;
+    }
+
+    state.historicalExporting = true;
+    try {
+        const records = await getHistoricalFieldReports(filters);
+        await exportHistoricalFieldReportsToExcel(records, filters);
+        await notify(`Se genero el Excel historico con ${records.length} registro(s).`, 'success');
+        closeHistoricalModal();
+    } catch (error) {
+        console.error('Admin Campo historical export error:', error);
+        await notify(error?.message || 'No se pudo exportar el historico de Campo.', 'error');
+    } finally {
+        state.historicalExporting = false;
+    }
 }
 
 function downloadIncidentMessage(ticket) {
@@ -1906,6 +1992,7 @@ async function bootstrap() {
     elements.logoutButton?.addEventListener('click', logout);
     elements.mobileLogoutButton?.addEventListener('click', logout);
     elements.refreshButton?.addEventListener('click', loadJourneys);
+    elements.historicalExportButton?.addEventListener('click', openHistoricalModal);
     elements.searchInput?.addEventListener('input', handleSearchInput);
     elements.filterGroup?.addEventListener('click', handleFilterClick);
     elements.recordModal?.addEventListener('click', event => {
@@ -1916,6 +2003,11 @@ async function bootstrap() {
     elements.incidentModal?.addEventListener('click', event => {
         if (event.target === elements.incidentModal) {
             closeIncidentModal();
+        }
+    });
+    elements.historicalModal?.addEventListener('click', event => {
+        if (event.target === elements.historicalModal) {
+            closeHistoricalModal();
         }
     });
 

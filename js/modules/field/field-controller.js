@@ -579,13 +579,68 @@ function getSubmittedJourneys() {
     }
 }
 
+function normalizeJourneyIdentityPart(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function buildJourneyIdentityFromRecord(record = {}) {
+    return [
+        normalizeJourneyIdentityPart(record.fecha),
+        normalizeJourneyIdentityPart(record.jornada),
+        normalizeJourneyIdentityPart(record.locacion_jornada),
+        normalizeJourneyIdentityPart(record.equipo_guardia)
+    ].join('|');
+}
+
+function findMatchingSubmittedJourney(reports = [], journeys = getSubmittedJourneys()) {
+    const firstReport = Array.isArray(reports) ? reports[0] : null;
+    if (!firstReport) return null;
+
+    const identity = buildJourneyIdentityFromRecord(firstReport);
+    if (!identity.replace(/\|/g, '')) return null;
+
+    return journeys.find(journey => {
+        const source = Array.isArray(journey.records) && journey.records.length > 0
+            ? journey.records[0]
+            : journey;
+        return buildJourneyIdentityFromRecord(source) === identity;
+    }) || null;
+}
+
+function mergeJourneyRecords(existingRecords = [], draftRecords = []) {
+    const merged = new Map();
+
+    (Array.isArray(existingRecords) ? existingRecords : []).forEach(record => {
+        if (!record?.id) return;
+        merged.set(record.id, record);
+    });
+
+    (Array.isArray(draftRecords) ? draftRecords : []).forEach(record => {
+        if (!record?.id) return;
+        merged.set(record.id, {
+            ...(merged.get(record.id) || {}),
+            ...record,
+            updatedAt: new Date().toISOString()
+        });
+    });
+
+    return Array.from(merged.values()).sort((left, right) => {
+        const leftTime = String(left?.hora || '');
+        const rightTime = String(right?.hora || '');
+        if (leftTime !== rightTime) return leftTime.localeCompare(rightTime);
+        return String(left?.pozo || '').localeCompare(String(right?.pozo || ''));
+    });
+}
+
 function renderJourneyReports() {
     const list = document.getElementById('field-journey-list');
     const count = document.getElementById('field-journey-count');
     if (!list || !count) return;
 
     const reports = getJourneyReports();
-    count.textContent = `${reports.length} ${reports.length === 1 ? 'pozo' : 'pozos'}`;
+    const currentJourneyTicketKey = getCurrentJourneyTicketKey();
+    const currentJourneyTicketCount = getLocalTicketCountForJourney(currentJourneyTicketKey);
+    count.innerHTML = `${reports.length} ${reports.length === 1 ? 'pozo' : 'pozos'}${currentJourneyTicketCount > 0 ? ` <span class="field-journey-ticket-badge">${escapeHtml(String(currentJourneyTicketCount))} ticket${currentJourneyTicketCount === 1 ? '' : 's'}</span>` : ''}`;
     syncJourneyFieldLocks(reports);
     updateEditingContext(reports);
 
@@ -602,6 +657,7 @@ function renderJourneyReports() {
                     <div class="field-journey-item-meta">${escapeHtml(report.fecha || '--')} | ${escapeHtml(report.hora || '--')}</div>
                 </div>
                 <div class="field-journey-actions">
+                    ${currentJourneyTicketCount > 0 && currentJourneyTicketKey ? `<button type="button" class="field-journey-ticket" data-ticket-journey-id="${escapeHtml(String(currentJourneyTicketKey))}"><i class="fa-solid fa-envelope"></i> ${currentJourneyTicketCount}</button>` : ''}
                     <button type="button" class="field-journey-edit" data-report-id="${report.id}">Editar</button>
                     <button type="button" class="field-journey-remove" data-report-id="${report.id}">Quitar</button>
                 </div>
@@ -615,6 +671,10 @@ function renderJourneyReports() {
 
     list.querySelectorAll('.field-journey-remove').forEach(button => {
         button.addEventListener('click', () => removeJourneyReport(button.dataset.reportId));
+    });
+
+    list.querySelectorAll('.field-journey-ticket').forEach(button => {
+        button.addEventListener('click', () => openTicketViewer(button.dataset.ticketJourneyId));
     });
 }
 
@@ -724,10 +784,18 @@ async function submitJourneyForAdminPreview() {
     }
 
     const submittedJourneys = getSubmittedJourneys();
-    const existingJourneyIndex = currentEditingJourneyId
-        ? submittedJourneys.findIndex(journey => journey.id === currentEditingJourneyId)
+    const matchedJourney = currentEditingJourneyId
+        ? submittedJourneys.find(journey => journey.id === currentEditingJourneyId) || null
+        : findMatchingSubmittedJourney(reports, submittedJourneys);
+    const resolvedJourneyId = currentEditingJourneyId || matchedJourney?.id || null;
+    const existingJourneyIndex = resolvedJourneyId
+        ? submittedJourneys.findIndex(journey => journey.id === resolvedJourneyId)
         : -1;
     const previousJourney = existingJourneyIndex >= 0 ? submittedJourneys[existingJourneyIndex] : null;
+    const mergedReports = previousJourney?.records?.length
+        ? mergeJourneyRecords(previousJourney.records, reports)
+        : reports;
+    const isUpdatingExistingJourney = Boolean(previousJourney);
     let workflowResult;
     const submitButton = document.getElementById('field-submit-journey-btn');
 
@@ -746,21 +814,22 @@ async function submitJourneyForAdminPreview() {
         const s1 = Date.now();
         await ensureStepMinDuration(s1, 5000);
         // execute server workflow (step 2 visible during network call)
-        setProcessingStep(2, 'Cargando jornada al servidor');
+        setProcessingStep(2, isUpdatingExistingJourney ? 'Actualizando jornada en el servidor' : 'Cargando jornada al servidor');
         const s2 = Date.now();
-        workflowResult = await submitFieldJourneyWorkflow(reports, {
-            journeyId: previousJourney?.id || currentEditingJourneyId || null
+        workflowResult = await submitFieldJourneyWorkflow(mergedReports, {
+            journeyId: resolvedJourneyId
         });
         await ensureStepMinDuration(s2, 5000);
         // step 3
-        setProcessingStep(3, 'Finalizando y marcando como enviada');
+        setProcessingStep(3, isUpdatingExistingJourney ? 'Finalizando actualizacion de jornada' : 'Finalizando y marcando como enviada');
         const s3 = Date.now();
         await ensureStepMinDuration(s3, 5000);
-        setProcessingStep(3, 'Jornada enviada exitosamente');
+        setProcessingStep(3, isUpdatingExistingJourney ? 'Jornada actualizada exitosamente' : 'Jornada enviada exitosamente');
     } catch (error) {
         showAlert(error?.message || 'No se pudo enviar la jornada al workflow de Admin Campo.', 'error');
         updateStatus(error?.message || 'La jornada no pudo sincronizarse con Admin Campo.', true);
         isSubmittingJourney = false;
+        hideProcessingModal();
         if (submitButton) {
             submitButton.disabled = false;
             submitButton.textContent = 'Enviar jornada a revisión';
@@ -776,7 +845,7 @@ async function submitJourneyForAdminPreview() {
         status: 'Pendiente de revisión',
         workflowStatus: workflowResult.status || 'submitted',
         syncedAt: new Date().toISOString(),
-        records: reports
+        records: mergedReports
     });
 
     if (existingJourneyIndex >= 0) {
@@ -789,8 +858,8 @@ async function submitJourneyForAdminPreview() {
     localStorage.setItem(SUBMITTED_JOURNEYS_STORAGE_KEY, JSON.stringify(submittedJourneys));
     renderAdminPreview();
     resetJourneyWorkspace();
-    showAlert(existingJourneyIndex >= 0 ? 'Jornada actualizada en Admin Campo.' : 'Jornada enviada a Admin Campo.', 'success');
-    updateStatus(existingJourneyIndex >= 0 ? 'Jornada actualizada y sincronizada con Admin Campo.' : 'Jornada enviada y sincronizada con Admin Campo.');
+    showAlert(isUpdatingExistingJourney ? 'Jornada actualizada en Admin Campo.' : 'Jornada enviada a Admin Campo.', 'success');
+    updateStatus(isUpdatingExistingJourney ? 'Han actualizado la jornada y se sincronizó con Admin Campo.' : 'Jornada enviada y sincronizada con Admin Campo.');
 
     isSubmittingJourney = false;
     if (submitButton) {
@@ -2050,14 +2119,19 @@ function getLocalTickets() {
     }
 }
 
+function getCurrentJourneyTicketKey() {
+    if (currentEditingJourneyId) return currentEditingJourneyId;
+    return localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY) || null;
+}
+
+function getLocalTicketCountForJourney(journeyId) {
+    if (journeyId === null || journeyId === undefined) return 0;
+    return getLocalTickets().filter(ticket => String(ticket?.journey_key) === String(journeyId)).length;
+}
+
 function hasLocalTicketForJourney(journeyId) {
     if (journeyId === null || journeyId === undefined) return false;
-    const tickets = getLocalTickets();
-    return tickets.some(t => {
-        if (!t) return false;
-        if (t.journey_key === null || t.journey_key === undefined) return false;
-        return String(t.journey_key) === String(journeyId);
-    });
+    return getLocalTicketCountForJourney(journeyId) > 0;
 }
 
 function showProcessingModal() {
