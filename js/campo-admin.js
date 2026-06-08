@@ -20,6 +20,29 @@ const STATUS_LABELS = {
     archived: 'Archivada'
 };
 
+const FILTER_EMPTY_COPY = {
+    pending: {
+        title: 'Sin pendientes',
+        detail: 'No hay jornadas pendientes o en revisión en este momento.'
+    },
+    submitted: {
+        title: 'Sin jornadas pendientes',
+        detail: 'No hay jornadas recién recibidas en la bandeja.'
+    },
+    under_review: {
+        title: 'Sin jornadas en revisión',
+        detail: 'No hay jornadas marcadas como en revisión en este momento.'
+    },
+    approved: {
+        title: 'Sin jornadas aprobadas',
+        detail: 'No hay jornadas aprobadas o publicadas en la bandeja actual.'
+    },
+    all: {
+        title: 'Sin jornadas visibles',
+        detail: 'No hay jornadas disponibles para mostrar en este momento.'
+    }
+};
+
 const REVIEW_ACTION_LABELS = {
     submitted: 'Jornada recibida',
     under_review: 'Parámetros actualizados',
@@ -114,29 +137,149 @@ const RECORD_EDITOR_SECTIONS = [
             ['I Motor [A]', 'i_motor'],
             ['V Motor [V]', 'v_motor'],
             ['Out VSD [V]', 'out_vsd'],
+            ['I VSD A [A]', 'i_vsd_a'],
+            ['I VSD B [A]', 'i_vsd_b'],
+            ['I VSD C [A]', 'i_vsd_c'],
+            ['Prom I VSD [A]', 'prom_i_vsd'],
+            ['Desv. Fase A', 'desv_fase_a'],
+            ['Desv. Fase B', 'desv_fase_b'],
+            ['Desv. Fase C', 'desv_fase_c'],
+            ['Max. Desviacion', 'max_desviacion_vsd'],
+            ['% Desbalance Corriente VSD', 'desbalance_corriente_vsd'],
             ['PIP [psi]', 'pip_psi'],
             ['PD [psi]', 'pd_psi'],
             ['Ti [F]', 'ti_f'],
-            ['Tm [F]', 'tm_f']
+            ['Tm [F]', 'tm_f'],
+            ['Vx [G]', 'vx_g'],
+            ['Vy [G]', 'vy_g'],
+            ['Vz [G]', 'vz_g']
         ]
     },
     {
-        title: 'Superficie y sensor',
+        title: 'Sistema BES',
+        fields: [
+            ['Amp nominal motor [A]', 'amp_nominal_motor'],
+            ['Volt nominal motor [V]', 'volt_nominal_motor'],
+            ['Frec max [Hz]', 'frec_max_hz'],
+            ['Low speed [Hz]', 'low_speed_hz'],
+            ['UL [A]', 'ul_a'],
+            ['OL [A]', 'ol_a'],
+            ['I-Limit [A]', 'i_limit_a'],
+            ['Tiempo de desaceleracion [seg]', 'tiempo_desaceleracion_seg'],
+            ['Low PIP shut down [psi]', 'low_pip_shutdown_psi'],
+            ['Max high temp. shut down [F]', 'max_high_temp_shutdown_f']
+        ]
+    },
+    {
+        title: 'Superficie',
         fields: [
             ['Baja datos', 'baja_datos'],
+            ['VSD [KVA]', 'vsd_kva'],
+            ['Marca VSD', 'marca_vsd'],
+            ['Modelo VSD', 'modelo_vsd'],
+            ['Tx [KVA]', 'tx_kva'],
+            ['Tap [V]', 'tap_v'],
+            ['R.T', 'rt'],
+            ['Estado del Tx', 'estado_tx'],
+            ['Estado del VSD', 'estado_vsd'],
+            ['Estado panel sensor / choques', 'estado_panel_sensor_choques'],
+            ['Estado del aterramiento', 'estado_aterramiento'],
+            ['Condicion del cableado', 'condicion_cableado'],
+            ['Condicion de la caseta', 'condicion_caseta'],
+            ['Temperatura de la caseta', 'temperatura_caseta'],
+            ['Estado de fosa [%]', 'estado_fosa_porcentaje'],
+            ['Estado del BIW/conector', 'estado_biw_conector'],
+            ['Estado de manometros', 'estado_manometros'],
+            ['Estado del cabezal', 'estado_cabezal'],
+            ['Estado de tomamuestras', 'estado_tomamuestras'],
+            ['Estado caja de venteo', 'estado_caja_venteo']
+        ]
+    },
+    {
+        title: 'Sensor y presiones',
+        fields: [
+            ['Posee sensor de fondo', 'posee_sensor_fondo'],
+            ['Descarga datas del sensor', 'descarga_datas_sensor'],
             ['Echometer', 'echometer'],
             ['THP [psi]', 'thp_psi'],
             ['CHP [psi]', 'chp_psi'],
             ['LF [psi]', 'lf_psi'],
+            ['Cond. CHP', 'cond_chp'],
             ['Nivel de fluido [ft]', 'nivel_fluido_ft'],
             ['Sumergencia [ft]', 'sumergencia_ft'],
-            ['PIP Echometer [psi]', 'pip_echometer_psi']
+            ['PIP Echometer [psi]', 'pip_echometer_psi'],
+            ['Diagnostico', 'diagnostico']
         ]
     },
     {
-        title: 'Diagnostico',
+        title: 'Prueba electrica',
         fields: [
-            ['Diagnostico', 'diagnostico'],
+            ['Resistencia A-B [Ohm]', 'resistencia_ab_ohm'],
+            ['Resistencia B-C [Ohm]', 'resistencia_bc_ohm'],
+            ['Resistencia C-A [Ohm]', 'resistencia_ca_ohm'],
+            ['Aislamiento fase-tierra [MOhm]', 'aislamiento_fase_tierra_mohm']
+        ]
+    },
+    {
+        title: 'Tx bobina primaria',
+        fields: [
+            ['Fase-Fase X1-X2 [Volt]', 'ff_x1_x2_v'],
+            ['Fase-Fase X2-X3 [Volt]', 'ff_x2_x3_v'],
+            ['Fase-Fase X3-X1 [Volt]', 'ff_x3_x1_v'],
+            ['Promedio Fase-Fase', 'promedio_fase_fase'],
+            ['Desv. X1-X2', 'desv_ff_x1_x2'],
+            ['Desv. X2-X3', 'desv_ff_x2_x3'],
+            ['Desv. X3-X1', 'desv_ff_x3_x1'],
+            ['Max. Desviacion Fase-Fase', 'max_desviacion_ff'],
+            ['% Desbalance Fase-Fase', 'desbalance_fase_fase'],
+            ['Fase-Tierra X1-Tierra [Volt]', 'ft_x1_tierra_v'],
+            ['Fase-Tierra X2-Tierra [Volt]', 'ft_x2_tierra_v'],
+            ['Fase-Tierra X3-Tierra [Volt]', 'ft_x3_tierra_v'],
+            ['Promedio Fase-Tierra', 'promedio_fase_tierra'],
+            ['Desv. X1-Tierra', 'desv_ft_x1_tierra'],
+            ['Desv. X2-Tierra', 'desv_ft_x2_tierra'],
+            ['Desv. X3-Tierra', 'desv_ft_x3_tierra'],
+            ['Max. Desviacion Fase-Tierra', 'max_desviacion_ft'],
+            ['% Desbalance Fase-Tierra', 'desbalance_fase_tierra']
+        ]
+    },
+    {
+        title: 'Tx bobina secundaria',
+        fields: [
+            ['Fase-Fase H1-H2 [Volt]', 'sec_ff_h1_h2_v'],
+            ['Fase-Fase H2-H3 [Volt]', 'sec_ff_h2_h3_v'],
+            ['Fase-Fase H3-H1 [Volt]', 'sec_ff_h3_h1_v'],
+            ['% Desbalance Fase/Fase Secundaria', 'sec_desbalance_fase_fase'],
+            ['Fase-Tierra H1-Tierra [Volt]', 'sec_ft_h1_tierra_v'],
+            ['Fase-Tierra H2-Tierra [Volt]', 'sec_ft_h2_tierra_v'],
+            ['Fase-Tierra H3-Tierra [Volt]', 'sec_ft_h3_tierra_v'],
+            ['% Desbalance Fase/Tierra Secundaria', 'sec_desbalance_fase_tierra']
+        ]
+    },
+    {
+        title: 'Corrientes e indicadores',
+        fields: [
+            ['Corriente X1-X2 [Amp]', 'corriente_x1_x2_amp'],
+            ['Corriente H1-H2 [Amp]', 'corriente_h1_h2_amp'],
+            ['Corriente H2-H3 [Amp]', 'corriente_h2_h3_amp'],
+            ['Corriente H3-H1 [Amp]', 'corriente_h3_h1_amp'],
+            ['% Desbalance Corriente', 'desbalance_corriente_secundaria'],
+            ['Relacion A. Con. / A. Nom', 'relacion_a_con_a_nom'],
+            ['% Amp', 'porcentaje_amp'],
+            ['Relacion V. Mot / V. Nom', 'relacion_v_mot_v_nom'],
+            ['% Volt', 'porcentaje_volt'],
+            ['PD Max [psi]', 'pd_max_psi'],
+            ['Delta Presion [psi]', 'delta_presion_psi'],
+            ['% Delta Presion', 'porcentaje_delta_presion'],
+            ['Tm / T Max Permisible', 'relacion_tm_t_max'],
+            ['% Temp', 'porcentaje_temp'],
+            ['PIP Min / PIP', 'relacion_pip_min_pip'],
+            ['% PIP', 'porcentaje_pip']
+        ]
+    },
+    {
+        title: 'Observaciones',
+        fields: [
             ['Observaciones del pozo', 'observaciones_pozo']
         ]
     }
@@ -151,16 +294,89 @@ const NUMERIC_FIELD_NAMES = new Set([
     'i_motor',
     'v_motor',
     'out_vsd',
+    'i_vsd_a',
+    'i_vsd_b',
+    'i_vsd_c',
+    'prom_i_vsd',
+    'desv_fase_a',
+    'desv_fase_b',
+    'desv_fase_c',
+    'max_desviacion_vsd',
+    'desbalance_corriente_vsd',
     'pip_psi',
     'pd_psi',
     'ti_f',
     'tm_f',
+    'vx_g',
+    'vy_g',
+    'vz_g',
+    'amp_nominal_motor',
+    'volt_nominal_motor',
+    'frec_max_hz',
+    'low_speed_hz',
+    'ul_a',
+    'ol_a',
+    'i_limit_a',
+    'tiempo_desaceleracion_seg',
+    'low_pip_shutdown_psi',
+    'max_high_temp_shutdown_f',
+    'vsd_kva',
+    'tx_kva',
+    'tap_v',
+    'temperatura_caseta',
+    'estado_fosa_porcentaje',
     'thp_psi',
     'chp_psi',
     'lf_psi',
     'nivel_fluido_ft',
     'sumergencia_ft',
-    'pip_echometer_psi'
+    'pip_echometer_psi',
+    'resistencia_ab_ohm',
+    'resistencia_bc_ohm',
+    'resistencia_ca_ohm',
+    'aislamiento_fase_tierra_mohm',
+    'ff_x1_x2_v',
+    'ff_x2_x3_v',
+    'ff_x3_x1_v',
+    'promedio_fase_fase',
+    'desv_ff_x1_x2',
+    'desv_ff_x2_x3',
+    'desv_ff_x3_x1',
+    'max_desviacion_ff',
+    'desbalance_fase_fase',
+    'ft_x1_tierra_v',
+    'ft_x2_tierra_v',
+    'ft_x3_tierra_v',
+    'promedio_fase_tierra',
+    'desv_ft_x1_tierra',
+    'desv_ft_x2_tierra',
+    'desv_ft_x3_tierra',
+    'max_desviacion_ft',
+    'desbalance_fase_tierra',
+    'sec_ff_h1_h2_v',
+    'sec_ff_h2_h3_v',
+    'sec_ff_h3_h1_v',
+    'sec_desbalance_fase_fase',
+    'sec_ft_h1_tierra_v',
+    'sec_ft_h2_tierra_v',
+    'sec_ft_h3_tierra_v',
+    'sec_desbalance_fase_tierra',
+    'corriente_x1_x2_amp',
+    'corriente_h1_h2_amp',
+    'corriente_h2_h3_amp',
+    'corriente_h3_h1_amp',
+    'desbalance_corriente_secundaria',
+    'relacion_a_con_a_nom',
+    'porcentaje_amp',
+    'relacion_v_mot_v_nom',
+    'porcentaje_volt',
+    'pd_max_psi',
+    'delta_presion_psi',
+    'porcentaje_delta_presion',
+    'relacion_tm_t_max',
+    'porcentaje_temp',
+    'relacion_pip_min_pip',
+    'porcentaje_pip'
 ]);
 
 const LONG_TEXT_FIELDS = new Set(['diagnostico', 'observaciones_pozo']);
@@ -737,9 +953,10 @@ function renderStats() {
 
 function renderList() {
     if (!state.journeys.length) {
+        const emptyCopy = getCurrentFilterEmptyCopy();
         elements.list.innerHTML = `
             <div class="campo-admin-empty">
-                <strong>Sin jornadas visibles</strong>
+                <strong>${escapeHtml(emptyCopy.title)}</strong>
                 <p>${escapeHtml(buildEmptyStateMessage())}</p>
             </div>
         `;
@@ -749,7 +966,7 @@ function renderList() {
     elements.list.innerHTML = state.journeys.map(journey => {
         const isSelected = journey.id === state.selectedJourneyId;
         const pozoTags = Array.isArray(journey.pozoNames) && journey.pozoNames.length > 0
-            ? journey.pozoNames.slice(0, 4).map(pozo => `<span class="campo-admin-tag">${escapeHtml(pozo)}</span>`).join('')
+            ? journey.pozoNames.slice(0, 3).map(pozo => `<span class="campo-admin-tag">${escapeHtml(pozo)}</span>`).join('')
             : '<span class="campo-admin-tag">Sin pozos</span>';
         const mainPozo = Array.isArray(journey.pozoNames) && journey.pozoNames.length > 0
             ? journey.pozoNames[0]
@@ -757,9 +974,12 @@ function renderList() {
 
         return `
             <button type="button" class="campo-admin-ticket${isSelected ? ' is-selected' : ''}" data-journey-id="${escapeHtml(journey.id)}">
+                <div class="campo-admin-ticket-top">
+                    <span class="${buildStatusClass(journey.status)}">${escapeHtml(normalizeStatusLabel(journey.status))}</span>
+                    <span class="campo-admin-ticket-open-hint">Abrir detalle</span>
+                </div>
                 <div class="campo-admin-ticket-head">
                     <div class="campo-admin-ticket-main">
-                        <span class="${buildStatusClass(journey.status)}">${escapeHtml(normalizeStatusLabel(journey.status))}</span>
                         <h3>${escapeHtml(journey.locacion_jornada || 'Sin locación')}</h3>
                         <p>${escapeHtml(journey.equipo_guardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')}</p>
                     </div>
@@ -786,10 +1006,7 @@ function renderList() {
                         <strong>${escapeHtml(journey.submitted_by_email || 'Correo no disponible')}</strong>
                     </div>
                 </div>
-                <div class="campo-admin-ticket-footer">
-                    <div class="campo-admin-tags">${pozoTags}</div>
-                    <span class="campo-admin-ticket-open-hint">Abrir detalle</span>
-                </div>
+                <div class="campo-admin-tags campo-admin-ticket-tags">${pozoTags}</div>
             </button>
         `;
     }).join('');
@@ -1147,17 +1364,41 @@ function renderDetail(detail) {
                     <h2>${escapeHtml(journey.locacion_jornada || 'Jornada sin locación')}</h2>
                     <p class="campo-admin-detail-copy">${escapeHtml(journey.equipo_guardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')} · ${escapeHtml(formatDate(journey.journey_date))}</p>
                 </div>
-                <div class="campo-admin-detail-actions">
-                    <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-detail-action="review-publication">Preparar subida</button>
-                    <button type="button" class="campo-admin-action-btn" data-detail-action="excel">Excel consolidado</button>
-                    <button type="button" class="campo-admin-action-btn campo-admin-action-btn-secondary" data-detail-action="pdf">PDF consolidado</button>
-                    <button type="button" class="campo-admin-action-btn campo-admin-action-btn-danger" data-detail-action="delete">Eliminar jornada</button>
-                </div>
             </div>
             <div class="campo-admin-detail-meta">
                 <span class="campo-admin-tag">Responsable: ${escapeHtml(journey.submitted_by_email || 'No disponible')}</span>
                 <span class="campo-admin-tag">Ventana: ${escapeHtml(summarizeJourneyWindow(journey))}</span>
                 <span class="campo-admin-tag">${escapeHtml(String(journey.total_reports || 0))} pozo(s)</span>
+            </div>
+            <div class="campo-admin-detail-drawers">
+                <details class="campo-admin-drawer">
+                    <summary class="campo-admin-drawer-summary">
+                        <span class="campo-admin-drawer-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M7 12h10"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 17h4"></path>
+                            </svg>
+                            Acciones
+                        </span>
+                        <span class="campo-admin-drawer-summary-side">
+                            <span class="campo-admin-count-badge">4</span>
+                            <span class="campo-admin-drawer-arrow" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"></path>
+                                </svg>
+                            </span>
+                        </span>
+                    </summary>
+                    <div class="campo-admin-drawer-content">
+                        <div class="campo-admin-detail-actions">
+                            <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-detail-action="review-publication">Preparar subida</button>
+                            <button type="button" class="campo-admin-action-btn" data-detail-action="excel">Excel consolidado</button>
+                            <button type="button" class="campo-admin-action-btn campo-admin-action-btn-secondary" data-detail-action="pdf">PDF consolidado</button>
+                            <button type="button" class="campo-admin-action-btn campo-admin-action-btn-danger" data-detail-action="delete">Eliminar jornada</button>
+                        </div>
+                    </div>
+                </details>
             </div>
         </section>
 
@@ -1191,16 +1432,29 @@ function renderDetail(detail) {
             </div>
         </section>
 
-        <section class="campo-admin-panel">
-            <div class="campo-admin-panel-head">
-                <div>
-                    <h3>Historial básico de revisión</h3>
-                    <p>Bitácora asociada a esta jornada.</p>
-                </div>
-                <span class="campo-admin-count-badge">${escapeHtml(String(reviewLog.length))} evento(s)</span>
+        <details class="campo-admin-panel campo-admin-drawer-panel">
+            <summary class="campo-admin-drawer-summary">
+                <span class="campo-admin-drawer-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"></path>
+                    </svg>
+                    Historial de revisión
+                </span>
+                <span class="campo-admin-drawer-summary-side">
+                    <span class="campo-admin-count-badge">${escapeHtml(String(reviewLog.length))} evento(s)</span>
+                    <span class="campo-admin-drawer-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"></path>
+                        </svg>
+                    </span>
+                </span>
+            </summary>
+            <div class="campo-admin-drawer-content campo-admin-drawer-content-panel">
+                <p class="campo-admin-drawer-copy">Bitácora asociada a esta jornada.</p>
+                <div class="campo-admin-log-list">${reviewLogMarkup}</div>
             </div>
-            <div class="campo-admin-log-list">${reviewLogMarkup}</div>
-        </section>
+        </details>
     `;
 
     elements.detailShell.querySelectorAll('[data-detail-action]').forEach(button => {
@@ -1243,6 +1497,10 @@ function syncActiveFilterButton() {
     });
 }
 
+function getCurrentFilterEmptyCopy() {
+    return FILTER_EMPTY_COPY[state.filterKey] || FILTER_EMPTY_COPY.all;
+}
+
 async function loadWorkflowDiagnostics() {
     try {
         state.diagnostics = await getFieldWorkflowDiagnostics();
@@ -1253,9 +1511,10 @@ async function loadWorkflowDiagnostics() {
 }
 
 function buildEmptyStateMessage() {
+    const currentFilterCopy = getCurrentFilterEmptyCopy();
     const diagnostics = state.diagnostics;
     if (!diagnostics) {
-        return 'No hay jornadas visibles con el filtro actual.';
+        return currentFilterCopy.detail;
     }
 
     const frontendRole = diagnostics.frontendRole || 'sin rol';
@@ -1266,10 +1525,10 @@ function buildEmptyStateMessage() {
     }
 
     if (diagnostics.visibleJourneyCount > 0) {
-        return `Tu sesion puede ver ${diagnostics.visibleJourneyCount} jornada(s) en el workflow, pero ninguna coincide con la bandeja actual.`;
+        return `Tu sesion puede ver ${diagnostics.visibleJourneyCount} jornada(s) en el workflow, pero ninguna coincide con ${currentFilterCopy.title.toLowerCase()}.`;
     }
 
-    return 'Supabase no devuelve jornadas visibles para esta sesion. Si tenias una jornada solo agregada en Campo y no enviada a revision, todavia no existe en la bandeja administrativa.';
+    return `${currentFilterCopy.detail} Si esperabas verla aquí, revisa si la jornada todavía no fue enviada al workflow administrativo.`;
 }
 
 async function loadJourneys() {
@@ -1279,18 +1538,7 @@ async function loadJourneys() {
     elements.sideCopy.textContent = 'Consultando jornadas registradas desde Campo para revisión administrativa.';
 
     try {
-        let journeys = await fetchJourneysForFilter(state.filterKey);
-
-        if (journeys.length === 0 && !state.searchTerm && state.filterKey !== 'all') {
-            const allJourneys = await fetchJourneysForFilter('all');
-            if (allJourneys.length > 0) {
-                state.filterKey = 'all';
-                syncActiveFilterButton();
-                journeys = allJourneys;
-                setToolbarStatus('Sin pendientes; mostrando todas');
-                elements.sideCopy.textContent = 'No hubo resultados en el filtro actual. Se muestran todas las jornadas disponibles para evitar que una jornada quede oculta por estado.';
-            }
-        }
+        const journeys = await fetchJourneysForFilter(state.filterKey);
 
         state.journeys = Array.isArray(journeys) ? journeys : [];
 
@@ -1309,11 +1557,12 @@ async function loadJourneys() {
             renderEmptyDetail(buildEmptyStateMessage());
         }
 
-        if (elements.toolbarStatus.textContent !== 'Sin pendientes; mostrando todas') {
+        if (state.journeys.length === 0) {
+            const emptyCopy = getCurrentFilterEmptyCopy();
+            setToolbarStatus(emptyCopy.title);
+            elements.sideCopy.textContent = buildEmptyStateMessage();
+        } else {
             setToolbarStatus(`${state.journeys.length} resultado(s)`);
-        }
-
-        if (!elements.sideCopy.textContent || elements.sideCopy.textContent === 'Consultando jornadas registradas desde Campo para revisión administrativa.') {
             elements.sideCopy.textContent = state.journeys.length > 0
                 ? `Hay ${state.journeys.length} jornada(s) visibles en la bandeja actual.`
                 : buildEmptyStateMessage();
