@@ -450,7 +450,9 @@ body.prep-processing-open {
     display: grid;
     grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
     gap: 12px;
+    
     background: linear-gradient(180deg, rgba(248, 250, 252, 0.64), rgba(255, 255, 255, 0.94));
+    background: transparent;
 }
 
 .prep-processing-modal {

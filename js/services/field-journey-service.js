@@ -401,6 +401,7 @@ export async function getAdminFieldJourneys(options = {}) {
         .select('*')
         .in('status', statuses)
         .order('journey_date', { ascending: false })
+        .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(safeLimit);
 
