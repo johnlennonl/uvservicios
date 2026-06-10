@@ -493,36 +493,272 @@ function closeHistoricalModal() {
     if (elements.historicalModal) elements.historicalModal.hidden = true;
 }
 
+function resolveHistoricalPresetDates(preset) {
+    const today = new Date();
+    const endDate = today.toISOString().slice(0, 10);
+
+    if (preset === 'last7' || preset === 'last30') {
+        const nextDate = new Date(today);
+        nextDate.setDate(today.getDate() - (preset === 'last7' ? 6 : 29));
+        return {
+            startDate: nextDate.toISOString().slice(0, 10),
+            endDate
+        };
+    }
+
+    return {
+        startDate: '',
+        endDate: ''
+    };
+}
+
+function normalizeHistoricalFilters(filters = {}) {
+    const mode = String(filters.mode || 'filtered').trim().toLowerCase();
+    const preset = String(filters.preset || 'custom').trim().toLowerCase();
+    const pozo = String(filters.pozo || '').trim();
+    let startDate = String(filters.startDate || '').trim();
+    let endDate = String(filters.endDate || '').trim();
+    const rawLimit = Number(filters.limit);
+
+    if (mode === 'all') {
+        return { mode, preset: 'all', pozo: '', startDate: '', endDate: '', limit: 10000 };
+    }
+
+    if (preset !== 'custom') {
+        const resolvedDates = resolveHistoricalPresetDates(preset);
+        startDate = resolvedDates.startDate;
+        endDate = resolvedDates.endDate;
+    }
+
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.max(Math.trunc(rawLimit), 100), 25000) : 10000;
+    return { mode, preset, pozo, startDate, endDate, limit };
+}
+
+function getHistoricalModeConfig(mode) {
+    const normalizedMode = String(mode || 'filtered').trim().toLowerCase();
+
+    if (normalizedMode === 'all') {
+        return {
+            submitLabel: state.historicalExporting ? 'Exportando histórico completo...' : 'Generar histórico completo',
+            helpText: 'Se exportará todo el histórico disponible. Los filtros se desactivan porque este modo no necesita pozo ni fechas.'
+        };
+    }
+
+    if (normalizedMode === 'recent') {
+        return {
+            submitLabel: state.historicalExporting ? 'Exportando corte reciente...' : 'Generar corte reciente',
+            helpText: 'Este modo prepara un corte reciente. Usa la ventana rápida para decidir si quieres los últimos 7 o 30 días.'
+        };
+    }
+
+    return {
+        submitLabel: state.historicalExporting ? 'Exportando Excel filtrado...' : 'Generar Excel filtrado',
+        helpText: 'Este modo utiliza los criterios que completes abajo. Puedes exportar por pozo, por fechas o combinando ambos.'
+    };
+}
+
+function applyHistoricalModeState(form) {
+    if (!form) return;
+
+    const mode = String(form.querySelector('input[name="mode"]:checked')?.value || 'filtered').trim().toLowerCase();
+    const pozoInput = form.querySelector('input[name="pozo"]');
+    const presetSelect = form.querySelector('select[name="preset"]');
+    const startDateInput = form.querySelector('input[name="startDate"]');
+    const endDateInput = form.querySelector('input[name="endDate"]');
+    const submitButton = form.querySelector('[data-historical-submit]');
+    const modeHelp = form.querySelector('[data-historical-mode-help]');
+
+    const isAllMode = mode === 'all';
+    const isRecentMode = mode === 'recent';
+    const isFilteredMode = mode === 'filtered';
+    const modeConfig = getHistoricalModeConfig(mode);
+
+    if (pozoInput) {
+        pozoInput.disabled = isAllMode || isRecentMode;
+        if (pozoInput.disabled) pozoInput.value = '';
+    }
+
+    if (presetSelect) {
+        presetSelect.disabled = isAllMode;
+        if (isRecentMode && (!presetSelect.value || presetSelect.value === 'custom')) {
+            presetSelect.value = 'last7';
+        }
+        if (isAllMode) {
+            presetSelect.value = 'custom';
+        }
+    }
+
+    const manualDatesEnabled = isFilteredMode && String(presetSelect?.value || 'custom') === 'custom';
+    if (startDateInput) {
+        startDateInput.disabled = !manualDatesEnabled;
+        if (startDateInput.disabled) startDateInput.value = '';
+    }
+
+    if (endDateInput) {
+        endDateInput.disabled = !manualDatesEnabled;
+        if (endDateInput.disabled) endDateInput.value = '';
+    }
+
+    if (submitButton) {
+        submitButton.textContent = modeConfig.submitLabel;
+    }
+
+    if (modeHelp) {
+        modeHelp.textContent = modeConfig.helpText;
+    }
+}
+
+function collectHistoricalFormFilters(form, overrides = {}) {
+    const formData = new FormData(form);
+    const resolvedPozo = overrides.pozo ?? formData.get('pozo') ?? '';
+
+    return {
+        mode: String(overrides.mode || formData.get('mode') || 'filtered').trim(),
+        preset: String(overrides.preset || formData.get('preset') || 'custom').trim(),
+        pozo: String(resolvedPozo).trim(),
+        startDate: String(overrides.startDate || formData.get('startDate') || '').trim(),
+        endDate: String(overrides.endDate || formData.get('endDate') || '').trim(),
+        limit: String(overrides.limit || formData.get('limit') || '').trim()
+    };
+}
+
 function buildHistoricalModalMarkup() {
+    const defaultLimit = 10000;
     return `
-        <div class="campo-admin-modal-head">
-            <div>
-                <span class="campo-admin-tag campo-admin-tag-soft">Exportacion historica</span>
-                <h3 id="campo-admin-historical-modal-title">Consolidado historico Campo</h3>
-                <p>Exporta los monitoreos completos por pozo, por rango de fechas o todo el historico disponible.</p>
+        <div class="campo-admin-historical-shell">
+            <div class="campo-admin-modal-head">
+                <div>
+                    <span class="campo-admin-tag campo-admin-tag-soft">Exportacion historica</span>
+                    <h3 id="campo-admin-historical-modal-title">Centro de exportación histórica Campo</h3>
+                    <p>Configura cómo quieres sacar el consolidado. Puedes exportar todo el histórico, filtrar por un pozo puntual o acotar por ventanas de tiempo para análisis operativos.</p>
+                </div>
+                <button type="button" class="campo-admin-modal-close" data-historical-close aria-label="Cerrar exportacion historica">×</button>
             </div>
-            <button type="button" class="campo-admin-modal-close" data-historical-close aria-label="Cerrar exportacion historica">×</button>
+            <div class="campo-admin-historical-hero">
+                <div class="campo-admin-historical-summary">
+                    <article class="campo-admin-historical-summary-card">
+                        <span>Modo rápido</span>
+                        <strong>Todo el histórico</strong>
+                    </article>
+                    <article class="campo-admin-historical-summary-card">
+                        <span>Filtro técnico</span>
+                        <strong>Por pozo específico</strong>
+                    </article>
+                    <article class="campo-admin-historical-summary-card">
+                        <span>Corte temporal</span>
+                        <strong>Últimos 7, 30 días o rango manual</strong>
+                    </article>
+                </div>
+                <p class="campo-admin-historical-note">Usa este exportador cuando necesites un archivo exclusivo para histórico. La bandeja principal seguirá sirviendo solo para revisión administrativa de jornadas.</p>
+                <div class="campo-admin-historical-backup-note">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 17h.01"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86 1.82 18a2 2 0 0 0 1.72 3h16.92a2 2 0 0 0 1.72-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path>
+                    </svg>
+                    <div>
+                        <strong>Respaldo recomendado</strong>
+                        <p>Antes de cerrar ciclo operativo, genera un respaldo del histórico operacional. Es la forma más simple de asegurar disponibilidad de datos críticos ante ajustes, reprocesos o incidentes.</p>
+                    </div>
+                </div>
+            </div>
+            <form id="campo-admin-historical-form" class="campo-admin-record-form">
+                <section class="campo-admin-historical-panel">
+                    <div class="campo-admin-historical-panel-head">
+                        <div>
+                            <h4>1. Elige el tipo de exportación</h4>
+                            <p class="campo-admin-historical-help">Selecciona primero si quieres sacar todo, un corte reciente o un consolidado más preciso.</p>
+                        </div>
+                        <span class="campo-admin-count-badge">Paso 1</span>
+                    </div>
+                    <div class="campo-admin-historical-presets">
+                        <label class="campo-admin-historical-option">
+                            <input type="radio" name="mode" value="all">
+                            <span class="campo-admin-historical-option-icon" aria-hidden="true">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 4h9l3 3v13a1 1 0 01-1 1H6a1 1 0 01-1-1V5a1 1 0 011-1z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 4v4h4" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h8M8 16h8" />
+                                </svg>
+                            </span>
+                            <strong>Todo el histórico</strong>
+                            <span>Exporta todos los registros disponibles sin aplicar filtros de pozo ni de fecha.</span>
+                        </label>
+                        <label class="campo-admin-historical-option">
+                            <input type="radio" name="mode" value="filtered" checked>
+                            <span class="campo-admin-historical-option-icon" aria-hidden="true">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 12h10" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 18h4" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 6l2 3h10l2-3" opacity=".45" />
+                                </svg>
+                            </span>
+                            <strong>Exportación filtrada</strong>
+                            <span>Usa pozo, fechas o ambas condiciones para construir un consolidado específico.</span>
+                        </label>
+                        <label class="campo-admin-historical-option">
+                            <input type="radio" name="mode" value="recent">
+                            <span class="campo-admin-historical-option-icon" aria-hidden="true">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-3.2-6.9" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 4v5h-5" />
+                                </svg>
+                            </span>
+                            <strong>Corte reciente</strong>
+                            <span>Prepara un histórico corto para revisión operativa rápida de los últimos días.</span>
+                        </label>
+                    </div>
+                </section>
+                <section class="campo-admin-historical-panel">
+                    <div class="campo-admin-historical-panel-head">
+                        <div>
+                            <h4>2. Define los filtros del archivo</h4>
+                            <p class="campo-admin-historical-help">Completa solo lo que necesites. Si dejas un campo vacío, ese criterio no limitará el resultado.</p>
+                        </div>
+                        <span class="campo-admin-count-badge">Paso 2</span>
+                    </div>
+                    <div class="campo-admin-editor-grid campo-admin-historical-grid">
+                        <label class="campo-admin-editor-field campo-admin-editor-field-long">
+                            <span>Pozo objetivo</span>
+                            <input type="text" name="pozo" placeholder="Ej: CEI0004, UV-12, ESP-001">
+                            <small class="campo-admin-field-help">Escribe el nombre o parte del identificador del pozo si quieres un consolidado exclusivo de esa unidad.</small>
+                        </label>
+                        <label class="campo-admin-editor-field">
+                            <span>Ventana rápida</span>
+                            <select name="preset">
+                                <option value="custom" selected>Rango manual</option>
+                                <option value="last7">Últimos 7 días</option>
+                                <option value="last30">Últimos 30 días</option>
+                            </select>
+                            <small class="campo-admin-field-help">Si eliges una ventana rápida, las fechas manuales se completarán automáticamente.</small>
+                        </label>
+                        <label class="campo-admin-editor-field">
+                            <span>Límite máximo de registros</span>
+                            <input type="number" name="limit" min="100" max="25000" step="100" value="${defaultLimit}">
+                            <small class="campo-admin-field-help">Útil para evitar archivos demasiado pesados cuando el histórico es muy amplio.</small>
+                        </label>
+                        <label class="campo-admin-editor-field">
+                            <span>Fecha inicial</span>
+                            <input type="date" name="startDate">
+                            <small class="campo-admin-field-help">Punto de inicio del corte histórico.</small>
+                        </label>
+                        <label class="campo-admin-editor-field">
+                            <span>Fecha final</span>
+                            <input type="date" name="endDate">
+                            <small class="campo-admin-field-help">Punto de cierre del corte histórico.</small>
+                        </label>
+                    </div>
+                </section>
+                <div class="campo-admin-modal-actions campo-admin-historical-actions">
+                    <p class="campo-admin-historical-help" data-historical-mode-help>Este modo utiliza los criterios que completes abajo. Puedes exportar por pozo, por fechas o combinando ambos.</p>
+                    <div class="campo-admin-historical-action-slot">
+                        <button type="submit" class="campo-admin-action-btn campo-admin-action-btn-secondary" data-historical-submit ${state.historicalExporting ? 'disabled' : ''}>${state.historicalExporting ? 'Exportando Excel filtrado...' : 'Generar Excel filtrado'}</button>
+                    </div>
+                </div>
+            </form>
         </div>
-        <form id="campo-admin-historical-form" class="campo-admin-record-form">
-            <div class="campo-admin-editor-grid campo-admin-historical-grid">
-                <label class="campo-admin-editor-field campo-admin-editor-field-long">
-                    <span>Pozo</span>
-                    <input type="text" name="pozo" placeholder="Ej: CEI0004 o dejar vacio para todos">
-                </label>
-                <label class="campo-admin-editor-field">
-                    <span>Fecha inicial</span>
-                    <input type="date" name="startDate">
-                </label>
-                <label class="campo-admin-editor-field">
-                    <span>Fecha final</span>
-                    <input type="date" name="endDate">
-                </label>
-            </div>
-            <div class="campo-admin-modal-actions">
-                <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-historical-export-mode="all">Exportar todo</button>
-                <button type="submit" class="campo-admin-action-btn" ${state.historicalExporting ? 'disabled' : ''}>${state.historicalExporting ? 'Exportando...' : 'Exportar filtrado'}</button>
-            </div>
-        </form>
     `;
 }
 
@@ -530,24 +766,24 @@ function openHistoricalModal() {
     if (!elements.historicalModal || !elements.historicalModalBody) return;
     elements.historicalModal.hidden = false;
     elements.historicalModalBody.innerHTML = buildHistoricalModalMarkup();
+    const form = elements.historicalModalBody.querySelector('#campo-admin-historical-form');
 
     elements.historicalModalBody.querySelectorAll('[data-historical-close]').forEach(button => {
         button.addEventListener('click', closeHistoricalModal);
     });
 
-    elements.historicalModalBody.querySelector('[data-historical-export-mode="all"]')?.addEventListener('click', () => {
-        handleHistoricalExport({});
+    form?.querySelectorAll('input[name="mode"]').forEach(input => {
+        input.addEventListener('change', () => applyHistoricalModeState(form));
     });
 
-    elements.historicalModalBody.querySelector('#campo-admin-historical-form')?.addEventListener('submit', event => {
+    form?.querySelector('select[name="preset"]')?.addEventListener('change', () => applyHistoricalModeState(form));
+
+    form?.addEventListener('submit', event => {
         event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        handleHistoricalExport({
-            pozo: String(formData.get('pozo') || '').trim(),
-            startDate: String(formData.get('startDate') || '').trim(),
-            endDate: String(formData.get('endDate') || '').trim()
-        });
+        handleHistoricalExport(collectHistoricalFormFilters(event.currentTarget));
     });
+
+    applyHistoricalModeState(form);
 }
 
 async function handleHistoricalExport(filters = {}) {
@@ -559,8 +795,22 @@ async function handleHistoricalExport(filters = {}) {
 
     state.historicalExporting = true;
     try {
-        const records = await getHistoricalFieldReports(filters);
-        await exportHistoricalFieldReportsToExcel(records, filters);
+        const resolvedFilters = normalizeHistoricalFilters(filters);
+
+        if (resolvedFilters.mode === 'filtered' && !resolvedFilters.pozo && !resolvedFilters.startDate && !resolvedFilters.endDate) {
+            throw new Error('Para la exportación filtrada debes indicar al menos un pozo, una ventana rápida o un rango de fechas.');
+        }
+
+        if (resolvedFilters.mode === 'recent' && !['last7', 'last30'].includes(resolvedFilters.preset)) {
+            throw new Error('Selecciona una ventana rápida válida para generar el corte reciente.');
+        }
+
+        if (resolvedFilters.startDate && resolvedFilters.endDate && resolvedFilters.startDate > resolvedFilters.endDate) {
+            throw new Error('La fecha inicial no puede ser mayor que la fecha final en la exportación histórica.');
+        }
+
+        const records = await getHistoricalFieldReports(resolvedFilters);
+        await exportHistoricalFieldReportsToExcel(records, resolvedFilters);
         await notify(`Se genero el Excel historico con ${records.length} registro(s).`, 'success');
         closeHistoricalModal();
     } catch (error) {

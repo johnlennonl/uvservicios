@@ -133,10 +133,85 @@
                                     <path d="M13 6l6 6-6 6"></path>
                                 </svg>
                             </button>
+                            <button id="btn-export-stats-report" class="stats-report-btn is-disabled" type="button" aria-disabled="true">
+                                <span>Reporte ejecutivo</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M12 3v12"></path>
+                                    <path d="m7 10 5 5 5-5"></path>
+                                    <path d="M5 21h14"></path>
+                                </svg>
+                            </button>
                         </div>
                     </form>
                     </div>
                 </div>
+
+                <section class="stats-report-header" id="stats-report-header" hidden aria-hidden="true">
+                    <div class="stats-report-head">
+                        <div class="stats-report-brand">
+                            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" class="stats-report-logo" width="120" height="120">
+                            <div class="stats-report-copy">
+                                <p class="stats-report-kicker">Reporte ejecutivo</p>
+                                <h2 id="stats-report-title">Reporte Ejecutivo de Monitoreo</h2>
+                                <p id="stats-report-summary">Resumen consolidado para análisis administrativo, seguimiento operativo y trazabilidad del rango consultado.</p>
+                            </div>
+                        </div>
+                        <div class="stats-report-meta">
+                            <article class="stats-report-pill">
+                                <span>Alcance</span>
+                                <strong id="stats-report-scope">--</strong>
+                            </article>
+                            <article class="stats-report-pill">
+                                <span>Rango</span>
+                                <strong id="stats-report-range">--</strong>
+                            </article>
+                            <article class="stats-report-pill">
+                                <span>Monitoreos</span>
+                                <strong id="stats-report-count">0</strong>
+                            </article>
+                            <article class="stats-report-pill">
+                                <span>Cobertura</span>
+                                <strong id="stats-report-coverage">0%</strong>
+                            </article>
+                            <article class="stats-report-pill">
+                                <span>Pozo líder</span>
+                                <strong id="stats-report-top-well">--</strong>
+                            </article>
+                            <article class="stats-report-pill">
+                                <span>Día más activo</span>
+                                <strong id="stats-report-busiest-day">--</strong>
+                            </article>
+                            <article class="stats-report-pill stats-report-pill-wide">
+                                <span>Emitido</span>
+                                <strong id="stats-report-generated">--</strong>
+                            </article>
+                        </div>
+                    </div>
+                    <div class="stats-report-insights">
+                        <article class="stats-report-callout">
+                            <span class="stats-report-callout-label">Lectura ejecutiva</span>
+                            <strong id="stats-report-executive-headline">Pendiente por generar</strong>
+                            <p id="stats-report-executive-copy">Genera estadísticas para construir el resumen ejecutivo del rango.</p>
+                        </article>
+                        <article class="stats-report-callout is-warning">
+                            <span class="stats-report-callout-label">Atención operativa</span>
+                            <strong id="stats-report-alert-headline">Sin análisis</strong>
+                            <p id="stats-report-alert-copy">Aquí aparecerán observaciones clave sobre cobertura, pozos OFF y atrasos relevantes.</p>
+                        </article>
+                    </div>
+                    <div class="stats-report-narrative">
+                        <div>
+                            <h3>Hallazgos clave</h3>
+                            <ul id="stats-report-highlights">
+                                <li>Genera un rango para preparar el resumen ejecutivo.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3>Recomendación</h3>
+                            <p id="stats-report-recommendation">Usa filtros por pozo o rango para emitir un reporte más enfocado y útil para revisión gerencial.</p>
+                        </div>
+                    </div>
+                </section>
 
                 <div id="kpis" class="stats-kpi-row"></div>
                 <pre id="stats-debug" style="display:none; white-space:pre-wrap; background:#fff; border:1px solid #eee; padding:12px; margin-top:12px; border-radius:8px; max-height:220px; overflow:auto;"></pre>
@@ -338,6 +413,17 @@
                 </form>
             </section>
         </div>
+
+        <div class="stats-construction-modal" id="stats-construction-modal" hidden aria-hidden="true">
+            <div class="stats-construction-dialog" role="dialog" aria-modal="true" aria-labelledby="stats-construction-title">
+                <button type="button" class="stats-construction-close" id="stats-construction-close" aria-label="Cerrar aviso">×</button>
+                <span class="stats-construction-kicker">Próximamente</span>
+                <h2 id="stats-construction-title">Sección en construcción</h2>
+                <p>El reporte ejecutivo de Estadísticas está en preparación. La idea es entregar un documento más robusto, con narrativa gerencial, gráficos curados y salida lista para compartir.</p>
+                <p>Mientras terminamos esa sección, puedes seguir usando los filtros, KPIs, cobertura, alertas y drilldown para hacer análisis operativo desde esta vista.</p>
+                <button type="button" class="stats-construction-action" id="stats-construction-accept">Entendido</button>
+            </div>
+        </div>
     </div>
 
     <nav class="mobile-bottom-nav" aria-label="Navegacion movil principal">
@@ -428,6 +514,62 @@
         const dateLabel = formatDateLabel(dateValue);
         const hourLabel = formatHourLabel(hourValue);
         return `${dateLabel} · ${hourLabel}`;
+    }
+
+    function formatReportDateTime(value) {
+        if (!value) return '--';
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString('es-CO');
+    }
+
+    function formatMetricValue(value, suffix = '') {
+        if (value === undefined || value === null || value === '') return 'N/D';
+        return `${value}${suffix}`;
+    }
+
+    function buildMonitoringRecordDetailKey(row = {}) {
+        return String(row?.id || `${row?.pozo_name || ''}|${row?.fecha || ''}|${row?.hora || ''}`);
+    }
+
+    function buildMonitoringDetailCard(row = {}) {
+        const metrics = [
+            ['Frecuencia', formatMetricValue(row.frecuencia, ' Hz')],
+            ['PIP', formatMetricValue(row.pip)],
+            ['THP', formatMetricValue(row.presion_thp)],
+            ['CHP', formatMetricValue(row.presion_chp)],
+            ['LF', formatMetricValue(row.presion_lf)],
+            ['Corriente', formatMetricValue(row.corriente_motor, ' A')],
+            ['TM', formatMetricValue(row.tm)],
+            ['VSD A', formatMetricValue(row.vsd_a)],
+            ['VSD B', formatMetricValue(row.vsd_b)],
+            ['VSD C', formatMetricValue(row.vsd_c)],
+            ['Sentido de giro', formatMetricValue(row.sentido_giro)],
+            ['Campo', formatMetricValue(row.campo)]
+        ];
+
+        return `
+            <div class="monitoring-detail-card">
+                <div class="monitoring-detail-head">
+                    <div>
+                        <strong>Monitoreo seleccionado: ${row.pozo_name || '--'}</strong>
+                        <span>${formatDateTimeLabel(row.fecha, row.hora)} · ${row.estatus || 'SIN DATO'}</span>
+                    </div>
+                    <span class="monitoring-detail-status ${row.estatus === 'OFF' ? 'is-off' : row.estatus === 'RUN' ? 'is-run' : 'is-unknown'}">${row.estatus || 'SIN DATO'}</span>
+                </div>
+                <div class="monitoring-detail-grid">
+                    ${metrics.map(([label, value]) => `
+                        <article class="monitoring-detail-metric">
+                            <span>${label}</span>
+                            <strong>${value}</strong>
+                        </article>
+                    `).join('')}
+                </div>
+                <div class="monitoring-detail-notes">
+                    <span>Observaciones</span>
+                    <p>${row.observaciones ? row.observaciones : 'Sin observaciones registradas para este monitoreo.'}</p>
+                </div>
+            </div>
+        `;
     }
 
     function normalizeOperationalStatus(value) {
@@ -544,6 +686,124 @@
     function clearStatsSnapshot() {
         localStorage.removeItem(STATS_STORAGE_KEY);
         sessionStorage.removeItem(STATS_DETAIL_STORAGE_KEY);
+    }
+
+    function getStatsReportScopeLabel(snapshot) {
+        const selectedWells = Array.isArray(snapshot?.selectedWells) ? snapshot.selectedWells : [];
+        if (selectedWells.length === 1) {
+            return `Pozo ${selectedWells[0]}`;
+        }
+        if (selectedWells.length > 1) {
+            return `${selectedWells.length} pozos seleccionados`;
+        }
+        return 'Histórico consolidado';
+    }
+
+    function buildStatsReportHighlights(snapshot) {
+        const highlights = [];
+        const coveragePercent = Number(snapshot?.coverage?.coveragePercent || 0);
+        const offCount = Array.isArray(snapshot?.offWells) ? snapshot.offWells.length : 0;
+        const selectedWells = Array.isArray(snapshot?.selectedWells) ? snapshot.selectedWells : [];
+
+        highlights.push(`Se consolidaron ${snapshot?.totalVisits || 0} monitoreo(s) entre ${formatDateLabel(snapshot?.start)} y ${formatDateLabel(snapshot?.end)}.`);
+        highlights.push(`La cobertura del rango alcanzó ${coveragePercent.toFixed(1)}% sobre ${snapshot?.coverage?.scopeWellCount || 0} pozo(s) evaluado(s).`);
+
+        if (snapshot?.topWellName && snapshot.topWellName !== '--') {
+            highlights.push(`El pozo con mayor actividad fue ${snapshot.topWellName}, con ${snapshot?.topWells?.[0]?.count || 0} monitoreo(s) registrados.`);
+        }
+
+        if (snapshot?.busiestDay?.date) {
+            highlights.push(`El día más activo fue ${formatDateLabel(snapshot.busiestDay.date)}, con ${snapshot.busiestDay.count || 0} monitoreo(s).`);
+        }
+
+        if (offCount > 0) {
+            highlights.push(`Se identificaron ${offCount} pozo(s) cuyo último estatus del rango quedó en OFF, lo que exige revisión operativa.`);
+        } else {
+            highlights.push('No se observaron pozos con último estatus OFF dentro del rango consultado.');
+        }
+
+        if (selectedWells.length === 1) {
+            highlights.push(`El reporte está focalizado en ${selectedWells[0]}, por lo que sirve como resumen técnico e histórico puntual del activo.`);
+        }
+
+        return highlights.slice(0, 6);
+    }
+
+    function buildStatsReportRecommendation(snapshot) {
+        const coveragePercent = Number(snapshot?.coverage?.coveragePercent || 0);
+        const offCount = Array.isArray(snapshot?.offWells) ? snapshot.offWells.length : 0;
+
+        if (offCount > 0) {
+            return `Prioriza una revisión sobre los ${offCount} pozo(s) en OFF y contrasta su última visita con el detalle tabular para decidir seguimiento, intervención o escalamiento.`;
+        }
+
+        if (coveragePercent < 70) {
+            return 'La cobertura del rango quedó por debajo del umbral operativo recomendado. Conviene reforzar monitoreo sobre los pozos sin actividad y emitir un corte complementario.';
+        }
+
+        return 'El rango muestra una base de seguimiento suficientemente sólida. Puedes usar este reporte como respaldo gerencial y complementar con drilldown por pozo si necesitas mayor detalle técnico.';
+    }
+
+    function updateStatsReportHeader(snapshot) {
+        const reportHeader = document.getElementById('stats-report-header');
+        if (!reportHeader || !snapshot) return;
+
+        const selectedWells = Array.isArray(snapshot.selectedWells) ? snapshot.selectedWells : [];
+        const isSingleWell = selectedWells.length === 1;
+        const scopeLabel = getStatsReportScopeLabel(snapshot);
+        const coveragePercent = Number(snapshot?.coverage?.coveragePercent || 0);
+        const offCount = Array.isArray(snapshot?.offWells) ? snapshot.offWells.length : 0;
+        const title = isSingleWell
+            ? `Reporte Ejecutivo del Pozo ${selectedWells[0]}`
+            : 'Reporte Ejecutivo Histórico de Monitoreo';
+        const summary = isSingleWell
+            ? `Resumen detallado del comportamiento operativo e histórico visible para ${selectedWells[0]} en el rango consultado.`
+            : 'Resumen consolidado del histórico operativo visible, con enfoque en cobertura, frecuencia de monitoreo, actividad diaria y alertas de seguimiento.';
+        const executiveHeadline = isSingleWell
+            ? `${selectedWells[0]} concentró ${snapshot.totalVisits || 0} monitoreo(s) en el período evaluado.`
+            : `${snapshot.totalVisits || 0} monitoreo(s) consolidados con ${coveragePercent.toFixed(1)}% de cobertura visible.`;
+        const executiveCopy = isSingleWell
+            ? `El análisis combina frecuencia de seguimiento, última actividad, ventana histórica y comportamiento dentro del rango filtrado para el pozo ${selectedWells[0]}.`
+            : `Este corte resume el estado general del rango consultado y permite detectar pozos líderes, días críticos, cobertura y eventos de parada.`;
+        const alertHeadline = offCount > 0
+            ? `${offCount} pozo(s) en OFF requieren atención`
+            : coveragePercent < 70
+                ? 'Cobertura por debajo del objetivo operativo'
+                : 'Sin alertas críticas visibles en el corte';
+        const alertCopy = offCount > 0
+            ? `El último estatus del rango dejó ${offCount} pozo(s) en OFF. Conviene contrastarlos con el detalle operativo antes de cerrar el reporte.`
+            : coveragePercent < 70
+                ? `La cobertura visible fue de ${coveragePercent.toFixed(1)}%, por lo que hay una brecha de monitoreo que debe explicarse en la revisión.`
+                : 'El rango no refleja pozos OFF ni una brecha fuerte de cobertura. El comportamiento general luce estable con la data visible.';
+
+        document.getElementById('stats-report-title').textContent = title;
+        document.getElementById('stats-report-summary').textContent = summary;
+        document.getElementById('stats-report-scope').textContent = scopeLabel;
+        document.getElementById('stats-report-range').textContent = `${formatDateLabel(snapshot.start)} al ${formatDateLabel(snapshot.end)}`;
+        document.getElementById('stats-report-count').textContent = `${snapshot.totalVisits || 0}`;
+        document.getElementById('stats-report-coverage').textContent = `${coveragePercent.toFixed(1)}%`;
+        document.getElementById('stats-report-top-well').textContent = snapshot.topWellName || '--';
+        document.getElementById('stats-report-busiest-day').textContent = snapshot.busiestDay?.date ? formatDateLabel(snapshot.busiestDay.date) : '--';
+        document.getElementById('stats-report-generated').textContent = formatReportDateTime(new Date().toISOString());
+        document.getElementById('stats-report-executive-headline').textContent = executiveHeadline;
+        document.getElementById('stats-report-executive-copy').textContent = executiveCopy;
+        document.getElementById('stats-report-alert-headline').textContent = alertHeadline;
+        document.getElementById('stats-report-alert-copy').textContent = alertCopy;
+        document.getElementById('stats-report-highlights').innerHTML = buildStatsReportHighlights(snapshot)
+            .map(item => `<li>${item}</li>`)
+            .join('');
+        document.getElementById('stats-report-recommendation').textContent = buildStatsReportRecommendation(snapshot);
+    }
+
+    function setStatsReportMode(enabled) {
+        const reportHeader = document.getElementById('stats-report-header');
+        const exportReportButton = document.getElementById('btn-export-stats-report');
+        if (!reportHeader || !exportReportButton) return;
+
+        reportHeader.hidden = !enabled;
+        reportHeader.setAttribute('aria-hidden', enabled ? 'false' : 'true');
+        document.body.classList.toggle('view-mode-report', enabled);
+        exportReportButton.querySelector('span').textContent = enabled ? 'Volver a estadísticas' : 'Exportar reporte';
     }
 
     function buildStatsSnapshot({ start, end, selectedWells = [], availableWells = [], rows = [], previousRows = [], historicalRows = [] }) {
@@ -831,6 +1091,7 @@
         let visitsChart = null;
         let currentSnapshot = null;
         let currentDrilldown = null;
+        let currentDrilldownRecordKey = null;
 
         function scrollToDrilldownPanel() {
             const panelCard = document.querySelector('.stats-drilldown-card');
@@ -1038,6 +1299,7 @@
             }
 
             const detailRows = sortRowsByMostRecent(config.rows || []);
+            const selectedRecord = detailRows.find(row => buildMonitoringRecordDetailKey(row) === currentDrilldownRecordKey) || null;
             setSelectedDrilldownTrigger(descriptor);
             panel.innerHTML = `
                 <div class="drilldown-shell">
@@ -1062,19 +1324,33 @@
                                         <th>Fecha</th>
                                         <th>Hora</th>
                                         <th>Estatus</th>
+                                        <th>Detalle</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     ${detailRows.map(row => `
-                                        <tr>
+                                        <tr class="${buildMonitoringRecordDetailKey(row) === currentDrilldownRecordKey ? 'is-detail-selected' : ''}">
                                             <td class="stats-pozo-cell">${row.pozo_name || '--'}</td>
                                             <td class="stats-muted-cell"><span class="stats-date-cell">${formatDateLabel(row.fecha)}</span></td>
                                             <td class="stats-muted-cell"><span class="stats-time-badge">${formatHourLabel(row.hora)}</span></td>
                                             <td class="stats-muted-cell"><span class="drilldown-status-badge ${row.estatus === 'OFF' ? 'is-off' : row.estatus === 'RUN' ? 'is-run' : 'is-unknown'}">${row.estatus || 'SIN DATO'}</span></td>
+                                            <td class="stats-muted-cell">
+                                                <button type="button" class="drilldown-open-record-btn" data-open-monitoring-record="${buildMonitoringRecordDetailKey(row)}">Ver monitoreo</button>
+                                            </td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="monitoring-detail-panel">
+                            ${selectedRecord
+                                ? buildMonitoringDetailCard(selectedRecord)
+                                : `
+                                    <div class="empty-panel compact">
+                                        <strong>Abre un monitoreo específico</strong>
+                                        <span>Haz clic en Ver monitoreo para inspeccionar PIP, THP, CHP, LF, frecuencia, corriente, TM y observaciones del registro seleccionado.</span>
+                                    </div>
+                                `}
                         </div>
                     ` : `
                         <div class="empty-panel compact">
@@ -1084,6 +1360,14 @@
                     `}
                 </div>
             `;
+
+            panel.querySelectorAll('[data-open-monitoring-record]').forEach(button => {
+                button.addEventListener('click', () => {
+                    currentDrilldownRecordKey = String(button.dataset.openMonitoringRecord || '').trim() || null;
+                    renderDrilldownPanel(snapshot, descriptor);
+                });
+            });
+
             scrollToDrilldownPanel();
         }
 
@@ -1320,6 +1604,7 @@
             const descriptor = getDrilldownDescriptorFromElement(trigger);
             if (!descriptor) return;
             currentDrilldown = descriptor;
+            currentDrilldownRecordKey = null;
             renderDrilldownPanel(currentSnapshot, currentDrilldown);
         });
 
@@ -1331,6 +1616,7 @@
             const descriptor = getDrilldownDescriptorFromElement(trigger);
             if (!descriptor) return;
             currentDrilldown = descriptor;
+            currentDrilldownRecordKey = null;
             renderDrilldownPanel(currentSnapshot, currentDrilldown);
         });
 
@@ -1342,6 +1628,43 @@
         document.getElementById('mobile-logout-btn')?.addEventListener('click', async () => {
             clearStatsSnapshot();
             await logout();
+        });
+
+        const exportReportButton = document.getElementById('btn-export-stats-report');
+        const constructionModal = document.getElementById('stats-construction-modal');
+        const constructionCloseButton = document.getElementById('stats-construction-close');
+        const constructionAcceptButton = document.getElementById('stats-construction-accept');
+
+        function openConstructionModal() {
+            if (!constructionModal) return;
+            constructionModal.hidden = false;
+            constructionModal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('stats-construction-open');
+        }
+
+        function closeConstructionModal() {
+            if (!constructionModal) return;
+            constructionModal.hidden = true;
+            constructionModal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('stats-construction-open');
+        }
+
+        exportReportButton?.addEventListener('click', () => {
+            openConstructionModal();
+        });
+
+        constructionCloseButton?.addEventListener('click', closeConstructionModal);
+        constructionAcceptButton?.addEventListener('click', closeConstructionModal);
+        constructionModal?.addEventListener('click', event => {
+            if (event.target === constructionModal) {
+                closeConstructionModal();
+            }
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && constructionModal && !constructionModal.hidden) {
+                closeConstructionModal();
+            }
         });
 
         let wellsPicker = null;
@@ -1362,6 +1685,7 @@
             if (wellsPicker && typeof wellsPicker.setSelected === 'function') {
                 wellsPicker.setSelected(persistedSnapshot.selectedWells || []);
             }
+            updateStatsReportHeader(persistedSnapshot);
             renderStatsSnapshot(persistedSnapshot);
 
             if (!persistedSnapshot.detailReady) {
@@ -1413,6 +1737,7 @@
                     previousRows,
                     historicalRows
                 });
+                updateStatsReportHeader(snapshot);
                 renderStatsSnapshot(snapshot);
                 saveStatsSnapshot(statsUserId, snapshot);
 

@@ -324,6 +324,115 @@
             align-items: center;
         }
 
+        .campo-admin-export-strip {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) auto;
+            gap: 16px;
+            align-items: center;
+            padding: 18px;
+            border-radius: 24px;
+            border: 1px solid rgba(147, 197, 253, 0.72);
+            background:
+                radial-gradient(circle at top right, rgba(14, 165, 233, 0.16), transparent 30%),
+                linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(255, 255, 255, 0.98));
+            box-shadow: 0 20px 38px rgba(15, 23, 42, 0.08);
+        }
+
+        .campo-admin-export-copy {
+            display: grid;
+            gap: 8px;
+        }
+
+        .campo-admin-export-copy h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--text-title);
+        }
+
+        .campo-admin-export-copy p {
+            margin: 0;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .campo-admin-export-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .campo-admin-export-reminder {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 12px;
+            align-items: start;
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(251, 191, 36, 0.34);
+            background: linear-gradient(135deg, rgba(255, 251, 235, 0.98), rgba(255, 255, 255, 0.98));
+        }
+
+        .campo-admin-export-reminder-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 14px;
+            background: rgba(245, 158, 11, 0.14);
+            color: #b45309;
+        }
+
+        .campo-admin-export-reminder-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .campo-admin-export-reminder strong {
+            display: block;
+            margin: 0 0 4px;
+            color: #7c2d12;
+            font-size: 0.94rem;
+        }
+
+        .campo-admin-export-reminder p {
+            margin: 0;
+            color: #92400e;
+            font-size: 0.85rem;
+            line-height: 1.55;
+        }
+
+        .campo-admin-export-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(29, 78, 216, 0.1);
+            color: #1d4ed8;
+            font-size: 0.76rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-export-launch {
+            min-width: 240px;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #1d4ed8, #38bdf8);
+            box-shadow: 0 20px 34px rgba(29, 78, 216, 0.22);
+            font-size: 0.88rem;
+        }
+
+        .campo-admin-export-launch svg {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 auto;
+        }
+
         .campo-admin-search {
             width: 100%;
             box-sizing: border-box;
@@ -1229,6 +1338,7 @@
         }
 
         .campo-admin-editor-field input,
+        .campo-admin-editor-field select,
         .campo-admin-editor-field textarea {
             width: 100%;
             box-sizing: border-box;
@@ -1240,8 +1350,222 @@
             background: #ffffff;
         }
 
+        .campo-admin-editor-field input:disabled,
+        .campo-admin-editor-field select:disabled,
+        .campo-admin-editor-field textarea:disabled {
+            color: #94a3b8;
+            background: rgba(241, 245, 249, 0.92);
+            cursor: not-allowed;
+        }
+
         .campo-admin-historical-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .campo-admin-historical-shell {
+            display: grid;
+            gap: 18px;
+        }
+
+        .campo-admin-historical-hero {
+            display: grid;
+            gap: 12px;
+            padding: 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(191, 219, 254, 0.88);
+            background:
+                radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
+                linear-gradient(180deg, rgba(239, 246, 255, 0.94), rgba(255, 255, 255, 0.98));
+        }
+
+        .campo-admin-historical-backup-note {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 12px;
+            align-items: start;
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(251, 191, 36, 0.28);
+            background: rgba(255, 251, 235, 0.92);
+        }
+
+        .campo-admin-historical-backup-note svg {
+            width: 20px;
+            height: 20px;
+            color: #b45309;
+            margin-top: 2px;
+        }
+
+        .campo-admin-historical-backup-note strong {
+            display: block;
+            margin: 0 0 4px;
+            color: #7c2d12;
+            font-size: 0.92rem;
+        }
+
+        .campo-admin-historical-backup-note p {
+            margin: 0;
+            color: #92400e;
+            font-size: 0.84rem;
+            line-height: 1.55;
+        }
+
+        .campo-admin-historical-hero p,
+        .campo-admin-field-help,
+        .campo-admin-historical-help,
+        .campo-admin-historical-note {
+            margin: 0;
+            color: var(--text-muted);
+            line-height: 1.55;
+        }
+
+        .campo-admin-historical-presets {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .campo-admin-historical-option {
+            position: relative;
+            display: grid;
+            gap: 8px;
+            padding: 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            background: rgba(255, 255, 255, 0.96);
+            cursor: pointer;
+            transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+        }
+
+        .campo-admin-historical-option-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(219, 234, 254, 0.95), rgba(239, 246, 255, 0.98));
+            color: #2563eb;
+            box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.6);
+        }
+
+        .campo-admin-historical-option-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke-width: 1.9;
+        }
+
+        .campo-admin-historical-option:hover {
+            border-color: rgba(59, 130, 246, 0.38);
+            transform: translateY(-1px);
+            box-shadow: 0 16px 28px rgba(15, 23, 42, 0.08);
+        }
+
+        .campo-admin-historical-option input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .campo-admin-historical-option strong {
+            color: var(--text-title);
+            font-size: 0.95rem;
+        }
+
+        .campo-admin-historical-option span {
+            color: var(--text-muted);
+            font-size: 0.84rem;
+            line-height: 1.5;
+        }
+
+        .campo-admin-historical-option:has(input:checked) {
+            border-color: rgba(29, 78, 216, 0.42);
+            background: linear-gradient(180deg, rgba(239, 246, 255, 0.98), rgba(255, 255, 255, 0.98));
+            box-shadow: 0 18px 32px rgba(29, 78, 216, 0.12);
+        }
+
+        .campo-admin-historical-option:has(input:checked) .campo-admin-historical-option-icon {
+            background: linear-gradient(135deg, #2563eb, #38bdf8);
+            color: #ffffff;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+        }
+
+        .campo-admin-historical-panel {
+            display: grid;
+            gap: 14px;
+            padding: 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            background: rgba(248, 250, 252, 0.95);
+        }
+
+        .campo-admin-historical-panel-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .campo-admin-historical-panel-head h4 {
+            margin: 0;
+            color: var(--text-title);
+            font-size: 0.98rem;
+        }
+
+        .campo-admin-field-help {
+            font-size: 0.8rem;
+        }
+
+        .campo-admin-historical-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .campo-admin-historical-summary-card {
+            display: grid;
+            gap: 5px;
+            padding: 12px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(226, 232, 240, 0.95);
+        }
+
+        .campo-admin-historical-summary-card span {
+            color: var(--text-muted);
+            font-size: 0.74rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-historical-summary-card strong {
+            color: var(--text-title);
+            font-size: 0.96rem;
+        }
+
+        .campo-admin-historical-actions {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            gap: 14px;
+        }
+
+        .campo-admin-historical-actions .campo-admin-historical-help {
+            max-width: 720px;
+        }
+
+        .campo-admin-historical-action-slot {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .campo-admin-historical-action-slot .campo-admin-action-btn {
+            min-width: 260px;
+            justify-content: center;
         }
 
         .campo-admin-record {
@@ -1491,6 +1815,10 @@
                 grid-template-columns: minmax(0, 1fr);
             }
 
+            .campo-admin-export-strip {
+                grid-template-columns: 1fr;
+            }
+
             .campo-admin-filter-group {
                 justify-content: flex-start;
             }
@@ -1507,6 +1835,11 @@
 
             .campo-admin-record-insights {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .campo-admin-historical-presets,
+            .campo-admin-historical-summary {
+                grid-template-columns: 1fr;
             }
 
             .campo-admin-detail-head {
@@ -1817,10 +2150,41 @@
                 </article>
             </section>
 
+            <section class="campo-admin-export-strip" aria-label="Exportacion historica del modulo Campo">
+                <div class="campo-admin-export-copy">
+                    <span class="campo-admin-kicker">Historico operacional</span>
+                    <h2>Exportador exclusivo de histórico Campo</h2>
+                    <p>Genera un consolidado completo para auditoría, análisis por pozo o cortes por fecha sin mezclar esta acción con los filtros normales de la bandeja.</p>
+                    <div class="campo-admin-export-meta">
+                        <span class="campo-admin-export-badge">Excel consolidado</span>
+                        <span class="campo-admin-export-badge">Por pozo o rango</span>
+                        <span class="campo-admin-export-badge">Listo para análisis</span>
+                    </div>
+                    <div class="campo-admin-export-reminder">
+                        <span class="campo-admin-export-reminder-icon" aria-hidden="true">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 17h.01"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86 1.82 18a2 2 0 0 0 1.72 3h16.92a2 2 0 0 0 1.72-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path>
+                            </svg>
+                        </span>
+                        <div>
+                            <strong>Recordatorio de respaldo operativo</strong>
+                            <p>El histórico operacional concentra datos críticos del servicio. Conviene generar un respaldo periódico del consolidado para proteger trazabilidad, análisis y evidencia operativa.</p>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="campo-admin-action-btn campo-admin-export-launch" id="campo-admin-historical-export-btn">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v10m0 0l-4-4m4 4l4-4M5 18h14" />
+                    </svg>
+                    Abrir exportador histórico
+                </button>
+            </section>
+
             <section class="campo-admin-toolbar" aria-label="Filtros de jornadas de Campo">
                 <input type="search" id="campo-admin-search" class="campo-admin-search" placeholder="Buscar por pozo, locación, equipo o correo del ingeniero">
                 <div class="campo-admin-filter-group" id="campo-admin-filter-group">
-                    <button type="button" class="campo-admin-filter-chip" id="campo-admin-historical-export-btn">Exportar historico</button>
                     <button type="button" class="campo-admin-filter-chip is-active" data-status-filter="pending">Pendientes</button>
                     <button type="button" class="campo-admin-filter-chip" data-status-filter="under_review">En revisión</button>
                     <button type="button" class="campo-admin-filter-chip" data-status-filter="approved">Aprobadas</button>
