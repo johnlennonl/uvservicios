@@ -1,7 +1,7 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from '../../auth.js';
 import { getUniquePozos } from '../../services/monitoring-service.js';
 import { submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney } from '../../services/field-journey-service.js';
-import { validateFieldReport } from './field-validation.js';
+import { validateFieldJourneyForSubmission, validateFieldReport } from './field-validation.js';
 
 const DRAFT_STORAGE_KEY = 'uv-field-capture-draft';
 const REPORTS_STORAGE_KEY = 'uv-field-capture-reports';
@@ -356,6 +356,21 @@ const WELL_PREVIEW_SECTIONS = [
     }
 ];
 
+const FIELD_REVIEW_SUMMARY_ITEMS = [
+    ['Pozo', 'pozo'],
+    ['Fecha', 'fecha'],
+    ['Hora', 'hora'],
+    ['Estatus', 'estatus'],
+    ['Frecuencia', 'frecuencia'],
+    ['PIP', 'pip_psi'],
+    ['THP', 'thp_psi'],
+    ['CHP', 'chp_psi'],
+    ['LF', 'lf_psi'],
+    ['TM', 'tm_f'],
+    ['I Motor', 'i_motor'],
+    ['Observaciones', 'observaciones_pozo']
+];
+
 let currentEditingReportId = null;
 let currentEditingJourneyId = null;
 let CURRENT_ACCESS_PROFILE = null;
@@ -518,11 +533,14 @@ function clearForm() {
 
 async function addCurrentReportToJourney() {
     const payload = getFormPayload();
-    const validation = validateFieldReport(payload);
+    const validation = validateFieldReport(payload, { context: 'field' });
 
-    if (!validation.isValid) {
-        showAlert(validation.message, 'warning');
-        updateStatus(validation.message, true);
+    const confirmed = await reviewFieldReportBeforeSave(payload, validation, {
+        isEditing: Boolean(currentEditingReportId)
+    });
+
+    if (!confirmed) {
+        updateStatus(validation.message, !validation.isValid);
         return;
     }
 
@@ -550,7 +568,7 @@ async function addCurrentReportToJourney() {
     renderJourneyReports();
     updateSummary();
 
-    await handleSavedReportFlow(wasEditingReport);
+    await handleSavedReportFlow(wasEditingReport, reportRecord);
 }
 
 function getJourneyReports() {
@@ -777,9 +795,11 @@ async function submitJourneyForAdminPreview() {
     }
 
     const reports = getJourneyReports();
-    if (reports.length === 0) {
-        showAlert('Primero agrega al menos un pozo a la jornada.', 'warning');
-        updateStatus('No hay pozos en la jornada para enviar a revisión.', true);
+    const journeyValidation = validateFieldJourneyForSubmission(reports);
+    if (!journeyValidation.isValid) {
+        showAlert(journeyValidation.message, 'warning');
+        updateStatus(journeyValidation.message, true);
+        focusFieldById(journeyValidation.focusField);
         return;
     }
 
@@ -1747,7 +1767,7 @@ function showAlert(message, icon = 'info') {
     });
 }
 
-async function handleSavedReportFlow(wasEditingReport) {
+async function handleSavedReportFlow(wasEditingReport, savedReport) {
     const savedMessage = wasEditingReport ? 'Registro actualizado exitosamente.' : 'Registro guardado exitosamente.';
     updateStatus(wasEditingReport ? 'Registro actualizado dentro de la jornada.' : 'Registro guardado dentro de la jornada.');
 
@@ -1766,24 +1786,163 @@ async function handleSavedReportFlow(wasEditingReport) {
 
     const promptResult = await window.Swal.fire({
         icon: 'question',
-        title: 'Agregar nuevo registro en esta jornada?',
-        text: 'Puedes continuar cargando otro pozo o dejar la jornada lista para revisión.',
-        confirmButtonText: 'Si, agregar otro',
-        cancelButtonText: 'No, dejar esta jornada',
+        title: 'Qué quieres hacer ahora?',
+        text: 'Puedes seguir con otro pozo, continuar ajustando este mismo registro o dejar la jornada lista por ahora.',
+        confirmButtonText: 'Agregar otro pozo',
+        denyButtonText: 'Seguir con este pozo',
+        cancelButtonText: 'Dejar jornada lista',
         showCancelButton: true,
+        showDenyButton: true,
         reverseButtons: true
     });
 
-    clearForm();
-
     if (promptResult.isConfirmed) {
+        clearForm();
         updateStatus('Formulario listo para capturar otro pozo dentro de esta jornada.');
         scrollToPozoField();
         return;
     }
 
+    if (promptResult.isDenied && savedReport) {
+        currentEditingReportId = savedReport.id;
+        loadReportIntoForm(savedReport);
+        recalculateComputedFields();
+        persistDraft();
+        syncAddButtonState();
+        updateSummary();
+        updateEditingContext();
+        updateStatus('Sigues trabajando sobre este pozo. Ajusta lo necesario y vuelve a guardar.');
+        scrollToCaptureStart();
+        return;
+    }
+
+    clearForm();
     updateStatus('Registro guardado. Puedes seguir revisando o enviar la jornada a revisión.');
     scrollBackToCapture();
+}
+
+async function reviewFieldReportBeforeSave(payload, validation, options = {}) {
+    if (!window.Swal) {
+        if (!validation.isValid) {
+            showAlert(validation.message, 'warning');
+        }
+        return validation.isValid;
+    }
+
+    const blockers = Array.isArray(validation.blockers) ? validation.blockers : [];
+    const warnings = Array.isArray(validation.warnings) ? validation.warnings : [];
+    const infos = Array.isArray(validation.infos) ? validation.infos : [];
+    const hasBlockers = blockers.length > 0;
+    const isEditing = Boolean(options.isEditing);
+
+    const result = await window.Swal.fire({
+        icon: hasBlockers ? 'warning' : (warnings.length > 0 ? 'warning' : 'info'),
+        title: isEditing ? 'Revisión antes de actualizar' : 'Revisión antes de agregar',
+        html: buildFieldReviewModalHtml(payload, validation),
+        width: 960,
+        showCancelButton: true,
+        showConfirmButton: !hasBlockers,
+        confirmButtonText: warnings.length > 0 ? 'Guardar con alertas' : (isEditing ? 'Actualizar registro' : 'Agregar registro'),
+        cancelButtonText: hasBlockers ? 'Corregir ahora' : 'Volver a editar',
+        focusConfirm: false
+    });
+
+    if (hasBlockers && !result.isConfirmed) {
+        const targetFieldId = resolveReviewFocusField(blockers, payload);
+        focusFieldById(targetFieldId);
+    }
+
+    if (!hasBlockers && !result.isConfirmed && warnings.length === 0 && infos.length > 0) {
+        focusFieldById('field-pozo-display');
+    }
+
+    return result.isConfirmed;
+}
+
+function buildFieldReviewModalHtml(payload, validation) {
+    const summaryMarkup = FIELD_REVIEW_SUMMARY_ITEMS.map(([label, fieldName]) => `
+        <div style="padding:12px; border:1px solid #e2e8f0; border-radius:14px; background:#fff; text-align:left;">
+            <span style="display:block; color:#64748b; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em;">${escapeHtml(label)}</span>
+            <strong style="display:block; margin-top:6px; color:#0f172a; font-size:14px; line-height:1.45;">${escapeHtml(formatFieldReviewValue(payload[fieldName], fieldName))}</strong>
+        </div>
+    `).join('');
+
+    const blockers = Array.isArray(validation.blockers) ? validation.blockers : [];
+    const warnings = Array.isArray(validation.warnings) ? validation.warnings : [];
+    const infos = Array.isArray(validation.infos) ? validation.infos : [];
+
+    return `
+        <div style="display:grid; gap:18px; text-align:left;">
+            <div style="padding:14px 16px; border-radius:16px; background:${blockers.length ? '#fff7ed' : '#eff6ff'}; border:1px solid ${blockers.length ? '#fdba74' : '#bfdbfe'}; color:#334155; line-height:1.6;">
+                ${escapeHtml(validation.message)}
+            </div>
+            <div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
+                    <strong style="color:#0f172a; font-size:15px;">Resumen del registro</strong>
+                    <span style="display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; background:#f8fafc; border:1px solid #e2e8f0; color:#334155; font-size:12px; font-weight:800;">${countFilledFields(payload)} campo(s) con dato</span>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px;">
+                    ${summaryMarkup}
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">
+                <section style="padding:16px; border:1px solid #fecaca; border-radius:16px; background:#fff5f5;">
+                    <strong style="display:block; color:#991b1b; margin-bottom:10px;">Bloqueos</strong>
+                    ${buildFieldReviewIssueList(blockers, 'Sin bloqueos críticos. Puedes seguir.')}
+                </section>
+                <section style="padding:16px; border:1px solid #fde68a; border-radius:16px; background:#fffbeb;">
+                    <strong style="display:block; color:#92400e; margin-bottom:10px;">Alertas</strong>
+                    ${buildFieldReviewIssueList(warnings, 'Sin alertas relevantes en este registro.')}
+                </section>
+                <section style="padding:16px; border:1px solid #cbd5e1; border-radius:16px; background:#f8fafc;">
+                    <strong style="display:block; color:#0f172a; margin-bottom:10px;">Ayudas</strong>
+                    ${buildFieldReviewIssueList(infos, 'El registro ya trae contexto suficiente para guardarse.')}
+                </section>
+            </div>
+        </div>
+    `;
+}
+
+function buildFieldReviewIssueList(items = [], emptyCopy) {
+    if (!items.length) {
+        return `<p style="margin:0; color:#475569; line-height:1.6;">${escapeHtml(emptyCopy)}</p>`;
+    }
+
+    return `
+        <ul style="margin:0; padding-left:18px; color:#334155; line-height:1.65; display:grid; gap:8px;">
+            ${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+        </ul>
+    `;
+}
+
+function formatFieldReviewValue(value, fieldName) {
+    const normalized = formatPreviewValue(value, fieldName);
+    if (normalized === '--') return 'Sin dato';
+    return normalized;
+}
+
+function countFilledFields(payload = {}) {
+    return Object.entries(payload).filter(([fieldName, value]) => {
+        if (fieldName === 'jornada' || fieldName === 'sentido_giro') return false;
+        return String(value ?? '').trim() !== '';
+    }).length;
+}
+
+function resolveReviewFocusField(blockers = [], payload = {}) {
+    if (blockers.some(item => /pozo/i.test(item))) return 'field-pozo-display';
+    if (blockers.some(item => /fecha/i.test(item))) return 'field-fecha';
+    if (blockers.some(item => /hora/i.test(item))) return 'field-hora';
+    if (!String(payload?.pozo || '').trim()) return 'field-pozo-display';
+    return 'field-pozo-display';
+}
+
+function focusFieldById(fieldId) {
+    if (!fieldId) return;
+    const field = document.getElementById(fieldId);
+    if (!field) return;
+    field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    field.focus();
+    field.select?.();
 }
 
 function escapeHtml(value) {

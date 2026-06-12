@@ -824,9 +824,9 @@ function mapWorkflowRecordToMonitoringRecord(record = {}) {
         presion_lf: normalizeOptionalNumber(record.lf_psi ?? payload.lf_psi),
         pip: normalizeOptionalNumber(record.pip_psi ?? payload.pip_psi),
         tm: normalizeOptionalNumber(record.tm_f ?? payload.tm_f),
-        vsd_a: null,
-        vsd_b: null,
-        vsd_c: null,
+        vsd_a: normalizeOptionalNumber(record.i_vsd_a ?? payload.i_vsd_a ?? record.vsd_a ?? payload.vsd_a),
+        vsd_b: normalizeOptionalNumber(record.i_vsd_b ?? payload.i_vsd_b ?? record.vsd_b ?? payload.vsd_b),
+        vsd_c: normalizeOptionalNumber(record.i_vsd_c ?? payload.i_vsd_c ?? record.vsd_c ?? payload.vsd_c),
         sentido_giro: String(record.sentido_giro || payload.sentido_giro || '').trim(),
         estatus: String(record.estatus || payload.estatus || '').trim(),
         observaciones: String(record.observaciones_pozo || payload.observaciones_pozo || payload.diagnostico || '').trim()

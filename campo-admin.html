@@ -22,6 +22,57 @@
             gap: 20px;
         }
 
+        .swal2-popup.campo-admin-upload-modal {
+            width: min(1180px, calc(100vw - 32px)) !important;
+            padding: 20px 20px 16px;
+        }
+
+        .swal2-html-container.campo-admin-upload-modal-html {
+            margin: 16px 0 0;
+            max-height: min(72vh, 780px);
+            overflow: auto;
+            padding-right: 6px;
+            text-align: initial;
+        }
+
+        .swal2-html-container.campo-admin-upload-modal-html::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .swal2-html-container.campo-admin-upload-modal-html::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.65);
+            border-radius: 999px;
+        }
+
+        .campo-admin-upload-preview {
+            display: grid;
+            gap: 18px;
+            text-align: left;
+        }
+
+        .campo-admin-upload-sections {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 14px;
+            align-items: start;
+        }
+
+        @media (max-width: 760px) {
+            .swal2-popup.campo-admin-upload-modal {
+                width: calc(100vw - 16px) !important;
+                padding: 18px 14px 14px;
+            }
+
+            .swal2-html-container.campo-admin-upload-modal-html {
+                max-height: 68vh;
+                padding-right: 2px;
+            }
+
+            .campo-admin-upload-sections {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+
         .campo-admin-opsbar,
         .campo-admin-toolbar,
         .campo-admin-stat,

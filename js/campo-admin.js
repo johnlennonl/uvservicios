@@ -1185,7 +1185,7 @@ function buildPublicationChangesList(changedFields = []) {
             ${changedFields.map(change => `
                 <div style="padding:12px;border:1px solid rgba(226,232,240,0.92);border-radius:14px;background:#fff;display:grid;gap:8px;">
                     <strong style="font-size:13px;color:#0f172a;">${escapeHtml(PUBLICATION_FIELD_LABELS[change.fieldName] || change.fieldName)}</strong>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
                         <div style="padding:10px;border-radius:12px;background:rgba(241,245,249,0.95);">
                             <span style="display:block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#64748b;">Actual</span>
                             <span style="display:block;font-size:14px;color:#0f172a;">${escapeHtml(formatPublicationValue(change.fieldName, change.previousValue))}</span>
@@ -1315,17 +1315,25 @@ function buildPublicationPreviewHtml(preview, reviewSummary, records = []) {
     });
 
     const buildSection = (title, description, entries, emptyMessage) => `
-        <section style="display:grid;gap:12px;">
+        <section style="display:grid;gap:12px;min-width:0;align-content:start;">
             <div style="display:grid;gap:4px;">
                 <h3 style="margin:0;font-size:15px;color:#0f172a;">${escapeHtml(title)}</h3>
                 <p style="margin:0;color:#64748b;font-size:13px;">${escapeHtml(description)}</p>
             </div>
-            ${entries.length ? `<div style="display:grid;gap:12px;max-height:280px;overflow:auto;padding-right:4px;">${entries.join('')}</div>` : `<div style="padding:14px;border:1px dashed rgba(203,213,225,1);border-radius:16px;color:#64748b;">${escapeHtml(emptyMessage)}</div>`}
+            ${entries.length ? `<div style="display:grid;gap:12px;max-height:220px;overflow:auto;padding-right:6px;min-width:0;">${entries.join('')}</div>` : `<div style="padding:14px;border:1px dashed rgba(203,213,225,1);border-radius:16px;color:#64748b;">${escapeHtml(emptyMessage)}</div>`}
         </section>
     `;
 
+    const sectionsMarkup = [
+        buildSection('Nuevos registros', 'Pozos que se agregarán por primera vez al dashboard operativo.', insertEntries, 'No hay registros nuevos para insertar.'),
+        buildSection('Registros actualizados', 'Pozos que ya existen y recibirán reemplazo de campos operativos.', updateEntries, 'No hay registros para actualizar.'),
+        buildSection('Registros omitidos', 'Pozos que ya existen con exactamente los mismos valores operativos.', skipEntries, 'No hay registros omitidos.'),
+        buildSection('Bloqueados', 'Pozos que no pueden subir hasta corregir validaciones críticas.', blockedEntries, 'No hay pozos bloqueados.'),
+        buildSection('Alertas', 'Pozos que pueden subirse, pero conviene revisar antes de confirmar.', warningEntries, 'No hay alertas operativas en esta jornada.')
+    ].join('');
+
     return `
-        <div style="display:grid;gap:18px;text-align:left;">
+        <div class="campo-admin-upload-preview">
             <div style="padding:16px 18px;border-radius:18px;background:rgba(15,118,110,0.08);border:1px solid rgba(15,118,110,0.16);display:grid;gap:6px;">
                 <strong style="font-size:16px;color:#0f172a;">Vista previa de subida operativa</strong>
                 <p style="margin:0;color:#475569;line-height:1.5;">Aquí solo se revisan parámetros operativos hacia el dashboard. La medición técnica no se toca.</p>
@@ -1339,11 +1347,9 @@ function buildPublicationPreviewHtml(preview, reviewSummary, records = []) {
                 ${buildPublicationSummaryCard('Con alerta', reviewSummary.warning, 'warning')}
             </div>
 
-            ${buildSection('Nuevos registros', 'Pozos que se agregarán por primera vez al dashboard operativo.', insertEntries, 'No hay registros nuevos para insertar.')}
-            ${buildSection('Registros actualizados', 'Pozos que ya existen y recibirán reemplazo de campos operativos.', updateEntries, 'No hay registros para actualizar.')}
-            ${buildSection('Registros omitidos', 'Pozos que ya existen con exactamente los mismos valores operativos.', skipEntries, 'No hay registros omitidos.')}
-            ${buildSection('Bloqueados', 'Pozos que no pueden subir hasta corregir validaciones críticas.', blockedEntries, 'No hay pozos bloqueados.')}
-            ${buildSection('Alertas', 'Pozos que pueden subirse, pero conviene revisar antes de confirmar.', warningEntries, 'No hay alertas operativas en esta jornada.')}
+            <div class="campo-admin-upload-sections">
+                ${sectionsMarkup}
+            </div>
         </div>
     `;
 }
@@ -1419,7 +1425,11 @@ async function confirmPublicationPreview(preview, reviewSummary) {
         icon: reviewSummary.canPrepareUpload ? 'info' : 'warning',
         title: reviewSummary.canPrepareUpload ? 'Preparar subida operativa' : 'Subida bloqueada',
         html: modalHtml,
-        width: 1180,
+        width: 'min(1180px, calc(100vw - 32px))',
+        customClass: {
+            popup: 'campo-admin-upload-modal',
+            htmlContainer: 'campo-admin-upload-modal-html'
+        },
         showCancelButton: reviewSummary.canPrepareUpload,
         showConfirmButton: true,
         confirmButtonText: reviewSummary.canPrepareUpload ? 'Confirmar subida' : 'Cerrar',
