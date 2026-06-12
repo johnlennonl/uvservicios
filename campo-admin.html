@@ -447,7 +447,8 @@
         .campo-admin-export-meta {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 10px;
+            align-items: center;
         }
 
         .campo-admin-export-highlights {
@@ -529,19 +530,25 @@
         .campo-admin-export-badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 2px 5px;
+            gap: 8px;
+            padding: 6px 10px;
             background: transparent;
-            color: #040918;
-            font-size: 0.62rem;
-            font-weight: 700;
+            color: #1D4ED8; /* sidebar accent */
+            font-size: 0.78rem;
+            font-weight: 800;
             letter-spacing: 0.04em;
             text-transform: uppercase;
-            border: none;
-            min-height: 10px;
+            border: 1px solid rgba(29, 78, 216, 0.12);
+            border-radius: 999px;
+            min-height: 26px;
             line-height: 1;
-            font-size: 0.62rem;
-            
+        }
+
+        /* Variante más destacada */
+        .campo-admin-export-badge.is-primary {
+            background: linear-gradient(90deg, rgba(29,78,216,0.12), rgba(56,189,248,0.08));
+            color: #08306B;
+            border-color: rgba(29,78,216,0.22);
         }
 
         .campo-admin-export-side {
@@ -2561,7 +2568,7 @@
                         </div>
                     </div>
                     <div class="campo-admin-export-meta">
-                        <span class="campo-admin-export-badge">Excel consolidado</span>
+                        <span class="campo-admin-export-badge is-primary">Excel consolidado</span>
                         <span class="campo-admin-export-badge">Por pozo o rango</span>
                         <span class="campo-admin-export-badge">Listo para análisis</span>
                     </div>

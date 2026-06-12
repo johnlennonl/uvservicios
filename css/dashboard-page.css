@@ -1781,6 +1781,7 @@
             gap: 10px;
             min-width: 0;
             transition: transform 0.2s ease;
+            cursor:pointer;
         }
 
         .ribbon-icon {
@@ -1819,7 +1820,7 @@
         }
 
         .ribbon-card:hover {
-            transform: translateY(-3px);
+            transform: translateY(-2px);
             border-color: #3B82F6;
         }
 

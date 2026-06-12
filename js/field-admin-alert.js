@@ -41,15 +41,16 @@ function ensureFieldAdminToastStyles() {
     style.id = 'field-admin-toast-styles';
     style.textContent = `
         .field-admin-toast.swal2-popup.swal2-toast {
-            width: min(420px, calc(100vw - 24px));
+            width: min(390px, calc(100vw - 24px));
             padding: 0;
-            border-radius: 22px;
-            border: 1px solid rgba(191, 219, 254, 0.95);
-            background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(239,246,255,0.97));
-            box-shadow: 0 24px 46px rgba(15, 23, 42, 0.18);
+            border: 1px solid #334155;
+            border-radius: 20px;
+            background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+            box-shadow: 0 24px 48px rgba(2, 6, 23, 0.36);
             overflow: hidden;
         }
 
+        .field-admin-toast .swal2-title,
         .field-admin-toast .swal2-html-container {
             margin: 0;
             padding: 0;
@@ -58,124 +59,153 @@ function ensureFieldAdminToastStyles() {
         .field-admin-toast-card {
             position: relative;
             display: grid;
-            gap: 14px;
-            padding: 18px 18px 16px 18px;
+            gap: 12px;
+            padding: 16px 18px;
+            color: #E2E8F0;
         }
 
         .field-admin-toast-card::before {
             content: '';
             position: absolute;
-            inset: 0 auto 0 0;
-            width: 5px;
-            background: linear-gradient(180deg, #0ea5e9, #2563eb);
+            inset: 0 0 auto 0;
+            height: 3px;
+            background: linear-gradient(90deg, #38BDF8 0%, #1D4ED8 100%);
+            pointer-events: none;
         }
 
-        .field-admin-toast-top {
+        .field-admin-toast-header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 12px;
+            gap: 14px;
+        }
+
+        .field-admin-toast-logo-wrap {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: #1E293B;
+            border: 1px solid #334155;
+        }
+
+        .field-admin-toast-logo {
+            width: 32px;
+            height: auto;
+            display: block;
+        }
+
+        .field-admin-toast-copy {
+            min-width: 0;
+            display: grid;
+            gap: 3px;
         }
 
         .field-admin-toast-kicker {
-            display: inline-flex;
-            align-items: center;
-            padding: 6px 10px;
-            border-radius: 999px;
-            background: rgba(37, 99, 235, 0.1);
-            color: #1d4ed8;
-            font-size: 11px;
-            font-weight: 900;
-            letter-spacing: .08em;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .12em;
             text-transform: uppercase;
+            color: #38BDF8;
+        }
+
+        .field-admin-toast-title {
+            font-size: 15px;
+            line-height: 1.2;
+            font-weight: 800;
+            color: #F8FAFC;
+        }
+
+        .field-admin-toast-text {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #CBD5E1;
+        }
+
+        .field-admin-toast-footer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-top: 2px;
         }
 
         .field-admin-toast-count {
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            min-width: 34px;
-            height: 34px;
-            padding: 0 10px;
+            gap: 8px;
+            min-height: 30px;
+            padding: 0 11px;
             border-radius: 999px;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: #fff;
-            font-size: 14px;
-            font-weight: 900;
-            box-shadow: 0 10px 18px rgba(37, 99, 235, 0.22);
+            background: #1E293B;
+            border: 1px solid #334155;
+            font-size: 12px;
+            font-weight: 800;
+            color: #E2E8F0;
         }
 
-        .field-admin-toast-main {
-            display: grid;
-            grid-template-columns: 46px minmax(0, 1fr);
-            gap: 14px;
-            align-items: start;
-        }
-
-        .field-admin-toast-icon {
+        .field-admin-toast-pill {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 46px;
-            height: 46px;
-            border-radius: 50%;
-            background: rgba(14, 165, 233, 0.08);
-            border: 2px solid rgba(14, 165, 233, 0.6);
-            color: #0ea5e9;
-            font-size: 24px;
-            font-weight: 800;
-            line-height: 1;
-        }
-
-        .field-admin-toast-copy strong {
-            display: block;
-            color: #0f172a;
-            font-size: 15px;
-            line-height: 1.2;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 7px;
+            border-radius: 999px;
+            background: #38BDF8;
+            color: #0F172A;
+            font-size: 11px;
             font-weight: 900;
-            margin: 0 0 6px;
-        }
-
-        .field-admin-toast-copy p {
-            margin: 0;
-            color: #475569;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        .field-admin-toast-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            padding-left: 60px;
         }
 
         .field-admin-toast-hint {
-            color: #64748b;
             font-size: 12px;
             font-weight: 700;
+            color: #94A3B8;
         }
 
-        .field-admin-toast-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 9px 12px;
-            border-radius: 12px;
-            background: #eff6ff;
-            color: #1d4ed8;
-            font-size: 12px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: .05em;
-            text-decoration: none;
-            border: 1px solid rgba(59, 130, 246, 0.18);
-        }
-
-        .field-admin-toast.swal2-icon-show,
-        .field-admin-toast .swal2-timer-progress-bar {
+        .field-admin-toast .swal2-icon {
             display: none !important;
+        }
+
+        .field-admin-toast .swal2-close {
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            color: #CBD5E1;
+            font-size: 24px;
+            border-radius: 999px;
+            top: 10px;
+            right: 10px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .field-admin-toast .swal2-close:hover {
+            background: #1E293B;
+            color: #F8FAFC;
+        }
+
+        .field-admin-toast .swal2-timer-progress-bar {
+            background: linear-gradient(90deg, #38BDF8, #1D4ED8);
+            height: 4px;
+        }
+
+        @media (max-width: 640px) {
+            .field-admin-toast-card {
+                padding: 14px;
+            }
+
+            .field-admin-toast-title {
+                font-size: 15px;
+            }
+
+            .field-admin-toast-footer {
+                flex-wrap: wrap;
+            }
         }
     `;
     document.head.appendChild(style);
@@ -222,37 +252,47 @@ function showNewJourneyToast(count) {
     ensureFieldAdminToastStyles();
 
     const title = count === 1
-        ? 'Hay una nueva jornada de Campo por revisar'
-        : `Hay ${count} nuevas jornadas de Campo por revisar`;
+        ? 'Nueva jornada lista para revisar'
+        : `${count} nuevas jornadas listas para revisar`;
+    const journeyLabel = count === 1 ? 'jornada nueva' : 'jornadas nuevas';
 
-    window.Swal.fire({
+    const toast = window.Swal.mixin({
         toast: true,
         position: 'top-end',
+        showConfirmButton: false,
+        showCloseButton: true,
+        timer: 30000,
+        timerProgressBar: true,
         customClass: {
             popup: 'field-admin-toast'
         },
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', window.Swal.stopTimer);
+            toast.addEventListener('mouseleave', window.Swal.resumeTimer);
+            toast.style.cursor = 'pointer';
+            toast.addEventListener('click', () => window.Swal.close());
+        }
+    });
+
+    toast.fire({
         html: `
-            <article class="field-admin-toast-card">
-                <div class="field-admin-toast-top">
-                    <span class="field-admin-toast-kicker">Campo</span>
-                    <span class="field-admin-toast-count">${count > 9 ? '9+' : count}</span>
-                </div>
-                <div class="field-admin-toast-main">
-                    <span class="field-admin-toast-icon">i</span>
+            <div class="field-admin-toast-card">
+                <div class="field-admin-toast-header">
+                    <div class="field-admin-toast-logo-wrap">
+                        <img src="img/uvservicioslogo.png" alt="UV Servicios" class="field-admin-toast-logo">
+                    </div>
                     <div class="field-admin-toast-copy">
-                        <strong>${title}</strong>
-                        <p>Abre Campo para revisar la bandeja administrativa y procesar la jornada cuanto antes.</p>
+                        <span class="field-admin-toast-kicker">Campo UV Servicios</span>
+                        <strong class="field-admin-toast-title">${title}</strong>
                     </div>
                 </div>
+                <p class="field-admin-toast-text">Se detectó ${count === 1 ? 'una jornada nueva' : 'nuevo ingreso de jornadas'} en la bandeja administrativa. El aviso se cierra con la X, con click o automáticamente en 30 segundos.</p>
                 <div class="field-admin-toast-footer">
-                    <span class="field-admin-toast-hint">Notificación operativa</span>
-                    <a class="field-admin-toast-link" href="campo-admin.html">Abrir Campo</a>
+                    <span class="field-admin-toast-count"><span class="field-admin-toast-pill">${count}</span>${journeyLabel}</span>
+                    <span class="field-admin-toast-hint">Pendiente de revisión.</span>
                 </div>
-            </article>
-        `,
-        showConfirmButton: false,
-        timer: 9000,
-        timerProgressBar: true
+            </div>
+        `
     });
 }
 

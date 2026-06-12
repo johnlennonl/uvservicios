@@ -600,7 +600,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #DBEAFE, #E0F2FE);
+            background: transparent;
             box-shadow: inset 0 0 0 1px #BFDBFE;
             font-size: 1.2rem;
             flex: 0 0 auto;
