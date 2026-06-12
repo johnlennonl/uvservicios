@@ -74,6 +74,18 @@
 
                     <div id="field-editing-context" class="field-continue-banner" hidden></div>
 
+                    <div class="field-quick-actions" aria-label="Accesos rápidos de captura">
+                        <div class="field-quick-actions-copy">
+                            <span class="field-quick-actions-kicker">Acceso rápido</span>
+                            <strong id="field-quick-actions-title">Arranca con un pozo nuevo o retoma el que estabas trabajando.</strong>
+                            <p id="field-quick-actions-copy">Usa estos accesos para acelerar captura sin perder la jornada que ya llevas armada.</p>
+                        </div>
+                        <div class="field-quick-actions-buttons">
+                            <button type="button" id="field-new-pozo-btn" class="field-quick-action-btn field-quick-action-btn-primary">Nuevo pozo</button>
+                            <button type="button" id="field-resume-edit-btn" class="field-quick-action-btn field-quick-action-btn-secondary">Seguir editando</button>
+                        </div>
+                    </div>
+
                     <form id="field-report-form" class="field-form field-capture-form" novalidate>
                         <section class="field-section-block">
                             <div class="field-section-heading">
@@ -347,8 +359,21 @@
                 <aside class="field-card field-summary-panel">
                     <div class="field-card-header">
                         <div>
-                            <h2>Resumen de captura</h2>
-                            <p>Acumula pozos dentro de la jornada actual y, al finalizar, envíalos a una bandeja de revisión administrativa simulada.</p>
+                            <h2>Centro de jornada</h2>
+                            <p>Administra la jornada activa sin perder el hilo: agrega pozos, retoma uno en edición y confirma cuándo ya está lista para enviarse.</p>
+                        </div>
+                    </div>
+
+                    <div class="field-journey-guide" aria-label="Estado actual de la jornada">
+                        <div class="field-journey-guide-copy">
+                            <span class="field-journey-guide-kicker">Flujo recomendado</span>
+                            <strong id="field-summary-mode-title">Construyendo jornada</strong>
+                            <p id="field-summary-mode-copy">Empieza cargando el primer pozo. Cada registro queda guardado en esta jornada mientras completas el turno.</p>
+                        </div>
+                        <div class="field-journey-guide-steps">
+                            <span class="is-active">1. Agrega</span>
+                            <span>2. Revisa</span>
+                            <span>3. Envía</span>
                         </div>
                     </div>
 
@@ -367,11 +392,20 @@
                         </article>
                     </div>
 
+                    <div class="field-active-record-card" id="field-active-record-card">
+                        <div>
+                            <span class="field-active-record-label">Pozo activo</span>
+                            <strong id="field-summary-focus">Listo para empezar</strong>
+                            <p id="field-summary-focus-copy">Cuando selecciones un pozo para editar o agregues el primero, lo verás resaltado aquí.</p>
+                        </div>
+                        <span id="field-summary-focus-state" class="field-active-record-state">Nuevo</span>
+                    </div>
+
                     <div class="field-journey-shell">
                         <div class="field-journey-header">
                             <div>
-                                <h3>Jornada en construcción</h3>
-                                <p>Cada registro queda temporalmente en el navegador mientras armas la jornada para revisión administrativa.</p>
+                                <h3>Bandeja de pozos de esta jornada</h3>
+                                <p>Usa esta lista para continuar un pozo, revisar el orden de captura o quitar registros antes de enviar la jornada.</p>
                             </div>
                             <span id="field-journey-count" class="field-journey-count">0 pozos</span>
                         </div>
@@ -382,19 +416,19 @@
 
                     <div class="field-submit-shell">
                         <button type="button" id="field-submit-journey-btn" class="btn-submit field-submit-btn">Enviar jornada a revisión</button>
-                        <p>Esto no cambia de rol todavía: solo simula cómo la recibiría Campo dentro del panel administrativo.</p>
-                        <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
-                            <button type="button" id="field-send-ticket-btn" class="btn-submit" style="padding:10px 16px; display:inline-flex; gap:8px; align-items:center;" title="Reportar incidencia">
+                        <p id="field-summary-submit-copy">Cuando la lista esté completa, envía la jornada para que administración la reciba como un solo paquete operativo.</p>
+                        <div class="field-summary-support-row">
+                            <button type="button" id="field-send-ticket-btn" class="btn-submit field-ticket-trigger-btn" title="Reportar incidencia">
                                 <i class="fa-solid fa-envelope-open-text" aria-hidden="true" style="font-size:18px"></i>
                                 <span>Reportar incidencia</span>
                             </button>
-                            <small style="color:#6b7280;">Reporta incidencias o consultas por jornada.</small>
+                            <small>Reporta incidencias o consultas ligadas a esta jornada mientras sigues capturando.</small>
                         </div>
                     </div>
 
                     <div class="field-note-box">
-                        <strong>Etapa actual:</strong>
-                        captura por secciones. Sin mensaje de envío, sin exportación local y sin publicación administrativa todavía.
+                        <strong>Tip operativo:</strong>
+                        si vas por varios pozos del mismo turno, deja fija la jornada y usa esta bandeja como lista de control para no repetir ni omitir parámetros.
                     </div>
                 </aside>
             </section>

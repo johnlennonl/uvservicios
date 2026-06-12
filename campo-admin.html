@@ -381,27 +381,56 @@
 
         .campo-admin-export-strip {
             display: grid;
-            grid-template-columns: minmax(0, 1.3fr) auto;
-            gap: 16px;
-            align-items: center;
-            padding: 18px;
-            border-radius: 24px;
-            border: 1px solid rgba(147, 197, 253, 0.72);
+            grid-template-columns: minmax(0, 1.4fr) minmax(280px, 360px);
+            gap: 18px;
+            align-items: stretch;
+            padding: 22px;
+            border-radius: 28px;
+            border: 1px solid rgba(125, 211, 252, 0.72);
             background:
                 radial-gradient(circle at top right, rgba(14, 165, 233, 0.16), transparent 30%),
+                radial-gradient(circle at bottom left, rgba(15, 118, 110, 0.12), transparent 34%),
                 linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(255, 255, 255, 0.98));
-            box-shadow: 0 20px 38px rgba(15, 23, 42, 0.08);
+            box-shadow: 0 24px 44px rgba(15, 23, 42, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .campo-admin-export-strip::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(120deg, rgba(255, 255, 255, 0.1), transparent 36%),
+                repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.08) 0 1px, transparent 1px 88px);
+            opacity: 0.45;
+            pointer-events: none;
         }
 
         .campo-admin-export-copy {
             display: grid;
-            gap: 8px;
+            gap: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .campo-admin-export-head {
+            display: grid;
+            gap: 12px;
+        }
+
+        .campo-admin-export-kicker {
+            background: rgba(15, 118, 110, 0.12);
+            color: #115e59;
+            box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.08);
         }
 
         .campo-admin-export-copy h2 {
             margin: 0;
-            font-size: 1.1rem;
+            font-size: clamp(1.45rem, 2.1vw, 1.9rem);
             color: var(--text-title);
+            line-height: 1.08;
+            letter-spacing: -0.03em;
         }
 
         .campo-admin-export-copy p {
@@ -410,19 +439,59 @@
             line-height: 1.6;
         }
 
+        .campo-admin-export-lead {
+            max-width: 72ch;
+            font-size: 0.98rem;
+        }
+
         .campo-admin-export-meta {
             display: flex;
             flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .campo-admin-export-highlights {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .campo-admin-export-highlight {
+            padding: 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(191, 219, 254, 0.85);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.84));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+            display: grid;
             gap: 8px;
+        }
+
+        .campo-admin-export-highlight span {
+            color: #0369a1;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-export-highlight strong {
+            color: var(--text-title);
+            font-size: 0.98rem;
+            line-height: 1.25;
+        }
+
+        .campo-admin-export-highlight p {
+            font-size: 0.86rem;
+            line-height: 1.55;
         }
 
         .campo-admin-export-reminder {
             display: grid;
             grid-template-columns: auto minmax(0, 1fr);
-            gap: 12px;
+            gap: 10px;
             align-items: start;
-            padding: 14px 16px;
-            border-radius: 18px;
+            padding: 12px 14px;
+            border-radius: 16px;
             border: 1px solid rgba(251, 191, 36, 0.34);
             background: linear-gradient(135deg, rgba(255, 251, 235, 0.98), rgba(255, 255, 255, 0.98));
         }
@@ -431,44 +500,142 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 40px;
-            height: 40px;
-            border-radius: 14px;
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
             background: rgba(245, 158, 11, 0.14);
             color: #b45309;
         }
 
         .campo-admin-export-reminder-icon svg {
-            width: 20px;
-            height: 20px;
+            width: 17px;
+            height: 17px;
         }
 
         .campo-admin-export-reminder strong {
             display: block;
-            margin: 0 0 4px;
+            margin: 0 0 2px;
             color: #7c2d12;
-            font-size: 0.94rem;
+            font-size: 0.85rem;
         }
 
         .campo-admin-export-reminder p {
             margin: 0;
             color: #92400e;
-            font-size: 0.85rem;
-            line-height: 1.55;
+            font-size: 0.78rem;
+            line-height: 1.45;
         }
 
         .campo-admin-export-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: rgba(29, 78, 216, 0.1);
-            color: #1d4ed8;
-            font-size: 0.76rem;
-            font-weight: 800;
-            letter-spacing: 0.05em;
+            gap: 6px;
+            padding: 2px 5px;
+            background: transparent;
+            color: #040918;
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
             text-transform: uppercase;
+            border: none;
+            min-height: 10px;
+            line-height: 1;
+            font-size: 0.62rem;
+            
+        }
+
+        .campo-admin-export-side {
+            display: grid;
+            gap: 14px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .campo-admin-export-side-card {
+            display: grid;
+            gap: 10px;
+            padding: 18px;
+            border-radius: 22px;
+            background: linear-gradient(180deg, rgba(12, 74, 110, 0.96), rgba(15, 118, 110, 0.92));
+            color: rgba(255, 255, 255, 0.92);
+            box-shadow: 0 18px 34px rgba(8, 47, 73, 0.2);
+        }
+
+        .campo-admin-export-side-label {
+            display: inline-flex;
+            width: fit-content;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.86);
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-export-side-card strong {
+            font-size: 1.05rem;
+            line-height: 1.3;
+        }
+
+        .campo-admin-export-side-card p,
+        .campo-admin-export-footnote {
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 0.88rem;
+            line-height: 1.6;
+        }
+
+        .campo-admin-export-checklist {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 8px;
+        }
+
+        .campo-admin-export-checklist li {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 10px;
+            align-items: start;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .campo-admin-export-checklist li::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            margin-top: 6px;
+            border-radius: 999px;
+            background: #67e8f9;
+            box-shadow: 0 0 0 4px rgba(103, 232, 249, 0.16);
+        }
+
+        .campo-admin-export-actions {
+            display: grid;
+            gap: 8px;
+        }
+
+        .campo-admin-export-actions .campo-admin-action-btn {
+            width: 100%;
+            min-height: 38px;
+            padding: 8px 12px;
+            font-size: 0.72rem;
+            justify-content: center;
+        }
+
+        .campo-admin-export-actions .campo-admin-action-btn svg {
+            width: 15px;
+            height: 15px;
+        }
+
+        .campo-admin-export-footnote {
+            margin: 0;
+            padding: 0 2px;
+            color: #4b5563;
         }
 
         .campo-admin-export-launch {
@@ -1998,6 +2165,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .campo-admin-export-highlights {
+                grid-template-columns: 1fr;
+            }
+
             .campo-admin-export-actions {
                 width: 100%;
             }
@@ -2058,6 +2229,13 @@
                 border-radius: 20px;
             }
 
+            .campo-admin-export-strip,
+            .campo-admin-export-side-card,
+            .campo-admin-export-highlight,
+            .campo-admin-export-reminder {
+                border-radius: 20px;
+            }
+
             .campo-admin-opsbar,
             .campo-admin-hero-panel,
             .campo-admin-toolbar,
@@ -2086,6 +2264,10 @@
             .campo-admin-record-row-head {
                 grid-template-columns: 1fr;
                 display: grid;
+            }
+
+            .campo-admin-export-highlights {
+                grid-template-columns: 1fr;
             }
 
             .campo-admin-opsbar-head,
@@ -2176,6 +2358,18 @@
                 border-radius: 16px;
             }
 
+            .campo-admin-export-strip {
+                padding: 18px;
+            }
+
+            .campo-admin-export-copy h2 {
+                font-size: 1.35rem;
+            }
+
+            .campo-admin-export-reminder {
+                grid-template-columns: 1fr;
+            }
+
             .campo-admin-search,
             .campo-admin-filter-chip,
             .campo-admin-count-badge,
@@ -2234,6 +2428,14 @@
             .campo-admin-record,
             .campo-admin-step {
                 gap: 10px;
+            }
+
+            .campo-admin-export-strip,
+            .campo-admin-export-side-card,
+            .campo-admin-export-highlight,
+            .campo-admin-export-reminder {
+                padding-left: 14px;
+                padding-right: 14px;
             }
 
             .campo-admin-ticket-highlight,
@@ -2351,13 +2553,34 @@
 
             <section class="campo-admin-export-strip" aria-label="Exportacion historica del modulo Campo">
                 <div class="campo-admin-export-copy">
-                    <span class="campo-admin-kicker">Historico operacional</span>
-                    <h2>Exportador exclusivo de histórico Campo</h2>
-                    <p>Genera un consolidado completo para auditoría, análisis por pozo o cortes por fecha sin mezclar esta acción con los filtros normales de la bandeja.</p>
+                    <div class="campo-admin-export-head">
+                        <span class="campo-admin-kicker campo-admin-export-kicker">Historico operacional</span>
+                        <div>
+                            <h2>Centro ejecutivo de exportación histórica</h2>
+                            <p class="campo-admin-export-lead">Centraliza cortes analíticos, respaldos y auditoría del histórico de Campo en un frente separado de la bandeja operativa para mantener revisión y explotación de datos en carriles distintos.</p>
+                        </div>
+                    </div>
                     <div class="campo-admin-export-meta">
                         <span class="campo-admin-export-badge">Excel consolidado</span>
                         <span class="campo-admin-export-badge">Por pozo o rango</span>
                         <span class="campo-admin-export-badge">Listo para análisis</span>
+                    </div>
+                    <div class="campo-admin-export-highlights" aria-label="Capacidades del exportador historico">
+                        <article class="campo-admin-export-highlight">
+                            <span>Consolidación</span>
+                            <strong>Un solo corte para seguimiento, auditoría y respaldo</strong>
+                            <p>Extrae el histórico operativo sin depender de los filtros activos de la bandeja administrativa.</p>
+                        </article>
+                        <article class="campo-admin-export-highlight">
+                            <span>Trazabilidad</span>
+                            <strong>Segmentación por pozo, fecha y ventana operativa</strong>
+                            <p>Prepara material consistente para revisión puntual, análisis comparativo y soporte interno.</p>
+                        </article>
+                        <article class="campo-admin-export-highlight">
+                            <span>Gobierno</span>
+                            <strong>Flujo separado para no contaminar revisión en curso</strong>
+                            <p>Permite trabajar históricos sin alterar la lectura diaria de jornadas pendientes o aprobadas.</p>
+                        </article>
                     </div>
                     <div class="campo-admin-export-reminder">
                         <span class="campo-admin-export-reminder-icon" aria-hidden="true">
@@ -2373,22 +2596,35 @@
                         </div>
                     </div>
                 </div>
-                <div class="campo-admin-export-actions">
-                    <button type="button" class="campo-admin-action-btn campo-admin-export-launch" id="campo-admin-historical-export-btn">
-                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v10m0 0l-4-4m4 4l4-4M5 18h14" />
-                        </svg>
-                        Abrir exportador histórico
-                    </button>
-                    <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost campo-admin-export-audit-btn" id="campo-admin-historical-audit-btn">
-                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.5 6h3m-7 6h11m-8 6h5" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h.01M7 12h.01M6 18h.01" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 6h2m-2 6h2m-2 6h2" opacity=".55" />
-                        </svg>
-                        Auditar histórico
-                    </button>
-                </div>
+                <aside class="campo-admin-export-side" aria-label="Acciones del exportador historico">
+                    <div class="campo-admin-export-side-card">
+                        <span class="campo-admin-export-side-label">Flujo recomendado</span>
+                        <strong>Exporta, valida y resguarda el consolidado sin sacar a la bandeja de su contexto operativo.</strong>
+                        <p>Este frente funciona como una estación de explotación histórica: consulta, audita y genera respaldo con un recorrido claro para áreas operativas y administrativas.</p>
+                        <ul class="campo-admin-export-checklist">
+                            <li>Abre el consolidado cuando necesites una vista histórica completa para análisis o entrega interna.</li>
+                            <li>Lanza la auditoría cuando quieras revisar cortes específicos antes de distribuir evidencia o reportes.</li>
+                            <li>Genera respaldos periódicos para mantener continuidad documental ante ajustes posteriores.</li>
+                        </ul>
+                    </div>
+                    <div class="campo-admin-export-actions">
+                        <button type="button" class="campo-admin-action-btn campo-admin-export-launch" id="campo-admin-historical-export-btn">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v10m0 0l-4-4m4 4l4-4M5 18h14" />
+                            </svg>
+                            Abrir exportador histórico
+                        </button>
+                        <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost campo-admin-export-audit-btn" id="campo-admin-historical-audit-btn">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.5 6h3m-7 6h11m-8 6h5" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h.01M7 12h.01M6 18h.01" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 6h2m-2 6h2m-2 6h2" opacity=".55" />
+                            </svg>
+                            Auditar histórico
+                        </button>
+                    </div>
+                    <p class="campo-admin-export-footnote">Disponible para consolidación completa, lectura por pozo o rangos de fecha sin interferir con los filtros normales de revisión.</p>
+                </aside>
             </section>
 
             <section class="campo-admin-toolbar" aria-label="Filtros de jornadas de Campo">

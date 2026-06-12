@@ -412,6 +412,8 @@ function bindStaticActions() {
     document.getElementById('mobile-logout-btn')?.addEventListener('click', logout);
     document.getElementById('field-clear-form-btn')?.addEventListener('click', clearForm);
     document.getElementById('field-add-report-btn')?.addEventListener('click', addCurrentReportToJourney);
+    document.getElementById('field-new-pozo-btn')?.addEventListener('click', startNewPozoCapture);
+    document.getElementById('field-resume-edit-btn')?.addEventListener('click', resumeEditingCurrentPozo);
     document.getElementById('field-submit-journey-btn')?.addEventListener('click', submitJourneyForAdminPreview);
     document.getElementById('field-back-to-capture-btn')?.addEventListener('click', scrollBackToCapture);
     document.getElementById('field-report-preview-close')?.addEventListener('click', closeReportPreview);
@@ -531,6 +533,29 @@ function clearForm() {
     updateEditingContext();
 }
 
+function startNewPozoCapture() {
+    clearForm();
+    scrollToPozoField();
+    updateStatus('Formulario listo para capturar un pozo nuevo dentro de esta jornada.');
+}
+
+function resumeEditingCurrentPozo() {
+    const reports = getJourneyReports();
+    const activeReport = currentEditingReportId
+        ? reports.find(report => report.id === currentEditingReportId) || null
+        : null;
+    const fallbackReport = reports[reports.length - 1] || null;
+    const targetReport = activeReport || fallbackReport;
+
+    if (!targetReport?.id) {
+        scrollToPozoField();
+        updateStatus('Todavía no hay pozos cargados. Empieza con un pozo nuevo.', true);
+        return;
+    }
+
+    startEditingJourneyReport(targetReport.id);
+}
+
 async function addCurrentReportToJourney() {
     const payload = getFormPayload();
     const validation = validateFieldReport(payload, { context: 'field' });
@@ -597,34 +622,6 @@ function getSubmittedJourneys() {
     }
 }
 
-function normalizeJourneyIdentityPart(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-function buildJourneyIdentityFromRecord(record = {}) {
-    return [
-        normalizeJourneyIdentityPart(record.fecha),
-        normalizeJourneyIdentityPart(record.jornada),
-        normalizeJourneyIdentityPart(record.locacion_jornada),
-        normalizeJourneyIdentityPart(record.equipo_guardia)
-    ].join('|');
-}
-
-function findMatchingSubmittedJourney(reports = [], journeys = getSubmittedJourneys()) {
-    const firstReport = Array.isArray(reports) ? reports[0] : null;
-    if (!firstReport) return null;
-
-    const identity = buildJourneyIdentityFromRecord(firstReport);
-    if (!identity.replace(/\|/g, '')) return null;
-
-    return journeys.find(journey => {
-        const source = Array.isArray(journey.records) && journey.records.length > 0
-            ? journey.records[0]
-            : journey;
-        return buildJourneyIdentityFromRecord(source) === identity;
-    }) || null;
-}
-
 function mergeJourneyRecords(existingRecords = [], draftRecords = []) {
     const merged = new Map();
 
@@ -656,6 +653,9 @@ function renderJourneyReports() {
     if (!list || !count) return;
 
     const reports = getJourneyReports();
+    const currentEditingReport = currentEditingReportId
+        ? reports.find(report => report.id === currentEditingReportId) || null
+        : null;
     const currentJourneyTicketKey = getCurrentJourneyTicketKey();
     const currentJourneyTicketCount = getLocalTicketCountForJourney(currentJourneyTicketKey);
     count.innerHTML = `${reports.length} ${reports.length === 1 ? 'pozo' : 'pozos'}${currentJourneyTicketCount > 0 ? ` <span class="field-journey-ticket-badge">${escapeHtml(String(currentJourneyTicketCount))} ticket${currentJourneyTicketCount === 1 ? '' : 's'}</span>` : ''}`;
@@ -663,25 +663,45 @@ function renderJourneyReports() {
     updateEditingContext(reports);
 
     if (reports.length === 0) {
-        list.innerHTML = '<div class="field-journey-empty">Todavía no has agregado pozos a esta jornada.</div>';
+        list.innerHTML = `
+            <div class="field-journey-empty">
+                <strong>Todavía no has agregado pozos a esta jornada.</strong>
+                <p>Empieza con el primer pozo y luego usa esta bandeja para continuar, corregir o quitar registros antes del envío.</p>
+                <div class="field-journey-empty-steps">
+                    <span>1. Completa la cabecera</span>
+                    <span>2. Agrega el pozo</span>
+                    <span>3. Sigue con el siguiente</span>
+                </div>
+            </div>`;
         return;
     }
 
-    list.innerHTML = reports.map(report => `
-        <article class="field-journey-item">
+    list.innerHTML = reports.map((report, index) => {
+        const isEditing = report.id === currentEditingReportId;
+        const isLast = index === reports.length - 1;
+
+        return `
+        <article class="field-journey-item${isEditing ? ' is-editing' : ''}">
             <div class="field-journey-item-top">
                 <div>
+                    <span class="field-journey-item-index">${index + 1}</span>
                     <div class="field-journey-item-title">${escapeHtml(String(report.pozo || '').toUpperCase())}</div>
-                    <div class="field-journey-item-meta">${escapeHtml(report.fecha || '--')} | ${escapeHtml(report.hora || '--')}</div>
+                    <div class="field-journey-item-meta">${escapeHtml(report.fecha || '--')} | ${escapeHtml(report.hora || '--')} | ${escapeHtml(report.jornada || '--')}</div>
                 </div>
                 <div class="field-journey-actions">
                     ${currentJourneyTicketCount > 0 && currentJourneyTicketKey ? `<button type="button" class="field-journey-ticket" data-ticket-journey-id="${escapeHtml(String(currentJourneyTicketKey))}"><i class="fa-solid fa-envelope"></i> ${currentJourneyTicketCount}</button>` : ''}
-                    <button type="button" class="field-journey-edit" data-report-id="${report.id}">Editar</button>
+                    <button type="button" class="field-journey-edit" data-report-id="${report.id}">${isEditing ? 'Sigues aquí' : 'Continuar'}</button>
                     <button type="button" class="field-journey-remove" data-report-id="${report.id}">Quitar</button>
                 </div>
             </div>
+            <div class="field-journey-item-progress">
+                <span class="field-journey-pill${isEditing ? ' is-editing' : ''}">${isEditing ? 'En edición' : 'Listo para editar'}</span>
+                ${isLast ? '<span class="field-journey-pill is-last">Último agregado</span>' : ''}
+                ${report.locacion_jornada ? `<span class="field-journey-pill">${escapeHtml(report.locacion_jornada)}</span>` : ''}
+            </div>
         </article>
-    `).join('');
+    `;
+    }).join('');
 
     list.querySelectorAll('.field-journey-edit').forEach(button => {
         button.addEventListener('click', () => startEditingJourneyReport(button.dataset.reportId));
@@ -733,11 +753,53 @@ function syncAddButtonState() {
     addButton.textContent = currentEditingReportId ? 'Actualizar registro' : 'Agregar registro a la jornada';
 }
 
+function syncQuickActionButtons(reports = getJourneyReports()) {
+    const newPozoButton = document.getElementById('field-new-pozo-btn');
+    const resumeButton = document.getElementById('field-resume-edit-btn');
+    const title = document.getElementById('field-quick-actions-title');
+    const copy = document.getElementById('field-quick-actions-copy');
+    const currentReport = currentEditingReportId
+        ? reports.find(report => report.id === currentEditingReportId) || null
+        : null;
+    const fallbackReport = reports[reports.length - 1] || null;
+
+    if (newPozoButton) {
+        newPozoButton.textContent = currentEditingReportId ? 'Cambiar a nuevo pozo' : 'Nuevo pozo';
+    }
+
+    if (resumeButton) {
+        resumeButton.disabled = !currentReport && !fallbackReport;
+        resumeButton.textContent = currentReport
+            ? `Seguir editando ${String(currentReport.pozo || '').toUpperCase() || 'pozo'}`
+            : fallbackReport
+                ? `Retomar ${String(fallbackReport.pozo || '').toUpperCase() || 'ultimo pozo'}`
+                : 'Seguir editando';
+    }
+
+    if (title) {
+        title.textContent = currentReport
+            ? `Estas editando ${String(currentReport.pozo || '').toUpperCase() || 'un pozo'}.`
+            : fallbackReport
+                ? 'Ya tienes jornada armándose; puedes abrir el ultimo pozo o empezar uno nuevo.'
+                : 'Arranca con un pozo nuevo o retoma el que estabas trabajando.';
+    }
+
+    if (copy) {
+        copy.textContent = currentReport
+            ? 'Si terminaste este ajuste, guarda y luego usa “Nuevo pozo” para seguir capturando otro dentro del mismo turno.'
+            : fallbackReport
+                ? '“Seguir editando” abre el ultimo pozo cargado. “Nuevo pozo” limpia el formulario pero conserva la cabecera de jornada.'
+                : 'Usa estos accesos para acelerar captura sin perder la jornada que ya llevas armada.';
+    }
+}
+
 function updateEditingContext(reports = getJourneyReports()) {
     const banner = document.getElementById('field-editing-context');
+    const captureCard = document.querySelector('.field-form-card');
     if (!banner) return;
 
     banner.classList.remove('is-editing', 'is-building');
+    captureCard?.classList.remove('is-journey-context', 'is-report-context');
 
     const currentReport = currentEditingReportId
         ? reports.find(report => report.id === currentEditingReportId)
@@ -747,6 +809,7 @@ function updateEditingContext(reports = getJourneyReports()) {
     if (currentReport) {
         banner.hidden = false;
         banner.classList.add('is-editing');
+        captureCard?.classList.add('is-journey-context', 'is-report-context');
         banner.innerHTML = `
             <span class="field-continue-banner-label">Editando pozo</span>
             <div class="field-continue-banner-title">${escapeHtml(String(currentReport.pozo || '').toUpperCase())}</div>
@@ -758,6 +821,9 @@ function updateEditingContext(reports = getJourneyReports()) {
     if (currentEditingJourneyId || reports.length > 0) {
         banner.hidden = false;
         banner.classList.add('is-building');
+        if (currentEditingJourneyId) {
+            captureCard?.classList.add('is-journey-context');
+        }
         banner.innerHTML = `
             <span class="field-continue-banner-label">Jornada en construcción</span>
             <div class="field-continue-banner-title">${escapeHtml(journeyLabel)}</div>
@@ -806,7 +872,7 @@ async function submitJourneyForAdminPreview() {
     const submittedJourneys = getSubmittedJourneys();
     const matchedJourney = currentEditingJourneyId
         ? submittedJourneys.find(journey => journey.id === currentEditingJourneyId) || null
-        : findMatchingSubmittedJourney(reports, submittedJourneys);
+        : null;
     const resolvedJourneyId = currentEditingJourneyId || matchedJourney?.id || null;
     const existingJourneyIndex = resolvedJourneyId
         ? submittedJourneys.findIndex(journey => journey.id === resolvedJourneyId)
@@ -895,12 +961,70 @@ function updateSummary() {
     const currentJourney = document.getElementById('field-summary-journey');
     const count = document.getElementById('field-summary-count');
     const last = document.getElementById('field-summary-last');
+    const focus = document.getElementById('field-summary-focus');
+    const focusCopy = document.getElementById('field-summary-focus-copy');
+    const focusState = document.getElementById('field-summary-focus-state');
+    const modeTitle = document.getElementById('field-summary-mode-title');
+    const modeCopy = document.getElementById('field-summary-mode-copy');
+    const submitCopy = document.getElementById('field-summary-submit-copy');
+    const guideSteps = Array.from(document.querySelectorAll('.field-journey-guide-steps span'));
+    const currentEditingReport = currentEditingReportId
+        ? reports.find(report => report.id === currentEditingReportId) || null
+        : null;
+    const lastReport = reports[reports.length - 1] || null;
+
+    syncQuickActionButtons(reports);
 
     if (currentJourney) currentJourney.textContent = payload.jornada || 'Diurna';
     if (count) count.textContent = String(reports.length);
     if (last) {
-        const lastReport = reports[reports.length - 1];
         last.textContent = lastReport?.pozo ? String(lastReport.pozo).toUpperCase() : '--';
+    }
+
+    guideSteps.forEach((step, index) => {
+        const shouldBeActive = (reports.length === 0 && index === 0)
+            || (reports.length > 0 && !currentEditingReport && index === 1)
+            || (reports.length > 0 && index === 2);
+        step.classList.toggle('is-active', shouldBeActive);
+    });
+
+    if (reports.length === 0) {
+        if (modeTitle) modeTitle.textContent = 'Construyendo jornada';
+        if (modeCopy) modeCopy.textContent = 'Empieza cargando el primer pozo. Cada registro queda guardado en esta jornada mientras completas el turno.';
+        if (focus) focus.textContent = 'Listo para empezar';
+        if (focusCopy) focusCopy.textContent = 'Cuando selecciones un pozo para editar o agregues el primero, lo verás resaltado aquí.';
+        if (focusState) {
+            focusState.textContent = 'Nuevo';
+            focusState.classList.remove('is-editing');
+        }
+        if (submitCopy) submitCopy.textContent = 'Cuando la lista esté completa, envía la jornada para que administración la reciba como un solo paquete operativo.';
+        return;
+    }
+
+    if (currentEditingReport) {
+        if (modeTitle) modeTitle.textContent = 'Editando pozo en jornada';
+        if (modeCopy) modeCopy.textContent = 'Estás corrigiendo un registro ya cargado. Guarda los cambios y vuelve a la bandeja para continuar con el siguiente.';
+        if (focus) focus.textContent = String(currentEditingReport.pozo || '').toUpperCase() || 'Pozo en edición';
+        if (focusCopy) focusCopy.textContent = `Se conservará dentro de la jornada ${payload.jornada || currentEditingReport.jornada || 'Diurna'} cuando actualices el registro.`;
+        if (focusState) {
+            focusState.textContent = 'Editando';
+            focusState.classList.add('is-editing');
+        }
+    } else {
+        if (modeTitle) modeTitle.textContent = 'Jornada lista para seguir';
+        if (modeCopy) modeCopy.textContent = 'Ya tienes pozos cargados. Puedes continuar con otro pozo o abrir cualquiera de la bandeja para corregirlo.';
+        if (focus) focus.textContent = lastReport?.pozo ? String(lastReport.pozo).toUpperCase() : 'Jornada en curso';
+        if (focusCopy) focusCopy.textContent = lastReport ? `Último registro agregado a las ${lastReport.hora || '--'}. Usa “Continuar” para editar cualquier pozo cargado.` : 'Revisa la bandeja y continúa con el siguiente pozo.';
+        if (focusState) {
+            focusState.textContent = 'En curso';
+            focusState.classList.remove('is-editing');
+        }
+    }
+
+    if (submitCopy) {
+        submitCopy.textContent = reports.length === 1
+            ? 'Ya tienes 1 pozo cargado. Si falta más del turno, sigue agregando; si ya terminaste, puedes enviar la jornada.'
+            : `Ya tienes ${reports.length} pozos cargados. Revisa la bandeja y envía la jornada cuando el turno esté completo.`;
     }
 }
 

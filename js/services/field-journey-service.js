@@ -64,6 +64,10 @@ function normalizeJourneyStatuses(statuses = []) {
     return normalized.length > 0 ? [...new Set(normalized)] : ['submitted', 'under_review'];
 }
 
+function canOwnerEditJourneyStatus(status) {
+    return ['draft', 'submitted', 'rejected'].includes(normalizeJourneyStatus(status));
+}
+
 function matchesJourneySearch(journey = {}, searchTerm = '') {
     const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
     if (!normalizedSearch) return true;
@@ -713,6 +717,20 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
     const requestedJourneyId = String(options.journeyId || '').trim() || null;
 
     try {
+        if (requestedJourneyId && !accessProfile.canViewManagement) {
+            const { data: existingJourney, error: existingJourneyError } = await supabase
+                .from('field_journeys')
+                .select('id, status, reviewed_at, published_at')
+                .eq('id', requestedJourneyId)
+                .maybeSingle();
+
+            if (existingJourneyError) throw existingJourneyError;
+
+            if (existingJourney && !canOwnerEditJourneyStatus(existingJourney.status)) {
+                throw new Error('Esta jornada ya fue tomada por Admin Campo y no puede reenviarse desde Campo en su estado actual. Crea una jornada nueva o pide que la regresen a rechazado para volver a editarla.');
+            }
+        }
+
         const journeyRow = buildWorkflowJourneyRow(normalizedReports, session, requestedJourneyId);
         const { data: journey, error: journeyError } = await supabase
             .from('field_journeys')
