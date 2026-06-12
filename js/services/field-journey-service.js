@@ -387,6 +387,122 @@ export async function getHistoricalFieldReports(filters = {}) {
     }
 }
 
+export async function getHistoricalFieldReportAudit(filters = {}) {
+    await ensureFieldAdminReadAccess();
+
+    const {
+        pozo = '',
+        limit = 20000
+    } = filters || {};
+
+    let query = supabase
+        .from('field_journey_reports')
+        .select('id, client_report_id, user_email, pozo, report_date, report_time, jornada, equipo_guardia, locacion_jornada, created_at, updated_at')
+        .order('pozo', { ascending: true })
+        .order('report_date', { ascending: false })
+        .order('report_time', { ascending: false });
+
+    const normalizedPozo = String(pozo || '').trim().toUpperCase();
+    if (normalizedPozo) {
+        query = query.ilike('pozo', `%${normalizedPozo}%`);
+    }
+
+    const safeLimit = Number(limit);
+    if (Number.isFinite(safeLimit) && safeLimit > 0) {
+        query = query.limit(Math.min(Math.trunc(safeLimit), 30000));
+    }
+
+    try {
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const grouped = new Map();
+
+        (data || []).forEach(record => {
+            const key = String(record?.pozo || '').trim().toUpperCase() || 'SIN_POZO';
+            const current = grouped.get(key) || {
+                pozo: key,
+                totalRecords: 0,
+                firstDate: null,
+                lastDate: null,
+                lastTime: null,
+                userEmails: new Set(),
+                recentRecords: []
+            };
+
+            current.totalRecords += 1;
+            if (record?.user_email) current.userEmails.add(String(record.user_email).trim().toLowerCase());
+
+            const reportDate = record?.report_date || null;
+            const reportTime = record?.report_time || null;
+
+            if (!current.firstDate || (reportDate && reportDate < current.firstDate)) {
+                current.firstDate = reportDate;
+            }
+
+            if (!current.lastDate || (reportDate && reportDate > current.lastDate)) {
+                current.lastDate = reportDate;
+                current.lastTime = reportTime;
+            } else if (reportDate && reportDate === current.lastDate && reportTime && (!current.lastTime || reportTime > current.lastTime)) {
+                current.lastTime = reportTime;
+            }
+
+            if (current.recentRecords.length < 3) {
+                current.recentRecords.push({
+                    id: record.id,
+                    clientReportId: record.client_report_id,
+                    userEmail: record.user_email,
+                    reportDate,
+                    reportTime,
+                    jornada: record.jornada,
+                    equipoGuardia: record.equipo_guardia,
+                    locacionJornada: record.locacion_jornada,
+                    createdAt: record.created_at,
+                    updatedAt: record.updated_at
+                });
+            }
+
+            grouped.set(key, current);
+        });
+
+        return [...grouped.values()]
+            .map(item => ({
+                ...item,
+                userEmails: [...item.userEmails].sort()
+            }))
+            .sort((left, right) => left.pozo.localeCompare(right.pozo));
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
+export async function deleteHistoricalFieldReportsByPozo(pozo) {
+    await ensureFieldAdminReadAccess();
+
+    const normalizedPozo = String(pozo || '').trim().toUpperCase();
+    if (!normalizedPozo) {
+        throw new Error('No se recibió un pozo válido para limpiar el histórico legado.');
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('field_journey_reports')
+            .delete()
+            .ilike('pozo', normalizedPozo)
+            .select('id');
+
+        if (error) throw error;
+
+        return {
+            deleted: true,
+            pozo: normalizedPozo,
+            deletedCount: Array.isArray(data) ? data.length : 0
+        };
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
 export const getFieldJourneyReportsRangePublic = getFieldJourneyReportsRange;
 
 export async function getAdminFieldJourneys(options = {}) {

@@ -1,5 +1,5 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
-import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports } from './services/field-journey-service.js';
+import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo } from './services/field-journey-service.js';
 import { exportFieldJourneyToExcel, openFieldJourneyPdf, exportHistoricalFieldReportsToExcel } from './services/field-journey-export.js';
 import { validateFieldReport } from './modules/field/field-validation.js';
 
@@ -396,13 +396,18 @@ const state = {
     recordPanelMode: 'view',
     recordSaving: false,
     selectedIncidentIndex: -1,
-    historicalExporting: false
+    historicalExporting: false,
+    historicalAuditLoading: false,
+    historicalAuditSearch: '',
+    historicalAuditItems: [],
+    historicalAuditDeletingPozo: ''
 };
 
 const elements = {
     refreshButton: document.getElementById('campo-admin-refresh-btn'),
     searchInput: document.getElementById('campo-admin-search'),
     historicalExportButton: document.getElementById('campo-admin-historical-export-btn'),
+    historicalAuditButton: document.getElementById('campo-admin-historical-audit-btn'),
     filterGroup: document.getElementById('campo-admin-filter-group'),
     toolbarStatus: document.getElementById('campo-admin-toolbar-status'),
     sideCopy: document.getElementById('campo-admin-side-copy'),
@@ -418,6 +423,8 @@ const elements = {
     incidentModalBody: document.getElementById('campo-admin-incident-modal-body'),
     historicalModal: document.getElementById('campo-admin-historical-modal'),
     historicalModalBody: document.getElementById('campo-admin-historical-modal-body'),
+    historicalAuditModal: document.getElementById('campo-admin-historical-audit-modal'),
+    historicalAuditModalBody: document.getElementById('campo-admin-historical-audit-modal-body'),
     logoutButton: document.getElementById('logout-btn'),
     mobileLogoutButton: document.getElementById('mobile-logout-btn')
 };
@@ -491,6 +498,227 @@ function closeIncidentModal() {
 
 function closeHistoricalModal() {
     if (elements.historicalModal) elements.historicalModal.hidden = true;
+}
+
+function closeHistoricalAuditModal() {
+    if (elements.historicalAuditModal) elements.historicalAuditModal.hidden = true;
+}
+
+function formatAuditUserSummary(emails = []) {
+    if (!Array.isArray(emails) || emails.length === 0) return 'Sin correo asociado';
+    if (emails.length === 1) return emails[0];
+    return `${emails[0]} +${emails.length - 1}`;
+}
+
+function formatAuditRecentRecord(record = {}) {
+    const date = record.reportDate || 'Sin fecha';
+    const time = record.reportTime || '00:00:00';
+    const journey = record.jornada || 'Sin jornada';
+    return `${date} · ${time} · ${journey}`;
+}
+
+function buildHistoricalAuditModalMarkup() {
+    const items = Array.isArray(state.historicalAuditItems) ? state.historicalAuditItems : [];
+    const totalRecords = items.reduce((sum, item) => sum + Number(item.totalRecords || 0), 0);
+
+    return `
+        <div class="campo-admin-historical-audit-shell">
+            <div class="campo-admin-modal-head">
+                <div>
+                    <span class="campo-admin-tag campo-admin-tag-soft">Auditoria historico legacy</span>
+                    <h3 id="campo-admin-historical-audit-modal-title">Auditoría de pozos guardados en histórico Campo</h3>
+                    <p>Este panel revisa la tabla legacy field_journey_reports. Aquí puedes auditar qué pozos se agregaron, revisar su carga y limpiar registros que ya no deban permanecer en el histórico.</p>
+                </div>
+                <button type="button" class="campo-admin-modal-close" data-historical-audit-close aria-label="Cerrar auditoria historica">×</button>
+            </div>
+
+            <div class="campo-admin-historical-audit-summary">
+                <article class="campo-admin-historical-summary-card">
+                    <span>Pozos visibles</span>
+                    <strong>${escapeHtml(String(items.length))}</strong>
+                </article>
+                <article class="campo-admin-historical-summary-card">
+                    <span>Registros legacy</span>
+                    <strong>${escapeHtml(String(totalRecords))}</strong>
+                </article>
+                <article class="campo-admin-historical-summary-card">
+                    <span>Filtro actual</span>
+                    <strong>${escapeHtml(state.historicalAuditSearch || 'Todos')}</strong>
+                </article>
+            </div>
+
+            <form id="campo-admin-historical-audit-search" class="campo-admin-historical-audit-toolbar">
+                <label class="campo-admin-editor-field campo-admin-editor-field-long">
+                    <span>Buscar pozo en histórico legacy</span>
+                    <input type="search" name="pozo" value="${escapeHtml(state.historicalAuditSearch)}" placeholder="Ej: TOM012, CEI0006, UV-01" ${state.historicalAuditLoading ? 'disabled' : ''}>
+                    <small class="campo-admin-field-help">Filtra por nombre o fragmento del pozo para revisar altas antiguas, duplicados, pruebas o registros que ya no deban seguir exportándose.</small>
+                </label>
+                <div class="campo-admin-historical-audit-toolbar-actions">
+                    <button type="submit" class="campo-admin-action-btn campo-admin-action-btn-secondary" ${state.historicalAuditLoading ? 'disabled' : ''}>${state.historicalAuditLoading ? 'Buscando...' : 'Buscar'}</button>
+                    <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-historical-audit-reset ${state.historicalAuditLoading ? 'disabled' : ''}>Limpiar filtro</button>
+                    <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-historical-audit-refresh ${state.historicalAuditLoading ? 'disabled' : ''}>Actualizar</button>
+                </div>
+            </form>
+
+            <section class="campo-admin-historical-audit-list" aria-live="polite">
+                ${state.historicalAuditLoading ? `
+                    <div class="campo-admin-empty campo-admin-historical-audit-empty">
+                        <strong>Cargando histórico legacy</strong>
+                        <p>Revisando qué pozos fueron guardados en field_journey_reports para preparar la auditoría.</p>
+                    </div>
+                ` : items.length === 0 ? `
+                    <div class="campo-admin-empty campo-admin-historical-audit-empty">
+                        <strong>Sin coincidencias</strong>
+                        <p>No se encontraron pozos legacy con ese filtro. Ajusta la búsqueda o confirma si ese pozo nunca fue guardado en este histórico.</p>
+                    </div>
+                ` : items.map(item => `
+                    <article class="campo-admin-historical-audit-card">
+                        <div class="campo-admin-historical-audit-card-head">
+                            <div>
+                                <strong>${escapeHtml(item.pozo || 'SIN_POZO')}</strong>
+                                <p>${escapeHtml(String(item.totalRecords || 0))} registro(s) legacy · ${escapeHtml(formatAuditUserSummary(item.userEmails || []))}</p>
+                            </div>
+                            <button type="button" class="campo-admin-action-btn campo-admin-action-btn-danger" data-historical-audit-delete="${escapeHtml(item.pozo || '')}" ${state.historicalAuditDeletingPozo === item.pozo ? 'disabled' : ''}>
+                                ${state.historicalAuditDeletingPozo === item.pozo ? 'Eliminando...' : 'Eliminar del histórico'}
+                            </button>
+                        </div>
+                        <div class="campo-admin-historical-audit-metrics">
+                            <div class="campo-admin-modal-item">
+                                <span>Primera fecha visible</span>
+                                <strong>${escapeHtml(item.firstDate || '--')}</strong>
+                            </div>
+                            <div class="campo-admin-modal-item">
+                                <span>Última fecha visible</span>
+                                <strong>${escapeHtml(item.lastDate || '--')}</strong>
+                            </div>
+                            <div class="campo-admin-modal-item">
+                                <span>Última hora visible</span>
+                                <strong>${escapeHtml(item.lastTime || '--')}</strong>
+                            </div>
+                        </div>
+                        <div class="campo-admin-historical-audit-recent">
+                            <span class="campo-admin-historical-audit-recent-title">Muestras recientes</span>
+                            <div class="campo-admin-historical-audit-recent-list">
+                                ${(item.recentRecords || []).map(record => `
+                                    <div class="campo-admin-historical-audit-recent-item">
+                                        <strong>${escapeHtml(formatAuditRecentRecord(record))}</strong>
+                                        <span>${escapeHtml(record.equipoGuardia || 'Sin equipo')} · ${escapeHtml(record.locacionJornada || 'Sin locación')}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </article>
+                `).join('')}
+            </section>
+        </div>
+    `;
+}
+
+function bindHistoricalAuditModalEvents() {
+    if (!elements.historicalAuditModalBody) return;
+
+    elements.historicalAuditModalBody.querySelectorAll('[data-historical-audit-close]').forEach(button => {
+        button.addEventListener('click', closeHistoricalAuditModal);
+    });
+
+    const form = elements.historicalAuditModalBody.querySelector('#campo-admin-historical-audit-search');
+    form?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        state.historicalAuditSearch = String(formData.get('pozo') || '').trim();
+        await loadHistoricalAudit();
+    });
+
+    elements.historicalAuditModalBody.querySelector('[data-historical-audit-reset]')?.addEventListener('click', async () => {
+        state.historicalAuditSearch = '';
+        await loadHistoricalAudit();
+    });
+
+    elements.historicalAuditModalBody.querySelector('[data-historical-audit-refresh]')?.addEventListener('click', async () => {
+        await loadHistoricalAudit();
+    });
+
+    elements.historicalAuditModalBody.querySelectorAll('[data-historical-audit-delete]').forEach(button => {
+        button.addEventListener('click', async () => {
+            const pozo = String(button.dataset.historicalAuditDelete || '').trim();
+            if (!pozo) return;
+            await handleHistoricalAuditDelete(pozo);
+        });
+    });
+}
+
+function renderHistoricalAuditModal() {
+    if (!elements.historicalAuditModalBody) return;
+    elements.historicalAuditModalBody.innerHTML = buildHistoricalAuditModalMarkup();
+    bindHistoricalAuditModalEvents();
+}
+
+async function loadHistoricalAudit() {
+    state.historicalAuditLoading = true;
+    renderHistoricalAuditModal();
+
+    try {
+        state.historicalAuditItems = await getHistoricalFieldReportAudit({
+            pozo: state.historicalAuditSearch,
+            limit: 20000
+        });
+    } catch (error) {
+        console.error('Admin Campo historical audit error:', error);
+        state.historicalAuditItems = [];
+        await notify(error?.message || 'No se pudo auditar el histórico legacy de Campo.', 'error');
+    } finally {
+        state.historicalAuditLoading = false;
+        renderHistoricalAuditModal();
+    }
+}
+
+async function openHistoricalAuditModal() {
+    if (!elements.historicalAuditModal || !elements.historicalAuditModalBody) return;
+    elements.historicalAuditModal.hidden = false;
+    renderHistoricalAuditModal();
+    await loadHistoricalAudit();
+}
+
+async function confirmHistoricalAuditDelete(pozo, totalRecords = 0) {
+    const message = `Se eliminarán ${totalRecords} registro(s) legacy del pozo ${pozo}. Esta acción no toca Monitoreo ni el workflow nuevo de jornadas.`;
+
+    if (!window.Swal) {
+        return window.confirm(message);
+    }
+
+    const result = await window.Swal.fire({
+        icon: 'warning',
+        title: 'Eliminar histórico legacy',
+        text: message,
+        showCancelButton: true,
+        confirmButtonText: 'Eliminar del histórico',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#b91c1c'
+    });
+
+    return result.isConfirmed;
+}
+
+async function handleHistoricalAuditDelete(pozo) {
+    const target = state.historicalAuditItems.find(item => item.pozo === pozo);
+    const totalRecords = Number(target?.totalRecords || 0);
+    const confirmed = await confirmHistoricalAuditDelete(pozo, totalRecords);
+    if (!confirmed) return;
+
+    state.historicalAuditDeletingPozo = pozo;
+    renderHistoricalAuditModal();
+
+    try {
+        const result = await deleteHistoricalFieldReportsByPozo(pozo);
+        await notify(`Se eliminaron ${result.deletedCount || 0} registro(s) legacy de ${pozo}.`, 'success');
+        await loadHistoricalAudit();
+    } catch (error) {
+        console.error('Admin Campo historical audit delete error:', error);
+        await notify(error?.message || 'No se pudo eliminar el pozo del histórico legacy.', 'error');
+    } finally {
+        state.historicalAuditDeletingPozo = '';
+        renderHistoricalAuditModal();
+    }
 }
 
 function resolveHistoricalPresetDates(preset) {
@@ -2253,6 +2481,7 @@ async function bootstrap() {
     elements.mobileLogoutButton?.addEventListener('click', logout);
     elements.refreshButton?.addEventListener('click', loadJourneys);
     elements.historicalExportButton?.addEventListener('click', openHistoricalModal);
+    elements.historicalAuditButton?.addEventListener('click', openHistoricalAuditModal);
     elements.searchInput?.addEventListener('input', handleSearchInput);
     elements.filterGroup?.addEventListener('click', handleFilterClick);
     elements.recordModal?.addEventListener('click', event => {
@@ -2268,6 +2497,11 @@ async function bootstrap() {
     elements.historicalModal?.addEventListener('click', event => {
         if (event.target === elements.historicalModal) {
             closeHistoricalModal();
+        }
+    });
+    elements.historicalAuditModal?.addEventListener('click', event => {
+        if (event.target === elements.historicalAuditModal) {
+            closeHistoricalAuditModal();
         }
     });
 

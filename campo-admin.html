@@ -44,6 +44,10 @@
             border-radius: 999px;
         }
 
+        .swal2-container {
+            z-index: 2200 !important;
+        }
+
         .campo-admin-upload-preview {
             display: grid;
             gap: 18px;
@@ -470,7 +474,7 @@
         .campo-admin-export-launch {
             min-width: 240px;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
             padding: 14px 18px;
             border-radius: 18px;
             background: linear-gradient(135deg, #1d4ed8, #38bdf8);
@@ -479,8 +483,27 @@
         }
 
         .campo-admin-export-launch svg {
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
+            flex: 0 0 auto;
+        }
+
+        .campo-admin-export-actions {
+            display: grid;
+            gap: 10px;
+            justify-items: stretch;
+        }
+
+        .campo-admin-export-audit-btn {
+            min-width: 240px;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 16px;
+        }
+
+        .campo-admin-export-audit-btn svg {
+            width: 15px;
+            height: 15px;
             flex: 0 0 auto;
         }
 
@@ -605,22 +628,22 @@
         .campo-admin-detail-sections,
         .campo-admin-log-list {
             display: grid;
-            gap: 10px;
+            gap: 8px;
         }
 
         .campo-admin-list {
             max-height: min(68vh, 980px);
             overflow: auto;
-            padding-right: 6px;
+            padding: 3px 6px 6px 0;
         }
 
         .campo-admin-ticket {
             border: 1px solid rgba(148, 163, 184, 0.16);
             border-radius: 18px;
-            padding: 14px;
+            padding: 11px 12px;
             background: linear-gradient(180deg, #ffffff, rgba(248, 250, 252, 0.96));
             display: grid;
-            gap: 12px;
+            gap: 9px;
             cursor: pointer;
             transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
             text-align: left;
@@ -640,7 +663,7 @@
         .campo-admin-log-top {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px 14px;
+            gap: 8px 12px;
             align-items: center;
         }
 
@@ -660,40 +683,40 @@
         .campo-admin-ticket-head {
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(138px, 168px);
-            gap: 12px;
+            gap: 10px;
             align-items: start;
         }
 
         .campo-admin-ticket-main {
             display: grid;
-            gap: 6px;
+            gap: 4px;
             min-width: 0;
         }
 
         .campo-admin-ticket-main h3 {
-            font-size: 1.02rem;
+            font-size: 0.98rem;
             line-height: 1.18;
         }
 
         .campo-admin-ticket-main p {
-            font-size: 0.9rem;
-            line-height: 1.45;
+            font-size: 0.86rem;
+            line-height: 1.35;
         }
 
         .campo-admin-ticket-highlight {
-            padding: 12px 13px;
-            border-radius: 14px;
+            padding: 10px 11px;
+            border-radius: 13px;
             background: rgba(248, 250, 252, 0.92);
             border: 1px solid rgba(226, 232, 240, 0.95);
             display: grid;
-            gap: 4px;
+            gap: 3px;
             justify-items: start;
         }
 
         .campo-admin-ticket-highlight span,
         .campo-admin-ticket-summary-item span {
             color: var(--text-muted);
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             font-weight: 800;
             letter-spacing: 0.06em;
             text-transform: uppercase;
@@ -702,24 +725,24 @@
         .campo-admin-ticket-highlight strong,
         .campo-admin-ticket-summary-item strong {
             color: var(--text-title);
-            font-size: 0.92rem;
-            line-height: 1.3;
+            font-size: 0.88rem;
+            line-height: 1.22;
             word-break: break-word;
         }
 
         .campo-admin-ticket-summary-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
+            gap: 6px;
         }
 
         .campo-admin-ticket-summary-item {
-            padding: 10px 11px;
-            border-radius: 12px;
+            padding: 8px 10px;
+            border-radius: 11px;
             background: rgba(248, 250, 252, 0.92);
             border: 1px solid rgba(226, 232, 240, 0.95);
             display: grid;
-            gap: 4px;
+            gap: 3px;
             min-width: 0;
         }
 
@@ -728,12 +751,12 @@
         }
 
         .campo-admin-ticket-tags {
-            gap: 6px;
+            gap: 5px;
         }
 
         .campo-admin-ticket-open-hint {
             color: #0f766e;
-            font-size: 0.74rem;
+            font-size: 0.7rem;
             font-weight: 800;
             letter-spacing: 0.06em;
             text-transform: uppercase;
@@ -998,7 +1021,7 @@
         }
 
         .campo-admin-action-btn:hover {
-            transform: translateY(-1px);
+            transform: none;
         }
 
         .campo-admin-action-btn:disabled {
@@ -1508,7 +1531,6 @@
 
         .campo-admin-historical-option:hover {
             border-color: rgba(59, 130, 246, 0.38);
-            transform: translateY(-1px);
             box-shadow: 0 16px 28px rgba(15, 23, 42, 0.08);
         }
 
@@ -1617,6 +1639,112 @@
         .campo-admin-historical-action-slot .campo-admin-action-btn {
             min-width: 260px;
             justify-content: center;
+        }
+
+        .campo-admin-historical-audit-shell,
+        .campo-admin-historical-audit-list {
+            display: grid;
+            gap: 16px;
+        }
+
+        .campo-admin-historical-audit-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .campo-admin-historical-audit-toolbar {
+            display: grid;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            background: rgba(248, 250, 252, 0.95);
+        }
+
+        .campo-admin-historical-audit-toolbar-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .campo-admin-historical-audit-card {
+            display: grid;
+            gap: 14px;
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+        }
+
+        .campo-admin-historical-audit-card-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .campo-admin-historical-audit-card-head strong {
+            display: block;
+            color: var(--text-title);
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .campo-admin-historical-audit-card-head p {
+            margin: 0;
+            color: var(--text-muted);
+        }
+
+        .campo-admin-historical-audit-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .campo-admin-historical-audit-recent {
+            display: grid;
+            gap: 10px;
+        }
+
+        .campo-admin-historical-audit-recent-title {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-historical-audit-recent-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+        }
+
+        .campo-admin-historical-audit-recent-item {
+            display: grid;
+            gap: 4px;
+            padding: 12px;
+            border-radius: 16px;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            background: rgba(248, 250, 252, 0.92);
+        }
+
+        .campo-admin-historical-audit-recent-item strong {
+            color: var(--text-title);
+            font-size: 0.86rem;
+        }
+
+        .campo-admin-historical-audit-recent-item span {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        .campo-admin-historical-audit-empty {
+            padding: 28px 20px;
         }
 
         .campo-admin-record {
@@ -1870,6 +1998,16 @@
                 grid-template-columns: 1fr;
             }
 
+            .campo-admin-export-actions {
+                width: 100%;
+            }
+
+            .campo-admin-export-launch,
+            .campo-admin-export-audit-btn {
+                min-width: 0;
+                width: 100%;
+            }
+
             .campo-admin-filter-group {
                 justify-content: flex-start;
             }
@@ -1889,7 +2027,9 @@
             }
 
             .campo-admin-historical-presets,
-            .campo-admin-historical-summary {
+            .campo-admin-historical-summary,
+            .campo-admin-historical-audit-summary,
+            .campo-admin-historical-audit-metrics {
                 grid-template-columns: 1fr;
             }
 
@@ -1967,6 +2107,14 @@
             .campo-admin-record-row-actions,
             .campo-admin-modal-actions {
                 justify-content: flex-start;
+            }
+
+            .campo-admin-historical-audit-toolbar-actions {
+                justify-content: stretch;
+            }
+
+            .campo-admin-historical-audit-toolbar-actions .campo-admin-action-btn {
+                width: 100%;
             }
 
             .campo-admin-record-row-actions {
@@ -2085,14 +2233,14 @@
             .campo-admin-ticket,
             .campo-admin-record,
             .campo-admin-step {
-                gap: 12px;
+                gap: 10px;
             }
 
             .campo-admin-ticket-highlight,
             .campo-admin-ticket-summary-item,
             .campo-admin-insight-card,
             .campo-admin-record-metric {
-                padding: 12px;
+                padding: 10px;
             }
 
             .campo-admin-ticket-open-hint {
@@ -2225,12 +2373,22 @@
                         </div>
                     </div>
                 </div>
-                <button type="button" class="campo-admin-action-btn campo-admin-export-launch" id="campo-admin-historical-export-btn">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v10m0 0l-4-4m4 4l4-4M5 18h14" />
-                    </svg>
-                    Abrir exportador histórico
-                </button>
+                <div class="campo-admin-export-actions">
+                    <button type="button" class="campo-admin-action-btn campo-admin-export-launch" id="campo-admin-historical-export-btn">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v10m0 0l-4-4m4 4l4-4M5 18h14" />
+                        </svg>
+                        Abrir exportador histórico
+                    </button>
+                    <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost campo-admin-export-audit-btn" id="campo-admin-historical-audit-btn">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.5 6h3m-7 6h11m-8 6h5" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h.01M7 12h.01M6 18h.01" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 6h2m-2 6h2m-2 6h2" opacity=".55" />
+                        </svg>
+                        Auditar histórico
+                    </button>
+                </div>
             </section>
 
             <section class="campo-admin-toolbar" aria-label="Filtros de jornadas de Campo">
@@ -2287,6 +2445,12 @@
             <div id="campo-admin-historical-modal" class="campo-admin-modal" hidden>
                 <div class="campo-admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="campo-admin-historical-modal-title">
                     <div id="campo-admin-historical-modal-body" class="campo-admin-modal-body"></div>
+                </div>
+            </div>
+
+            <div id="campo-admin-historical-audit-modal" class="campo-admin-modal" hidden>
+                <div class="campo-admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="campo-admin-historical-audit-modal-title">
+                    <div id="campo-admin-historical-audit-modal-body" class="campo-admin-modal-body"></div>
                 </div>
             </div>
 
