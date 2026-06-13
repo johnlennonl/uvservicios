@@ -3,6 +3,7 @@ import { getSession } from '../auth.js';
 import { getAccessProfile } from '../core/access-control.js';
 import { ensureMonitoringWriteAccess } from './monitoring-access.js';
 import { normalizeMonitoringTime } from './monitoring-shared.js';
+import { saveTechnicalMeasurement } from './technical-measurements-service.js';
 
 const CONSOLIDATED_TABLE = 'consolidated_dashboard_general';
 const POZO_KEYS = ['POZO', 'Pozo', 'pozo'];
@@ -10,6 +11,11 @@ const CAMPO_KEYS = ['CAMPO', 'Campo', 'campo'];
 const EF_KEYS = ['EF', 'Ef', 'ef'];
 const DATE_KEYS = ['FECHA', 'Fecha', 'fecha'];
 const TIME_KEYS = ['HORA', 'Hora', 'hora'];
+const POTENTIAL_KEYS = ['POTENCIAL', 'Potencial', 'potencial'];
+const BRUTA_KEYS = ['BRUTA', 'Bruta', 'bruta', 'BBPD', 'bbpd'];
+const NETA_KEYS = ['NETA', 'Neta', 'neta', 'BNPD', 'bnpd'];
+const AYS_KEYS = ['%AyS', '% AyS', 'AYS', 'AyS', 'ays', 'ays_percentage'];
+const CATEGORY_KEYS = ['CATEGORIA', 'Categoría', 'Categoria', 'categoria', 'CAT', 'Cat', 'cat', 'cat_number'];
 const SOURCE_ORDER = Object.freeze({
     legacy_excel: 0,
     manual_adjustment: 1,
@@ -49,6 +55,34 @@ function getFirstValue(rowData = {}, keys = []) {
     return null;
 }
 
+function normalizeRowDataKey(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9%]+/g, '')
+        .toUpperCase();
+}
+
+function getFirstValueByNormalizedKey(rowData = {}, keys = []) {
+    const normalizedKeys = new Set(keys.map(normalizeRowDataKey));
+    for (const [key, value] of Object.entries(rowData || {})) {
+        if (!normalizedKeys.has(normalizeRowDataKey(key))) continue;
+        if (value !== undefined && value !== null && String(value).trim() !== '') return value;
+    }
+    return null;
+}
+
+function parseConsolidatedNumber(value) {
+    if (value === undefined || value === null || String(value).trim() === '') return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    const rawValue = String(value).trim();
+    const normalized = rawValue.includes(',')
+        ? rawValue.replace(/\./g, '').replace(',', '.')
+        : rawValue.replace(/\s+/g, '');
+    const numericValue = Number(normalized);
+    return Number.isFinite(numericValue) ? numericValue : null;
+}
+
 function normalizeText(value, transform = value => value) {
     const normalized = String(value ?? '').trim();
     return normalized ? transform(normalized) : null;
@@ -77,6 +111,14 @@ function normalizeDate(value) {
     }
 
     return null;
+}
+
+function getTodayIsoDate() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function compareDateValues(left, right) {
+    return String(left || '').localeCompare(String(right || ''));
 }
 
 function normalizeTime(value) {
@@ -387,6 +429,118 @@ export async function fetchConsolidatedDashboardRows({ limit = 10000, pozo = '',
     }
 
     return rows.sort(sortConsolidatedRows);
+}
+
+function buildTechnicalCandidateFromConsolidatedRow(row = {}) {
+    const rowData = row.row_data && typeof row.row_data === 'object' ? row.row_data : {};
+    const pozoName = normalizeText(row.pozo || getFirstValueByNormalizedKey(rowData, POZO_KEYS), value => value.toUpperCase());
+    const potencial = parseConsolidatedNumber(getFirstValueByNormalizedKey(rowData, POTENTIAL_KEYS));
+    const bbpd = parseConsolidatedNumber(getFirstValueByNormalizedKey(rowData, BRUTA_KEYS));
+    const aysPercentage = parseConsolidatedNumber(getFirstValueByNormalizedKey(rowData, AYS_KEYS));
+    const bnpd = parseConsolidatedNumber(getFirstValueByNormalizedKey(rowData, NETA_KEYS));
+    const catNumber = parseConsolidatedNumber(getFirstValueByNormalizedKey(rowData, CATEGORY_KEYS));
+    const campoName = normalizeText(row.campo || getFirstValueByNormalizedKey(rowData, CAMPO_KEYS)) || '';
+    const ef = normalizeText(row.ef || getFirstValueByNormalizedKey(rowData, EF_KEYS)) || '';
+
+    const hasTechnicalValue = [potencial, bbpd, aysPercentage, bnpd, catNumber].some(value => value !== null) || Boolean(campoName || ef);
+    if (!pozoName || !hasTechnicalValue) return null;
+
+    return {
+        pozo_name: pozoName,
+        campo_name: campoName,
+        ef,
+        fecha: row.report_date || normalizeDate(getFirstValueByNormalizedKey(rowData, DATE_KEYS)) || null,
+        potencial,
+        bbpd,
+        ays_percentage: aysPercentage,
+        bnpd,
+        cat_number: catNumber
+    };
+}
+
+async function fetchExistingTechnicalRows(pozoNames = []) {
+    if (!pozoNames.length) return new Map();
+
+    const { data, error } = await supabase
+        .from('well_production')
+        .select('*')
+        .in('pozo_name', pozoNames);
+
+    if (error) throw error;
+
+    const rowsByPozo = new Map();
+    (data || []).forEach(row => {
+        const pozoName = String(row?.pozo_name || '').trim().toUpperCase();
+        if (pozoName) rowsByPozo.set(pozoName, row);
+    });
+
+    return rowsByPozo;
+}
+
+function mergeTechnicalCandidateWithExisting(candidate = {}, existing = {}) {
+    return {
+        pozo_name: candidate.pozo_name,
+        campo_name: candidate.campo_name || existing.campo_name || '',
+        ef: candidate.ef || existing.ef || '',
+        fecha: candidate.fecha || existing.fecha || getTodayIsoDate(),
+        potencial: candidate.potencial ?? existing.potencial ?? 0,
+        bbpd: candidate.bbpd ?? existing.bbpd ?? 0,
+        ays_percentage: candidate.ays_percentage ?? existing.ays_percentage ?? 0,
+        bnpd: candidate.bnpd ?? existing.bnpd ?? 0,
+        cat_number: candidate.cat_number ?? existing.cat_number ?? 1
+    };
+}
+
+export async function syncTechnicalPotentialFromConsolidated({ limit = 10000 } = {}) {
+    return syncTechnicalMeasurementsFromConsolidated({ limit });
+}
+
+export async function syncTechnicalMeasurementsFromConsolidated({ limit = 10000 } = {}) {
+    await ensureConsolidadoManagementAccess();
+    await ensureMonitoringWriteAccess();
+
+    const consolidatedRows = await fetchConsolidatedDashboardRows({ limit });
+    const candidateByPozo = new Map();
+
+    consolidatedRows
+        .filter(row => row.source_type !== 'field_journey')
+        .forEach(row => {
+            const candidate = buildTechnicalCandidateFromConsolidatedRow(row);
+            if (!candidate) return;
+
+            const current = candidateByPozo.get(candidate.pozo_name);
+            if (!current || compareDateValues(candidate.fecha, current.fecha) >= 0) {
+                candidateByPozo.set(candidate.pozo_name, candidate);
+            }
+        });
+
+    const candidates = [...candidateByPozo.values()];
+    if (!candidates.length) {
+        return { updated: 0, candidates: 0, skipped: 0 };
+    }
+
+    const existingByPozo = await fetchExistingTechnicalRows(candidates.map(candidate => candidate.pozo_name));
+    let updated = 0;
+    let skipped = 0;
+    const errors = [];
+
+    for (const candidate of candidates) {
+        try {
+            const payload = mergeTechnicalCandidateWithExisting(candidate, existingByPozo.get(candidate.pozo_name) || {});
+            await saveTechnicalMeasurement(payload);
+            updated += 1;
+        } catch (error) {
+            skipped += 1;
+            errors.push(error?.message || String(error));
+        }
+    }
+
+    if (updated === 0 && skipped > 0) {
+        const detail = errors.find(Boolean) || 'No se pudo guardar ningun dato tecnico en Produccion Tecnica.';
+        throw new Error(`No se pudieron sincronizar los datos tecnicos. ${detail}`);
+    }
+
+    return { updated, candidates: candidates.length, skipped };
 }
 
 export async function fetchFieldJourneyConsolidatedRows({ limit = 200 } = {}) {

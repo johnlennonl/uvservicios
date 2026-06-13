@@ -1,6 +1,7 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from '../../auth.js';
 import { getUniquePozos } from '../../services/monitoring-service.js';
 import { submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney } from '../../services/field-journey-service.js';
+import { getWellTechnicalData } from '../../services/technical-measurements-service.js';
 import { validateFieldJourneyForSubmission, validateFieldReport } from './field-validation.js';
 
 const DRAFT_STORAGE_KEY = 'uv-field-capture-draft';
@@ -376,6 +377,17 @@ let currentEditingJourneyId = null;
 let CURRENT_ACCESS_PROFILE = null;
 let availablePozos = [];
 let isSubmittingJourney = false;
+let productionPrefillRequestId = 0;
+
+const FIELD_PRODUCTION_MEASURE_MAP = {
+    campo: 'campo_name',
+    ef: 'ef',
+    categoria: 'cat_number',
+    potencial: 'potencial',
+    bruta: 'bbpd',
+    neta: 'bnpd',
+    ays_percentage: 'ays_percentage'
+};
 
 document.addEventListener('DOMContentLoaded', async () => {
     const session = await getSession();
@@ -557,7 +569,7 @@ function resumeEditingCurrentPozo() {
 }
 
 async function addCurrentReportToJourney() {
-    const payload = getFormPayload();
+    const payload = await resolveReportProductionMeasures(getFormPayload(), { writeToForm: true });
     const validation = validateFieldReport(payload, { context: 'field' });
 
     const confirmed = await reviewFieldReportBeforeSave(payload, validation, {
@@ -878,7 +890,7 @@ async function submitJourneyForAdminPreview() {
         ? submittedJourneys.findIndex(journey => journey.id === resolvedJourneyId)
         : -1;
     const previousJourney = existingJourneyIndex >= 0 ? submittedJourneys[existingJourneyIndex] : null;
-    const mergedReports = previousJourney?.records?.length
+    let mergedReports = previousJourney?.records?.length
         ? mergeJourneyRecords(previousJourney.records, reports)
         : reports;
     const isUpdatingExistingJourney = Boolean(previousJourney);
@@ -902,6 +914,7 @@ async function submitJourneyForAdminPreview() {
         // execute server workflow (step 2 visible during network call)
         setProcessingStep(2, isUpdatingExistingJourney ? 'Actualizando jornada en el servidor' : 'Cargando jornada al servidor');
         const s2 = Date.now();
+        mergedReports = await resolveJourneyProductionMeasures(mergedReports);
         workflowResult = await submitFieldJourneyWorkflow(mergedReports, {
             journeyId: resolvedJourneyId
         });
@@ -1239,6 +1252,92 @@ function getNumericFieldValue(fieldName) {
 function setFieldValue(fieldName, value) {
     const field = document.querySelector(`[name="${fieldName}"]`);
     if (field) field.value = value;
+}
+
+function isBlankValue(value) {
+    return value === undefined || value === null || String(value).trim() === '';
+}
+
+function normalizeMeasureValue(value) {
+    if (value === undefined || value === null) return '';
+    return String(value).trim();
+}
+
+function mapTechnicalDataToFieldMeasures(technicalData = {}) {
+    return Object.entries(FIELD_PRODUCTION_MEASURE_MAP).reduce((measures, [fieldName, sourceField]) => {
+        const value = technicalData?.[sourceField];
+        if (!isBlankValue(value)) {
+            measures[fieldName] = normalizeMeasureValue(value);
+        }
+        return measures;
+    }, {});
+}
+
+async function fetchFieldProductionMeasures(pozoName) {
+    const normalizedPozo = normalizePozoValue(pozoName);
+    if (!normalizedPozo) return null;
+
+    try {
+        const technicalData = await getWellTechnicalData(normalizedPozo);
+        if (!technicalData) return null;
+        return mapTechnicalDataToFieldMeasures(technicalData);
+    } catch (error) {
+        return null;
+    }
+}
+
+async function resolveReportProductionMeasures(report = {}, options = {}) {
+    const normalizedPozo = normalizePozoValue(report.pozo);
+    if (!normalizedPozo) return report;
+
+    const inheritedMeasures = await fetchFieldProductionMeasures(normalizedPozo);
+    if (!inheritedMeasures) return report;
+
+    const nextReport = { ...report, pozo: normalizedPozo };
+    let inheritedCount = 0;
+
+    Object.keys(FIELD_PRODUCTION_MEASURE_MAP).forEach(fieldName => {
+        if (!isBlankValue(nextReport[fieldName])) return;
+        if (isBlankValue(inheritedMeasures[fieldName])) return;
+
+        nextReport[fieldName] = inheritedMeasures[fieldName];
+        inheritedCount += 1;
+
+        if (options.writeToForm) {
+            setFieldValue(fieldName, inheritedMeasures[fieldName]);
+        }
+    });
+
+    if (inheritedCount > 0 && options.writeToForm) {
+        persistDraft();
+        updateSummary();
+    }
+
+    return nextReport;
+}
+
+async function resolveJourneyProductionMeasures(reports = []) {
+    return Promise.all((Array.isArray(reports) ? reports : []).map(report => resolveReportProductionMeasures(report)));
+}
+
+async function prefillProductionMeasuresForSelectedPozo(pozoName) {
+    const requestId = ++productionPrefillRequestId;
+    const inheritedMeasures = await fetchFieldProductionMeasures(pozoName);
+    if (requestId !== productionPrefillRequestId || !inheritedMeasures) return;
+
+    let filledCount = 0;
+    Object.keys(FIELD_PRODUCTION_MEASURE_MAP).forEach(fieldName => {
+        const field = document.querySelector(`[name="${fieldName}"]`);
+        if (!field || !isBlankValue(field.value) || isBlankValue(inheritedMeasures[fieldName])) return;
+        field.value = inheritedMeasures[fieldName];
+        filledCount += 1;
+    });
+
+    if (filledCount > 0) {
+        persistDraft();
+        updateSummary();
+        updateStatus(`Medidas vigentes cargadas para ${normalizePozoValue(pozoName)}. Puedes editarlas si hubo cambio.`);
+    }
 }
 
 function formatNumber(value) {
@@ -2241,6 +2340,7 @@ function selectFieldPozo(pozoName) {
     closeFieldPozoMenu({ commitSearch: false });
     persistDraft();
     updateSummary();
+    prefillProductionMeasuresForSelectedPozo(normalizedPozo);
 }
 
 function syncPozoDisplayFromValue() {
@@ -2270,6 +2370,7 @@ function commitTypedPozoSelection() {
         displayField.value = normalizedPozo;
         persistDraft();
         updateSummary();
+        prefillProductionMeasuresForSelectedPozo(normalizedPozo);
         return;
     }
 
@@ -2278,6 +2379,9 @@ function commitTypedPozoSelection() {
     displayField.value = exactMatch || normalizedPozo;
     persistDraft();
     updateSummary();
+    if (exactMatch) {
+        prefillProductionMeasuresForSelectedPozo(exactMatch);
+    }
 }
 
 function normalizePozoValue(value) {

@@ -145,7 +145,7 @@ function buildNotificationMoments(monitoringActivity, technicalRows = [], besRow
         moments.push({
             source: 'Medición técnica',
             title: `Última medición visible para ${row.pozo_name || 'pozo sin nombre'}`,
-            detail: `BBPD ${row.bbpd ?? 0} · BNPD ${row.bnpd ?? 0} · AYS ${row.ays_percentage ?? 0}% · CAT ${row.cat_number ?? 0}.`,
+            detail: `POT ${row.potencial ?? 0} · BBPD ${row.bbpd ?? 0} · BNPD ${row.bnpd ?? 0} · AYS ${row.ays_percentage ?? 0}% · CAT ${row.cat_number ?? 0}.`,
             moment: String(moment)
         });
     });
@@ -235,7 +235,7 @@ function renderTechnicalFeed(rows = []) {
         <article class="notification-pozo-item">
             <div class="notification-pozo-main">
                 <strong>${escapeHtml(row.pozo_name || 'Pozo sin nombre')}</strong>
-                <span class="notification-pozo-meta">Fecha de medición: ${escapeHtml(formatDate(row.fecha))} · BBPD ${escapeHtml(row.bbpd ?? 0)} · AYS ${escapeHtml(row.ays_percentage ?? 0)}% · BNPD ${escapeHtml(row.bnpd ?? 0)} · CAT ${escapeHtml(row.cat_number ?? 0)}</span>
+                <span class="notification-pozo-meta">Fecha de medición: ${escapeHtml(formatDate(row.fecha))} · POT ${escapeHtml(row.potencial ?? 0)} · BBPD ${escapeHtml(row.bbpd ?? 0)} · AYS ${escapeHtml(row.ays_percentage ?? 0)}% · BNPD ${escapeHtml(row.bnpd ?? 0)} · CAT ${escapeHtml(row.cat_number ?? 0)}</span>
             </div>
             <span class="notification-pozo-count">${escapeHtml(formatDateTime(row.created_at || row.updated_at || row.fecha))}</span>
         </article>

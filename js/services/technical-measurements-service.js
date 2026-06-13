@@ -16,6 +16,7 @@ const TECHNICAL_FIELDS_TO_COMPARE = [
     'campo_name',
     'ef',
     'fecha',
+    'potencial',
     'bbpd',
     'ays_percentage',
     'bnpd',
@@ -28,6 +29,7 @@ function normalizeTechnicalRecord(record = {}) {
         campo_name: String(record?.campo_name || '').trim(),
         ef: String(record?.ef || '').trim(),
         fecha: record?.fecha || null,
+        potencial: record?.potencial ?? 0,
         bbpd: record?.bbpd ?? 0,
         ays_percentage: record?.ays_percentage ?? 0,
         bnpd: record?.bnpd ?? 0,
@@ -63,7 +65,7 @@ export async function getWellTechnicalData(pozoName) {
 }
 
 export async function getLatestTechnicalSnapshot() {
-    const rows = await fetchAllRows('well_production', 'pozo_name, campo_name, ef, fecha, bbpd, ays_percentage, bnpd, cat_number');
+    const rows = await fetchAllRows('well_production', 'pozo_name, campo_name, ef, fecha, potencial, bbpd, ays_percentage, bnpd, cat_number');
     return (rows || [])
         .map(row => ({
             ...row,
@@ -164,7 +166,7 @@ async function refreshTechnicalSnapshot(pozoName) {
     try {
         const { data, error } = await supabase
             .from('well_production_history')
-            .select('pozo_name, campo_name, ef, fecha, bbpd, ays_percentage, bnpd, cat_number')
+            .select('pozo_name, campo_name, ef, fecha, potencial, bbpd, ays_percentage, bnpd, cat_number')
             .eq('pozo_name', pozoName)
             .order('fecha', { ascending: false })
             .order('created_at', { ascending: false })
@@ -230,7 +232,7 @@ export async function syncTechnicalMeasurements(records = []) {
     try {
         let existingQuery = supabase
             .from('well_production_history')
-            .select('id, pozo_name, campo_name, ef, fecha, bbpd, ays_percentage, bnpd, cat_number')
+            .select('id, pozo_name, campo_name, ef, fecha, potencial, bbpd, ays_percentage, bnpd, cat_number')
             .in('pozo_name', pozoNames);
 
         if (fechas[0]) existingQuery = existingQuery.gte('fecha', fechas[0]);
@@ -315,7 +317,7 @@ export async function previewTechnicalMeasurements(records = []) {
     try {
         let existingQuery = supabase
             .from('well_production_history')
-            .select('id, pozo_name, campo_name, ef, fecha, bbpd, ays_percentage, bnpd, cat_number')
+            .select('id, pozo_name, campo_name, ef, fecha, potencial, bbpd, ays_percentage, bnpd, cat_number')
             .in('pozo_name', pozoNames);
 
         if (fechas[0]) existingQuery = existingQuery.gte('fecha', fechas[0]);
@@ -397,6 +399,7 @@ export async function getWellRibbonData(pozoName) {
         pump_type: firstDefined(besProfile?.pump_type),
         fecha: firstDefined(latestTechnical?.fecha, latestMonitoring?.fecha),
         measurement_date: measurementDate,
+        potencial: firstDefined(latestMonitoring?.potencial, latestTechnical?.potencial),
         bbpd: firstDefined(latestMonitoring?.bbpd, latestTechnical?.bbpd),
         ays_percentage: firstDefined(latestMonitoring?.ays_percentage, latestMonitoring?.ays, latestTechnical?.ays_percentage),
         bnpd: firstDefined(latestMonitoring?.bnpd, latestTechnical?.bnpd),

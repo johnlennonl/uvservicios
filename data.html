@@ -1095,6 +1095,20 @@
                                 <div class="technical-detail-card-head">
                                     <span class="technical-detail-icon gross">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M4 18V8"></path>
+                                            <path d="M10 18V4"></path>
+                                            <path d="M16 18v-7"></path>
+                                            <path d="M22 18H2"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="technical-detail-label">Potencial</span>
+                                </div>
+                                <strong>${formatNumberCell(record.potencial)}</strong>
+                            </div>
+                            <div class="technical-detail-card emphasis gross">
+                                <div class="technical-detail-card-head">
+                                    <span class="technical-detail-icon gross">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                             <ellipse cx="12" cy="5" rx="6" ry="2.5"></ellipse>
                                             <path d="M6 5v14c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V5"></path>
                                             <path d="M6 12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5"></path>
@@ -1175,6 +1189,15 @@
                                 <div>
                                     <div class="technical-history-date-value">${formatTextCell(record.fecha)}</div>
                                     <div class="technical-history-date-subtitle">Registro técnico</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="technical-history-metric">
+                                <span class="technical-history-badge barrel">PT</span>
+                                <div>
+                                    <div class="technical-history-metric-value">${formatNumberCell(record.potencial, 2)}</div>
+                                    <div class="technical-history-metric-label">Potencial</div>
                                 </div>
                             </div>
                         </td>

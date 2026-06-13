@@ -2,6 +2,17 @@ import { supabase } from '../supabaseClient.js';
 import { getSession } from '../auth.js';
 import { getAccessProfile } from '../core/access-control.js';
 import { previewMonitoringSync, syncMonitoringRecords } from './monitoring-records-service.js';
+import { getWellTechnicalData } from './technical-measurements-service.js';
+
+const FIELD_PRODUCTION_MEASURE_MAP = {
+    campo: 'campo_name',
+    ef: 'ef',
+    categoria: 'cat_number',
+    potencial: 'potencial',
+    bruta: 'bbpd',
+    neta: 'bnpd',
+    ays_percentage: 'ays_percentage'
+};
 
 async function ensureFieldSessionAccess() {
     const session = await getSession();
@@ -100,6 +111,7 @@ function buildJourneyPreviewSummary(journey = {}, records = []) {
 }
 
 function normalizeNumber(value) {
+    if (value === '' || value === null || value === undefined) return null;
     const numericValue = Number(value);
     return Number.isFinite(numericValue) ? numericValue : null;
 }
@@ -121,6 +133,74 @@ function normalizeOptionalNumber(value) {
     if (value === '' || value === null || value === undefined) return null;
     const numericValue = Number(value);
     return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function hasProductionValue(value) {
+    return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function mapTechnicalDataToFieldProduction(technicalData = {}) {
+    return Object.entries(FIELD_PRODUCTION_MEASURE_MAP).reduce((measures, [fieldName, sourceField]) => {
+        const value = technicalData?.[sourceField];
+        if (hasProductionValue(value)) {
+            measures[fieldName] = value;
+        }
+        return measures;
+    }, {});
+}
+
+async function getCachedFieldProduction(pozoName, cache) {
+    const normalizedPozo = String(pozoName || '').trim().toUpperCase();
+    if (!normalizedPozo) return null;
+    if (cache.has(normalizedPozo)) return cache.get(normalizedPozo);
+
+    try {
+        const technicalData = await getWellTechnicalData(normalizedPozo);
+        const measures = technicalData ? mapTechnicalDataToFieldProduction(technicalData) : null;
+        cache.set(normalizedPozo, measures);
+        return measures;
+    } catch (error) {
+        cache.set(normalizedPozo, null);
+        return null;
+    }
+}
+
+async function inheritReportProductionMeasures(report = {}, cache = new Map()) {
+    const pozo = String(report.pozo || report.pozo_name || '').trim().toUpperCase();
+    if (!pozo) return report;
+
+    const inheritedMeasures = await getCachedFieldProduction(pozo, cache);
+    if (!inheritedMeasures) return report;
+
+    const nextReport = { ...report, pozo };
+    Object.keys(FIELD_PRODUCTION_MEASURE_MAP).forEach(fieldName => {
+        if (hasProductionValue(nextReport[fieldName])) return;
+        if (!hasProductionValue(inheritedMeasures[fieldName])) return;
+        nextReport[fieldName] = inheritedMeasures[fieldName];
+    });
+
+    return nextReport;
+}
+
+async function inheritReportsProductionMeasures(reports = []) {
+    const cache = new Map();
+    return Promise.all((Array.isArray(reports) ? reports : []).map(report => inheritReportProductionMeasures(report, cache)));
+}
+
+async function inheritWorkflowRecordsProductionMeasures(records = []) {
+    const cache = new Map();
+    return Promise.all((Array.isArray(records) ? records : []).map(async record => {
+        const payload = record?.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
+        const inheritedPayload = await inheritReportProductionMeasures({ ...payload, ...record, pozo: record.pozo || payload.pozo }, cache);
+        return {
+            ...record,
+            ...Object.fromEntries(Object.keys(FIELD_PRODUCTION_MEASURE_MAP).map(fieldName => [fieldName, inheritedPayload[fieldName] ?? record[fieldName] ?? payload[fieldName] ?? null])),
+            raw_payload: {
+                ...payload,
+                ...Object.fromEntries(Object.keys(FIELD_PRODUCTION_MEASURE_MAP).map(fieldName => [fieldName, inheritedPayload[fieldName] ?? payload[fieldName] ?? '']))
+            }
+        };
+    }));
 }
 
 function mapWorkflowRecordEditableFields(report = {}) {
@@ -708,11 +788,13 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
         throw new Error('Tu usuario no tiene permisos para guardar jornadas de Campo.');
     }
 
-    const normalizedReports = (Array.isArray(reports) ? reports : []).filter(report => report?.id && report?.pozo && report?.fecha);
+    let normalizedReports = (Array.isArray(reports) ? reports : []).filter(report => report?.id && report?.pozo && report?.fecha);
 
     if (normalizedReports.length === 0) {
         throw new Error('No hay pozos válidos para enviar al workflow administrativo de Campo.');
     }
+
+    normalizedReports = await inheritReportsProductionMeasures(normalizedReports);
 
     const requestedJourneyId = String(options.journeyId || '').trim() || null;
 
@@ -1109,7 +1191,8 @@ export async function previewAdminFieldJourneyPublication(journeyId) {
 
         if (error) throw error;
 
-        const monitoringRecords = (records || []).map(mapWorkflowRecordToMonitoringRecord);
+        const inheritedRecords = await inheritWorkflowRecordsProductionMeasures(records || []);
+        const monitoringRecords = inheritedRecords.map(mapWorkflowRecordToMonitoringRecord);
         const preview = await previewMonitoringSync(monitoringRecords);
 
         return {
@@ -1141,9 +1224,10 @@ export async function publishAdminFieldJourneyToDashboard(journeyId) {
 
         if (error) throw error;
 
-        const monitoringRecords = (records || []).map(mapWorkflowRecordToMonitoringRecord);
+        const inheritedRecords = await inheritWorkflowRecordsProductionMeasures(records || []);
+        const monitoringRecords = inheritedRecords.map(mapWorkflowRecordToMonitoringRecord);
         const syncSummary = await syncMonitoringRecords(monitoringRecords);
-        const consolidatedSummary = await upsertFieldJourneyIntoConsolidatedDashboard(records || [], normalizedJourneyId);
+        const consolidatedSummary = await upsertFieldJourneyIntoConsolidatedDashboard(inheritedRecords, normalizedJourneyId);
 
         const journeyUpdate = {
             status: 'published',

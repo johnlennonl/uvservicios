@@ -511,7 +511,7 @@ function buildPozoOperationalSnapshot(record, technicalRecord) {
 
     const statusLabel = record?.normalized_estatus || record?.estatus || 'Sin estatus visible';
     const productionLine = technicalRecord
-        ? `- Producción: BBPD ${formatAssistantNumber(technicalRecord.bbpd)} · BNPD ${formatAssistantNumber(technicalRecord.bnpd)} · AYS ${formatAssistantNumber(technicalRecord.ays_percentage)}%`
+        ? `- Producción: POT ${formatAssistantNumber(technicalRecord.potencial)} · BBPD ${formatAssistantNumber(technicalRecord.bbpd)} · BNPD ${formatAssistantNumber(technicalRecord.bnpd)} · AYS ${formatAssistantNumber(technicalRecord.ays_percentage)}%`
         : '- Producción: sin snapshot técnico visible';
 
     return `🔎 Consultando sistema...\n\nEstado actual del pozo ${record?.pozo_name || technicalRecord?.pozo_name}:\n- Estatus: ${statusLabel}\n- Último monitoreo: ${formatAssistantDate(record?.fecha)} ${formatAssistantHour(record?.hora)}\n- Frecuencia: ${record?.frecuencia ?? '--'}\n- Corriente motor: ${record?.corriente_motor ?? '--'}\n- Temperatura motor: ${record?.tm ?? '--'}\n${productionLine}`;
@@ -622,7 +622,7 @@ async function buildOperationalAssistantResponse(rawQuery) {
             }
 
             return {
-                text: `🛢 Consultando sistema...\n\nProducción visible para ${pozoName}:\n- Fecha técnica: ${formatAssistantDate(technicalRecord.fecha)}\n- BBPD: ${formatAssistantNumber(technicalRecord.bbpd)}\n- BNPD: ${formatAssistantNumber(technicalRecord.bnpd)}\n- AYS: ${formatAssistantNumber(technicalRecord.ays_percentage)}%\n- CAT: ${formatAssistantNumber(technicalRecord.cat_number)}`,
+                text: `🛢 Consultando sistema...\n\nProducción visible para ${pozoName}:\n- Fecha técnica: ${formatAssistantDate(technicalRecord.fecha)}\n- Potencial: ${formatAssistantNumber(technicalRecord.potencial)}\n- BBPD: ${formatAssistantNumber(technicalRecord.bbpd)}\n- BNPD: ${formatAssistantNumber(technicalRecord.bnpd)}\n- AYS: ${formatAssistantNumber(technicalRecord.ays_percentage)}%\n- CAT: ${formatAssistantNumber(technicalRecord.cat_number)}`,
                 action: { href: 'dashboard.html', label: 'Abrir Dashboard' }
             };
         }

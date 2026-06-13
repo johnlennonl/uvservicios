@@ -282,7 +282,7 @@
                             <div class="integrated-upload-icon"><img src="https://cdn-icons-png.flaticon.com/512/17018/17018393.png" alt="Icono de carga de archivo" width="50" height="50" aria-hidden="true"></div>
                             <div>
                                 <p class="integrated-upload-title">Archivo CSV o Excel técnico</p>
-                                <p class="integrated-upload-subtitle">Carga masiva con columnas: CAMPO, POZO, EF, FECHA, BBPD, AYS, BNPD, CAT.</p>
+                                <p class="integrated-upload-subtitle">Carga masiva con columnas: CAMPO, POZO, EF, FECHA, POTENCIAL, BBPD, AYS, BNPD, CAT.</p>
                             </div>
                             <input type="file" id="tech-file-input" accept=".csv,.xlsx,.xls" style="display: none;">
                         </div>
@@ -343,6 +343,10 @@
                             <div class="form-group">
                                 <label>Fecha Última Medición</label>
                                 <input type="date" id="fecha_tech">
+                            </div>
+                            <div class="form-group">
+                                <label>Potencial</label>
+                                <input type="number" step="0.01" id="potencial_tech" placeholder="0.00">
                             </div>
                             <div class="form-group">
                                 <label>BBPD (Brutos)</label>
@@ -952,6 +956,7 @@
                         <th>Pozo</th>
                         <th>Campo</th>
                         <th>Fecha</th>
+                        <th>Potencial</th>
                         <th>BBPD</th>
                         <th>AYS</th>
                         <th>BNPD</th>
@@ -1090,6 +1095,7 @@
                                 <td style="font-weight: 700;">${escapeHtml(record.pozo_name || '--')}</td>
                                 <td>${escapeHtml(record.campo_name || '--')}</td>
                                 <td>${escapeHtml(record.fecha || '--')}</td>
+                                <td>${formatTelemetryNumber(record.potencial)}</td>
                                 <td>${formatTelemetryNumber(record.bbpd)}</td>
                                 <td>${formatTelemetryNumber(record.ays_percentage)}%</td>
                                 <td>${formatTelemetryNumber(record.bnpd)}</td>
@@ -1281,6 +1287,7 @@
             document.getElementById('tech_campo_name').value = context.campo_name || techData?.campo_name || '';
             document.getElementById('ef_tech').value = techData?.ef || '';
             document.getElementById('fecha_tech').value = techData?.fecha || '';
+            document.getElementById('potencial_tech').value = techData?.potencial ?? '';
             document.getElementById('bbpd_tech').value = techData?.bbpd ?? '';
             document.getElementById('ays_tech').value = techData?.ays_percentage ?? '';
             document.getElementById('bnpd_tech').value = techData?.bnpd ?? '';
@@ -1291,6 +1298,7 @@
         function resetTechnicalForm() {
             document.getElementById('technical-data-form').reset();
             document.getElementById('fecha_tech').value = '';
+            document.getElementById('potencial_tech').value = '';
             document.getElementById('cat_tech').value = '1';
             document.getElementById('bnpd_tech').value = '';
             document.getElementById('tech-submit-btn').querySelector('.btn-text').textContent = 'Guardar Producción Técnica';
@@ -1427,6 +1435,7 @@
                     campo_name: document.getElementById('tech_campo_name').value.trim(),
                     ef: document.getElementById('ef_tech').value.trim(),
                     fecha: document.getElementById('fecha_tech').value || null,
+                    potencial: parseFloat(document.getElementById('potencial_tech').value) || 0,
                     bbpd: parseFloat(document.getElementById('bbpd_tech').value) || 0,
                     ays_percentage: parseFloat(document.getElementById('ays_tech').value) || 0,
                     bnpd: parseFloat(document.getElementById('bnpd_tech').value) || 0,
@@ -1631,6 +1640,7 @@
                         fecha: record.fecha || '',
                         campo_name: record.campo_name || '',
                         ef: record.ef || '',
+                        potencial: record.potencial ?? '',
                         bbpd: record.bbpd ?? '',
                         ays_percentage: record.ays_percentage ?? '',
                         bnpd: record.bnpd ?? '',
@@ -2637,6 +2647,7 @@
                 campo_name: String(normalizedRow.campo || normalizedRow.campo_name || '').trim(),
                 ef: String(normalizedRow.ef || normalizedRow.estacion || '').trim(),
                 fecha: toIsoDate(normalizedRow.fecha_ultima_medicion || normalizedRow.fecha_medicion || normalizedRow.fecha),
+                potencial: parseCsvNumber(normalizedRow.potencial),
                 bbpd: parseCsvNumber(normalizedRow.bbpd),
                 ays_percentage: parseCsvNumber(normalizedRow.ays || normalizedRow.ays_percentage),
                 bnpd: parseCsvNumber(normalizedRow.bnpd),
@@ -2742,7 +2753,7 @@
                 const invalidStatusRows = telemetryRows.filter(row => !row.estatus);
 
                 if (telemetryRows.length === 0) {
-                    const looksTechnicalFile = cleanData.some(row => row.ef || row.bbpd !== undefined || row.ays !== undefined || row.bnpd !== undefined || row.cat !== undefined || row.cat_number !== undefined);
+                    const looksTechnicalFile = cleanData.some(row => row.ef || row.potencial !== undefined || row.bbpd !== undefined || row.ays !== undefined || row.bnpd !== undefined || row.cat !== undefined || row.cat_number !== undefined);
                     throw new Error(looksTechnicalFile
                         ? 'Este archivo parece corresponder a Produccion Tecnica. Cargalo en la seccion tecnica, no en Entrada de Parametros.'
                         : `No se encontraron columnas validas para monitoreo diario en el archivo importado. Detectadas: ${detectedDailyFields.join(', ') || 'ninguna'}.`);
@@ -2838,12 +2849,13 @@
                     const pozoRecords = syncedTelemetryRows.filter(r => r.pozo_name === pozo);
                     const latest = pozoRecords[0];
 
-                    if (latest.bbpd !== undefined || latest.ef !== undefined) {
+                    if (latest.potencial !== undefined || latest.bbpd !== undefined || latest.ef !== undefined) {
                         const techData = {
                             pozo_name: latest.pozo_name,
                             campo_name: latest.campo || latest.campo_name,
                             ef: latest.ef || 'N/A',
                             fecha: latest.fecha_tech || latest.fecha_medicion || latest.fecha,
+                            potencial: parseFloat(latest.potencial) || 0,
                             bbpd: parseFloat(latest.bbpd) || 0,
                             ays_percentage: parseFloat(latest.ays) || parseFloat(latest.ays_percentage) || 0,
                             bnpd: parseFloat(latest.bnpd) || 0,

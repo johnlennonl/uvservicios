@@ -6,7 +6,8 @@ import {
     fetchFieldJourneyConsolidatedRows,
     getConsolidatedDashboardFilterOptions,
     getConsolidatedDashboardSummary,
-    saveLegacyDashboardGeneralRows
+    saveLegacyDashboardGeneralRows,
+    syncTechnicalMeasurementsFromConsolidated
 } from './services/consolidado-service.js';
 
 const TEMPLATE_STORAGE_KEY = 'uv-consolidado-template-v1';
@@ -25,6 +26,7 @@ const elements = {
     openImportButton: document.getElementById('consolidado-open-import-btn'),
     exportStructureButton: document.getElementById('consolidado-export-structure-btn'),
     saveDbButton: document.getElementById('consolidado-save-db-btn'),
+    syncTechnicalButton: document.getElementById('consolidado-sync-technical-btn'),
     exportDbButton: document.getElementById('consolidado-export-db-btn'),
     refreshDbButton: document.getElementById('consolidado-refresh-db-btn'),
     selectFieldRowsButton: document.getElementById('consolidado-select-field-rows-btn'),
@@ -581,6 +583,36 @@ async function refreshDatabaseSummary({ silent = false } = {}) {
     }
 }
 
+async function syncTechnicalFromConsolidated() {
+    const confirmed = await confirmAction({
+        title: 'Sincronizar datos técnicos',
+        message: 'Se leerán Potencial, Bruta, Neta, AyS, Categoria, Campo y EF desde el consolidado guardado para actualizar Producción Técnica por pozo. ¿Continuar?',
+        confirmText: 'Sincronizar datos técnicos'
+    });
+
+    if (!confirmed) return;
+
+    try {
+        setBusyState(true);
+        closeConfigMenu();
+        showLoadingModal('Sincronizando datos técnicos', 'Leyendo pozos del consolidado maestro y actualizando Producción Técnica.', 'Este proceso usa el Excel viejo ya guardado en base de datos.');
+        setStatus('Sincronizando datos técnicos desde el consolidado guardado...', 'neutral');
+
+        const result = await syncTechnicalMeasurementsFromConsolidated();
+
+        closeLoadingModal();
+        setStatus(`Datos técnicos sincronizados: ${result.updated} pozo(s) actualizados desde ${result.candidates} candidato(s).`, 'success');
+        showResultModal('success', 'Datos técnicos sincronizados', `${result.updated} pozo(s) quedaron actualizados en Producción Técnica. Omitidos: ${result.skipped}.`);
+    } catch (error) {
+        console.error('No se pudo sincronizar datos técnicos desde consolidado:', error);
+        closeLoadingModal();
+        setStatus(error?.message || 'No se pudieron sincronizar los datos técnicos desde el consolidado.', 'error');
+        showResultModal('error', 'No se pudo sincronizar', error?.message || 'No se pudieron sincronizar los datos técnicos desde el consolidado.');
+    } finally {
+        setBusyState(false);
+    }
+}
+
 function buildColumnsFromStoredRows(rows = []) {
     const labels = [];
     const seen = new Set();
@@ -1067,6 +1099,7 @@ function bindEvents() {
     });
     elements.exportStructureButton?.addEventListener('click', exportStructureWorkbook);
     elements.saveDbButton?.addEventListener('click', saveDashboardGeneralToDatabase);
+    elements.syncTechnicalButton?.addEventListener('click', syncTechnicalFromConsolidated);
     elements.exportDbButton?.addEventListener('click', exportDashboardGeneralFromDatabase);
     elements.refreshDbButton?.addEventListener('click', () => refreshDatabaseSummary());
     elements.selectFieldRowsButton?.addEventListener('click', openFieldJourneyDeleteSelector);
