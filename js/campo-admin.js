@@ -1993,7 +1993,10 @@ async function showPublicationReadiness() {
             'Subida al dashboard completada.',
             `Insertados: ${publicationResult.inserted || 0}`,
             `Actualizados: ${publicationResult.updated || 0}`,
-            `Omitidos: ${publicationResult.skipped || 0}`
+            `Omitidos: ${publicationResult.skipped || 0}`,
+            publicationResult.consolidatedError
+                ? `Consolidado: pendiente (${publicationResult.consolidatedError})`
+                : `Consolidado: ${publicationResult.consolidatedSaved || 0} filas agregadas`
         ].join('\n'),
         'success'
     );

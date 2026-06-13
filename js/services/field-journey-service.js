@@ -976,6 +976,121 @@ function buildFieldPublicationComment(summary = {}) {
     ].join(' ');
 }
 
+function stableStringify(value) {
+    if (Array.isArray(value)) {
+        return `[${value.map(stableStringify).join(',')}]`;
+    }
+
+    if (value && typeof value === 'object') {
+        return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+    }
+
+    return JSON.stringify(value ?? null);
+}
+
+function fallbackHash(value) {
+    let hash = 2166136261;
+    for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+    }
+    return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+async function createStableHash(value) {
+    if (!globalThis.crypto?.subtle || !globalThis.TextEncoder) {
+        return fallbackHash(value);
+    }
+
+    const bytes = new TextEncoder().encode(value);
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest))
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+function buildConsolidatedFieldRowData(record = {}) {
+    const payload = record.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
+    return {
+        POZO: String(record.pozo || payload.pozo || '').trim().toUpperCase(),
+        CAMPO: String(record.campo || payload.campo || '').trim(),
+        EF: String(record.ef || payload.ef || '').trim(),
+        ESTADO: String(record.estado || payload.estado || '').trim(),
+        CATEGORIA: record.categoria ?? payload.categoria ?? '',
+        POTENCIAL: record.potencial ?? payload.potencial ?? '',
+        BRUTA: record.bruta ?? payload.bruta ?? '',
+        NETA: record.neta ?? payload.neta ?? '',
+        '%AyS': record.ays_percentage ?? payload.ays_percentage ?? '',
+        FECHA: record.report_date || payload.fecha || '',
+        HORA: record.report_time || payload.hora || '',
+        ACTIVIDAD: String(record.actividad || payload.actividad || '').trim(),
+        ESTATUS: String(record.estatus || payload.estatus || '').trim(),
+        FREC: record.frecuencia ?? payload.frecuencia ?? '',
+        'MODO DE OPERACION': String(record.modo_operacion || payload.modo_operacion || '').trim(),
+        'SENTIDO DE GIRO': String(record.sentido_giro || payload.sentido_giro || '').trim(),
+        'I Motor [Amp]': record.i_motor ?? payload.i_motor ?? '',
+        'V Motor [Volt]': record.v_motor ?? payload.v_motor ?? '',
+        'Out VSD [Volt]': record.out_vsd ?? payload.out_vsd ?? '',
+        'PIP [psi]': record.pip_psi ?? payload.pip_psi ?? '',
+        'PD [psi]': record.pd_psi ?? payload.pd_psi ?? '',
+        'Ti [°F]': record.ti_f ?? payload.ti_f ?? '',
+        'Tm [°F]': record.tm_f ?? payload.tm_f ?? '',
+        'THP [psi]': record.thp_psi ?? payload.thp_psi ?? '',
+        'CHP [psi]': record.chp_psi ?? payload.chp_psi ?? '',
+        'LF [psi]': record.lf_psi ?? payload.lf_psi ?? '',
+        DIAGNOSTICO: String(record.diagnostico || payload.diagnostico || '').trim(),
+        OBSERVACIONES: String(record.observaciones_pozo || payload.observaciones_pozo || '').trim()
+    };
+}
+
+function buildConsolidatedFieldRowHashSeed({ rowData, journeyId, record, index }) {
+    return [
+        'field_journey',
+        journeyId,
+        record.id || record.source_client_report_id || index,
+        stableStringify(rowData)
+    ].join('|');
+}
+
+async function buildConsolidatedFieldRows(records = [], journeyId = '') {
+    return Promise.all((Array.isArray(records) ? records : []).map(async (record, index) => {
+        const rowData = buildConsolidatedFieldRowData(record);
+        const rowHashSeed = buildConsolidatedFieldRowHashSeed({ rowData, journeyId, record, index });
+
+        return {
+            source_type: 'field_journey',
+            source_file_name: null,
+            source_sheet_name: 'DASHBOARD GENERAL',
+            source_row_number: null,
+            source_journey_id: journeyId,
+            source_record_id: record.id || null,
+            row_hash: await createStableHash(rowHashSeed),
+            pozo: rowData.POZO || null,
+            campo: rowData.CAMPO || null,
+            ef: rowData.EF || null,
+            report_date: record.report_date || null,
+            report_time: record.report_time || null,
+            row_data: rowData,
+            column_labels: Object.keys(rowData)
+        };
+    }));
+}
+
+async function upsertFieldJourneyIntoConsolidatedDashboard(records = [], journeyId = '') {
+    const rows = await buildConsolidatedFieldRows(records, journeyId);
+    if (!rows.length) return { saved: 0, error: null };
+
+    const { error } = await supabase
+        .from('consolidated_dashboard_general')
+        .upsert(rows, { onConflict: 'row_hash' });
+
+    if (error) {
+        return { saved: 0, error };
+    }
+
+    return { saved: rows.length, error: null };
+}
+
 export async function previewAdminFieldJourneyPublication(journeyId) {
     await ensureFieldAdminReadAccess();
 
@@ -1028,6 +1143,7 @@ export async function publishAdminFieldJourneyToDashboard(journeyId) {
 
         const monitoringRecords = (records || []).map(mapWorkflowRecordToMonitoringRecord);
         const syncSummary = await syncMonitoringRecords(monitoringRecords);
+        const consolidatedSummary = await upsertFieldJourneyIntoConsolidatedDashboard(records || [], normalizedJourneyId);
 
         const journeyUpdate = {
             status: 'published',
@@ -1060,7 +1176,9 @@ export async function publishAdminFieldJourneyToDashboard(journeyId) {
                     inserted: syncSummary.inserted || 0,
                     updated: syncSummary.updated || 0,
                     skipped: syncSummary.skipped || 0,
-                    total: syncSummary.total || monitoringRecords.length
+                    total: syncSummary.total || monitoringRecords.length,
+                    consolidated_dashboard_saved: consolidatedSummary.saved || 0,
+                    consolidated_dashboard_error: consolidatedSummary.error?.message || null
                 }
             });
 
@@ -1069,6 +1187,8 @@ export async function publishAdminFieldJourneyToDashboard(journeyId) {
         return {
             journeyId: normalizedJourneyId,
             totalRecords: monitoringRecords.length,
+            consolidatedSaved: consolidatedSummary.saved || 0,
+            consolidatedError: consolidatedSummary.error?.message || null,
             ...syncSummary
         };
     } catch (error) {

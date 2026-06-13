@@ -2498,6 +2498,13 @@
                     </svg>
                     Campo
                 </a>
+                <a href="consolidado.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16M4 10h16M4 15h16M4 20h16"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 5v15M14 5v15"></path>
+                    </svg>
+                    Consolidado
+                </a>
                 <a href="stats.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v18M12 7v14M19 11v10M3 21h18" />
@@ -2556,82 +2563,6 @@
                     <span>Pozos cargados</span>
                     <strong id="campo-admin-report-count">0</strong>
                 </article>
-            </section>
-
-            <section class="campo-admin-export-strip" aria-label="Exportacion historica del modulo Campo">
-                <div class="campo-admin-export-copy">
-                    <div class="campo-admin-export-head">
-                        <span class="campo-admin-kicker campo-admin-export-kicker">Historico operacional</span>
-                        <div>
-                            <h2>Centro ejecutivo de exportación histórica</h2>
-                            <p class="campo-admin-export-lead">Centraliza cortes analíticos, respaldos y auditoría del histórico de Campo en un frente separado de la bandeja operativa para mantener revisión y explotación de datos en carriles distintos.</p>
-                        </div>
-                    </div>
-                    <div class="campo-admin-export-meta">
-                        <span class="campo-admin-export-badge is-primary">Excel consolidado</span>
-                        <span class="campo-admin-export-badge">Por pozo o rango</span>
-                        <span class="campo-admin-export-badge">Listo para análisis</span>
-                    </div>
-                    <div class="campo-admin-export-highlights" aria-label="Capacidades del exportador historico">
-                        <article class="campo-admin-export-highlight">
-                            <span>Consolidación</span>
-                            <strong>Un solo corte para seguimiento, auditoría y respaldo</strong>
-                            <p>Extrae el histórico operativo sin depender de los filtros activos de la bandeja administrativa.</p>
-                        </article>
-                        <article class="campo-admin-export-highlight">
-                            <span>Trazabilidad</span>
-                            <strong>Segmentación por pozo, fecha y ventana operativa</strong>
-                            <p>Prepara material consistente para revisión puntual, análisis comparativo y soporte interno.</p>
-                        </article>
-                        <article class="campo-admin-export-highlight">
-                            <span>Gobierno</span>
-                            <strong>Flujo separado para no contaminar revisión en curso</strong>
-                            <p>Permite trabajar históricos sin alterar la lectura diaria de jornadas pendientes o aprobadas.</p>
-                        </article>
-                    </div>
-                    <div class="campo-admin-export-reminder">
-                        <span class="campo-admin-export-reminder-icon" aria-hidden="true">
-                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 17h.01"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86 1.82 18a2 2 0 0 0 1.72 3h16.92a2 2 0 0 0 1.72-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path>
-                            </svg>
-                        </span>
-                        <div>
-                            <strong>Recordatorio de respaldo operativo</strong>
-                            <p>El histórico operacional concentra datos críticos del servicio. Conviene generar un respaldo periódico del consolidado para proteger trazabilidad, análisis y evidencia operativa.</p>
-                        </div>
-                    </div>
-                </div>
-                <aside class="campo-admin-export-side" aria-label="Acciones del exportador historico">
-                    <div class="campo-admin-export-side-card">
-                        <span class="campo-admin-export-side-label">Flujo recomendado</span>
-                        <strong>Exporta, valida y resguarda el consolidado sin sacar a la bandeja de su contexto operativo.</strong>
-                        <p>Este frente funciona como una estación de explotación histórica: consulta, audita y genera respaldo con un recorrido claro para áreas operativas y administrativas.</p>
-                        <ul class="campo-admin-export-checklist">
-                            <li>Abre el consolidado cuando necesites una vista histórica completa para análisis o entrega interna.</li>
-                            <li>Lanza la auditoría cuando quieras revisar cortes específicos antes de distribuir evidencia o reportes.</li>
-                            <li>Genera respaldos periódicos para mantener continuidad documental ante ajustes posteriores.</li>
-                        </ul>
-                    </div>
-                    <div class="campo-admin-export-actions">
-                        <button type="button" class="campo-admin-action-btn campo-admin-export-launch" id="campo-admin-historical-export-btn">
-                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4v10m0 0l-4-4m4 4l4-4M5 18h14" />
-                            </svg>
-                            Abrir exportador histórico
-                        </button>
-                        <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost campo-admin-export-audit-btn" id="campo-admin-historical-audit-btn">
-                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.5 6h3m-7 6h11m-8 6h5" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h.01M7 12h.01M6 18h.01" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 6h2m-2 6h2m-2 6h2" opacity=".55" />
-                            </svg>
-                            Auditar histórico
-                        </button>
-                    </div>
-                    <p class="campo-admin-export-footnote">Disponible para consolidación completa, lectura por pozo o rangos de fecha sin interferir con los filtros normales de revisión.</p>
-                </aside>
             </section>
 
             <section class="campo-admin-toolbar" aria-label="Filtros de jornadas de Campo">
@@ -2727,6 +2658,13 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
             </svg>
             <span>Campo</span>
+        </a>
+        <a href="consolidado.html" class="mobile-nav-link">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16M4 10h16M4 15h16M4 20h16"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 5v15M14 5v15"></path>
+            </svg>
+            <span>Consol.</span>
         </a>
         <a href="stats.html" class="mobile-nav-link">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
