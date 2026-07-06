@@ -1871,21 +1871,23 @@ async function resolveJourneyProductionMeasures(reports = []) {
 async function prefillProductionMeasuresForSelectedPozo(pozoName) {
     const requestId = ++productionPrefillRequestId;
     const inheritedMeasures = await fetchFieldProductionMeasures(pozoName);
-    if (requestId !== productionPrefillRequestId || !inheritedMeasures) return;
+    if (requestId !== productionPrefillRequestId) return;
 
-    let filledCount = 0;
+    let loadedCount = 0;
     Object.keys(FIELD_PRODUCTION_MEASURE_MAP).forEach(fieldName => {
         const field = document.querySelector(`[name="${fieldName}"]`);
-        if (!field || !isBlankValue(field.value) || isBlankValue(inheritedMeasures[fieldName])) return;
-        field.value = inheritedMeasures[fieldName];
-        filledCount += 1;
+        if (!field) return;
+
+        const inheritedValue = inheritedMeasures?.[fieldName] || '';
+        field.value = inheritedValue;
+        if (!isBlankValue(inheritedValue)) loadedCount += 1;
     });
 
-    if (filledCount > 0) {
-        persistDraft();
-        updateSummary();
-        updateStatus(`Medidas vigentes cargadas para ${normalizePozoValue(pozoName)}. Puedes editarlas si hubo cambio.`);
-    }
+    persistDraft();
+    updateSummary();
+    updateStatus(loadedCount > 0
+        ? `Información general cargada para ${normalizePozoValue(pozoName)} desde la ficha vigente.`
+        : `No hay información general registrada para ${normalizePozoValue(pozoName)}. Los campos quedaron vacíos para no arrastrar datos de otro pozo.`);
 }
 
 function formatNumber(value) {
@@ -2860,7 +2862,6 @@ function renderFieldPozoOptions(ignoreSearch = false) {
         <button type="button" class="pozo-selector-option ${isSelected ? 'active' : ''}" data-pozo="${escapeHtml(pozo)}" ${isAdded ? 'disabled' : ''}>
             <span class="pozo-status-dot"></span>
             <span class="pozo-option-name">${escapeHtml(pozo)}</span>
-            <span class="pozo-option-state ${isSelected ? 'active' : ''}">${isSelected ? 'Seleccionado' : (isAdded ? 'Agregado' : 'Disponible')}</span>
         </button>
     `;
     }).join('');
