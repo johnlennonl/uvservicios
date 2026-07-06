@@ -32,8 +32,44 @@ create table if not exists public.well_bes_profile (
     id uuid primary key default gen_random_uuid(),
     pozo_name text not null unique,
     pump_type text not null,
+    pump_manufacturer text,
+    pump_model text,
+    pump_serial text,
+    suction_ft text,
+    multiphase_pump text,
+    gas_separator text,
+    seal_section text,
+    motor_manufacturer text,
+    motor_model text,
+    motor_hp text,
+    motor_voltage text,
+    motor_current text,
+    sensor_model text,
+    cable_type text,
+    drain_valve text,
+    installed_at date,
+    profile_notes text,
     updated_at timestamptz not null default now()
 );
+
+alter table public.well_bes_profile
+    add column if not exists pump_manufacturer text,
+    add column if not exists pump_model text,
+    add column if not exists pump_serial text,
+    add column if not exists suction_ft text,
+    add column if not exists multiphase_pump text,
+    add column if not exists gas_separator text,
+    add column if not exists seal_section text,
+    add column if not exists motor_manufacturer text,
+    add column if not exists motor_model text,
+    add column if not exists motor_hp text,
+    add column if not exists motor_voltage text,
+    add column if not exists motor_current text,
+    add column if not exists sensor_model text,
+    add column if not exists cable_type text,
+    add column if not exists drain_valve text,
+    add column if not exists installed_at date,
+    add column if not exists profile_notes text;
 
 create index if not exists well_bes_profile_pozo_idx
     on public.well_bes_profile (pozo_name);

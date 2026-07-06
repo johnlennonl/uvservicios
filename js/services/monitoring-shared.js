@@ -63,6 +63,15 @@ function normalizeOperationalStatus(value) {
 
 export function normalizeMonitoringTime(value) {
     const raw = String(value || '00:00:00').trim() || '00:00:00';
+    const amPmMatch = raw.match(/^\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap])\.?\s*m\.?\s*$/i);
+    if (amPmMatch) {
+        const [, hourValue, minutes, seconds = '00', period] = amPmMatch;
+        let hours = Number(hourValue);
+        if (/p/i.test(period) && hours < 12) hours += 12;
+        if (/a/i.test(period) && hours === 12) hours = 0;
+        return `${String(hours).padStart(2, '0')}:${minutes}:${seconds}`;
+    }
+
     const match = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
     if (!match) return raw;
 

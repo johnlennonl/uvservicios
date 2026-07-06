@@ -14,6 +14,8 @@ const TEMPLATE_STORAGE_KEY = 'uv-consolidado-template-v1';
 const DASHBOARD_GENERAL_SHEET_NAME = 'DASHBOARD GENERAL';
 const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const LOGO_PATH = 'img/uvservicioslogo.png';
+const EXCEL_LOGO_PATH = 'img/UV SERVICES - Logo vectorial sin fondo.png';
+const TABLE_HEADER_ROW_INDEX = 7;
 
 const elements = {
     logoutButton: document.getElementById('logout-btn'),
@@ -382,17 +384,65 @@ function renderSummary() {
 
     if (!activeTemplate) {
         elements.summary.innerHTML = `
-            <div class="consolidado-summary-item"><span>Hojas</span><strong>0</strong></div>
-            <div class="consolidado-summary-item"><span>Columnas</span><strong>0</strong></div>
-            <div class="consolidado-summary-item"><span>Origen</span><strong>--</strong></div>
+            <div class="consolidado-file-overview is-empty">
+                <div class="consolidado-file-mark" aria-hidden="true">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 14h6"></path>
+                    </svg>
+                </div>
+                <div>
+                    <span>Archivo base</span>
+                    <strong>Sin estructura cargada</strong>
+                    <p>Importa el Excel consolidado para registrar hojas, columnas y origen.</p>
+                </div>
+            </div>
+            <div class="consolidado-summary-grid">
+                ${renderSummaryMetric('Hojas', '0', 'M0 4h8v6H0z M10 4h8v6h-8z M0 12h8v6H0z M10 12h8v6h-8z')}
+                ${renderSummaryMetric('Columnas', '0', 'M4 3v18M10 3v18M16 3v18M3 8h18M3 16h18')}
+                ${renderSummaryMetric('Dashboard', '0 filas', 'M5 19V5m0 14h14M9 16v-5M13 16V8M17 16v-8')}
+            </div>
         `;
         return;
     }
 
     elements.summary.innerHTML = `
-        <div class="consolidado-summary-item"><span>Hojas</span><strong>${activeTemplate.sheetCount}</strong></div>
-        <div class="consolidado-summary-item"><span>Columnas</span><strong>${activeTemplate.totalColumnCount}</strong></div>
-        <div class="consolidado-summary-item"><span>Origen</span><strong>${escapeHtml(activeTemplate.fileName)}</strong></div>
+        <div class="consolidado-file-overview">
+            <div class="consolidado-file-mark" aria-hidden="true">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 13h8M8 17h5"></path>
+                </svg>
+            </div>
+            <div>
+                <span>Origen registrado</span>
+                <strong>${escapeHtml(activeTemplate.fileName)}</strong>
+                <p>${activeDashboardRows.length} filas de Dashboard General listas para mantenimiento.</p>
+            </div>
+        </div>
+        <div class="consolidado-summary-grid">
+            ${renderSummaryMetric('Hojas', activeTemplate.sheetCount, 'M0 4h8v6H0z M10 4h8v6h-8z M0 12h8v6H0z M10 12h8v6h-8z')}
+            ${renderSummaryMetric('Columnas', activeTemplate.totalColumnCount, 'M4 3v18M10 3v18M16 3v18M3 8h18M3 16h18')}
+            ${renderSummaryMetric('Dashboard', `${activeDashboardRows.length} filas`, 'M5 19V5m0 14h14M9 16v-5M13 16V8M17 16v-8')}
+        </div>
+    `;
+}
+
+function renderSummaryMetric(label, value, pathDefinition) {
+    return `
+        <div class="consolidado-summary-item">
+            <span class="consolidado-summary-icon" aria-hidden="true">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="${pathDefinition}"></path>
+                </svg>
+            </span>
+            <div>
+                <span>${escapeHtml(label)}</span>
+                <strong>${escapeHtml(value)}</strong>
+            </div>
+        </div>
     `;
 }
 
@@ -406,8 +456,16 @@ function renderSheets() {
 
     elements.sheetList.innerHTML = activeTemplate.sheets.map((sheet, index) => `
         <button type="button" class="consolidado-sheet-card${index === activeSheetIndex ? ' is-active' : ''}" data-sheet-index="${index}">
-            <strong>${escapeHtml(sheet.name)}</strong>
-            <span>${sheet.columnCount} columnas reales · encabezado en fila ${sheet.headerRowIndex + 1}</span>
+            <span class="consolidado-sheet-icon" aria-hidden="true">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16M4 10h16M4 15h16M4 20h16"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 5v15M15 5v15"></path>
+                </svg>
+            </span>
+            <span class="consolidado-sheet-copy">
+                <strong>${escapeHtml(sheet.name)}</strong>
+                <span>${sheet.columnCount} columnas reales · encabezado en fila ${sheet.headerRowIndex + 1}</span>
+            </span>
         </button>
     `).join('');
 
@@ -424,14 +482,29 @@ function renderColumns() {
 
     const sheet = activeTemplate?.sheets?.[activeSheetIndex];
     if (!sheet) {
-        elements.columnTitle.textContent = 'Columnas detectadas';
+        elements.columnTitle.innerHTML = 'Columnas detectadas';
         elements.columnList.innerHTML = '<div class="consolidado-empty">Selecciona una hoja después de importar el consolidado.</div>';
         return;
     }
 
-    elements.columnTitle.textContent = `Columnas detectadas · ${sheet.name}`;
+    elements.columnTitle.innerHTML = `
+        <span class="consolidado-column-title-icon" aria-hidden="true">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 4v16M16 4v16"></path>
+            </svg>
+        </span>
+        <span class="consolidado-column-title-copy">
+            <span>Columnas detectadas</span>
+            <strong>${escapeHtml(sheet.name)}</strong>
+        </span>
+        <span class="consolidado-column-count">${sheet.columnCount} columnas</span>
+    `;
     elements.columnList.innerHTML = sheet.columns.map(column => `
-        <span class="consolidado-column-pill"><span>${escapeHtml(column.letter)}</span>${escapeHtml(column.name)}</span>
+        <span class="consolidado-column-pill">
+            <span class="consolidado-column-letter">${escapeHtml(column.letter)}</span>
+            <span class="consolidado-column-name">${escapeHtml(column.name)}</span>
+        </span>
     `).join('');
 }
 
@@ -539,10 +612,11 @@ async function saveDashboardGeneralToDatabase() {
             }
         });
 
-        setStatus(`Consolidado guardado: ${result.saved} filas de ${result.sourceSheetName} quedaron registradas en la base de datos.`, 'success');
+        const saveDetail = `${result.updated || 0} actualizadas, ${result.inserted || 0} nuevas`;
+        setStatus(`Consolidado guardado: ${result.saved} filas de ${result.sourceSheetName} quedaron registradas (${saveDetail}).`, 'success');
         await refreshDatabaseSummary({ silent: true });
         closeLoadingModal();
-        showResultModal('success', 'Base de datos actualizada', `${result.saved} filas quedaron registradas en el consolidado maestro.`);
+        showResultModal('success', 'Base de datos actualizada', `${result.saved} filas quedaron registradas en el consolidado maestro: ${saveDetail}.`);
     } catch (error) {
         console.error('No se pudo guardar el consolidado:', error);
         setStatus(error?.message || 'No se pudo guardar el consolidado en la base de datos.', 'error');
@@ -585,9 +659,9 @@ async function refreshDatabaseSummary({ silent = false } = {}) {
 
 async function syncTechnicalFromConsolidated() {
     const confirmed = await confirmAction({
-        title: 'Sincronizar datos técnicos',
-        message: 'Se leerán Potencial, Bruta, Neta, AyS, Categoria, Campo y EF desde el consolidado guardado para actualizar Producción Técnica por pozo. ¿Continuar?',
-        confirmText: 'Sincronizar datos técnicos'
+        title: 'Sincronizar datos técnicos y ficha BES',
+        message: 'Se leerán Potencial, Bruta, Neta, AyS, Categoria, Campo, EF y datos de equipo BES desde el consolidado guardado para actualizar cada pozo. ¿Continuar?',
+        confirmText: 'Sincronizar datos y BES'
     });
 
     if (!confirmed) return;
@@ -595,19 +669,20 @@ async function syncTechnicalFromConsolidated() {
     try {
         setBusyState(true);
         closeConfigMenu();
-        showLoadingModal('Sincronizando datos técnicos', 'Leyendo pozos del consolidado maestro y actualizando Producción Técnica.', 'Este proceso usa el Excel viejo ya guardado en base de datos.');
-        setStatus('Sincronizando datos técnicos desde el consolidado guardado...', 'neutral');
+        showLoadingModal('Sincronizando datos del consolidado', 'Leyendo pozos del consolidado maestro y actualizando Producción Técnica y ficha BES.', 'Este proceso usa el Excel viejo ya guardado en base de datos.');
+        setStatus('Sincronizando datos técnicos y ficha BES desde el consolidado guardado...', 'neutral');
 
         const result = await syncTechnicalMeasurementsFromConsolidated();
+        const besResult = result.bes || { updated: 0, candidates: 0, skipped: 0 };
 
         closeLoadingModal();
-        setStatus(`Datos técnicos sincronizados: ${result.updated} pozo(s) actualizados desde ${result.candidates} candidato(s).`, 'success');
-        showResultModal('success', 'Datos técnicos sincronizados', `${result.updated} pozo(s) quedaron actualizados en Producción Técnica. Omitidos: ${result.skipped}.`);
+        setStatus(`Sincronización completada: ${result.updated} pozo(s) técnicos y ${besResult.updated} ficha(s) BES actualizadas.`, 'success');
+        showResultModal('success', 'Datos sincronizados', `${result.updated} pozo(s) quedaron actualizados en Producción Técnica. Fichas BES actualizadas: ${besResult.updated} de ${besResult.candidates}. Omitidos técnicos: ${result.skipped}. Omitidos BES: ${besResult.skipped}.`);
     } catch (error) {
         console.error('No se pudo sincronizar datos técnicos desde consolidado:', error);
         closeLoadingModal();
-        setStatus(error?.message || 'No se pudieron sincronizar los datos técnicos desde el consolidado.', 'error');
-        showResultModal('error', 'No se pudo sincronizar', error?.message || 'No se pudieron sincronizar los datos técnicos desde el consolidado.');
+        setStatus(error?.message || 'No se pudieron sincronizar los datos desde el consolidado.', 'error');
+        showResultModal('error', 'No se pudo sincronizar', error?.message || 'No se pudieron sincronizar los datos desde el consolidado.');
     } finally {
         setBusyState(false);
     }
@@ -645,8 +720,53 @@ function buildColumnsFromStoredRows(rows = []) {
     }));
 }
 
+function formatStoredDateForExcel(dateValue) {
+    const isoDate = String(dateValue || '').slice(0, 10);
+    const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return isoDate;
+    const [, year, month, day] = match;
+    return `${day}/${month}/${year}`;
+}
+
+function getStoredMonthName(dateValue) {
+    const isoDate = String(dateValue || '').slice(0, 10);
+    const monthIndex = Number(isoDate.slice(5, 7)) - 1;
+    return [
+        'ENERO',
+        'FEBRERO',
+        'MARZO',
+        'ABRIL',
+        'MAYO',
+        'JUNIO',
+        'JULIO',
+        'AGOSTO',
+        'SEPTIEMBRE',
+        'OCTUBRE',
+        'NOVIEMBRE',
+        'DICIEMBRE'
+    ][monthIndex] || '';
+}
+
+function getStoredRowExportValue(storedRow = {}, label = '') {
+    const normalizedLabel = normalizeSheetName(label);
+
+    if (normalizedLabel === 'FECHA' && storedRow.report_date) {
+        return formatStoredDateForExcel(storedRow.report_date);
+    }
+
+    if (normalizedLabel === 'MES' && storedRow.report_date) {
+        return getStoredMonthName(storedRow.report_date);
+    }
+
+    if (normalizedLabel === 'HORA' && storedRow.report_time) {
+        return String(storedRow.report_time).slice(0, 8);
+    }
+
+    return storedRow.row_data?.[label] ?? '';
+}
+
 function buildRowsFromStoredRows(storedRows = [], columns = []) {
-    return storedRows.map(storedRow => columns.map(column => storedRow.row_data?.[column.originalName] ?? ''));
+    return storedRows.map(storedRow => columns.map(column => getStoredRowExportValue(storedRow, column.originalName)));
 }
 
 async function exportDashboardGeneralFromDatabase() {
@@ -919,7 +1039,7 @@ async function exportDashboardWorkbook({ columns, rows, sourceSheet, filePrefix,
     workbook.modified = new Date();
 
     const worksheet = workbook.addWorksheet(DASHBOARD_GENERAL_SHEET_NAME, {
-        views: [{ state: 'frozen', ySplit: 7, xSplit: 4 }]
+        views: [{ state: 'frozen', ySplit: TABLE_HEADER_ROW_INDEX, xSplit: 4, topLeftCell: `E${TABLE_HEADER_ROW_INDEX + 1}`, activeCell: `E${TABLE_HEADER_ROW_INDEX + 1}` }]
     });
 
     const totalColumns = Math.max(columns.length, 12);
@@ -927,7 +1047,7 @@ async function exportDashboardWorkbook({ columns, rows, sourceSheet, filePrefix,
 
     updateLoadingModal('Insertando logo y encabezado empresarial...', 'Preparando el diseño del archivo.');
     await addLogoToWorksheet(workbook, worksheet);
-    buildWorkbookHeader(worksheet, lastColumn, sourceSheet, sourceLabel);
+    buildWorkbookHeader(worksheet, lastColumn, sourceSheet, sourceLabel, rows.length, columns.length);
     updateLoadingModal('Pintando tabla y aplicando filtros...', `${columns.length} columnas detectadas.`);
     buildDashboardTable(worksheet, columns, rows, emptyMessage);
     finishWorksheetLayout(worksheet, columns);
@@ -938,16 +1058,21 @@ async function exportDashboardWorkbook({ columns, rows, sourceSheet, filePrefix,
     downloadBlob(new Blob([buffer], { type: EXCEL_MIME_TYPE }), `${filePrefix}_${fileDate}.xlsx`);
 }
 
-function buildWorkbookHeader(worksheet, lastColumn, sourceSheet, sourceLabel = '') {
-    worksheet.mergeCells(1, 1, 4, 4);
+function buildWorkbookHeader(worksheet, lastColumn, sourceSheet, sourceLabel = '', rowCount = 0, columnCount = 0) {
+    worksheet.mergeCells(1, 1, 5, 4);
     worksheet.mergeCells(1, 5, 2, lastColumn);
     worksheet.mergeCells(3, 5, 3, lastColumn);
     worksheet.mergeCells(4, 5, 4, lastColumn);
 
+    if (lastColumn >= 8) worksheet.mergeCells(5, 5, 5, 8);
+    if (lastColumn >= 12) worksheet.mergeCells(5, 9, 5, 12);
+    if (lastColumn >= 13) worksheet.mergeCells(5, 13, 5, lastColumn);
+
     const titleCell = worksheet.getCell(1, 5);
     titleCell.value = 'REPORTE DE ACOMPAÑAMIENTO POZOS CON BOMBAS ELECTROSUMERGIBLES';
-    titleCell.font = { name: 'Calibri', size: 18, bold: true, color: { argb: 'FF0F172A' } };
+    titleCell.font = { name: 'Calibri', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B1F3A' } };
 
     const subtitleCell = worksheet.getCell(3, 5);
     subtitleCell.value = 'DASHBOARD GENERAL · CONSOLIDADO MAESTRO UV';
@@ -959,24 +1084,47 @@ function buildWorkbookHeader(worksheet, lastColumn, sourceSheet, sourceLabel = '
     detailCell.font = { name: 'Calibri', size: 9, color: { argb: 'FF475569' } };
     detailCell.alignment = { vertical: 'middle', horizontal: 'left' };
 
-    worksheet.getRow(1).height = 28;
-    worksheet.getRow(2).height = 24;
-    worksheet.getRow(3).height = 18;
-    worksheet.getRow(4).height = 18;
-    worksheet.getRow(5).height = 8;
+    const badgeCell = worksheet.getCell(5, 5);
+    badgeCell.value = 'CONSOLIDADO MAESTRO';
+    styleHeaderBadgeCell(badgeCell, 'FFEAF6E2', 'FF24501F');
 
-    for (let columnIndex = 1; columnIndex <= lastColumn; columnIndex += 1) {
-        for (let rowIndex = 1; rowIndex <= 4; rowIndex += 1) {
+    const rowsCell = worksheet.getCell(5, 9);
+    rowsCell.value = `${rowCount} FILAS EXPORTADAS`;
+    styleHeaderBadgeCell(rowsCell, 'FFEFF6FF', 'FF1D4ED8');
+
+    if (lastColumn >= 13) {
+        const columnsCell = worksheet.getCell(5, 13);
+        columnsCell.value = `${columnCount} COLUMNAS · ${sourceSheet?.name || DASHBOARD_GENERAL_SHEET_NAME}`;
+        styleHeaderBadgeCell(columnsCell, 'FFFFF7ED', 'FF9A3412');
+    }
+
+    worksheet.getRow(1).height = 30;
+    worksheet.getRow(2).height = 24;
+    worksheet.getRow(3).height = 20;
+    worksheet.getRow(4).height = 20;
+    worksheet.getRow(5).height = 24;
+    worksheet.getRow(6).height = 8;
+
+    for (let rowIndex = 1; rowIndex <= 5; rowIndex += 1) {
+        for (let columnIndex = 1; columnIndex <= lastColumn; columnIndex += 1) {
             const cell = worksheet.getCell(rowIndex, columnIndex);
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+            if (!cell.fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
             cell.border = { bottom: { style: 'thin', color: { argb: 'FFD9E2EF' } } };
         }
     }
+
+    worksheet.getCell(1, 5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B1F3A' } };
+}
+
+function styleHeaderBadgeCell(cell, fillColor, fontColor) {
+    cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: fontColor } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+    cell.border = buildThinBorder('FFE2E8F0');
 }
 
 function buildDashboardTable(worksheet, columns, rows, emptyMessage = '') {
-    const headerRowIndex = 7;
-    const headerRow = worksheet.getRow(headerRowIndex);
+    const headerRow = worksheet.getRow(TABLE_HEADER_ROW_INDEX);
     headerRow.height = 34;
 
     columns.forEach((column, columnIndex) => {
@@ -989,17 +1137,17 @@ function buildDashboardTable(worksheet, columns, rows, emptyMessage = '') {
     });
 
     if (!rows.length) {
-        const noteRow = worksheet.getRow(headerRowIndex + 1);
+        const noteRow = worksheet.getRow(TABLE_HEADER_ROW_INDEX + 1);
         noteRow.getCell(1).value = emptyMessage || 'Sin filas cargadas desde Dashboard General en esta sesión. Importa el Excel viejo y exporta sin recargar la página para incluir datos.';
         noteRow.getCell(1).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF92400E' } };
         noteRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF7ED' } };
         noteRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-        worksheet.mergeCells(headerRowIndex + 1, 1, headerRowIndex + 1, Math.max(1, Math.min(columns.length, 12)));
+        worksheet.mergeCells(TABLE_HEADER_ROW_INDEX + 1, 1, TABLE_HEADER_ROW_INDEX + 1, Math.max(1, Math.min(columns.length, 12)));
         return;
     }
 
     rows.forEach((row, rowIndex) => {
-        const excelRow = worksheet.getRow(headerRowIndex + 1 + rowIndex);
+        const excelRow = worksheet.getRow(TABLE_HEADER_ROW_INDEX + 1 + rowIndex);
         excelRow.height = 24;
         columns.forEach((column, columnIndex) => {
             const cell = excelRow.getCell(columnIndex + 1);
@@ -1012,8 +1160,8 @@ function buildDashboardTable(worksheet, columns, rows, emptyMessage = '') {
     });
 
     worksheet.autoFilter = {
-        from: { row: headerRowIndex, column: 1 },
-        to: { row: headerRowIndex, column: Math.max(columns.length, 1) }
+        from: { row: TABLE_HEADER_ROW_INDEX, column: 1 },
+        to: { row: TABLE_HEADER_ROW_INDEX, column: Math.max(columns.length, 1) }
     };
 }
 
@@ -1049,19 +1197,23 @@ async function addLogoToWorksheet(workbook, worksheet) {
     const logoDataUrl = await loadLogoForExcel();
     if (!logoDataUrl) return;
 
-    const imageId = workbook.addImage({ base64: logoDataUrl, extension: 'png' });
-    worksheet.addImage(imageId, { tl: { col: 0.25, row: 0.2 }, ext: { width: 128, height: 92 } });
+    const imageId = workbook.addImage({ base64: logoDataUrl, extension: getImageExtension(EXCEL_LOGO_PATH) });
+    worksheet.addImage(imageId, { tl: { col: 0.12, row: 0.08 }, ext: { width: 205, height: 145 } });
 }
 
 async function loadLogoForExcel() {
     try {
-        const response = await fetch(LOGO_PATH);
+        const response = await fetch(EXCEL_LOGO_PATH);
         if (!response.ok) return null;
         const blob = await response.blob();
         return await imageBlobToDataUrl(blob);
     } catch {
         return null;
     }
+}
+
+function getImageExtension(path = '') {
+    return /\.jpe?g$/i.test(path) ? 'jpeg' : 'png';
 }
 
 function imageBlobToDataUrl(blob) {

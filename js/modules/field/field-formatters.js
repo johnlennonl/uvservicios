@@ -12,6 +12,8 @@ function formatCurrentTriplet(payload) {
 
 export function buildFieldWhatsappMessage(payload) {
     return [
+        `Técnico 1: ${formatValue(payload?.tecnico_1)}`,
+        `Técnico 2: ${formatValue(payload?.tecnico_2)}`,
         `Equipo de guardia: ${formatValue(payload?.equipo_guardia)}`,
         `Locacion: ${formatValue(payload?.locacion_jornada)}`,
         `Hora: ${formatValue(payload?.hora)}`,

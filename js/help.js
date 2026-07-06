@@ -6,7 +6,9 @@ import {
     getMonitoringAlertSummary,
     getOperationalAlertSignals,
     getPozosHistorySummary,
-    getWellTechnicalData
+    getWellBESProfile,
+    getWellTechnicalData,
+    getRecentWellBESProfiles
 } from './data-service.js';
 
 const SEARCH_SELECTOR = '[data-help-card]';
@@ -29,6 +31,7 @@ let liveAssistantCache = {
     snapshot: null,
     historySummary: null,
     technicalSnapshot: null,
+    besProfiles: null,
     alertSummary: null
 };
 
@@ -154,19 +157,19 @@ const ASSISTANT_KNOWLEDGE_ENTRIES = [
         title: 'Jornada',
         sourceId: 'jornada',
         keywords: 'jornada turno campo cuadrilla panel diario locacion resumen operativo',
-        summary: 'Es el panel diario del equipo de campo para entender el turno activo y el flujo de captura sin entrar al stack administrativo.',
+        summary: 'Es el flujo diario del equipo de campo para capturar pozos y enviar la carga operativa sin entrar al stack administrativo.',
         steps: [
-            'Entra a Jornada para ubicar el turno y la meta operativa del dia.',
-            'Desde ahi abre Captura y Envio cuando ya vayas a registrar un pozo.',
-            'Usa Historial de Jornada si quieres revisar lo que la cuadrilla ya reporto.',
+            'Entra directamente a Captura y Envio para registrar los pozos del turno.',
+            'Agrega cada pozo a la carga antes de enviarla a revision.',
+            'Usa el historial si quieres revisar lo que la cuadrilla ya reporto.',
             'Mantente en este flujo si tu rol es Campo y no necesitas analisis administrativo.'
         ],
         quickChecks: [
-            'Jornada es una vista de orientacion operativa, no de analisis tecnico.',
+            'Captura y Envio es la vista operativa principal del rol Campo.',
             'Esta pensada para rol Campo.',
             'Te evita pasar por Dashboard o Gestion para tareas de turno.'
         ],
-        action: { href: 'jornada.html', label: 'Abrir Jornada' }
+        action: { href: 'field.html', label: 'Abrir Captura y Envio' }
     },
     {
         type: 'module',
@@ -472,11 +475,12 @@ async function getAssistantOperationalData({ includeAlertSummary = false } = {})
     const now = Date.now();
     const cacheIsFresh = now - liveAssistantCache.loadedAt < LIVE_ASSISTANT_CACHE_TTL_MS;
 
-    if (!cacheIsFresh || !liveAssistantCache.snapshot || !liveAssistantCache.historySummary || !liveAssistantCache.technicalSnapshot) {
-        const [snapshot, historySummary, technicalSnapshot] = await Promise.all([
+    if (!cacheIsFresh || !liveAssistantCache.snapshot || !liveAssistantCache.historySummary || !liveAssistantCache.technicalSnapshot || !liveAssistantCache.besProfiles) {
+        const [snapshot, historySummary, technicalSnapshot, besProfiles] = await Promise.all([
             getLatestMonitoringSnapshot(),
             getPozosHistorySummary(),
-            getLatestTechnicalSnapshot().catch(() => [])
+            getLatestTechnicalSnapshot().catch(() => []),
+            getRecentWellBESProfiles(300).catch(() => [])
         ]);
 
         liveAssistantCache = {
@@ -484,6 +488,7 @@ async function getAssistantOperationalData({ includeAlertSummary = false } = {})
             snapshot,
             historySummary,
             technicalSnapshot,
+            besProfiles,
             alertSummary: cacheIsFresh ? liveAssistantCache.alertSummary : null
         };
     }
@@ -517,6 +522,39 @@ function buildPozoOperationalSnapshot(record, technicalRecord) {
     return `🔎 Consultando sistema...\n\nEstado actual del pozo ${record?.pozo_name || technicalRecord?.pozo_name}:\n- Estatus: ${statusLabel}\n- Último monitoreo: ${formatAssistantDate(record?.fecha)} ${formatAssistantHour(record?.hora)}\n- Frecuencia: ${record?.frecuencia ?? '--'}\n- Corriente motor: ${record?.corriente_motor ?? '--'}\n- Temperatura motor: ${record?.tm ?? '--'}\n${productionLine}`;
 }
 
+function buildPozoBESProfileResponse(pozoName, profile) {
+    if (!profile) {
+        return `⚠ Consultando ficha BES...
+
+No se encontró ficha BES configurada para ${pozoName}. Puedes registrarla desde Gestión > Gestión de Pozos.`;
+    }
+
+    const cleanBESValue = value => {
+        const normalized = String(value ?? '').trim();
+        return normalized && !/^(0+|--|n\/a|na|s\/n|sin dato|sin datos)$/i.test(normalized) ? normalized : '';
+    };
+    const joinBESValues = values => values.map(cleanBESValue).filter(Boolean).join(' · ');
+    const pumpLine = joinBESValues([profile.pump_manufacturer, profile.pump_model, profile.multiphase_pump]) || cleanBESValue(profile.pump_type) || '--';
+    const motorLine = cleanBESValue(profile.motor_model) || '--';
+    const electricalLine = joinBESValues([profile.motor_voltage, profile.motor_current]) || '--';
+
+    return `🔧 Consultando ficha BES...
+
+Ficha BES de ${pozoName}:
+- Bomba: ${pumpLine}
+- Serial bomba: ${cleanBESValue(profile.pump_serial) || '--'}
+- Succión (ft): ${cleanBESValue(profile.suction_ft) || '--'}
+- Bomba multifásica: ${cleanBESValue(profile.multiphase_pump) || '--'}
+- Separador de gas: ${cleanBESValue(profile.gas_separator) || '--'}
+- Sellos: ${cleanBESValue(profile.seal_section) || '--'}
+- Motor: ${motorLine}
+- Voltaje/corriente motor: ${electricalLine}
+- Sensor: ${cleanBESValue(profile.sensor_model) || '--'}
+- Drain Valve: ${cleanBESValue(profile.drain_valve) || '--'}
+- Instalación: ${cleanBESValue(profile.installed_at) || '--'}
+- Notas: ${cleanBESValue(profile.profile_notes) || '--'}`;
+}
+
 async function buildOperationalAssistantResponse(rawQuery) {
     const query = normalizeText(rawQuery);
     if (!isOperationalAssistantQuery(query)) {
@@ -531,11 +569,12 @@ async function buildOperationalAssistantResponse(rawQuery) {
     }
 
     const wantsAlerts = includesAny(query, ['alarma', 'alarmas', 'alerta', 'alertas', 'falla', 'fallas', 'trip', 'evento']);
-    const { snapshot, historySummary, technicalSnapshot, alertSummary } = await getAssistantOperationalData({ includeAlertSummary: wantsAlerts });
+    const { snapshot, historySummary, technicalSnapshot, besProfiles, alertSummary } = await getAssistantOperationalData({ includeAlertSummary: wantsAlerts });
     const pozoNames = [...new Set([
         ...snapshot.map(item => item?.pozo_name),
         ...historySummary.map(item => item?.pozo_name),
-        ...technicalSnapshot.map(item => item?.pozo_name)
+        ...technicalSnapshot.map(item => item?.pozo_name),
+        ...(besProfiles || []).map(item => item?.pozo_name)
     ].filter(Boolean))];
     const pozoName = findPozoNameInQuery(rawQuery, pozoNames);
     const statusCounts = getSnapshotStatusCounts(snapshot);
@@ -604,6 +643,15 @@ async function buildOperationalAssistantResponse(rawQuery) {
         const monitoringRecord = snapshot.find(item => item.pozo_name === pozoName) || null;
         const technicalRecord = technicalSnapshot.find(item => item.pozo_name === pozoName)
             || await getWellTechnicalData(pozoName).catch(() => null);
+
+        if (includesAny(query, ['bes', 'bomba', 'fabricante', 'modelo', 'serial', 'motor', 'sensor', 'cable', 'equipo instalado', 'ficha'])) {
+            const profile = (besProfiles || []).find(item => item.pozo_name === pozoName)
+                || await getWellBESProfile(pozoName).catch(() => null);
+            return {
+                text: buildPozoBESProfileResponse(pozoName, profile),
+                action: { href: 'data.html', label: 'Abrir Data' }
+            };
+        }
 
         if (includesAny(query, ['temperatura', 'tm', 'amperaje', 'corriente', 'sensor', 'sensores'])) {
             if (!monitoringRecord) {

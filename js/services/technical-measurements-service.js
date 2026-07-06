@@ -388,15 +388,30 @@ export async function getWellRibbonData(pozoName) {
 
     if (!latestMonitoring && !latestTechnical) return null;
 
+    const hasUsableBESValue = value => value !== undefined
+        && value !== null
+        && `${value}`.trim() !== ''
+        && !/^(0+|--|n\/a|na|s\/n|sin dato|sin datos)$/i.test(`${value}`.trim());
     const firstDefined = (...values) => values.find(value => value !== undefined && value !== null && `${value}`.trim() !== '');
+    const firstUsableBESValue = (...values) => values.find(hasUsableBESValue);
     const technicalDate = latestTechnical?.fecha || null;
     const measurementDate = technicalDate || null;
+    const pumpSummary = [besProfile?.pump_manufacturer, besProfile?.pump_model, besProfile?.multiphase_pump]
+        .filter(hasUsableBESValue)
+        .join(' · ');
 
     return {
         campo_name: firstDefined(latestMonitoring?.campo_name, latestMonitoring?.campo, latestTechnical?.campo_name),
         pozo_name: firstDefined(latestMonitoring?.pozo_name, latestTechnical?.pozo_name, pozoName),
         ef: firstDefined(latestMonitoring?.ef, latestMonitoring?.estacion, latestTechnical?.ef),
-        pump_type: firstDefined(besProfile?.pump_type),
+        pump_type: firstUsableBESValue(pumpSummary, besProfile?.pump_model, besProfile?.multiphase_pump, besProfile?.pump_type),
+        pump_manufacturer: firstUsableBESValue(besProfile?.pump_manufacturer),
+        pump_model: firstUsableBESValue(besProfile?.pump_model),
+        pump_serial: firstUsableBESValue(besProfile?.pump_serial),
+        multiphase_pump: firstUsableBESValue(besProfile?.multiphase_pump),
+        gas_separator: firstUsableBESValue(besProfile?.gas_separator),
+        seal_section: firstUsableBESValue(besProfile?.seal_section),
+        drain_valve: firstUsableBESValue(besProfile?.drain_valve),
         fecha: firstDefined(latestTechnical?.fecha, latestMonitoring?.fecha),
         measurement_date: measurementDate,
         potencial: firstDefined(latestMonitoring?.potencial, latestTechnical?.potencial),

@@ -185,9 +185,34 @@
             <section class="selected-pozo-profile" id="selected-pozo-profile" style="display: none;">
                 <div class="selected-pozo-profile-card">
                     <div class="selected-pozo-profile-copy">
-                        <span class="selected-pozo-profile-kicker">Ficha rápida del pozo</span>
-                        <h2 id="selected-pozo-profile-title">Pozo seleccionado</h2>
-                        <p id="selected-pozo-profile-summary">Consulta rápida del tipo de bomba configurado para este pozo.</p>
+                        <div class="selected-pozo-profile-heading">
+                            <div class="selected-pozo-profile-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 3v3" />
+                                    <path d="M9 6h6" />
+                                    <rect x="8" y="6" width="8" height="11" rx="3" />
+                                    <path d="M10.5 10h3" />
+                                    <path d="M10.5 13h3" />
+                                    <path d="M12 17v4" />
+                                    <path d="M8 21h8" />
+                                </svg>
+                            </div>
+                            <div class="contenedorFichaRapida">
+                                <span class="selected-pozo-profile-kicker">Ficha rápida del pozo</span>
+                                <h2 id="selected-pozo-profile-title">Pozo seleccionado</h2>
+                                <p id="selected-pozo-profile-summary">Consulta rápida de la ficha BES configurada para este pozo.</p>
+                            </div>
+                        </div>
+                        <div class="selected-pozo-profile-summary-strip" aria-label="Resumen de ficha BES">
+                            <div>
+                                <span>Fabricante</span>
+                                <strong id="selected-pozo-profile-maker-summary">--</strong>
+                            </div>
+                            <div>
+                                <span>Bomba principal</span>
+                                <strong id="selected-pozo-profile-pump-summary">--</strong>
+                            </div>
+                        </div>
                     </div>
                     <div class="selected-pozo-profile-grid">
                         <div class="selected-pozo-profile-pill">
@@ -195,8 +220,48 @@
                             <strong id="selected-pozo-profile-pozo">--</strong>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Tipo de bomba</span>
+                            <span>Bomba</span>
                             <strong id="selected-pozo-profile-pump">Pendiente por configurar</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Fabricante bomba</span>
+                            <strong id="selected-pozo-profile-pump-maker">--</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Modelo / Serial</span>
+                            <strong id="selected-pozo-profile-pump-model">--</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Succión (ft)</span>
+                            <strong id="selected-pozo-profile-suction">--</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Bomba multifásica</span>
+                            <strong id="selected-pozo-profile-multiphase">--</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Separador de gas</span>
+                            <strong id="selected-pozo-profile-gas-separator">--</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Sellos</span>
+                            <strong id="selected-pozo-profile-seals">--</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Motor</span>
+                            <strong id="selected-pozo-profile-motor">--</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Sensor / Cable</span>
+                            <strong id="selected-pozo-profile-sensor">--</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Drain Valve</span>
+                            <strong id="selected-pozo-profile-drain-valve">--</strong>
+                        </div>
+                        <div class="selected-pozo-profile-pill">
+                            <span>Instalación</span>
+                            <strong id="selected-pozo-profile-installed">--</strong>
                         </div>
                     </div>
                 </div>
@@ -463,14 +528,48 @@
             const profileSection = document.getElementById('selected-pozo-profile');
             const pozoLabel = document.getElementById('selected-pozo-profile-pozo');
             const pumpLabel = document.getElementById('selected-pozo-profile-pump');
+            const pumpMakerLabel = document.getElementById('selected-pozo-profile-pump-maker');
+            const pumpMakerSummaryLabel = document.getElementById('selected-pozo-profile-maker-summary');
+            const pumpSummaryLabel = document.getElementById('selected-pozo-profile-pump-summary');
+            const pumpModelLabel = document.getElementById('selected-pozo-profile-pump-model');
+            const suctionLabel = document.getElementById('selected-pozo-profile-suction');
+            const multiphaseLabel = document.getElementById('selected-pozo-profile-multiphase');
+            const gasSeparatorLabel = document.getElementById('selected-pozo-profile-gas-separator');
+            const sealsLabel = document.getElementById('selected-pozo-profile-seals');
+            const motorLabel = document.getElementById('selected-pozo-profile-motor');
+            const sensorLabel = document.getElementById('selected-pozo-profile-sensor');
+            const drainValveLabel = document.getElementById('selected-pozo-profile-drain-valve');
+            const installedLabel = document.getElementById('selected-pozo-profile-installed');
             const title = document.getElementById('selected-pozo-profile-title');
 
             if (!profileSection || !pozoLabel || !pumpLabel || !title) return;
 
+            const cleanBESValue = value => {
+                const normalized = String(value ?? '').trim();
+                return normalized && !/^(0+|--|n\/a|na|s\/n|sin dato|sin datos)$/i.test(normalized) ? normalized : '';
+            };
+            const joinBESValues = values => values.map(cleanBESValue).filter(Boolean).join(' · ');
+
+            const resetProfileLabels = () => {
+                pumpLabel.textContent = 'Pendiente por configurar';
+                if (pumpMakerSummaryLabel) pumpMakerSummaryLabel.textContent = '--';
+                if (pumpSummaryLabel) pumpSummaryLabel.textContent = '--';
+                if (pumpMakerLabel) pumpMakerLabel.textContent = '--';
+                if (pumpModelLabel) pumpModelLabel.textContent = '--';
+                if (suctionLabel) suctionLabel.textContent = '--';
+                if (multiphaseLabel) multiphaseLabel.textContent = '--';
+                if (gasSeparatorLabel) gasSeparatorLabel.textContent = '--';
+                if (sealsLabel) sealsLabel.textContent = '--';
+                if (motorLabel) motorLabel.textContent = '--';
+                if (sensorLabel) sensorLabel.textContent = '--';
+                if (drainValveLabel) drainValveLabel.textContent = '--';
+                if (installedLabel) installedLabel.textContent = '--';
+            };
+
             if (!pozoName) {
                 profileSection.style.display = 'none';
                 pozoLabel.textContent = '--';
-                pumpLabel.textContent = 'Pendiente por configurar';
+                resetProfileLabels();
                 return;
             }
 
@@ -480,9 +579,35 @@
 
             try {
                 const profile = await getWellBESProfile(pozoName);
-                pumpLabel.textContent = profile?.pump_type || 'Pendiente por configurar';
+                const pumpValue = cleanBESValue(profile?.pump_model) || cleanBESValue(profile?.pump_type) || cleanBESValue(profile?.multiphase_pump) || 'Pendiente por configurar';
+                const makerValue = cleanBESValue(profile?.pump_manufacturer) || '--';
+                pumpLabel.textContent = pumpValue;
+                if (pumpMakerSummaryLabel) pumpMakerSummaryLabel.textContent = makerValue;
+                if (pumpSummaryLabel) pumpSummaryLabel.textContent = pumpValue;
+                if (pumpMakerLabel) pumpMakerLabel.textContent = makerValue;
+                if (pumpModelLabel) pumpModelLabel.textContent = joinBESValues([profile?.pump_model, profile?.pump_serial]) || '--';
+                if (suctionLabel) suctionLabel.textContent = cleanBESValue(profile?.suction_ft) || '--';
+                if (multiphaseLabel) multiphaseLabel.textContent = cleanBESValue(profile?.multiphase_pump) || '--';
+                if (gasSeparatorLabel) gasSeparatorLabel.textContent = cleanBESValue(profile?.gas_separator) || '--';
+                if (sealsLabel) sealsLabel.textContent = cleanBESValue(profile?.seal_section) || '--';
+                if (motorLabel) motorLabel.textContent = cleanBESValue(profile?.motor_model) || '--';
+                if (sensorLabel) sensorLabel.textContent = cleanBESValue(profile?.sensor_model) || '--';
+                if (drainValveLabel) drainValveLabel.textContent = cleanBESValue(profile?.drain_valve) || '--';
+                if (installedLabel) installedLabel.textContent = cleanBESValue(profile?.installed_at) || '--';
             } catch (error) {
                 pumpLabel.textContent = error.message;
+                if (pumpMakerSummaryLabel) pumpMakerSummaryLabel.textContent = '--';
+                if (pumpSummaryLabel) pumpSummaryLabel.textContent = '--';
+                if (pumpMakerLabel) pumpMakerLabel.textContent = '--';
+                if (pumpModelLabel) pumpModelLabel.textContent = '--';
+                if (suctionLabel) suctionLabel.textContent = '--';
+                if (multiphaseLabel) multiphaseLabel.textContent = '--';
+                if (gasSeparatorLabel) gasSeparatorLabel.textContent = '--';
+                if (sealsLabel) sealsLabel.textContent = '--';
+                if (motorLabel) motorLabel.textContent = '--';
+                if (sensorLabel) sensorLabel.textContent = '--';
+                if (drainValveLabel) drainValveLabel.textContent = '--';
+                if (installedLabel) installedLabel.textContent = '--';
             }
         }
 
@@ -515,6 +640,11 @@
                 ? `${currentRecordData.length} monitoreos / ${currentTicketGroups.length} pozos`
                 : (document.getElementById('record-count')?.textContent?.trim() || `${currentRecordData.length} Registros`);
             const pumpType = document.getElementById('selected-pozo-profile-pump')?.textContent?.trim() || 'Pendiente por configurar';
+            const pumpMaker = document.getElementById('selected-pozo-profile-pump-maker')?.textContent?.trim();
+            const pumpModel = document.getElementById('selected-pozo-profile-pump-model')?.textContent?.trim();
+            const pumpSummary = [pumpType, pumpMaker, pumpModel]
+                .filter(value => value && value !== '--' && value !== 'Pendiente por configurar')
+                .join(' · ') || pumpType;
             const summary = activeDataView === 'daily-ticket'
                 ? (ticketDate
                     ? `Ticket diario del ${ticketDate} con monitoreos ejecutados en ${currentTicketGroups.length} pozo(s).`
@@ -524,7 +654,7 @@
                     : 'Resumen curado de registros historicos para auditoria y seguimiento operativo.');
 
             document.getElementById('report-data-pozo').textContent = activeDataView === 'daily-ticket' ? 'Todos los pozos' : (activePozo || 'Sin seleccion');
-            document.getElementById('report-data-pump').textContent = activeDataView === 'daily-ticket' ? 'Ticket multipozo' : pumpType;
+            document.getElementById('report-data-pump').textContent = activeDataView === 'daily-ticket' ? 'Ticket multipozo' : pumpSummary;
             document.getElementById('report-data-mode').textContent = activeDataView === 'daily-ticket' ? 'Ticket diario operativo' : activeModeLabel;
             document.getElementById('report-data-filter').textContent = filterLabel;
             document.getElementById('report-data-count').textContent = recordCount;

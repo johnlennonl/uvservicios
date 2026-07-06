@@ -388,14 +388,14 @@
                     <header class="well-management-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap;">
                         <div>
                             <h2 style="font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); margin: 0;">Gestión de Pozos</h2>
-                            <p style="margin: 6px 0 0 0; font-size: 0.82rem; color: #64748B;">Configura el tipo de bomba BES por pozo para que aparezca en Dashboard, Data y reportes.</p>
+                            <p style="margin: 6px 0 0 0; font-size: 0.82rem; color: #64748B;">Configura la ficha fija BES por pozo para que aparezca en Dashboard, Data, Notificaciones y UVITO.</p>
                         </div>
                     </header>
 
                     <section class="manual-flow-note well-management-note" aria-label="Instrucciones de gestión de pozos">
                         <div class="manual-flow-note-copy">
                             <h3>Cómo usar esta sección</h3>
-                            <p>Selecciona un pozo y registra manualmente su tipo de bomba. Este dato se mantendrá como referencia maestra del pozo.</p>
+                            <p>Selecciona un pozo y registra manualmente su bomba, fabricante, motor, sensor y datos base. Esta ficha queda como referencia maestra del pozo.</p>
                             <p>Solo hace falta actualizarlo cuando cambie realmente el equipo instalado.</p>
                         </div>
                     </section>
@@ -403,7 +403,7 @@
                     <div class="manual-form-toggle-row">
                         <button type="button" id="btn-new-pump-profile" class="btn-submit"
                             style="margin: 0; width: auto; padding: 12px 22px; background: #0F172A; box-shadow: none;">
-                            <span class="btn-text">Configurar Tipo de Bomba</span>
+                            <span class="btn-text">Configurar Ficha BES</span>
                             <div class="loader"></div>
                         </button>
                     </div>
@@ -429,8 +429,56 @@
                                     </div>
                                 </div>
                                 <div class="form-group full-width">
-                                    <label>Tipo de Bomba</label>
+                                    <label>Bomba</label>
                                     <input type="text" id="pump_type" required placeholder="Ej: REDA DN1750 / Centrilift / Baker Hughes">
+                                </div>
+                                <div class="form-group">
+                                    <label>Fabricante</label>
+                                    <input type="text" id="pump_manufacturer" placeholder="Ej: SLB / Baker Hughes / Alkhorayef">
+                                </div>
+                                <div class="form-group">
+                                    <label>Modelo de Bomba</label>
+                                    <input type="text" id="pump_model" placeholder="Ej: DN1750">
+                                </div>
+                                <div class="form-group">
+                                    <label>Serial de Bomba</label>
+                                    <input type="text" id="pump_serial" placeholder="Serial o identificador">
+                                </div>
+                                <div class="form-group">
+                                    <label>Succión (ft)</label>
+                                    <input type="text" id="suction_ft" placeholder="Profundidad o succión en ft">
+                                </div>
+                                <div class="form-group">
+                                    <label>Bomba Multifásica</label>
+                                    <input type="text" id="multiphase_pump" placeholder="Modelo / etapa / descripción">
+                                </div>
+                                <div class="form-group">
+                                    <label>Separador de Gas</label>
+                                    <input type="text" id="gas_separator" placeholder="Modelo o configuración">
+                                </div>
+                                <div class="form-group">
+                                    <label>Sellos</label>
+                                    <input type="text" id="seal_section" placeholder="Sección de sello instalada">
+                                </div>
+                                <div class="form-group">
+                                    <label>Motor</label>
+                                    <input type="text" id="motor_model" placeholder="Modelo / HP / voltaje / corriente">
+                                </div>
+                                <div class="form-group">
+                                    <label>Sensor</label>
+                                    <input type="text" id="sensor_model" placeholder="Sensor de fondo instalado">
+                                </div>
+                                <div class="form-group">
+                                    <label>Drain Valve</label>
+                                    <input type="text" id="drain_valve" placeholder="Drain valve instalado">
+                                </div>
+                                <div class="form-group">
+                                    <label>Fecha de Instalación</label>
+                                    <input type="date" id="installed_at">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Notas de Ficha BES</label>
+                                    <textarea id="profile_notes" rows="3" placeholder="Observaciones del equipo instalado, cambios o referencia documental"></textarea>
                                 </div>
                             </div>
 
@@ -440,7 +488,7 @@
                                 </button>
                                 <button type="submit" id="pump-submit-btn" class="btn-submit"
                                     style="margin: 0; width: auto; padding: 12px 40px;">
-                                    <span class="btn-text">Guardar Tipo de Bomba</span>
+                                    <span class="btn-text">Guardar Ficha BES</span>
                                     <div class="loader"></div>
                                 </button>
                             </div>
@@ -683,6 +731,7 @@
     <script type="module">
         import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession } from './js/auth.js';
         import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, previewMonitoringSync, saveTechnicalMeasurement, syncTechnicalMeasurements, previewTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile, buildMonitoringRecordKey } from './js/data-service.js';
+        import { previewManualMonitoringIntoConsolidated, upsertManualMonitoringIntoConsolidated } from './js/services/consolidado-service.js';
 
         let isEditing = false;
         let knownPozos = new Set();
@@ -692,6 +741,26 @@
             { inputId: 'pozo_name', menuId: 'pozo_name_menu', toggleId: 'pozo_name_toggle' },
             { inputId: 'tech_pozo_name', menuId: 'tech_pozo_name_menu', toggleId: 'tech_pozo_name_toggle' },
             { inputId: 'pump_pozo_name', menuId: 'pump_pozo_name_menu', toggleId: 'pump_pozo_name_toggle' }
+        ];
+        const BES_PROFILE_FORM_FIELDS = [
+            'pump_type',
+            'pump_manufacturer',
+            'pump_model',
+            'pump_serial',
+            'suction_ft',
+            'multiphase_pump',
+            'gas_separator',
+            'seal_section',
+            'motor_manufacturer',
+            'motor_model',
+            'motor_hp',
+            'motor_voltage',
+            'motor_current',
+            'sensor_model',
+            'cable_type',
+            'drain_valve',
+            'installed_at',
+            'profile_notes'
         ];
 
         function getStoredSelectedPozo() {
@@ -851,12 +920,13 @@
                 const profile = await getWellBESProfile(pozoName);
                 if (profile?.pump_type) {
                     statusDot.classList.add('active');
-                    statusText.textContent = `Configurado: ${profile.pump_type}.`;
+                    const maker = profile.pump_manufacturer ? ` · ${profile.pump_manufacturer}` : '';
+                    statusText.textContent = `Ficha BES configurada: ${profile.pump_type}${maker}.`;
                     return;
                 }
 
                 statusDot.classList.add('inactive');
-                statusText.textContent = 'Este pozo aun no tiene tipo de bomba registrado.';
+                statusText.textContent = 'Este pozo aun no tiene ficha BES registrada.';
             } catch (error) {
                 statusText.textContent = error.message;
             }
@@ -1307,13 +1377,16 @@
         function populatePumpProfileForm(profile = null, context = {}) {
             const pozoName = context.pozo_name || profile?.pozo_name || '';
             document.getElementById('pump_pozo_name').value = pozoName;
-            document.getElementById('pump_type').value = profile?.pump_type || '';
+            BES_PROFILE_FORM_FIELDS.forEach(fieldName => {
+                const field = document.getElementById(fieldName);
+                if (field) field.value = profile?.[fieldName] || '';
+            });
             setStoredSelectedPozo(pozoName);
         }
 
         function resetPumpProfileForm() {
             document.getElementById('pump-profile-form').reset();
-            document.getElementById('pump-submit-btn').querySelector('.btn-text').textContent = 'Guardar Tipo de Bomba';
+            document.getElementById('pump-submit-btn').querySelector('.btn-text').textContent = 'Guardar Ficha BES';
         }
 
         function setPumpProfileVisibility(isVisible) {
@@ -1323,20 +1396,26 @@
 
             togglePanelWithStableScroll(panel, isVisible, trigger);
             trigger.querySelector('.btn-text').textContent = isVisible
-                ? 'Configurar Otro Tipo de Bomba'
-                : 'Configurar Tipo de Bomba';
+                ? 'Configurar Otra Ficha BES'
+                : 'Configurar Ficha BES';
         }
 
         function prepareNewPumpProfile() {
             const pozoName = document.getElementById('pump_pozo_name').value.trim()
                 || document.getElementById('tech_pozo_name').value.trim()
                 || document.getElementById('pozo_name').value.trim();
-            const pumpType = document.getElementById('pump_type').value.trim();
+            const currentProfile = BES_PROFILE_FORM_FIELDS.reduce((profile, fieldName) => {
+                profile[fieldName] = document.getElementById(fieldName)?.value.trim() || '';
+                return profile;
+            }, {});
 
             resetPumpProfileForm();
             setPumpProfileVisibility(true);
             document.getElementById('pump_pozo_name').value = pozoName;
-            document.getElementById('pump_type').value = pumpType;
+            BES_PROFILE_FORM_FIELDS.forEach(fieldName => {
+                const field = document.getElementById(fieldName);
+                if (field) field.value = currentProfile[fieldName] || '';
+            });
             focusWithoutScroll(document.getElementById('pump_pozo_name'));
             updatePumpProfileStatus(pozoName);
         }
@@ -1465,16 +1544,18 @@
             btn.disabled = true;
 
             try {
-                const profile = {
-                    pozo_name: document.getElementById('pump_pozo_name').value.trim(),
-                    pump_type: document.getElementById('pump_type').value.trim()
-                };
+                const profile = BES_PROFILE_FORM_FIELDS.reduce((payload, fieldName) => {
+                    payload[fieldName] = document.getElementById(fieldName)?.value.trim() || '';
+                    return payload;
+                }, {
+                    pozo_name: document.getElementById('pump_pozo_name').value.trim()
+                });
 
                 await upsertWellBESProfile(profile);
                 await refreshPozoLists();
                 await updatePumpProfileStatus(profile.pozo_name);
                 setPumpProfileVisibility(false);
-                Swal.fire({ icon: 'success', title: 'Tipo de Bomba Guardado', text: `La configuración del pozo ${profile.pozo_name} fue actualizada correctamente.`, timer: 2200, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Ficha BES Guardada', text: `La ficha BES del pozo ${profile.pozo_name} fue actualizada correctamente.`, timer: 2200, showConfirmButton: false });
             } catch (err) {
                 Swal.fire({ icon: 'error', title: 'Fallo al Guardar', text: err.message });
             } finally {
@@ -1727,7 +1808,7 @@
             `;
         }
 
-        async function confirmImportSummary({ title, fileName, recordsCount, pozoCount, detailText, previewResult, kind = 'operational' }) {
+        async function confirmImportSummary({ title, fileName, recordsCount, pozoCount, detailText, previewResult, consolidatedPreview = null, omittedCount = 0, kind = 'operational' }) {
             const recordsToInsert = previewResult?.recordsToInsert || [];
             const recordsToUpdate = previewResult?.recordsToUpdate || [];
             const skippedCount = previewResult?.skipped ?? 0;
@@ -1746,7 +1827,7 @@
                 if (mode === 'insert-only') {
                     return {
                         buttonText: 'Si, insertar solo nuevos',
-                        summaryText: 'Solo se insertaran registros nuevos. Los existentes detectados en el preview no se modificaran.'
+                        summaryText: 'En Data solo se insertaran registros nuevos; el consolidado exportable se actualizara con las filas validas del archivo.'
                     };
                 }
 
@@ -1759,7 +1840,7 @@
 
                 return {
                     buttonText: 'Si, insertar y actualizar',
-                    summaryText: 'Se insertaran los nuevos y tambien se actualizaran los existentes que coincidan por pozo, fecha y hora.'
+                    summaryText: 'Se insertaran los nuevos, se actualizaran existentes en Data y tambien se refrescara el consolidado exportable.'
                 };
             };
             const initialModeCopy = getImportModeCopy(defaultImportMode);
@@ -1799,6 +1880,22 @@
                                 <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B;">Duplicados en archivo</p>
                                 <p style="margin: 0; font-weight: 700; color: #334155;">${duplicateCount}</p>
                             </div>
+                            ${consolidatedPreview ? `
+                                <div style="padding: 12px; border-radius: 12px; background: #EEF2FF; border: 1px solid #C7D2FE;">
+                                    <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #3730A3;">Consolidado actualiza</p>
+                                    <p style="margin: 0; font-weight: 700; color: #312E81;">${consolidatedPreview.updated || 0}</p>
+                                </div>
+                                <div style="padding: 12px; border-radius: 12px; background: #F0FDFA; border: 1px solid #99F6E4;">
+                                    <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #0F766E;">Consolidado agrega</p>
+                                    <p style="margin: 0; font-weight: 700; color: #115E59;">${consolidatedPreview.inserted || 0}</p>
+                                </div>
+                            ` : ''}
+                            ${omittedCount ? `
+                                <div style="padding: 12px; border-radius: 12px; background: #FEF2F2; border: 1px solid #FECACA;">
+                                    <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #B91C1C;">Omitidas</p>
+                                    <p style="margin: 0; font-weight: 700; color: #991B1B;">${omittedCount}</p>
+                                </div>
+                            ` : ''}
                         </div>
                         <p style="margin: 0 0 6px 0;">${escapeHtml(detailText)}</p>
                         <p style="margin: 0 0 12px 0; font-size: 0.84rem; color: #475569;">De ${recordsCount} filas validas, ${dedupedTotal} quedaron como registros unicos por pozo, fecha y hora. De esos unicos, ${recordsToInsert.length} son nuevos, ${recordsToUpdate.length} cambiaron y ${skippedCount} ya existian igual.</p>
@@ -2039,6 +2136,10 @@
             });
         }
 
+        function waitForBrowserPaint() {
+            return new Promise(resolve => setTimeout(resolve, 30));
+        }
+
         bindDropImport(techDropZone, techFileInput, handleTechnicalFile);
 
         function normalizeCsvKey(value) {
@@ -2065,10 +2166,11 @@
             presion_chp: ['presion_chp', 'chp', 'chp_psi', 'casing_head_pressure'],
             presion_lf: ['presion_lf', 'lf', 'lf_psi', 'line_pressure'],
             sentido_giro: ['sentido_giro', 'sentido_de_giro', 'giro', 'direccion_giro', 'rotation_direction', 'rotation', 'sentido'],
-            vsd_a: ['vsd_a', 'vsd_a_amp', 'vsd_a_amperios', 'i_vsd_a_a', 'fase_a', 'a'],
-            vsd_b: ['vsd_b', 'vsd_b_amp', 'vsd_b_amperios', 'i_vsd_b_a', 'fase_b', 'b'],
-            vsd_c: ['vsd_c', 'vsd_c_amp', 'vsd_c_amperios', 'i_vsd_c_a', 'fase_c', 'c'],
-            estatus: ['estatus', 'status', 'estado', 'run_status'],
+            vsd_a: ['vsd_a', 'vsd_a_amp', 'vsd_a_amperios', 'i_vsd_a', 'i_vsd_a_a', 'i_vsd_a_amp', 'ivsd_a', 'fase_a', 'a'],
+            vsd_b: ['vsd_b', 'vsd_b_amp', 'vsd_b_amperios', 'i_vsd_b', 'i_vsd_b_a', 'i_vsd_b_amp', 'ivsd_b', 'fase_b', 'b'],
+            vsd_c: ['vsd_c', 'vsd_c_amp', 'vsd_c_amperios', 'i_vsd_c', 'i_vsd_c_a', 'i_vsd_c_amp', 'ivsd_c', 'fase_c', 'c'],
+            actividad: ['actividad', 'activity'],
+            estatus: ['estatus', 'status', 'run_status'],
             observaciones: ['observaciones', 'observacion', 'obs', 'comentario', 'comentarios', 'remarks']
         };
 
@@ -2077,6 +2179,17 @@
                 if (source[alias] !== undefined && source[alias] !== null && `${source[alias]}`.trim() !== '') {
                     return source[alias];
                 }
+            }
+            return undefined;
+        }
+
+        function getHeaderAliasValue(row = [], headerRow = [], aliases = []) {
+            const normalizedAliases = new Set(aliases.map(normalizeCsvKey));
+            for (let index = 0; index < headerRow.length; index += 1) {
+                const headerKey = normalizeCsvKey(headerRow[index] || `column_${index + 1}`);
+                if (!normalizedAliases.has(headerKey)) continue;
+                const value = Array.isArray(row) ? row[index] : undefined;
+                if (value !== undefined && value !== null && `${value}`.trim() !== '') return value;
             }
             return undefined;
         }
@@ -2258,7 +2371,7 @@
             const fieldSet = new Set(fields);
             return fieldSet.has('pozo_name')
                 && fieldSet.has('fecha')
-                && (fieldSet.has('pip') || fieldSet.has('frecuencia') || fieldSet.has('estatus'));
+                && (fieldSet.has('pip') || fieldSet.has('frecuencia') || fieldSet.has('estatus') || (fieldSet.has('actividad') && fieldSet.has('estatus')));
         }
 
         function findDailyHeaderRowIndex(rows = []) {
@@ -2281,16 +2394,45 @@
 
         function parseDailyExcelWithHeaders(rows = [], headerRowIndex = 0) {
             const headerRow = rows[headerRowIndex] || [];
+            const originalHeaders = headerRow.map((cell, index) => String(cell || `column_${index + 1}`).trim() || `column_${index + 1}`);
             const headers = headerRow.map((cell, index) => normalizeCsvKey(cell || `column_${index + 1}`));
 
             return rows.slice(headerRowIndex + 1).map(row => {
                 const mappedRow = {};
+                const sourceRowData = {};
                 headers.forEach((header, index) => {
+                    const value = Array.isArray(row) ? row[index] : undefined;
+                    sourceRowData[originalHeaders[index]] = value;
                     if (!header) return;
-                    mappedRow[header] = Array.isArray(row) ? row[index] : undefined;
+                    mappedRow[header] = value;
                 });
+                mappedRow.__sourceRowData = sourceRowData;
                 return mappedRow;
             });
+        }
+
+        function buildSourceRowDataFromHeader(row = [], headerRow = []) {
+            const originalHeaders = headerRow.map((cell, index) => String(cell || `column_${index + 1}`).trim() || `column_${index + 1}`);
+            return Object.fromEntries(originalHeaders.map((header, index) => [header, Array.isArray(row) ? row[index] : undefined]));
+        }
+
+        function parseDailyExcelWithLayout(rows = [], headerRowIndex = 0, layout = DAILY_EXCEL_LAYOUTS[0]) {
+            const headerRow = rows[headerRowIndex] || [];
+            return rows.slice(headerRowIndex + 1).map(row => ({
+                ...layout.mapRow(row, headerRow),
+                __sourceRowData: buildSourceRowDataFromHeader(row, headerRow)
+            }));
+        }
+
+        function getConsolidatedSourceRowData(row = {}) {
+            if (row.__sourceRowData && typeof row.__sourceRowData === 'object') {
+                return { ...row.__sourceRowData };
+            }
+
+            return Object.fromEntries(
+                Object.entries(row || {})
+                    .filter(([key]) => !String(key).startsWith('__'))
+            );
         }
 
         function scoreParsedDailyRows(rows = []) {
@@ -2318,6 +2460,30 @@
         }
 
         const DAILY_EXCEL_LAYOUTS = [
+            {
+                name: 'dashboard_general_consolidado',
+                mapRow(row, headerRow = []) {
+                    return {
+                        pozo_name: getExcelCellValue(row, 'A'),
+                        campo: getExcelCellValue(row, 'B'),
+                        fecha: getExcelCellValue(row, 'J'),
+                        hora: getExcelCellValue(row, 'L'),
+                        estatus: getExcelCellValue(row, 'N'),
+                        frecuencia: getExcelCellValue(row, 'O'),
+                        corriente_motor: getExcelCellValue(row, 'R'),
+                        pip: getLikelyPipValue(getExcelCellValue(row, 'U'), getExcelCellValue(row, 'AB'), getExcelCellValue(row, 'V')),
+                        tm: getFirstNonEmptyValue([getExcelCellValue(row, 'X'), getExcelCellValue(row, 'Y')]),
+                        presion_thp: getFirstNonEmptyValue([getExcelCellValue(row, 'Y'), getExcelCellValue(row, 'BH')]),
+                        presion_chp: getFirstNonEmptyValue([getExcelCellValue(row, 'Z'), getExcelCellValue(row, 'BI')]),
+                        presion_lf: getExcelCellValue(row, 'AA'),
+                        vsd_a: getHeaderAliasValue(row, headerRow, DAILY_IMPORT_FIELD_ALIASES.vsd_a),
+                        vsd_b: getHeaderAliasValue(row, headerRow, DAILY_IMPORT_FIELD_ALIASES.vsd_b),
+                        vsd_c: getHeaderAliasValue(row, headerRow, DAILY_IMPORT_FIELD_ALIASES.vsd_c),
+                        sentido_giro: getExcelCellValue(row, 'Q'),
+                        observaciones: collectExcelObservationText(row, 'EW')
+                    };
+                }
+            },
             {
                 name: 'standard_dashboard',
                 mapRow(row) {
@@ -2396,38 +2562,50 @@
         async function parseDailyExcelFile(file) {
             const buffer = await file.arrayBuffer();
             const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
-            const firstSheetName = workbook.SheetNames[0];
-            if (!firstSheetName) return [];
+            if (!workbook.SheetNames.length) return [];
 
-            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], {
-                header: 1,
-                defval: '',
-                raw: true
-            });
-
-            const dataRows = rows.slice(1);
-            const detectedLayout = detectDailyExcelLayout(dataRows);
-            const layoutRows = dataRows.map(row => detectedLayout.mapRow(row));
-            const layoutScore = scoreParsedDailyRows(layoutRows);
-
-            const headerRowIndex = findDailyHeaderRowIndex(rows);
-            if (headerRowIndex >= 0) {
-                const headerFields = getDailyHeaderFields(rows[headerRowIndex] || []);
-                const headerRows = parseDailyExcelWithHeaders(rows, headerRowIndex);
-                if (headerFields.includes('pip')) {
-                    return headerRows;
-                }
-
-                const headerScore = scoreParsedDailyRows(headerRows);
-                return headerScore >= layoutScore ? headerRows : layoutRows;
+            const dashboardSheetName = workbook.SheetNames.find(sheetName => normalizeCsvKey(sheetName) === 'dashboard_general');
+            if (!dashboardSheetName) {
+                throw new Error('No encontré la hoja Dashboard General en este Excel. Verifica el nombre de la hoja antes de importar desde Gestión.');
             }
 
-            return layoutRows;
+            const candidates = [dashboardSheetName].map(sheetName => {
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+                    header: 1,
+                    defval: '',
+                    raw: true
+                });
+
+                const headerRowIndex = findDailyHeaderRowIndex(rows);
+                const layoutHeaderIndex = headerRowIndex >= 0 ? headerRowIndex : 0;
+                const detectedLayout = DAILY_EXCEL_LAYOUTS.find(layout => layout.name === 'dashboard_general_consolidado') || DAILY_EXCEL_LAYOUTS[0];
+                const layoutRows = parseDailyExcelWithLayout(rows, layoutHeaderIndex, detectedLayout);
+                const layoutScore = scoreParsedDailyRows(layoutRows);
+
+                if (headerRowIndex >= 0) {
+                    const headerFields = getDailyHeaderFields(rows[headerRowIndex] || []);
+                    const headerRows = parseDailyExcelWithHeaders(rows, headerRowIndex);
+                    const headerBonus = ['pip', 'vsd_a', 'vsd_b', 'vsd_c']
+                        .filter(field => headerFields.includes(field))
+                        .length * 20;
+                    const headerScore = scoreParsedDailyRows(headerRows) + headerBonus;
+                    return {
+                        sheetName,
+                        rows: headerScore >= layoutScore ? headerRows : layoutRows,
+                        score: Math.max(headerScore, layoutScore)
+                    };
+                }
+
+                return { sheetName, rows: layoutRows, score: layoutScore };
+            }).sort((left, right) => right.score - left.score);
+
+            return candidates[0]?.rows || [];
         }
 
         function normalizeImportedRow(row) {
             const normalizedRow = {};
             Object.entries(row || {}).forEach(([key, value]) => {
+                if (String(key).startsWith('__')) return;
                 normalizedRow[normalizeCsvKey(key)] = value;
             });
 
@@ -2734,32 +2912,48 @@
             if (!file) return;
 
             try {
+                statusDiv.style.display = 'block';
+                statusText.textContent = 'Leyendo archivo Excel...';
+                Swal.fire({
+                    title: 'Leyendo Excel',
+                    text: 'Buscando la hoja Dashboard General y preparando los registros.',
+                    allowOutsideClick: false,
+                    showConfirmButton: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+                await waitForBrowserPaint();
+
                 const extension = getFileExtension(file.name);
                 const parsedRows = extension === 'xlsx' || extension === 'xls'
                     ? await parseDailyExcelFile(file)
                     : await parseTabularFile(file, { dynamicTyping: true });
                 statusDiv.style.display = 'block';
                 statusText.textContent = 'Subiendo...';
+                if (Swal.isVisible()) Swal.close();
 
                 const firstRow = parsedRows[0] || {};
                 const normalizedHeaderKeys = Object.keys(firstRow).map(normalizeCsvKey).filter(Boolean);
                 const detectedDailyFields = getDailyMatchedFields(Object.fromEntries(normalizedHeaderKeys.map(key => [key, true])));
 
                 const cleanData = parsedRows
-                    .map(normalizeImportedRow)
+                    .map(row => ({
+                        ...normalizeImportedRow(row),
+                        __consolidated_row_data: getConsolidatedSourceRowData(row)
+                    }))
                     .filter(r => r.pozo_name && r.fecha);
 
-                const telemetryRows = cleanData.filter(hasDailyTelemetryData);
-                const invalidStatusRows = telemetryRows.filter(row => !row.estatus);
+                const telemetryCandidates = cleanData.filter(hasDailyTelemetryData);
+                const invalidStatusRows = telemetryCandidates.filter(row => !row.estatus);
+                const telemetryRows = telemetryCandidates.filter(row => row.estatus);
 
-                if (telemetryRows.length === 0) {
+                if (telemetryCandidates.length === 0) {
                     const looksTechnicalFile = cleanData.some(row => row.ef || row.potencial !== undefined || row.bbpd !== undefined || row.ays !== undefined || row.bnpd !== undefined || row.cat !== undefined || row.cat_number !== undefined);
                     throw new Error(looksTechnicalFile
                         ? 'Este archivo parece corresponder a Produccion Tecnica. Cargalo en la seccion tecnica, no en Entrada de Parametros.'
                         : `No se encontraron columnas validas para monitoreo diario en el archivo importado. Detectadas: ${detectedDailyFields.join(', ') || 'ninguna'}.`);
                 }
 
-                if (invalidStatusRows.length > 0) {
+                if (telemetryRows.length === 0 && invalidStatusRows.length > 0) {
                     const invalidExamples = invalidStatusRows
                         .slice(0, 3)
                         .map(row => String(row.estatus_original || row.estatus || row.estado || '').trim())
@@ -2767,8 +2961,12 @@
                     const detail = invalidExamples.length > 0
                         ? ` Valores detectados: ${invalidExamples.join(', ')}.`
                         : '';
-                    throw new Error(`No pude interpretar el estatus en ${invalidStatusRows.length} fila(s). El layout de este Excel no coincide con el formato esperado para monitoreo diario actual.${detail}`);
+                    throw new Error(`No pude interpretar la columna ESTATUS operativo en ${invalidStatusRows.length} fila(s). Verifica que Gestion este leyendo ESTATUS y no ESTADO/CATEGORIA.${detail}`);
                 }
+
+                const invalidStatusWarning = invalidStatusRows.length > 0
+                    ? `${invalidStatusRows.length} fila(s) se omitieron porque no tienen ESTATUS operativo interpretable.`
+                    : '';
 
                 const telemetryColumns = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c', 'sentido_giro', 'estatus', 'observaciones', 'user_id'];
 
@@ -2785,7 +2983,20 @@
                     return obj;
                 });
 
-                const previewResult = await previewMonitoringSync(telemetryData);
+                const consolidatedSourceByKey = new Map();
+                telemetryRows.forEach(row => {
+                    consolidatedSourceByKey.set(buildMonitoringRecordKey(row), row.__consolidated_row_data || {});
+                });
+
+                const consolidatedPreviewRecords = telemetryData.map(record => ({
+                    ...record,
+                    __consolidated_row_data: consolidatedSourceByKey.get(buildMonitoringRecordKey(record)) || {}
+                }));
+
+                const [previewResult, consolidatedPreview] = await Promise.all([
+                    previewMonitoringSync(telemetryData),
+                    previewManualMonitoringIntoConsolidated(consolidatedPreviewRecords)
+                ]);
 
                 const importMode = await confirmImportSummary({
                     title: 'Confirmar carga operativa',
@@ -2794,6 +3005,8 @@
                     pozoCount: countUniquePozos(telemetryRows),
                     detailText: 'Se sincronizarán los registros diarios válidos detectados en el archivo antes de guardarlos en la plataforma.',
                     previewResult,
+                    consolidatedPreview,
+                    omittedCount: invalidStatusRows.length,
                     kind: 'operational'
                 });
 
@@ -2812,31 +3025,45 @@
                 const recordsToSync = importMode === 'insert-only'
                     ? (previewResult?.recordsToInsert || [])
                     : telemetryData;
-
-                if (recordsToSync.length === 0) {
-                    statusDiv.style.display = 'block';
-                    statusText.textContent = importMode === 'insert-only'
-                        ? 'No hay registros nuevos para insertar. No se guardaron cambios.'
-                        : 'No hay registros pendientes por sincronizar.';
-                    return;
-                }
+                const shouldSyncOperationalRecords = recordsToSync.length > 0;
 
                 beginImportSession({
                     kind: 'operational',
                     fileName: file.name,
-                    recordsCount: recordsToSync.length,
+                    recordsCount: shouldSyncOperationalRecords ? recordsToSync.length : telemetryRows.length,
                     pozoCount: countUniquePozos(telemetryRows)
                 });
 
                 updateImportSession(
-                    importMode === 'insert-only'
+                    !shouldSyncOperationalRecords
+                        ? 'Actualizando solo el consolidado maestro...'
+                        : importMode === 'insert-only'
                         ? `Insertando ${recordsToSync.length} registro(s) nuevos...`
                         : `Sincronizando ${recordsToSync.length} registro(s) operativos...`,
-                    importMode === 'insert-only'
+                    !shouldSyncOperationalRecords
+                        ? 'Los registros ya existen en Data; se usaran para actualizar el historico exportable.'
+                        : importMode === 'insert-only'
                         ? 'Guardando solo las mediciones nuevas detectadas en el preview.'
                         : 'Guardando mediciones diarias en la plataforma.'
                 );
-                const syncResult = await syncMonitoringRecords(recordsToSync);
+                const syncResult = shouldSyncOperationalRecords
+                    ? await syncMonitoringRecords(recordsToSync)
+                    : { inserted: 0, updated: 0, skipped: 0, total: 0 };
+
+                let consolidatedSaved = 0;
+                let consolidatedUpdated = 0;
+                let consolidatedInserted = 0;
+                let consolidatedWarning = '';
+                try {
+                    updateImportSession('Actualizando consolidado maestro...', 'Registrando la carga operativa para que aparezca en la descarga del consolidado.');
+                    const consolidatedResult = await upsertManualMonitoringIntoConsolidated(consolidatedPreviewRecords, { sourceFileName: file.name });
+                    consolidatedSaved = consolidatedResult.saved || 0;
+                    consolidatedUpdated = consolidatedResult.updated || 0;
+                    consolidatedInserted = consolidatedResult.inserted || 0;
+                } catch (consolidatedError) {
+                    consolidatedWarning = consolidatedError?.message || 'No se pudo actualizar el consolidado maestro.';
+                    console.warn('No se pudo sincronizar la carga operativa con el consolidado:', consolidatedError);
+                }
 
                 const syncedTelemetryRows = importMode === 'insert-only'
                     ? telemetryRows.filter(row => recordsToSync.some(record => buildMonitoringRecordKey(record) === buildMonitoringRecordKey(row)))
@@ -2865,14 +3092,18 @@
                     }
                 }
 
-                statusText.textContent = `✅ Sincronizacion finalizada. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}.`;
+                const consolidatedSummaryText = `Consolidado: ${consolidatedUpdated} historicas actualizadas, ${consolidatedInserted} nuevas.`;
+                const omittedSummaryText = invalidStatusWarning ? ` Omitidas: ${invalidStatusRows.length}.` : '';
+                statusText.textContent = `✅ Sincronizacion finalizada. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}. ${consolidatedSummaryText}${omittedSummaryText}`;
                 updateImportSession('Refrescando vistas y estado final...', 'La importacion ya casi termina.');
                 await refreshPozoLists();
                 finishImportSession();
                 Swal.fire({
-                    icon: 'success',
+                    icon: consolidatedWarning || invalidStatusWarning ? 'warning' : 'success',
                     title: 'Importación Exitosa',
-                    text: `Monitoreo diario sincronizado. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}.`
+                    text: consolidatedWarning
+                        ? `Monitoreo diario sincronizado. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}. No se pudo actualizar el consolidado: ${consolidatedWarning}`
+                        : `Monitoreo diario sincronizado. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}. ${consolidatedSummaryText} Total procesado: ${consolidatedSaved}.${invalidStatusWarning ? ` ${invalidStatusWarning}` : ''}`
                 });
                 await refreshHistory();
             } catch (err) {

@@ -557,7 +557,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const accessProfile = getAccessProfile(session);
     if (accessProfile.isFieldOperator) {
-        window.location.href = 'jornada.html';
+        window.location.href = 'field.html';
         return;
     }
 
@@ -1579,7 +1579,7 @@ function updateDataRibbon(data) {
         'rb-campo': data?.campo_name || '--',
         'rb-pozo': data?.pozo_name || '--',
         'rb-ef': data?.ef || '--',
-        'rb-pump': data?.pump_type || '--',
+        'rb-pump': data?.pump_manufacturer || '--',
         'rb-fecha': data?.measurement_date || data?.fecha || '--',
         'rb-bbpd': data?.bbpd || '--',
         'rb-ays': data?.ays_percentage ? `${data.ays_percentage}%` : '--',

@@ -152,10 +152,11 @@ function buildNotificationMoments(monitoringActivity, technicalRows = [], besRow
 
     besRows.forEach(row => {
         if (!row?.updated_at) return;
+        const equipmentSummary = [row.pump_type, row.pump_manufacturer, row.pump_model, row.multiphase_pump].filter(Boolean).join(' · ') || '--';
         moments.push({
             source: 'Perfil BES',
             title: `Última configuración visible para ${row.pozo_name || 'pozo sin nombre'}`,
-            detail: `Tipo de bomba registrado: ${row.pump_type || '--'}.`,
+            detail: `Ficha BES registrada: ${equipmentSummary}.`,
             moment: String(row.updated_at)
         });
     });
@@ -253,15 +254,28 @@ function renderBESFeed(rows = []) {
         return;
     }
 
-    container.innerHTML = rows.map(row => `
-        <article class="notification-pozo-item">
-            <div class="notification-pozo-main">
-                <strong>${escapeHtml(row.pozo_name || 'Pozo sin nombre')}</strong>
-                <span class="notification-pozo-meta">Tipo de bomba registrado: ${escapeHtml(row.pump_type || '--')}</span>
-            </div>
-            <span class="notification-pozo-count">${escapeHtml(formatDateTime(row.updated_at))}</span>
-        </article>
-    `).join('');
+    const cleanBESValue = value => {
+        const normalized = String(value ?? '').trim();
+        return normalized && !/^(0+|--|n\/a|na|s\/n|sin dato|sin datos)$/i.test(normalized) ? normalized : '';
+    };
+
+    container.innerHTML = rows.map(row => {
+        const equipmentSummary = [row.pump_manufacturer, row.pump_model, row.multiphase_pump].map(cleanBESValue).filter(Boolean).join(' · ') || cleanBESValue(row.pump_type) || '--';
+        const completionSummary = [cleanBESValue(row.gas_separator) && `Separador: ${cleanBESValue(row.gas_separator)}`, cleanBESValue(row.seal_section) && `Sellos: ${cleanBESValue(row.seal_section)}`, cleanBESValue(row.drain_valve) && `Drain Valve: ${cleanBESValue(row.drain_valve)}`].filter(Boolean).join(' · ');
+        const motorSummary = cleanBESValue(row.motor_model);
+
+        return `
+            <article class="notification-pozo-item">
+                <div class="notification-pozo-main">
+                    <strong>${escapeHtml(row.pozo_name || 'Pozo sin nombre')}</strong>
+                    <span class="notification-pozo-meta">Ficha BES: ${escapeHtml(equipmentSummary)}</span>
+                    ${completionSummary ? `<span class="notification-pozo-meta">Componentes: ${escapeHtml(completionSummary)}</span>` : ''}
+                    ${motorSummary ? `<span class="notification-pozo-meta">Motor: ${escapeHtml(motorSummary)}</span>` : ''}
+                </div>
+                <span class="notification-pozo-count">${escapeHtml(formatDateTime(row.updated_at))}</span>
+            </article>
+        `;
+    }).join('');
 }
 
 function openMonitoringModal(pozoName) {

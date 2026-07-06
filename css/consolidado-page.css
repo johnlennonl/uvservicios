@@ -500,11 +500,19 @@
 
 .consolidado-maintenance-panel summary,
 .consolidado-structure-details summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 12px 14px;
     color: #334155;
     font-size: 0.82rem;
     font-weight: 900;
     cursor: pointer;
+}
+
+.consolidado-structure-details summary {
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.96), rgba(239, 246, 255, 0.9));
 }
 
 .consolidado-maintenance-panel[open],
@@ -822,23 +830,83 @@
     font-weight: 700;
 }
 
+.consolidado-template-card {
+    overflow: hidden;
+}
+
+.consolidado-template-title {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.consolidado-template-title-icon,
+.consolidado-file-mark,
+.consolidado-summary-icon,
+.consolidado-sheet-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+.consolidado-template-title-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    color: #0f766e;
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.16), rgba(14, 165, 233, 0.12));
+    box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.16);
+}
+
+.consolidado-template-title-icon svg,
+.consolidado-file-mark svg,
+.consolidado-summary-icon svg,
+.consolidado-sheet-icon svg {
+    width: 19px;
+    height: 19px;
+}
+
 .consolidado-template-summary {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    gap: 12px;
     margin-bottom: 16px;
 }
 
-.consolidado-summary-item {
+.consolidado-file-overview {
     display: grid;
-    gap: 5px;
-    padding: 14px;
-    border-radius: 16px;
-    border: 1px solid rgba(226, 232, 240, 0.95);
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+    padding: 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(191, 219, 254, 0.88);
+    background: linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(255, 255, 255, 0.98));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74);
+}
+
+.consolidado-file-overview.is-empty {
+    border-color: rgba(226, 232, 240, 0.95);
     background: #f8fafc;
 }
 
-.consolidado-summary-item span {
+.consolidado-file-mark {
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #0f766e, #2563eb);
+    box-shadow: 0 16px 28px rgba(37, 99, 235, 0.18);
+}
+
+.consolidado-file-overview.is-empty .consolidado-file-mark {
+    color: #475569;
+    background: #e2e8f0;
+    box-shadow: none;
+}
+
+.consolidado-file-overview span,
+.consolidado-summary-item span:not(.consolidado-summary-icon) {
     color: #64748b;
     font-size: 0.7rem;
     font-weight: 800;
@@ -846,9 +914,56 @@
     text-transform: uppercase;
 }
 
-.consolidado-summary-item strong {
+.consolidado-file-overview strong {
+    display: block;
+    margin-top: 3px;
     color: #0f172a;
-    font-size: 1.3rem;
+    font-size: 1rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.consolidado-file-overview p {
+    margin: 5px 0 0;
+    color: #64748b;
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.consolidado-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.consolidado-summary-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    min-height: 82px;
+    padding: 13px;
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    background: #ffffff;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+}
+
+.consolidado-summary-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    color: #1d4ed8;
+    background: rgba(219, 234, 254, 0.84);
+}
+
+.consolidado-summary-item strong {
+    display: block;
+    margin-top: 4px;
+    color: #0f172a;
+    font-size: 1.18rem;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
 }
 
 .consolidado-sheet-list {
@@ -861,7 +976,9 @@
 
 .consolidado-sheet-card {
     display: grid;
-    gap: 6px;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
     width: 100%;
     padding: 14px;
     border: 1px solid rgba(226, 232, 240, 0.95);
@@ -870,6 +987,24 @@
     text-align: left;
     cursor: pointer;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.consolidado-sheet-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    color: #0f766e;
+    background: rgba(204, 251, 241, 0.76);
+}
+
+.consolidado-sheet-card .consolidado-sheet-icon {
+    color: #0f766e;
+}
+
+.consolidado-sheet-copy {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
 }
 
 .consolidado-sheet-card:hover,
@@ -882,6 +1017,7 @@
 .consolidado-sheet-card strong {
     color: #0f172a;
     font-size: 0.92rem;
+    overflow-wrap: anywhere;
 }
 
 .consolidado-sheet-card span {
@@ -892,39 +1028,114 @@
 
 .consolidado-column-panel {
     margin-top: 18px;
-    border-top: 1px solid rgba(226, 232, 240, 0.95);
-    padding-top: 16px;
+    padding: 14px;
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(255, 255, 255, 0.98));
 }
 
 .consolidado-column-panel h3 {
-    margin: 0 0 10px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    margin: 0 0 12px;
     color: #0f172a;
     font-size: 0.95rem;
+}
+
+.consolidado-column-title-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 13px;
+    color: #1d4ed8;
+    background: rgba(219, 234, 254, 0.92);
+}
+
+.consolidado-column-title-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.consolidado-column-title-copy {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.consolidado-column-title-copy span {
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.consolidado-column-title-copy strong {
+    color: #0f172a;
+    font-size: 0.92rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.consolidado-column-count {
+    justify-self: end;
+    padding: 7px 10px;
+    border-radius: 999px;
+    color: #0f766e;
+    background: rgba(204, 251, 241, 0.78);
+    font-size: 0.72rem;
+    font-weight: 900;
+    white-space: nowrap;
 }
 
 .consolidado-column-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    max-height: 240px;
+    gap: 7px;
+    max-height: 260px;
     overflow: auto;
+    padding: 2px 4px 4px 0;
+    scrollbar-color: rgba(37, 99, 235, 0.45) transparent;
 }
 
 .consolidado-column-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 10px;
+    min-height: 30px;
+    gap: 7px;
+    padding: 4px 9px 4px 4px;
     border-radius: 999px;
-    background: #f8fafc;
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    color: #334155;
-    font-size: 0.76rem;
+    background: #ffffff;
+    border: 1px solid rgba(191, 219, 254, 0.92);
+    color: #1e293b;
+    font-size: 0.73rem;
     font-weight: 800;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
 }
 
-.consolidado-column-pill span {
+.consolidado-column-letter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
     color: #1d4ed8;
+    background: #eff6ff;
+    font-size: 0.68rem;
+    font-weight: 900;
+}
+
+.consolidado-column-name {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .consolidado-empty {
@@ -950,6 +1161,7 @@
     }
 
     .consolidado-highlight-grid,
+    .consolidado-summary-grid,
     .consolidado-template-summary {
         grid-template-columns: 1fr;
     }
@@ -974,5 +1186,18 @@
 
     .consolidado-badge {
         font-size: 0.68rem;
+    }
+
+    .consolidado-column-panel h3 {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .consolidado-column-count {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+
+    .consolidado-column-name {
+        max-width: 170px;
     }
 }

@@ -1,4 +1,6 @@
 const REPORT_COLUMNS = [
+    ['TÉCNICO 1', 'tecnico_1'],
+    ['TÉCNICO 2', 'tecnico_2'],
     ['INGENIEROS / EQUIPO DE GUARDIA', 'equipo_guardia'],
     ['LOCACION DE LA JORNADA', 'locacion_jornada'],
     ['JORNADA', 'jornada'],
@@ -128,7 +130,7 @@ const REPORT_COLUMNS = [
 ];
 
 const EXCEL_SECTION_GROUPS = [
-    { title: 'Jornada', fields: ['equipo_guardia', 'locacion_jornada', 'jornada', 'pozo', 'campo', 'fecha', 'hora'] },
+    { title: 'Jornada', fields: ['tecnico_1', 'tecnico_2', 'equipo_guardia', 'locacion_jornada', 'jornada', 'pozo', 'campo', 'fecha', 'hora'] },
     { title: 'Informacion general', fields: ['ef', 'estado', 'categoria', 'potencial', 'bruta', 'neta', 'ays_percentage', 'actividad', 'estatus'] },
     { title: 'Parametros operacionales', fields: ['frecuencia', 'modo_operacion', 'sentido_giro', 'i_motor', 'v_motor', 'out_vsd', 'i_vsd_a', 'i_vsd_b', 'i_vsd_c', 'prom_i_vsd', 'desv_fase_a', 'desv_fase_b', 'desv_fase_c', 'max_desviacion_vsd', 'desbalance_corriente_vsd', 'pip_psi', 'pd_psi', 'ti_f', 'tm_f', 'vx_g', 'vy_g', 'vz_g'] },
     { title: 'Sistema BES', fields: ['amp_nominal_motor', 'volt_nominal_motor', 'frec_max_hz', 'low_speed_hz', 'ul_a', 'ol_a', 'i_limit_a', 'tiempo_desaceleracion_seg', 'low_pip_shutdown_psi', 'max_high_temp_shutdown_f'] },
@@ -152,7 +154,7 @@ const EXCEL_EXPORT_COLUMNS = EXCEL_SECTION_GROUPS.flatMap(group => (
 ));
 
 const WELL_PREVIEW_SECTIONS = [
-    { title: 'Informacion general', items: [['Equipo de guardia', 'equipo_guardia'], ['Locacion de la jornada', 'locacion_jornada'], ['Jornada', 'jornada'], ['Campo', 'campo'], ['EF', 'ef'], ['Estado', 'estado'], ['Categoria', 'categoria'], ['Potencial', 'potencial'], ['Bruta', 'bruta'], ['Neta', 'neta'], ['% AyS', 'ays_percentage'], ['Actividad', 'actividad'], ['Estatus', 'estatus'], ['Modo de operacion', 'modo_operacion'], ['Sentido de giro', 'sentido_giro']] },
+    { title: 'Informacion general', items: [['Tecnico 1', 'tecnico_1'], ['Tecnico 2', 'tecnico_2'], ['Equipo de guardia', 'equipo_guardia'], ['Locacion de la jornada', 'locacion_jornada'], ['Jornada', 'jornada'], ['Campo', 'campo'], ['EF', 'ef'], ['Estado', 'estado'], ['Categoria', 'categoria'], ['Potencial', 'potencial'], ['Bruta', 'bruta'], ['Neta', 'neta'], ['% AyS', 'ays_percentage'], ['Actividad', 'actividad'], ['Estatus', 'estatus'], ['Modo de operacion', 'modo_operacion'], ['Sentido de giro', 'sentido_giro']] },
     { title: 'Parametros operacionales', items: [['Frec', 'frecuencia'], ['I Motor [A]', 'i_motor'], ['V Motor [V]', 'v_motor'], ['Out VSD [V]', 'out_vsd'], ['I VSD A [A]', 'i_vsd_a'], ['I VSD B [A]', 'i_vsd_b'], ['I VSD C [A]', 'i_vsd_c'], ['Prom I VSD [A]', 'prom_i_vsd'], ['Desv. Fase A', 'desv_fase_a'], ['Desv. Fase B', 'desv_fase_b'], ['Desv. Fase C', 'desv_fase_c'], ['Max. Desviacion', 'max_desviacion_vsd'], ['% Desbalance Corriente VSD', 'desbalance_corriente_vsd'], ['PIP [psi]', 'pip_psi'], ['PD [psi]', 'pd_psi'], ['Ti [F]', 'ti_f'], ['Tm [F]', 'tm_f'], ['Vx [G]', 'vx_g'], ['Vy [G]', 'vy_g'], ['Vz [G]', 'vz_g']] },
     { title: 'Sistema BES y superficie', items: [['Amp nominal motor [A]', 'amp_nominal_motor'], ['Volt nominal motor [V]', 'volt_nominal_motor'], ['Frec max [Hz]', 'frec_max_hz'], ['Low speed [Hz]', 'low_speed_hz'], ['UL [A]', 'ul_a'], ['OL [A]', 'ol_a'], ['I-Limit [A]', 'i_limit_a'], ['Tiempo de desaceleracion [seg]', 'tiempo_desaceleracion_seg'], ['Low PIP shut down [psi]', 'low_pip_shutdown_psi'], ['Max high temp. shut down [F]', 'max_high_temp_shutdown_f'], ['Baja datos', 'baja_datos'], ['VSD [KVA]', 'vsd_kva'], ['Marca VSD', 'marca_vsd'], ['Modelo VSD', 'modelo_vsd'], ['Tx [KVA]', 'tx_kva'], ['Tap [V]', 'tap_v'], ['R.T', 'rt'], ['Estado del Tx', 'estado_tx'], ['Estado del VSD', 'estado_vsd'], ['Estado panel sensor / choques', 'estado_panel_sensor_choques'], ['Estado del aterramiento', 'estado_aterramiento'], ['Condicion del cableado', 'condicion_cableado'], ['Condicion de la caseta', 'condicion_caseta'], ['Temperatura de la caseta', 'temperatura_caseta'], ['Estado de fosa [%]', 'estado_fosa_porcentaje'], ['Estado del BIW/conector', 'estado_biw_conector'], ['Estado de manometros', 'estado_manometros'], ['Estado del cabezal', 'estado_cabezal'], ['Estado de tomamuestras', 'estado_tomamuestras'], ['Estado caja de venteo', 'estado_caja_venteo']] },
     { title: 'Sensor y presiones', items: [['Posee sensor de fondo', 'posee_sensor_fondo'], ['Descarga datas del sensor', 'descarga_datas_sensor'], ['THP [psi]', 'thp_psi'], ['CHP [psi]', 'chp_psi'], ['LF [psi]', 'lf_psi'], ['Cond. CHP', 'cond_chp'], ['Echometer', 'echometer'], ['Nivel de fluido [ft]', 'nivel_fluido_ft'], ['Sumergencia [ft]', 'sumergencia_ft'], ['PIP Echometer [psi]', 'pip_echometer_psi'], ['Diagnostico', 'diagnostico']] },
@@ -937,6 +939,8 @@ function normalizeRecord(record = {}, journey = {}) {
     return {
         ...payload,
         ...record,
+        tecnico_1: payload.tecnico_1 || '',
+        tecnico_2: payload.tecnico_2 || '',
         equipo_guardia: payload.equipo_guardia || journey.equipo_guardia || '',
         locacion_jornada: payload.locacion_jornada || journey.locacion_jornada || '',
         jornada: payload.jornada || journey.jornada || '',

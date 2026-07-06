@@ -1094,6 +1094,8 @@ async function createStableHash(value) {
 function buildConsolidatedFieldRowData(record = {}) {
     const payload = record.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
     return {
+        'TÉCNICO 1': String(payload.tecnico_1 || '').trim(),
+        'TÉCNICO 2': String(payload.tecnico_2 || '').trim(),
         POZO: String(record.pozo || payload.pozo || '').trim().toUpperCase(),
         CAMPO: String(record.campo || payload.campo || '').trim(),
         EF: String(record.ef || payload.ef || '').trim(),
@@ -1113,6 +1115,15 @@ function buildConsolidatedFieldRowData(record = {}) {
         'I Motor [Amp]': record.i_motor ?? payload.i_motor ?? '',
         'V Motor [Volt]': record.v_motor ?? payload.v_motor ?? '',
         'Out VSD [Volt]': record.out_vsd ?? payload.out_vsd ?? '',
+        'I VSD A [A]': payload.i_vsd_a ?? record.i_vsd_a ?? payload.vsd_a ?? '',
+        'I VSD B [A]': payload.i_vsd_b ?? record.i_vsd_b ?? payload.vsd_b ?? '',
+        'I VSD C [A]': payload.i_vsd_c ?? record.i_vsd_c ?? payload.vsd_c ?? '',
+        'PROM I VSD [A]': payload.prom_i_vsd ?? record.prom_i_vsd ?? '',
+        'Desv. Fase A': payload.desv_fase_a ?? record.desv_fase_a ?? '',
+        'Desv. Fase B': payload.desv_fase_b ?? record.desv_fase_b ?? '',
+        'Desv. Fase C': payload.desv_fase_c ?? record.desv_fase_c ?? '',
+        'Máx. Desviación': payload.max_desviacion_vsd ?? record.max_desviacion_vsd ?? '',
+        '% Desbalance Corriente VSD [A]': payload.desbalance_corriente_vsd ?? record.desbalance_corriente_vsd ?? '',
         'PIP [psi]': record.pip_psi ?? payload.pip_psi ?? '',
         'PD [psi]': record.pd_psi ?? payload.pd_psi ?? '',
         'Ti [°F]': record.ti_f ?? payload.ti_f ?? '',

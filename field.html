@@ -22,12 +22,6 @@
         <aside class="sidebar field-sidebar">
             <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
             <nav>
-                <a href="jornada.html" class="nav-link field-nav-link">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z" />
-                    </svg>
-                    Jornada
-                </a>
                 <a href="field.html" class="nav-link field-nav-link active">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -48,7 +42,7 @@
                 <div class="page-hero-copy">
                     <span class="field-kicker">Operacion de Campo</span>
                     <h1>Captura del consolidado operativo</h1>
-                    <p>Registra cada pozo por secciones y arma la jornada paso a paso para que luego administración procese el consolidado desde su panel.</p>
+                    <p>Registra cada pozo por secciones y arma la carga operativa para que luego administración procese el consolidado desde su panel.</p>
                     <div class="field-role-badge">Rol Campo</div>
                 </div>
                 <div class="field-hero-panel">
@@ -78,7 +72,7 @@
                         <div class="field-quick-actions-copy">
                             <span class="field-quick-actions-kicker">Acceso rápido</span>
                             <strong id="field-quick-actions-title">Arranca con un pozo nuevo o retoma el que estabas trabajando.</strong>
-                            <p id="field-quick-actions-copy">Usa estos accesos para acelerar captura sin perder la jornada que ya llevas armada.</p>
+                            <p id="field-quick-actions-copy">Usa estos accesos para acelerar captura sin perder la carga que ya llevas armada.</p>
                         </div>
                         <div class="field-quick-actions-buttons">
                             <button type="button" id="field-new-pozo-btn" class="field-quick-action-btn field-quick-action-btn-primary">Nuevo pozo</button>
@@ -89,18 +83,41 @@
                     <form id="field-report-form" class="field-form field-capture-form" novalidate>
                         <section class="field-section-block">
                             <div class="field-section-heading">
-                                <h3>Jornada</h3>
-                                <p>Datos comunes de la visita y del equipo que toma la jornada.</p>
+                                <h3>Datos de captura</h3>
+                                <p>Datos comunes de la visita y del equipo que toma la carga.</p>
                             </div>
                             <div class="field-form-grid field-form-grid-top">
+                                <input type="hidden" name="equipo_guardia" id="field-equipo-guardia">
                                 <label class="field-input-group">
-                                    <span>Ingenieros / equipo de guardia</span>
-                                    <input type="text" name="equipo_guardia" id="field-equipo-guardia" placeholder="Ej: Carlos Ruiz, Ana Perez, Luis Mora" required>
-                                    <small class="field-input-hint">Escribe los nombres separados por coma.</small>
+                                    <span>Técnico 1</span>
+                                    <select name="tecnico_1" id="field-tecnico-1" required>
+                                        <option value="">Selecciona técnico</option>
+                                        <option value="Carlos Ruiz">Carlos Ruiz</option>
+                                        <option value="Ana Perez">Ana Perez</option>
+                                        <option value="Luis Moreno">Luis Moreno</option>
+                                        <option value="María Torres">María Torres</option>
+                                        <option value="José Vargas">José Vargas</option>
+                                    </select>
+                                    <small class="field-input-hint">Responsable principal de la carga.</small>
                                 </label>
                                 <label class="field-input-group">
-                                    <span>Locación de la jornada</span>
-                                    <input type="text" name="locacion_jornada" id="field-locacion-jornada" placeholder="Ej: Batería TOM - Estación Norte">
+                                    <span>Técnico 2</span>
+                                    <select name="tecnico_2" id="field-tecnico-2">
+                                        <option value="">Sin segundo técnico</option>
+                                        <option value="Carlos Ruiz">Carlos Ruiz</option>
+                                        <option value="Ana Perez">Ana Perez</option>
+                                        <option value="Luis Moreno">Luis Moreno</option>
+                                        <option value="María Torres">María Torres</option>
+                                        <option value="José Vargas">José Vargas</option>
+                                    </select>
+                                    <small class="field-input-hint">Opcional si la guardia trabaja con dos técnicos.</small>
+                                </label>
+                                <label class="field-input-group">
+                                    <span>Locación de la captura</span>
+                                    <select name="locacion_jornada" id="field-locacion-jornada">
+                                        <option value="TOMOPORO">TOMOPORO</option>
+                                        <option value="LA CEIBA">LA CEIBA</option>
+                                    </select>
                                 </label>
                                 <label class="field-input-group">
                                     <span>Fecha</span>
@@ -129,14 +146,21 @@
                                     <small class="field-input-hint">Busca el pozo en la lista para evitar errores de escritura.</small>
                                 </label>
                                 <label class="field-input-group">
-                                    <span>Jornada</span>
-                                    <select name="jornada" id="field-jornada">
-                                        <option value="Diurna">Diurna · 06:00 a.m. - 06:00 p.m.</option>
-                                        <option value="Nocturna">Nocturna · 06:00 p.m. - 06:00 a.m.</option>
-                                        <option value="Especial">Especial</option>
+                                    <span>Turno</span>
+                                    <select name="jornada" id="field-jornada" disabled>
+                                        <option value="Diurna">Cuadrilla de día · 06:00 a.m. - 06:00 p.m.</option>
+                                        <option value="Nocturna">Cuadrilla de noche · 06:00 p.m. - 06:00 a.m.</option>
                                     </select>
-                                    <small class="field-input-hint">La jornada se mantiene fija mientras agregas todos los pozos monitoreados en ese turno.</small>
+                                    <small class="field-input-hint">El turno se detecta automáticamente según la hora seleccionada.</small>
                                 </label>
+                            </div>
+                            <div class="field-start-panel" id="field-start-panel">
+                                <div>
+                                    <span>Inicio guiado</span>
+                                    <strong>Completa cabecera y pozo antes de llenar parámetros.</strong>
+                                    <p>Esto evita duplicar pozos y mantiene la carga ordenada por turno.</p>
+                                </div>
+                                <button type="button" id="field-start-capture-btn" class="field-start-capture-btn">Empezar captura</button>
                             </div>
                         </section>
 
@@ -352,23 +376,23 @@
                             <button type="button" id="field-clear-form-btn" class="btn-secondary field-clear-btn">Limpiar formulario</button>
                         </div>
 
-                        <div id="field-form-status" class="field-form-status">Completa el bloque mínimo y agrega el pozo a la jornada. Por ahora esta vista solo captura registros.</div>
+                        <div id="field-form-status" class="field-form-status">Completa el bloque mínimo y agrega el pozo a la carga. Por ahora esta vista solo captura registros.</div>
                     </form>
                 </section>
 
                 <aside class="field-card field-summary-panel">
                     <div class="field-card-header">
                         <div>
-                            <h2>Centro de jornada</h2>
-                            <p>Administra la jornada activa sin perder el hilo: agrega pozos, retoma uno en edición y confirma cuándo ya está lista para enviarse.</p>
+                            <h2>Centro de captura</h2>
+                            <p>Administra la carga activa sin perder el hilo: agrega pozos, retoma uno en edición y confirma cuándo ya está lista para enviarse.</p>
                         </div>
                     </div>
 
-                    <div class="field-journey-guide" aria-label="Estado actual de la jornada">
+                    <div class="field-journey-guide" aria-label="Estado actual de la captura">
                         <div class="field-journey-guide-copy">
                             <span class="field-journey-guide-kicker">Flujo recomendado</span>
-                            <strong id="field-summary-mode-title">Construyendo jornada</strong>
-                            <p id="field-summary-mode-copy">Empieza cargando el primer pozo. Cada registro queda guardado en esta jornada mientras completas el turno.</p>
+                            <strong id="field-summary-mode-title">Construyendo carga</strong>
+                            <p id="field-summary-mode-copy">Empieza cargando el primer pozo. Cada registro queda guardado en esta captura mientras completas el turno.</p>
                         </div>
                         <div class="field-journey-guide-steps">
                             <span class="is-active">1. Agrega</span>
@@ -379,7 +403,7 @@
 
                     <div class="field-metric-grid">
                         <article class="field-metric-card">
-                            <span>Jornada</span>
+                            <span>Turno</span>
                             <strong id="field-summary-journey">Diurna</strong>
                         </article>
                         <article class="field-metric-card">
@@ -404,31 +428,31 @@
                     <div class="field-journey-shell">
                         <div class="field-journey-header">
                             <div>
-                                <h3>Bandeja de pozos de esta jornada</h3>
-                                <p>Usa esta lista para continuar un pozo, revisar el orden de captura o quitar registros antes de enviar la jornada.</p>
+                                <h3>Bandeja de pozos de esta carga</h3>
+                                <p>Usa esta lista para continuar un pozo, revisar el orden de captura o quitar registros antes de enviar la carga.</p>
                             </div>
                             <span id="field-journey-count" class="field-journey-count">0 pozos</span>
                         </div>
                         <div id="field-journey-list" class="field-journey-list">
-                            <div class="field-journey-empty">Todavía no has agregado pozos a esta jornada.</div>
+                            <div class="field-journey-empty">Todavía no has agregado pozos a esta carga.</div>
                         </div>
                     </div>
 
                     <div class="field-submit-shell">
-                        <button type="button" id="field-submit-journey-btn" class="btn-submit field-submit-btn">Enviar jornada a revisión</button>
-                        <p id="field-summary-submit-copy">Cuando la lista esté completa, envía la jornada para que administración la reciba como un solo paquete operativo.</p>
+                        <button type="button" id="field-submit-journey-btn" class="btn-submit field-submit-btn">Enviar captura a revisión</button>
+                        <p id="field-summary-submit-copy">Cuando la lista esté completa, envía la captura para que administración la reciba como un solo paquete operativo.</p>
                         <div class="field-summary-support-row">
                             <button type="button" id="field-send-ticket-btn" class="btn-submit field-ticket-trigger-btn" title="Reportar incidencia">
                                 <i class="fa-solid fa-envelope-open-text" aria-hidden="true" style="font-size:18px"></i>
                                 <span>Reportar incidencia</span>
                             </button>
-                            <small>Reporta incidencias o consultas ligadas a esta jornada mientras sigues capturando.</small>
+                            <small>Reporta incidencias o consultas ligadas a esta captura mientras sigues trabajando.</small>
                         </div>
                     </div>
 
                     <div class="field-note-box">
                         <strong>Tip operativo:</strong>
-                        si vas por varios pozos del mismo turno, deja fija la jornada y usa esta bandeja como lista de control para no repetir ni omitir parámetros.
+                        si vas por varios pozos del mismo turno, deja fijo el turno y usa esta bandeja como lista de control para no repetir ni omitir parámetros.
                     </div>
                 </aside>
             </section>
@@ -437,7 +461,7 @@
                 <div class="field-card-header">
                     <div>
                         <h2>Bandeja Campo Admin · Simulada</h2>
-                        <p>Así se verían aquí las jornadas enviadas desde Campo antes de conectar la integración real entre roles.</p>
+                        <p>Así se verían aquí las cargas enviadas desde Campo antes de conectar la integración real entre roles.</p>
                     </div>
                 </div>
 
@@ -445,12 +469,12 @@
                     <div class="field-admin-preview-headline">
                         <span class="field-admin-preview-badge">Prueba local</span>
                         <div class="field-admin-preview-toolbar">
-                            <strong id="field-admin-preview-count">0 jornadas pendientes</strong>
+                            <strong id="field-admin-preview-count">0 cargas pendientes</strong>
                             <button type="button" id="field-back-to-capture-btn" class="btn-secondary field-back-btn">Volver a captura</button>
                         </div>
                     </div>
                     <div id="field-admin-preview-list" class="field-admin-preview-list">
-                        <div class="field-admin-preview-empty">Todavía no has enviado ninguna jornada a revisión.</div>
+                        <div class="field-admin-preview-empty">Todavía no has enviado ninguna carga a revisión.</div>
                     </div>
                 </div>
             </section>
@@ -473,15 +497,15 @@
                 <div class="field-report-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="field-processing-title">
                     <div class="field-report-preview-header">
                         <div>
-                            <span class="field-report-preview-kicker">Envío de jornada</span>
+                            <span class="field-report-preview-kicker">Envío de captura</span>
                             <h2 id="field-processing-title">Procesando envío</h2>
                         </div>
                         <button type="button" id="field-processing-close" class="field-report-preview-close" aria-label="Cerrar" hidden>×</button>
                     </div>
                     <div id="field-processing-body" class="field-report-preview-body">
                         <ol id="field-processing-steps" style="list-style:none; padding:0; margin:0; display:grid; gap:12px;">
-                            <li data-step="1">• Generando jornada...</li>
-                            <li data-step="2">• Cargando jornada al servidor...</li>
+                            <li data-step="1">• Generando captura...</li>
+                            <li data-step="2">• Cargando captura al servidor...</li>
                             <li data-step="3">• Finalizando y marcando como enviada...</li>
                         </ol>
                     </div>
@@ -501,7 +525,7 @@
                     <div class="field-report-preview-body">
                         <form id="field-ticket-form" class="field-ticket-form">
                             <label class="field-input-group"><span>Asunto</span><input type="text" id="ticket-subject" maxlength="140" placeholder="Breve título del ticket" required></label>
-                            <label class="field-input-group field-input-group-full"><span>Mensaje</span><textarea id="ticket-message" rows="6" placeholder="Describe la incidencia o consulta. Incluye la jornada o pozo si aplica." required></textarea></label>
+                            <label class="field-input-group field-input-group-full"><span>Mensaje</span><textarea id="ticket-message" rows="6" placeholder="Describe la incidencia o consulta. Incluye la captura o pozo si aplica." required></textarea></label>
                             <label style="margin-top:8px; font-weight:700; color:#334155; display:block;">Adjuntar imágenes (opcional)</label>
                             <input id="ticket-attachments" type="file" accept="image/*" multiple style="display:none;" />
                             <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
@@ -512,7 +536,7 @@
                             <div class="ticket-footer" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
                                 <div class="ticket-include" style="display:flex; align-items:center; gap:8px;">
                                     <input type="checkbox" id="ticket-include-journey" checked>
-                                    <label for="ticket-include-journey" style="margin:0; font-weight:700; color:#334155;">Incluir jornada actual</label>
+                                    <label for="ticket-include-journey" style="margin:0; font-weight:700; color:#334155;">Incluir captura actual</label>
                                 </div>
                                 <div class="ticket-actions" style="display:flex; gap:10px;">
                                     <button type="button" id="field-ticket-send" class="btn-submit" title="Enviar ticket"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
@@ -546,7 +570,7 @@
                     <div class="field-report-preview-header">
                         <div>
                             <span class="field-report-preview-kicker">Pozos incluidos</span>
-                            <h2 id="field-pozo-list-title">Pozos en la jornada</h2>
+                            <h2 id="field-pozo-list-title">Pozos en la carga</h2>
                         </div>
                         <button type="button" id="field-pozo-list-close" class="field-report-preview-close" aria-label="Cerrar">×</button>
                     </div>
@@ -559,10 +583,6 @@
     </div>
 
     <nav class="mobile-bottom-nav" aria-label="Navegacion movil de campo">
-        <a href="jornada.html" class="mobile-nav-link">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z" /></svg>
-            <span>Jornada</span>
-        </a>
         <a href="field.html" class="mobile-nav-link active" aria-current="page">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             <span>Captura</span>

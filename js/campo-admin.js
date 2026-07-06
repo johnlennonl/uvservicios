@@ -105,6 +105,8 @@ const RECORD_EDITOR_SECTIONS = [
     {
         title: 'Jornada',
         fields: [
+            ['Técnico 1', 'tecnico_1'],
+            ['Técnico 2', 'tecnico_2'],
             ['Equipo de guardia', 'equipo_guardia'],
             ['Locacion de la jornada', 'locacion_jornada'],
             ['Jornada', 'jornada'],
@@ -1220,6 +1222,40 @@ function getRecordField(record, ...fieldNames) {
     return '';
 }
 
+function splitGuardTeam(value = '') {
+    return String(value || '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean);
+}
+
+function getJourneyTechnicians(journey = {}, records = []) {
+    const firstRecord = Array.isArray(records) ? records.find(Boolean) : null;
+    const firstPayload = getRecordPayload(firstRecord);
+    const guardTeam = splitGuardTeam(journey.equipo_guardia || firstPayload.equipo_guardia || '');
+    const tecnico1 = String(journey.tecnico_1 || firstPayload.tecnico_1 || guardTeam[0] || '').trim();
+    const tecnico2 = String(journey.tecnico_2 || firstPayload.tecnico_2 || guardTeam[1] || '').trim();
+
+    return {
+        tecnico1,
+        tecnico2,
+        equipoGuardia: [tecnico1, tecnico2].filter(Boolean).join(', ') || String(journey.equipo_guardia || firstPayload.equipo_guardia || '').trim()
+    };
+}
+
+function buildTechnicianTags(technicians = {}) {
+    const tags = [
+        ['Técnico 1', technicians.tecnico1],
+        ['Técnico 2', technicians.tecnico2]
+    ].filter(([, value]) => value);
+
+    if (!tags.length) {
+        return '<span class="campo-admin-tag">Equipo no informado</span>';
+    }
+
+    return tags.map(([label, value]) => `<span class="campo-admin-tag">${escapeHtml(label)}: ${escapeHtml(value)}</span>`).join('');
+}
+
 function getRecordSummary(record) {
     return {
         pozo: String(getRecordField(record, 'pozo') || 'Pozo sin nombre').trim().toUpperCase(),
@@ -1241,6 +1277,12 @@ function getRecordSummary(record) {
 function getRecordEditorValue(record, fieldName) {
     if (fieldName === 'fecha') return getRecordField(record, 'fecha', 'report_date');
     if (fieldName === 'hora') return getRecordField(record, 'hora', 'report_time');
+    if (fieldName === 'tecnico_1' || fieldName === 'tecnico_2') {
+        const directValue = getRecordField(record, fieldName);
+        if (directValue) return directValue;
+        const guardTeam = splitGuardTeam(getRecordField(record, 'equipo_guardia'));
+        return fieldName === 'tecnico_1' ? guardTeam[0] || '' : guardTeam[1] || '';
+    }
     return getRecordField(record, fieldName);
 }
 
@@ -1253,6 +1295,7 @@ function getEditableRecord(record) {
         }
     });
 
+    payload.equipo_guardia = [payload.tecnico_1, payload.tecnico_2].filter(Boolean).join(', ') || payload.equipo_guardia || '';
     payload.id = record?.id || '';
     return payload;
 }
@@ -1699,6 +1742,7 @@ function renderList() {
         const mainPozo = Array.isArray(journey.pozoNames) && journey.pozoNames.length > 0
             ? journey.pozoNames[0]
             : 'Sin pozo principal';
+        const technicians = getJourneyTechnicians(journey);
 
         return `
             <button type="button" class="campo-admin-ticket${isSelected ? ' is-selected' : ''}" data-journey-id="${escapeHtml(journey.id)}">
@@ -1709,7 +1753,7 @@ function renderList() {
                 <div class="campo-admin-ticket-head">
                     <div class="campo-admin-ticket-main">
                         <h3>${escapeHtml(journey.locacion_jornada || 'Sin locación')}</h3>
-                        <p>${escapeHtml(journey.equipo_guardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')}</p>
+                        <p>${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')}</p>
                     </div>
                     <div class="campo-admin-ticket-highlight">
                         <span>Pozo principal</span>
@@ -1903,6 +1947,8 @@ function buildUpdatedRecordPayload(form) {
         basePayload[fieldName] = String(formData.get(fieldName) ?? '').trim();
     });
 
+    basePayload.equipo_guardia = [basePayload.tecnico_1, basePayload.tecnico_2].filter(Boolean).join(', ') || basePayload.equipo_guardia || '';
+
     return basePayload;
 }
 
@@ -2030,6 +2076,7 @@ async function renderDetail(detail) {
         ...detail,
         tickets: mergedTickets
     };
+    const technicians = getJourneyTechnicians(journey, records);
     const reviewSummary = summarizeJourneyReview(records, journey);
     const recordsMarkup = records.length > 0
         ? records.map((record, index) => {
@@ -2114,10 +2161,11 @@ async function renderDetail(detail) {
                         <span class="campo-admin-tag campo-admin-tag-soft">Recibida ${escapeHtml(formatDateTime(journey.created_at))}</span>
                     </div>
                     <h2>${escapeHtml(journey.locacion_jornada || 'Jornada sin locación')}</h2>
-                    <p class="campo-admin-detail-copy">${escapeHtml(journey.equipo_guardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')} · ${escapeHtml(formatDate(journey.journey_date))}</p>
+                    <p class="campo-admin-detail-copy">${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')} · ${escapeHtml(formatDate(journey.journey_date))}</p>
                 </div>
             </div>
             <div class="campo-admin-detail-meta">
+                ${buildTechnicianTags(technicians)}
                 <span class="campo-admin-tag">Responsable: ${escapeHtml(journey.submitted_by_email || 'No disponible')}</span>
                 <span class="campo-admin-tag">Ventana: ${escapeHtml(summarizeJourneyWindow(journey))}</span>
                 <span class="campo-admin-tag">${escapeHtml(String(journey.total_reports || 0))} pozo(s)</span>

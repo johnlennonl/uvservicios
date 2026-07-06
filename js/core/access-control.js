@@ -55,7 +55,7 @@ export function getAccessProfile(sessionOrUser) {
 
 export function getDefaultRouteForAccessProfile(accessProfile) {
     if (accessProfile?.isFieldOperator) {
-        return 'jornada.html';
+        return 'field.html';
     }
 
     if (accessProfile?.isReadOnly) {

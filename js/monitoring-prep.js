@@ -577,7 +577,9 @@ function buildPreparedRows(rows) {
 }
 
 function serializePreparedRow(row) {
-    const prepared = {};
+    const prepared = {
+        __consolidated_row_data: row.__consolidated_row_data || {}
+    };
 
     OUTPUT_COLUMNS.forEach(column => {
         if (NUMERIC_COLUMNS.has(column)) {
@@ -618,8 +620,9 @@ function downloadPreparedFile(format) {
     if (!preparedRows.length) return;
 
     const exportRows = buildExportRows(preparedRows);
-    const worksheet = XLSX.utils.json_to_sheet(exportRows, { header: OUTPUT_COLUMNS });
-    worksheet['!cols'] = OUTPUT_COLUMNS.map(column => ({ wch: Math.max(column.length + 2, 14) }));
+    const exportColumns = buildExportColumns(preparedRows);
+    const worksheet = XLSX.utils.json_to_sheet(exportRows, { header: exportColumns });
+    worksheet['!cols'] = exportColumns.map(column => ({ wch: Math.max(column.length + 2, 14) }));
 
     forceWorksheetTextColumn(worksheet, 'fecha');
     forceWorksheetTextColumn(worksheet, 'hora');
@@ -633,6 +636,22 @@ function downloadPreparedFile(format) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'monitoreo_limpio');
     XLSX.writeFile(workbook, buildExportFileName('xlsx'));
+}
+
+function buildExportColumns(rows = []) {
+    const columns = [...OUTPUT_COLUMNS];
+    const seen = new Set(columns.map(normalizeCsvKey));
+
+    rows.forEach(row => {
+        Object.keys(row.__consolidated_row_data || {}).forEach(column => {
+            const normalizedColumn = normalizeCsvKey(column);
+            if (!normalizedColumn || seen.has(normalizedColumn)) return;
+            seen.add(normalizedColumn);
+            columns.push(column);
+        });
+    });
+
+    return columns;
 }
 
 function buildExportRows(rows = []) {
@@ -651,6 +670,12 @@ function buildExportRows(rows = []) {
             }
 
             exportRow[column] = row[column];
+        });
+
+        Object.entries(row.__consolidated_row_data || {}).forEach(([column, value]) => {
+            if (exportRow[column] === undefined) {
+                exportRow[column] = value;
+            }
         });
 
         return exportRow;
@@ -773,16 +798,32 @@ function findDailyHeaderRowIndex(rows = []) {
 
 function parseDailyExcelWithHeaders(rows = [], headerRowIndex = 0) {
     const headerRow = rows[headerRowIndex] || [];
+    const originalHeaders = headerRow.map((cell, index) => String(cell || `column_${index + 1}`).trim() || `column_${index + 1}`);
     const headers = headerRow.map((cell, index) => normalizeCsvKey(cell || `column_${index + 1}`));
 
     return rows.slice(headerRowIndex + 1).map(row => {
         const mappedRow = {};
+        const sourceRowData = {};
         headers.forEach((header, index) => {
+            const value = Array.isArray(row) ? row[index] : undefined;
+            sourceRowData[originalHeaders[index]] = value;
             if (!header) return;
-            mappedRow[header] = Array.isArray(row) ? row[index] : undefined;
+            mappedRow[header] = value;
         });
+        mappedRow.__sourceRowData = sourceRowData;
         return mappedRow;
     });
+}
+
+function getConsolidatedSourceRowData(row = {}) {
+    if (row.__sourceRowData && typeof row.__sourceRowData === 'object') {
+        return { ...row.__sourceRowData };
+    }
+
+    return Object.fromEntries(
+        Object.entries(row || {})
+            .filter(([key]) => !String(key).startsWith('__'))
+    );
 }
 
 function scoreParsedDailyRows(rows = []) {
@@ -843,8 +884,11 @@ function normalizeImportedRow(row) {
     const normalizedRow = {};
 
     Object.entries(row || {}).forEach(([key, value]) => {
+        if (String(key).startsWith('__')) return;
         normalizedRow[normalizeCsvKey(key)] = value;
     });
+
+    normalizedRow.__consolidated_row_data = getConsolidatedSourceRowData(row);
 
     Object.entries(DAILY_IMPORT_FIELD_ALIASES).forEach(([field, aliases]) => {
         const aliasValue = getFirstAliasValue(normalizedRow, aliases);

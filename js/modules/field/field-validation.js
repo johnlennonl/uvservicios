@@ -62,6 +62,8 @@ const NUMERIC_FIELDS = [
 ];
 
 const FIELD_LABELS = {
+    tecnico_1: 'el técnico 1',
+    tecnico_2: 'el técnico 2',
     equipo_guardia: 'el equipo de guardia',
     fecha: 'la fecha',
     hora: 'la hora',
@@ -243,8 +245,8 @@ export function validateFieldReport(payload, options = {}) {
         warnings.push('El estatus esta en OFF pero la frecuencia sigue alta. Revisa si el estado era correcto.');
     }
 
-    if (!hasValue(normalizedPayload.equipo_guardia)) {
-        infos.push('Todavia no has indicado el equipo de guardia. Podras guardar el pozo, pero antes de enviar la jornada conviene completarlo.');
+    if (!hasValue(normalizedPayload.tecnico_1) && !hasValue(normalizedPayload.equipo_guardia)) {
+        infos.push('Todavia no has indicado el técnico 1. Podras guardar el pozo, pero antes de enviar la jornada conviene completarlo.');
     }
 
     if (!hasValue(normalizedPayload.actividad)) {
@@ -284,11 +286,11 @@ export function validateFieldJourneyForSubmission(reports = []) {
     }
 
     const firstReport = list[0] || {};
-    if (!hasValue(firstReport.equipo_guardia)) {
+    if (!hasValue(firstReport.tecnico_1) && !hasValue(firstReport.equipo_guardia)) {
         return {
             isValid: false,
-            message: 'Antes de enviar la jornada completa el equipo de guardia.',
-            focusField: 'field-equipo-guardia'
+            message: 'Antes de enviar la jornada completa el Técnico 1.',
+            focusField: 'field-tecnico-1'
         };
     }
 

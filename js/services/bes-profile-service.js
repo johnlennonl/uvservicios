@@ -6,6 +6,31 @@ import { supabase } from '../supabaseClient.js';
 import { ensureMonitoringReadAccess, ensureMonitoringWriteAccess } from './monitoring-access.js';
 import { wrapBESProfileError } from './monitoring-shared.js';
 
+const BES_PROFILE_TEXT_FIELDS = [
+    'pump_manufacturer',
+    'pump_model',
+    'pump_serial',
+    'suction_ft',
+    'multiphase_pump',
+    'gas_separator',
+    'seal_section',
+    'motor_manufacturer',
+    'motor_model',
+    'motor_hp',
+    'motor_voltage',
+    'motor_current',
+    'sensor_model',
+    'cable_type',
+    'drain_valve',
+    'profile_notes'
+];
+
+function normalizeOptionalText(value) {
+    const normalized = String(value ?? '').trim();
+    if (!normalized || /^(0+|--|n\/a|na|s\/n|sin dato|sin datos)$/i.test(normalized)) return null;
+    return normalized || null;
+}
+
 export async function getWellBESProfile(pozoName) {
     if (!pozoName || pozoName === 'Todas') return null;
     await ensureMonitoringReadAccess();
@@ -55,16 +80,21 @@ export async function upsertWellBESProfile(data) {
     await ensureMonitoringWriteAccess();
     const normalized = {
         pozo_name: String(data?.pozo_name || '').trim(),
-        pump_type: String(data?.pump_type || '').trim(),
+        pump_type: String(data?.pump_type || data?.multiphase_pump || data?.pump_model || '').trim(),
+        installed_at: String(data?.installed_at || '').trim() || null,
         updated_at: new Date().toISOString()
     };
 
+    BES_PROFILE_TEXT_FIELDS.forEach(fieldName => {
+        normalized[fieldName] = normalizeOptionalText(data?.[fieldName]);
+    });
+
     if (!normalized.pozo_name) {
-        throw new Error('Nombre del pozo es requerido para guardar el tipo de bomba.');
+        throw new Error('Nombre del pozo es requerido para guardar la ficha BES.');
     }
 
     if (!normalized.pump_type) {
-        throw new Error('El tipo de bomba es requerido.');
+        throw new Error('El tipo de bomba o bomba multifásica es requerido.');
     }
 
     try {

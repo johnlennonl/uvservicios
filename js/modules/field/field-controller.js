@@ -8,11 +8,14 @@ const DRAFT_STORAGE_KEY = 'uv-field-capture-draft';
 const REPORTS_STORAGE_KEY = 'uv-field-capture-reports';
 const SUBMITTED_JOURNEYS_STORAGE_KEY = 'uv-field-submitted-journeys-preview';
 const DRAFT_JOURNEY_KEY_STORAGE_KEY = 'uv-field-draft-journey-key';
+const CAPTURE_STARTED_STORAGE_KEY = 'uv-field-capture-started';
 
 const REPORT_COLUMNS = [
+    ['TÉCNICO 1', 'tecnico_1'],
+    ['TÉCNICO 2', 'tecnico_2'],
     ['INGENIEROS / EQUIPO DE GUARDIA', 'equipo_guardia'],
-    ['LOCACIÓN DE LA JORNADA', 'locacion_jornada'],
-    ['JORNADA', 'jornada'],
+    ['LOCACIÓN DE LA CAPTURA', 'locacion_jornada'],
+    ['TURNO', 'jornada'],
     ['POZO', 'pozo'],
     ['CAMPO', 'campo'],
     ['EF', 'ef'],
@@ -140,8 +143,8 @@ const REPORT_COLUMNS = [
 
 const EXCEL_SECTION_GROUPS = [
     {
-        title: 'Jornada',
-        fields: ['equipo_guardia', 'locacion_jornada', 'jornada', 'pozo', 'campo', 'fecha', 'hora']
+        title: 'Captura',
+        fields: ['tecnico_1', 'tecnico_2', 'equipo_guardia', 'locacion_jornada', 'jornada', 'pozo', 'campo', 'fecha', 'hora']
     },
     {
         title: 'Informacion general',
@@ -200,9 +203,11 @@ const WELL_PREVIEW_SECTIONS = [
     {
         title: 'Informacion general',
         items: [
+            ['Técnico 1', 'tecnico_1'],
+            ['Técnico 2', 'tecnico_2'],
             ['Equipo de guardia', 'equipo_guardia'],
-            ['Locacion de la jornada', 'locacion_jornada'],
-            ['Jornada', 'jornada'],
+            ['Locacion de la captura', 'locacion_jornada'],
+            ['Turno', 'jornada'],
             ['Campo', 'campo'],
             ['EF', 'ef'],
             ['Estado', 'estado'],
@@ -378,6 +383,7 @@ let CURRENT_ACCESS_PROFILE = null;
 let availablePozos = [];
 let isSubmittingJourney = false;
 let productionPrefillRequestId = 0;
+let isCaptureStarted = localStorage.getItem(CAPTURE_STARTED_STORAGE_KEY) === 'true';
 
 const FIELD_PRODUCTION_MEASURE_MAP = {
     campo: 'campo_name',
@@ -408,6 +414,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindStaticActions();
     preloadDefaults();
     restoreDraft();
+    syncJourneyFromTime();
     await hydratePozoOptions();
     wireForm();
     recalculateComputedFields();
@@ -416,7 +423,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateSummary();
     syncAddButtonState();
     updateEditingContext();
-    updateStatus('Completa el bloque mínimo y agrega el pozo a la jornada.');
+    updateStatus('Completa el bloque mínimo y agrega el pozo a la carga.');
+    syncCaptureGateState();
 });
 
 function bindStaticActions() {
@@ -424,6 +432,7 @@ function bindStaticActions() {
     document.getElementById('mobile-logout-btn')?.addEventListener('click', logout);
     document.getElementById('field-clear-form-btn')?.addEventListener('click', clearForm);
     document.getElementById('field-add-report-btn')?.addEventListener('click', addCurrentReportToJourney);
+    document.getElementById('field-start-capture-btn')?.addEventListener('click', handleStartCapture);
     document.getElementById('field-new-pozo-btn')?.addEventListener('click', startNewPozoCapture);
     document.getElementById('field-resume-edit-btn')?.addEventListener('click', resumeEditingCurrentPozo);
     document.getElementById('field-submit-journey-btn')?.addEventListener('click', submitJourneyForAdminPreview);
@@ -455,22 +464,30 @@ function preloadDefaults() {
     if (timeInput && !timeInput.value) {
         timeInput.value = now.toTimeString().slice(0, 5);
     }
+
+    syncJourneyFromTime();
 }
 
 function wireForm() {
     const form = document.getElementById('field-report-form');
     if (!form) return;
 
+    initializeAccordionProgressControls();
+
     form.addEventListener('input', () => {
+        syncJourneyFromTime();
         recalculateComputedFields();
         persistDraft();
         updateSummary();
+        syncCaptureGateState();
     });
 
     form.addEventListener('change', () => {
+        syncJourneyFromTime();
         recalculateComputedFields();
         persistDraft();
         updateSummary();
+        syncCaptureGateState();
     });
 
     const pozoDisplayField = document.getElementById('field-pozo-display');
@@ -480,15 +497,252 @@ function wireForm() {
     pozoDisplayField?.addEventListener('blur', handlePozoDisplayBlur);
     document.getElementById('field-pozo-toggle')?.addEventListener('click', handlePozoToggleClick);
     document.getElementById('field-jornada')?.addEventListener('change', enforceLockedJourneySelection);
+
+    document.querySelectorAll('.field-accordion').forEach(details => {
+        details.querySelector('summary')?.addEventListener('click', handleLockedAccordionClick);
+        details.addEventListener('toggle', () => {
+            if (details.classList.contains('is-locked') && details.open) {
+                details.open = false;
+            }
+        });
+    });
+}
+
+function initializeAccordionProgressControls() {
+    getParameterSections().forEach((section, index) => {
+        const summary = section.querySelector('summary');
+        if (!summary || summary.dataset.progressReady === 'true') return;
+
+        const title = summary.textContent.trim();
+        summary.textContent = '';
+        summary.dataset.progressReady = 'true';
+
+        const titleElement = document.createElement('span');
+        titleElement.className = 'field-accordion-title';
+        titleElement.textContent = title;
+
+        const actions = document.createElement('span');
+        actions.className = 'field-accordion-actions';
+
+        const loadedMark = document.createElement('span');
+        loadedMark.className = 'field-accordion-loaded-mark';
+        loadedMark.textContent = '✓';
+        loadedMark.title = 'Sección cargada';
+        loadedMark.hidden = true;
+
+        const loadButton = document.createElement('button');
+        loadButton.type = 'button';
+        loadButton.className = 'field-accordion-action-btn field-accordion-load-btn';
+        loadButton.textContent = 'Cargar';
+        loadButton.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            markAccordionSectionLoaded(section, true);
+        });
+
+        const updateButton = document.createElement('button');
+        updateButton.type = 'button';
+        updateButton.className = 'field-accordion-action-btn field-accordion-update-btn';
+        updateButton.textContent = 'Actualizar';
+        updateButton.hidden = true;
+        updateButton.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            markAccordionSectionLoaded(section, false);
+            section.open = true;
+        });
+
+        actions.append(loadButton, updateButton, loadedMark);
+        summary.append(titleElement, actions);
+        section.dataset.sectionIndex = String(index);
+    });
+}
+
+function markAccordionSectionLoaded(section, loaded) {
+    if (!section || section.classList.contains('is-locked')) return;
+
+    section.classList.toggle('is-loaded', loaded);
+    section.open = !loaded;
+
+    const loadButton = section.querySelector('.field-accordion-load-btn');
+    const updateButton = section.querySelector('.field-accordion-update-btn');
+    const loadedMark = section.querySelector('.field-accordion-loaded-mark');
+    if (loadButton) loadButton.hidden = loaded;
+    if (updateButton) updateButton.hidden = !loaded;
+    if (loadedMark) loadedMark.hidden = !loaded;
+
+    if (loaded) {
+        openNextPendingAccordionSection(section);
+    }
+}
+
+function openNextPendingAccordionSection(currentSection) {
+    const sections = getParameterSections();
+    const currentIndex = sections.indexOf(currentSection);
+    const nextSection = sections.slice(currentIndex + 1).find(section => !section.classList.contains('is-loaded') && !section.classList.contains('is-locked'));
+    if (!nextSection) return;
+
+    nextSection.open = true;
+    nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function resetAccordionProgressControls() {
+    getParameterSections().forEach(section => {
+        section.classList.remove('is-loaded');
+        const loadButton = section.querySelector('.field-accordion-load-btn');
+        const updateButton = section.querySelector('.field-accordion-update-btn');
+        const loadedMark = section.querySelector('.field-accordion-loaded-mark');
+        if (loadButton) loadButton.hidden = false;
+        if (updateButton) updateButton.hidden = true;
+        if (loadedMark) loadedMark.hidden = true;
+    });
+}
+
+function getJourneyFromTime(timeValue) {
+    const [hourText, minuteText = '0'] = String(timeValue || '').split(':');
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 'Diurna';
+
+    const minutesFromMidnight = (hour * 60) + minute;
+    return minutesFromMidnight >= 360 && minutesFromMidnight < 1080 ? 'Diurna' : 'Nocturna';
+}
+
+function syncJourneyFromTime() {
+    const timeField = document.getElementById('field-hora');
+    const jornadaField = document.getElementById('field-jornada');
+    if (!timeField || !jornadaField) return;
+
+    const detectedJourney = getJourneyFromTime(timeField.value);
+    jornadaField.value = detectedJourney;
+    jornadaField.dataset.lockedValue = detectedJourney;
+    jornadaField.disabled = true;
+    jornadaField.title = `Turno detectado automáticamente por la hora: ${detectedJourney}.`;
+}
+
+function getParameterSections() {
+    return Array.from(document.querySelectorAll('.field-accordion'));
+}
+
+function hasStartedCapture() {
+    return isCaptureStarted || Boolean(currentEditingReportId);
+}
+
+function getHeaderMissingFields(payload = getFormPayload()) {
+    const missing = [];
+    if (!payload.tecnico_1) missing.push('selecciona el técnico 1');
+    if (!payload.fecha) missing.push('elige la fecha');
+    if (!payload.hora) missing.push('elige la hora');
+    if (!payload.jornada) missing.push('elige la cuadrilla');
+    if (!payload.pozo) missing.push('selecciona el pozo');
+    return missing;
+}
+
+function getDuplicatePozoReport(pozoName, excludeReportId = currentEditingReportId) {
+    const normalizedPozo = normalizePozoValue(pozoName);
+    if (!normalizedPozo) return null;
+    return getJourneyReports().find(report => report.id !== excludeReportId && normalizePozoValue(report.pozo) === normalizedPozo) || null;
+}
+
+function validateCaptureGate({ showMessage = false } = {}) {
+    const payload = getFormPayload();
+    const missing = getHeaderMissingFields(payload);
+    if (missing.length) {
+        if (showMessage) {
+            const message = `Antes de empezar la captura, ${missing.join(', ')}.`;
+            showAlert(message, 'warning');
+            updateStatus(message, true);
+            focusFieldById(!payload.tecnico_1 ? 'field-tecnico-1' : !payload.fecha ? 'field-fecha' : !payload.hora ? 'field-hora' : !payload.pozo ? 'field-pozo-display' : 'field-jornada');
+        }
+        return false;
+    }
+
+    const duplicatedReport = getDuplicatePozoReport(payload.pozo);
+    if (duplicatedReport) {
+        const message = `${payload.pozo} ya fue agregado a esta carga. Edita el registro existente o selecciona otro pozo.`;
+        if (showMessage) {
+            showAlert(message, 'error');
+            updateStatus(message, true);
+            focusFieldById('field-pozo-display');
+        }
+        return false;
+    }
+
+    return true;
+}
+
+function handleStartCapture() {
+    if (!validateCaptureGate({ showMessage: true })) {
+        syncCaptureGateState();
+        return;
+    }
+
+    isCaptureStarted = true;
+    localStorage.setItem(CAPTURE_STARTED_STORAGE_KEY, 'true');
+    syncCaptureGateState();
+    updateStatus('Captura iniciada. Ya puedes abrir los bloques y llenar parámetros del pozo.', 'success');
+}
+
+function handleLockedAccordionClick(event) {
+    const section = event.currentTarget?.closest?.('.field-accordion');
+    if (!section) return;
+
+    if (section.classList.contains('is-loaded')) {
+        event.preventDefault();
+        updateStatus('Esta sección ya quedó cargada. Usa Actualizar si necesitas corregir algo.', 'success');
+        return;
+    }
+
+    if (!section.classList.contains('is-locked')) return;
+
+    event.preventDefault();
+    const payload = getFormPayload();
+    const missing = getHeaderMissingFields(payload);
+    const message = missing.length
+        ? `Completa la cabecera antes de abrir parámetros: ${missing.join(', ')}.`
+        : 'Presiona Empezar captura antes de abrir los parámetros.';
+    updateStatus(message, true);
+}
+
+function setParameterSectionsLocked(locked) {
+    getParameterSections().forEach(section => {
+        section.classList.toggle('is-locked', locked);
+        if (locked) section.open = false;
+        section.querySelectorAll('.field-accordion-body input, .field-accordion-body select, .field-accordion-body textarea, .field-accordion-action-btn').forEach(field => {
+            field.disabled = locked;
+        });
+    });
+}
+
+function syncCaptureGateState() {
+    const captureReady = hasStartedCapture() && validateCaptureGate({ showMessage: false });
+    setParameterSectionsLocked(!captureReady);
+
+    const startButton = document.getElementById('field-start-capture-btn');
+    if (startButton) {
+        startButton.disabled = captureReady;
+        startButton.textContent = captureReady ? 'Captura iniciada' : 'Empezar captura';
+    }
+
+    const addButton = document.getElementById('field-add-report-btn');
+    if (addButton) {
+        addButton.disabled = !captureReady;
+        addButton.title = captureReady ? '' : 'Completa cabecera, pozo y presiona Empezar captura.';
+    }
 }
 
 function getFormPayload() {
     const form = document.getElementById('field-report-form');
     const formData = new FormData(form);
     const payload = Object.fromEntries(formData.entries());
+    payload.tecnico_1 = String(payload.tecnico_1 || '').trim();
+    payload.tecnico_2 = String(payload.tecnico_2 || '').trim();
+    payload.equipo_guardia = [payload.tecnico_1, payload.tecnico_2].filter(Boolean).join(', ');
     payload.pozo = String(document.getElementById('field-pozo')?.value || payload.pozo || '').trim().toUpperCase();
-    payload.jornada = String(document.getElementById('field-jornada')?.value || payload.jornada || '').trim() || 'Diurna';
+    payload.jornada = getJourneyFromTime(payload.hora || document.getElementById('field-hora')?.value || '');
     payload.sentido_giro = String(payload.sentido_giro || '').trim() || 'FWD';
+    const guardField = document.getElementById('field-equipo-guardia');
+    if (guardField) guardField.value = payload.equipo_guardia;
     return payload;
 }
 
@@ -508,6 +762,13 @@ function restoreDraft() {
                 field.value = value ?? '';
             }
         });
+        if (!payload.tecnico_1 && payload.equipo_guardia) {
+            const [tecnico1 = '', tecnico2 = ''] = String(payload.equipo_guardia).split(',').map(item => item.trim());
+            const tecnico1Field = document.querySelector('[name="tecnico_1"]');
+            const tecnico2Field = document.querySelector('[name="tecnico_2"]');
+            if (tecnico1Field) tecnico1Field.value = tecnico1;
+            if (tecnico2Field) tecnico2Field.value = tecnico2;
+        }
         syncPozoDisplayFromValue();
     } catch (error) {
         localStorage.removeItem(DRAFT_STORAGE_KEY);
@@ -520,6 +781,8 @@ function clearForm() {
 
     const preserved = {
         equipo_guardia: document.querySelector('[name="equipo_guardia"]')?.value || '',
+        tecnico_1: document.querySelector('[name="tecnico_1"]')?.value || '',
+        tecnico_2: document.querySelector('[name="tecnico_2"]')?.value || '',
         locacion_jornada: document.querySelector('[name="locacion_jornada"]')?.value || '',
         fecha: document.querySelector('[name="fecha"]')?.value || '',
         jornada: document.querySelector('[name="jornada"]')?.value || 'Diurna'
@@ -527,6 +790,8 @@ function clearForm() {
 
     form.reset();
     currentEditingReportId = null;
+    isCaptureStarted = false;
+    localStorage.removeItem(CAPTURE_STARTED_STORAGE_KEY);
 
     Object.entries(preserved).forEach(([key, value]) => {
         const field = document.querySelector(`[name="${key}"]`);
@@ -536,6 +801,7 @@ function clearForm() {
     preloadDefaults();
     syncPozoDisplayFromValue();
     closeFieldPozoMenu({ commitSearch: false });
+    resetAccordionProgressControls();
     recalculateComputedFields();
     persistDraft();
     updateSummary();
@@ -543,12 +809,13 @@ function clearForm() {
     syncAddButtonState();
     syncJourneyFieldLocks();
     updateEditingContext();
+    syncCaptureGateState();
 }
 
 function startNewPozoCapture() {
     clearForm();
     scrollToPozoField();
-    updateStatus('Formulario listo para capturar un pozo nuevo dentro de esta jornada.');
+    updateStatus('Formulario listo para capturar un pozo nuevo dentro de esta carga.');
 }
 
 function resumeEditingCurrentPozo() {
@@ -569,7 +836,22 @@ function resumeEditingCurrentPozo() {
 }
 
 async function addCurrentReportToJourney() {
+    if (!hasStartedCapture() || !validateCaptureGate({ showMessage: true })) {
+        syncCaptureGateState();
+        return;
+    }
+
     const payload = await resolveReportProductionMeasures(getFormPayload(), { writeToForm: true });
+    const duplicatedReport = getDuplicatePozoReport(payload.pozo);
+    if (duplicatedReport) {
+        const message = `${payload.pozo} ya fue agregado a esta carga. Usa Continuar para editarlo o selecciona otro pozo.`;
+        showAlert(message, 'error');
+        updateStatus(message, true);
+        focusFieldById('field-pozo-display');
+        syncCaptureGateState();
+        return;
+    }
+
     const validation = validateFieldReport(payload, { context: 'field' });
 
     const confirmed = await reviewFieldReportBeforeSave(payload, validation, {
@@ -604,6 +886,7 @@ async function addCurrentReportToJourney() {
     localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(reports));
     renderJourneyReports();
     updateSummary();
+    syncCaptureGateState();
 
     await handleSavedReportFlow(wasEditingReport, reportRecord);
 }
@@ -677,7 +960,7 @@ function renderJourneyReports() {
     if (reports.length === 0) {
         list.innerHTML = `
             <div class="field-journey-empty">
-                <strong>Todavía no has agregado pozos a esta jornada.</strong>
+                <strong>Todavía no has agregado pozos a esta carga.</strong>
                 <p>Empieza con el primer pozo y luego usa esta bandeja para continuar, corregir o quitar registros antes del envío.</p>
                 <div class="field-journey-empty-steps">
                     <span>1. Completa la cabecera</span>
@@ -756,13 +1039,13 @@ function removeJourneyReport(reportId) {
     }
     renderJourneyReports();
     updateSummary();
-    updateStatus('Registro eliminado de la jornada.');
+    updateStatus('Registro eliminado de la carga.');
 }
 
 function syncAddButtonState() {
     const addButton = document.getElementById('field-add-report-btn');
     if (!addButton) return;
-    addButton.textContent = currentEditingReportId ? 'Actualizar registro' : 'Agregar registro a la jornada';
+    addButton.textContent = currentEditingReportId ? 'Actualizar registro' : 'Agregar registro a la carga';
 }
 
 function syncQuickActionButtons(reports = getJourneyReports()) {
@@ -792,7 +1075,7 @@ function syncQuickActionButtons(reports = getJourneyReports()) {
         title.textContent = currentReport
             ? `Estas editando ${String(currentReport.pozo || '').toUpperCase() || 'un pozo'}.`
             : fallbackReport
-                ? 'Ya tienes jornada armándose; puedes abrir el ultimo pozo o empezar uno nuevo.'
+                ? 'Ya tienes una carga armándose; puedes abrir el ultimo pozo o empezar uno nuevo.'
                 : 'Arranca con un pozo nuevo o retoma el que estabas trabajando.';
     }
 
@@ -800,8 +1083,8 @@ function syncQuickActionButtons(reports = getJourneyReports()) {
         copy.textContent = currentReport
             ? 'Si terminaste este ajuste, guarda y luego usa “Nuevo pozo” para seguir capturando otro dentro del mismo turno.'
             : fallbackReport
-                ? '“Seguir editando” abre el ultimo pozo cargado. “Nuevo pozo” limpia el formulario pero conserva la cabecera de jornada.'
-                : 'Usa estos accesos para acelerar captura sin perder la jornada que ya llevas armada.';
+                ? '“Seguir editando” abre el ultimo pozo cargado. “Nuevo pozo” limpia el formulario pero conserva la cabecera de captura.'
+                : 'Usa estos accesos para acelerar captura sin perder la carga que ya llevas armada.';
     }
 }
 
@@ -825,7 +1108,7 @@ function updateEditingContext(reports = getJourneyReports()) {
         banner.innerHTML = `
             <span class="field-continue-banner-label">Editando pozo</span>
             <div class="field-continue-banner-title">${escapeHtml(String(currentReport.pozo || '').toUpperCase())}</div>
-            <div class="field-continue-banner-meta">Jornada ${escapeHtml(journeyLabel)} · ${escapeHtml(String(reports.length))} ${reports.length === 1 ? 'pozo cargado' : 'pozos cargados'} · Los cambios que guardes actualizarán este registro.</div>
+            <div class="field-continue-banner-meta">Turno ${escapeHtml(journeyLabel)} · ${escapeHtml(String(reports.length))} ${reports.length === 1 ? 'pozo cargado' : 'pozos cargados'} · Los cambios que guardes actualizarán este registro.</div>
         `;
         return;
     }
@@ -837,7 +1120,7 @@ function updateEditingContext(reports = getJourneyReports()) {
             captureCard?.classList.add('is-journey-context');
         }
         banner.innerHTML = `
-            <span class="field-continue-banner-label">Jornada en construcción</span>
+            <span class="field-continue-banner-label">Carga en construcción</span>
             <div class="field-continue-banner-title">${escapeHtml(journeyLabel)}</div>
             <div class="field-continue-banner-meta">${escapeHtml(String(reports.length))} ${reports.length === 1 ? 'pozo cargado' : 'pozos cargados'} · Sigue agregando pozos o entra a editar uno de los ya registrados.</div>
         `;
@@ -852,12 +1135,7 @@ function syncJourneyFieldLocks(reports = getJourneyReports()) {
     const jornadaField = document.getElementById('field-jornada');
     if (!jornadaField) return;
 
-    const shouldLock = reports.length > 0;
-    const lockedValue = reports[0]?.jornada || jornadaField.value || 'Diurna';
-    jornadaField.value = lockedValue;
-    jornadaField.disabled = shouldLock;
-    jornadaField.dataset.lockedValue = lockedValue;
-    jornadaField.title = shouldLock ? 'La jornada queda fija mientras existan pozos cargados en esta jornada.' : '';
+    syncJourneyFromTime();
 }
 
 function enforceLockedJourneySelection() {
@@ -868,7 +1146,7 @@ function enforceLockedJourneySelection() {
 
 async function submitJourneyForAdminPreview() {
     if (isSubmittingJourney) {
-        updateStatus('La jornada ya se esta enviando a Admin Campo. Espera a que termine la sincronizacion.');
+        updateStatus('La captura ya se esta enviando a Admin Campo. Espera a que termine la sincronizacion.');
         return;
     }
 
@@ -902,17 +1180,17 @@ async function submitJourneyForAdminPreview() {
     isSubmittingJourney = true;
     if (submitButton) {
         submitButton.disabled = true;
-        submitButton.textContent = 'Enviando jornada...';
+        submitButton.textContent = 'Enviando captura...';
     }
-    updateStatus('Sincronizando jornada con Admin Campo...');
+    updateStatus('Sincronizando captura con Admin Campo...');
 
     try {
         // step 1 - ensure visible at least 5s
-        setProcessingStep(1, 'Generando jornada');
+        setProcessingStep(1, 'Generando captura');
         const s1 = Date.now();
         await ensureStepMinDuration(s1, 5000);
         // execute server workflow (step 2 visible during network call)
-        setProcessingStep(2, isUpdatingExistingJourney ? 'Actualizando jornada en el servidor' : 'Cargando jornada al servidor');
+        setProcessingStep(2, isUpdatingExistingJourney ? 'Actualizando captura en el servidor' : 'Cargando captura al servidor');
         const s2 = Date.now();
         mergedReports = await resolveJourneyProductionMeasures(mergedReports);
         workflowResult = await submitFieldJourneyWorkflow(mergedReports, {
@@ -920,18 +1198,18 @@ async function submitJourneyForAdminPreview() {
         });
         await ensureStepMinDuration(s2, 5000);
         // step 3
-        setProcessingStep(3, isUpdatingExistingJourney ? 'Finalizando actualizacion de jornada' : 'Finalizando y marcando como enviada');
+        setProcessingStep(3, isUpdatingExistingJourney ? 'Finalizando actualizacion de captura' : 'Finalizando y marcando como enviada');
         const s3 = Date.now();
         await ensureStepMinDuration(s3, 5000);
-        setProcessingStep(3, isUpdatingExistingJourney ? 'Jornada actualizada exitosamente' : 'Jornada enviada exitosamente');
+        setProcessingStep(3, isUpdatingExistingJourney ? 'Captura actualizada exitosamente' : 'Captura enviada exitosamente');
     } catch (error) {
-        showAlert(error?.message || 'No se pudo enviar la jornada al workflow de Admin Campo.', 'error');
-        updateStatus(error?.message || 'La jornada no pudo sincronizarse con Admin Campo.', true);
+        showAlert(error?.message || 'No se pudo enviar la captura al workflow de Admin Campo.', 'error');
+        updateStatus(error?.message || 'La captura no pudo sincronizarse con Admin Campo.', true);
         isSubmittingJourney = false;
         hideProcessingModal();
         if (submitButton) {
             submitButton.disabled = false;
-            submitButton.textContent = 'Enviar jornada a revisión';
+            submitButton.textContent = 'Enviar captura a revisión';
         }
         return;
     }
@@ -957,13 +1235,13 @@ async function submitJourneyForAdminPreview() {
     localStorage.setItem(SUBMITTED_JOURNEYS_STORAGE_KEY, JSON.stringify(submittedJourneys));
     renderAdminPreview();
     resetJourneyWorkspace();
-    showAlert(isUpdatingExistingJourney ? 'Jornada actualizada en Admin Campo.' : 'Jornada enviada a Admin Campo.', 'success');
-    updateStatus(isUpdatingExistingJourney ? 'Han actualizado la jornada y se sincronizó con Admin Campo.' : 'Jornada enviada y sincronizada con Admin Campo.');
+    showAlert(isUpdatingExistingJourney ? 'Captura actualizada en Admin Campo.' : 'Captura enviada a Admin Campo.', 'success');
+    updateStatus(isUpdatingExistingJourney ? 'Han actualizado la captura y se sincronizó con Admin Campo.' : 'Captura enviada y sincronizada con Admin Campo.');
 
     isSubmittingJourney = false;
     if (submitButton) {
         submitButton.disabled = false;
-        submitButton.textContent = 'Enviar jornada a revisión';
+        submitButton.textContent = 'Enviar captura a revisión';
     }
     hideProcessingModal();
 }
@@ -1002,31 +1280,31 @@ function updateSummary() {
     });
 
     if (reports.length === 0) {
-        if (modeTitle) modeTitle.textContent = 'Construyendo jornada';
-        if (modeCopy) modeCopy.textContent = 'Empieza cargando el primer pozo. Cada registro queda guardado en esta jornada mientras completas el turno.';
+        if (modeTitle) modeTitle.textContent = 'Construyendo carga';
+        if (modeCopy) modeCopy.textContent = 'Empieza cargando el primer pozo. Cada registro queda guardado en esta captura mientras completas el turno.';
         if (focus) focus.textContent = 'Listo para empezar';
         if (focusCopy) focusCopy.textContent = 'Cuando selecciones un pozo para editar o agregues el primero, lo verás resaltado aquí.';
         if (focusState) {
             focusState.textContent = 'Nuevo';
             focusState.classList.remove('is-editing');
         }
-        if (submitCopy) submitCopy.textContent = 'Cuando la lista esté completa, envía la jornada para que administración la reciba como un solo paquete operativo.';
+        if (submitCopy) submitCopy.textContent = 'Cuando la lista esté completa, envía la captura para que administración la reciba como un solo paquete operativo.';
         return;
     }
 
     if (currentEditingReport) {
-        if (modeTitle) modeTitle.textContent = 'Editando pozo en jornada';
+        if (modeTitle) modeTitle.textContent = 'Editando pozo en carga';
         if (modeCopy) modeCopy.textContent = 'Estás corrigiendo un registro ya cargado. Guarda los cambios y vuelve a la bandeja para continuar con el siguiente.';
         if (focus) focus.textContent = String(currentEditingReport.pozo || '').toUpperCase() || 'Pozo en edición';
-        if (focusCopy) focusCopy.textContent = `Se conservará dentro de la jornada ${payload.jornada || currentEditingReport.jornada || 'Diurna'} cuando actualices el registro.`;
+        if (focusCopy) focusCopy.textContent = `Se conservará dentro del turno ${payload.jornada || currentEditingReport.jornada || 'Diurna'} cuando actualices el registro.`;
         if (focusState) {
             focusState.textContent = 'Editando';
             focusState.classList.add('is-editing');
         }
     } else {
-        if (modeTitle) modeTitle.textContent = 'Jornada lista para seguir';
+        if (modeTitle) modeTitle.textContent = 'Carga lista para seguir';
         if (modeCopy) modeCopy.textContent = 'Ya tienes pozos cargados. Puedes continuar con otro pozo o abrir cualquiera de la bandeja para corregirlo.';
-        if (focus) focus.textContent = lastReport?.pozo ? String(lastReport.pozo).toUpperCase() : 'Jornada en curso';
+        if (focus) focus.textContent = lastReport?.pozo ? String(lastReport.pozo).toUpperCase() : 'Carga en curso';
         if (focusCopy) focusCopy.textContent = lastReport ? `Último registro agregado a las ${lastReport.hora || '--'}. Usa “Continuar” para editar cualquier pozo cargado.` : 'Revisa la bandeja y continúa con el siguiente pozo.';
         if (focusState) {
             focusState.textContent = 'En curso';
@@ -1036,8 +1314,8 @@ function updateSummary() {
 
     if (submitCopy) {
         submitCopy.textContent = reports.length === 1
-            ? 'Ya tienes 1 pozo cargado. Si falta más del turno, sigue agregando; si ya terminaste, puedes enviar la jornada.'
-            : `Ya tienes ${reports.length} pozos cargados. Revisa la bandeja y envía la jornada cuando el turno esté completo.`;
+            ? 'Ya tienes 1 pozo cargado. Si falta más del turno, sigue agregando; si ya terminaste, puedes enviar la captura.'
+            : `Ya tienes ${reports.length} pozos cargados. Revisa la bandeja y envía la captura cuando el turno esté completo.`;
     }
 }
 
@@ -1047,10 +1325,10 @@ function renderAdminPreview() {
     if (!count || !list) return;
 
     const journeys = getSubmittedJourneys();
-    count.textContent = `${journeys.length} ${journeys.length === 1 ? 'jornada pendiente' : 'jornadas pendientes'}`;
+    count.textContent = `${journeys.length} ${journeys.length === 1 ? 'carga pendiente' : 'cargas pendientes'}`;
 
     if (journeys.length === 0) {
-        list.innerHTML = '<div class="field-admin-preview-empty">Todavía no has enviado ninguna jornada a revisión.</div>';
+        list.innerHTML = '<div class="field-admin-preview-empty">Todavía no has enviado ninguna carga a revisión.</div>';
         return;
     }
 
@@ -1066,7 +1344,7 @@ function renderAdminPreview() {
                     <button type="button" class="field-admin-ticket-count-btn" data-journey-id="${journey.id}">${escapeHtml(String(journey.reportCount || 0))} ${Number(journey.reportCount || 0) === 1 ? 'pozo' : 'pozos'}</button>
                     <div class="field-admin-ticket-actions">
                         ${(hasLocalTicketForJourney(journey.id) || Number(journey.reportCount || 0) > 0) ? `<button type="button" class="field-admin-ticket-action field-admin-ticket-viewticket" data-journey-id="${journey.id}" title="Ver tickets"><i class="fa-solid fa-envelope-circle-check"></i></button>` : ''}
-                        <button type="button" class="field-admin-ticket-action" data-preview-mode="journey" data-journey-id="${journey.id}" title="Ver jornada"><i class="fa-solid fa-eye"></i></button>
+                        <button type="button" class="field-admin-ticket-action" data-preview-mode="journey" data-journey-id="${journey.id}" title="Ver carga"><i class="fa-solid fa-eye"></i></button>
                         <button type="button" class="field-admin-ticket-action" data-preview-mode="well" data-journey-id="${journey.id}" title="Ver por pozo"><i class="fa-solid fa-list"></i></button>
                         ${!CURRENT_ACCESS_PROFILE?.isFieldOperator ? `<button type="button" class="field-admin-ticket-action field-admin-ticket-excel" data-journey-id="${journey.id}" title="Obtener Excel"><i class="fa-solid fa-file-excel"></i></button>` : ''}
                         <button type="button" class="field-admin-ticket-action field-admin-ticket-recover" data-journey-id="${journey.id}" title="Recuperar"><i class="fa-solid fa-rotate-left"></i></button>
@@ -1365,7 +1643,7 @@ function openReportPreview(journeyId, mode = 'journey') {
     const journeys = getSubmittedJourneys();
     const journey = journeys.find(item => item.id === journeyId);
     if (!journey) {
-        showAlert('No se encontró la jornada seleccionada para la vista previa.', 'error');
+        showAlert('No se encontró la carga seleccionada para la vista previa.', 'error');
         return;
     }
 
@@ -1375,10 +1653,10 @@ function openReportPreview(journeyId, mode = 'journey') {
     if (!modal || !title || !body) return;
 
     if (mode === 'well') {
-        title.textContent = `Vista por pozo · ${journey.locacion_jornada || 'Jornada'}`;
+        title.textContent = `Vista por pozo · ${journey.locacion_jornada || 'Carga'}`;
         body.innerHTML = buildWellPreviewMarkup(journey);
     } else {
-        title.textContent = `Vista jornada · ${journey.locacion_jornada || 'Jornada'}`;
+        title.textContent = `Vista carga · ${journey.locacion_jornada || 'Carga'}`;
         body.innerHTML = buildJourneyPreviewMarkup(journey);
     }
 
@@ -1408,7 +1686,7 @@ function buildJourneyPreviewMarkup(journey) {
     if (!Array.isArray(journey.records) || journey.records.length === 0) {
         return `
             <div class="field-report-empty-state">
-                <h3>Sin registros en la jornada</h3>
+                <h3>Sin registros en la carga</h3>
                 <p>Esta vista previa no tiene pozos cargados todavía o corresponde a un borrador anterior.</p>
             </div>
         `;
@@ -1433,7 +1711,7 @@ function buildJourneyPreviewMarkup(journey) {
             <div class="field-report-sheet-head">
                 <div>
                     <span class="field-report-sheet-kicker">Vista estilo Excel</span>
-                    <h3>${escapeHtml(journey.locacion_jornada || 'Jornada sin locación')}</h3>
+                    <h3>${escapeHtml(journey.locacion_jornada || 'Carga sin locación')}</h3>
                     <p>${escapeHtml(journey.equipo_guardia || '--')} | ${escapeHtml(journey.fecha || '--')} | ${escapeHtml(journey.jornada || '--')}</p>
                 </div>
                 <span class="field-report-sheet-badge">${escapeHtml(String(journey.reportCount || 0))} pozos</span>
@@ -1465,7 +1743,7 @@ function buildWellPreviewMarkup(journey) {
         return `
             <div class="field-report-empty-state">
                 <h3>Sin pozos para mostrar</h3>
-                <p>Guarda al menos un pozo dentro de la jornada para ver esta presentación por ficha.</p>
+                <p>Guarda al menos un pozo dentro de la carga para ver esta presentación por ficha.</p>
             </div>
         `;
     }
@@ -1537,7 +1815,7 @@ function formatPreviewValue(value, fieldName) {
 function restoreSubmittedJourneyToWorkspace(journeyId, reportId = null) {
     const journey = getSubmittedJourneys().find(item => item.id === journeyId);
     if (!journey || !Array.isArray(journey.records) || journey.records.length === 0) {
-        showAlert('No se encontro una jornada valida para recuperar.', 'error');
+        showAlert('No se encontro una carga valida para recuperar.', 'error');
         return;
     }
 
@@ -1558,8 +1836,8 @@ function restoreSubmittedJourneyToWorkspace(journeyId, reportId = null) {
     syncAddButtonState();
     updateEditingContext();
     scrollToCaptureStart();
-    updateStatus(`Editando ${String(targetReport?.pozo || '').toUpperCase()} desde una jornada recuperada.`);
-    showAlert('Jornada recuperada para seguir editando en Campo.', 'success');
+    updateStatus(`Editando ${String(targetReport?.pozo || '').toUpperCase()} desde una carga recuperada.`);
+    showAlert('Carga recuperada para seguir editando en Campo.', 'success');
 }
 
 function buildSubmittedJourneyRecord(baseJourney) {
@@ -1571,6 +1849,8 @@ function buildSubmittedJourneyRecord(baseJourney) {
         ...baseJourney,
         jornada: baseJourney.jornada || firstReport.jornada || 'Diurna',
         fecha: baseJourney.fecha || firstReport.fecha || '',
+        tecnico_1: baseJourney.tecnico_1 || firstReport.tecnico_1 || '',
+        tecnico_2: baseJourney.tecnico_2 || firstReport.tecnico_2 || '',
         equipo_guardia: baseJourney.equipo_guardia || firstReport.equipo_guardia || '',
         locacion_jornada: baseJourney.locacion_jornada || firstReport.locacion_jornada || '',
         reportCount: records.length,
@@ -1585,7 +1865,7 @@ function removeSubmittedJourney(journeyId) {
     const journeys = getSubmittedJourneys();
     const nextJourneys = journeys.filter(journey => journey.id !== journeyId);
     if (nextJourneys.length === journeys.length) {
-        showAlert('No se encontro la jornada que querias eliminar.', 'error');
+        showAlert('No se encontro la carga que querias eliminar.', 'error');
         return;
     }
 
@@ -1594,15 +1874,15 @@ function removeSubmittedJourney(journeyId) {
         currentEditingJourneyId = null;
     }
     renderAdminPreview();
-    updateStatus('Jornada de prueba eliminada de la bandeja simulada.');
-    showAlert('Jornada eliminada.', 'success');
+    updateStatus('Carga de prueba eliminada de la bandeja simulada.');
+    showAlert('Carga eliminada.', 'success');
 }
 
 function removeSubmittedJourneyReport(journeyId, reportId, mode = 'well') {
     const journeys = getSubmittedJourneys();
     const journeyIndex = journeys.findIndex(journey => journey.id === journeyId);
     if (journeyIndex === -1) {
-        showAlert('No se encontro la jornada para eliminar el pozo.', 'error');
+        showAlert('No se encontro la carga para eliminar el pozo.', 'error');
         return;
     }
 
@@ -1621,8 +1901,8 @@ function removeSubmittedJourneyReport(journeyId, reportId, mode = 'well') {
         }
         renderAdminPreview();
         closeReportPreview();
-        updateStatus('La jornada quedo vacia y fue eliminada de la bandeja simulada.');
-        showAlert('Pozo eliminado. La jornada de prueba quedo vacia y se removio.', 'success');
+        updateStatus('La carga quedo vacia y fue eliminada de la bandeja simulada.');
+        showAlert('Pozo eliminado. La carga de prueba quedo vacia y se removio.', 'success');
         return;
     }
 
@@ -1634,13 +1914,13 @@ function removeSubmittedJourneyReport(journeyId, reportId, mode = 'well') {
     localStorage.setItem(SUBMITTED_JOURNEYS_STORAGE_KEY, JSON.stringify(journeys));
     renderAdminPreview();
     openReportPreview(journeyId, mode);
-    updateStatus('Pozo eliminado de la jornada de prueba.');
+    updateStatus('Pozo eliminado de la carga de prueba.');
     showAlert('Pozo eliminado de la vista de prueba.', 'success');
 }
 
 async function exportJourneyToExcel(journeyId) {
     if (CURRENT_ACCESS_PROFILE?.isFieldOperator) {
-        showAlert('No tienes permisos para exportar jornadas.', 'error');
+        showAlert('No tienes permisos para exportar cargas.', 'error');
         return;
     }
     if (!window.ExcelJS) {
@@ -1650,17 +1930,17 @@ async function exportJourneyToExcel(journeyId) {
 
     const journey = getSubmittedJourneys().find(item => item.id === journeyId);
     if (!journey) {
-        showAlert('No se encontro la jornada para exportar.', 'error');
+        showAlert('No se encontro la carga para exportar.', 'error');
         return;
     }
 
     const sortedRecords = sortJourneyRecords(journey.records || []);
     if (sortedRecords.length === 0) {
-        showAlert('La jornada no tiene pozos para exportar.', 'warning');
+        showAlert('La carga no tiene pozos para exportar.', 'warning');
         return;
     }
 
-    updateStatus('Generando Excel de la jornada...');
+    updateStatus('Generando Excel de la captura...');
 
     try {
         const workbook = new window.ExcelJS.Workbook();
@@ -1672,7 +1952,7 @@ async function exportJourneyToExcel(journeyId) {
         const summarySheet = workbook.addWorksheet('Resumen', {
             views: [{ state: 'frozen', ySplit: 4 }]
         });
-        const detailSheet = workbook.addWorksheet('Jornada Campo', {
+        const detailSheet = workbook.addWorksheet('Captura Campo', {
             views: [{ state: 'frozen', ySplit: 6, xSplit: 4 }]
         });
 
@@ -1693,10 +1973,10 @@ async function exportJourneyToExcel(journeyId) {
         downloadBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), buildJourneyExcelFileName(journey));
 
         showAlert('Excel generado correctamente.', 'success');
-        updateStatus('Excel exportado con la jornada ordenada por pozo y hora.');
+        updateStatus('Excel exportado con la captura ordenada por pozo y hora.');
     } catch (error) {
-        showAlert('No se pudo generar el Excel de la jornada.', 'error');
-        updateStatus('Fallo la exportacion Excel de la jornada.', true);
+        showAlert('No se pudo generar el Excel de la captura.', 'error');
+        updateStatus('Fallo la exportacion Excel de la captura.', true);
     }
 }
 
@@ -1712,10 +1992,12 @@ function buildExcelSummarySheet(worksheet, journey, records) {
     styleExcelTitleBlock(worksheet, ['C1', 'C2', 'C3']);
 
     const summaryRows = [
+        ['Técnico 1', journey.tecnico_1 || '--'],
+        ['Técnico 2', journey.tecnico_2 || '--'],
         ['Equipo de guardia', journey.equipo_guardia || '--'],
         ['Locacion', journey.locacion_jornada || '--'],
         ['Fecha', journey.fecha || '--'],
-        ['Jornada', journey.jornada || '--'],
+        ['Turno', journey.jornada || '--'],
         ['Pozos monitoreados', records.length],
         ['Ventana', `${journey.firstHour || '--'} a ${journey.lastHour || '--'}`],
         ['Pozos', records.map(record => String(record.pozo || '').toUpperCase()).join(', ') || '--']
@@ -1967,12 +2249,16 @@ function downloadBlob(blob, fileName) {
 }
 
 function loadReportIntoForm(report) {
+    isCaptureStarted = true;
+    localStorage.setItem(CAPTURE_STARTED_STORAGE_KEY, 'true');
     Object.entries(report).forEach(([key, value]) => {
         const field = document.querySelector(`[name="${key}"]`);
         if (field) field.value = value ?? '';
     });
 
+    syncJourneyFromTime();
     syncPozoDisplayFromValue();
+    syncCaptureGateState();
 }
 
 function showAlert(message, icon = 'info') {
@@ -1992,7 +2278,7 @@ function showAlert(message, icon = 'info') {
 
 async function handleSavedReportFlow(wasEditingReport, savedReport) {
     const savedMessage = wasEditingReport ? 'Registro actualizado exitosamente.' : 'Registro guardado exitosamente.';
-    updateStatus(wasEditingReport ? 'Registro actualizado dentro de la jornada.' : 'Registro guardado dentro de la jornada.');
+    updateStatus(wasEditingReport ? 'Registro actualizado dentro de la carga.' : 'Registro guardado dentro de la carga.');
 
     if (!window.Swal) {
         clearForm();
@@ -2010,10 +2296,10 @@ async function handleSavedReportFlow(wasEditingReport, savedReport) {
     const promptResult = await window.Swal.fire({
         icon: 'question',
         title: 'Qué quieres hacer ahora?',
-        text: 'Puedes seguir con otro pozo, continuar ajustando este mismo registro o dejar la jornada lista por ahora.',
+        text: 'Puedes seguir con otro pozo, continuar ajustando este mismo registro o dejar la carga lista por ahora.',
         confirmButtonText: 'Agregar otro pozo',
         denyButtonText: 'Seguir con este pozo',
-        cancelButtonText: 'Dejar jornada lista',
+        cancelButtonText: 'Dejar carga lista',
         showCancelButton: true,
         showDenyButton: true,
         reverseButtons: true
@@ -2021,7 +2307,7 @@ async function handleSavedReportFlow(wasEditingReport, savedReport) {
 
     if (promptResult.isConfirmed) {
         clearForm();
-        updateStatus('Formulario listo para capturar otro pozo dentro de esta jornada.');
+        updateStatus('Formulario listo para capturar otro pozo dentro de esta carga.');
         scrollToPozoField();
         return;
     }
@@ -2040,7 +2326,7 @@ async function handleSavedReportFlow(wasEditingReport, savedReport) {
     }
 
     clearForm();
-    updateStatus('Registro guardado. Puedes seguir revisando o enviar la jornada a revisión.');
+    updateStatus('Registro guardado. Puedes seguir revisando o enviar la captura a revisión.');
     scrollBackToCapture();
 }
 
@@ -2181,8 +2467,10 @@ function resetJourneyWorkspace() {
     localStorage.removeItem(DRAFT_STORAGE_KEY);
     localStorage.removeItem(REPORTS_STORAGE_KEY);
     localStorage.removeItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
+    localStorage.removeItem(CAPTURE_STARTED_STORAGE_KEY);
     currentEditingReportId = null;
     currentEditingJourneyId = null;
+    isCaptureStarted = false;
 
     const form = document.getElementById('field-report-form');
     if (form) {
@@ -2196,6 +2484,8 @@ function resetJourneyWorkspace() {
     syncAddButtonState();
     syncJourneyFieldLocks([]);
     updateEditingContext([]);
+    resetAccordionProgressControls();
+    syncCaptureGateState();
 }
 
 async function hydratePozoOptions() {
@@ -2290,13 +2580,17 @@ function renderFieldPozoOptions(ignoreSearch = false) {
         return;
     }
 
-    menu.innerHTML = filteredPozos.map(pozo => `
-        <button type="button" class="pozo-selector-option ${pozo === hiddenField.value ? 'active' : ''}" data-pozo="${escapeHtml(pozo)}">
+    menu.innerHTML = filteredPozos.map(pozo => {
+        const isSelected = pozo === hiddenField.value;
+        const isAdded = Boolean(getDuplicatePozoReport(pozo));
+        return `
+        <button type="button" class="pozo-selector-option ${isSelected ? 'active' : ''}" data-pozo="${escapeHtml(pozo)}" ${isAdded ? 'disabled' : ''}>
             <span class="pozo-status-dot"></span>
             <span class="pozo-option-name">${escapeHtml(pozo)}</span>
-            <span class="pozo-option-state ${pozo === hiddenField.value ? 'active' : ''}">${pozo === hiddenField.value ? 'Seleccionado' : 'Disponible'}</span>
+            <span class="pozo-option-state ${isSelected ? 'active' : ''}">${isSelected ? 'Seleccionado' : (isAdded ? 'Agregado' : 'Disponible')}</span>
         </button>
-    `).join('');
+    `;
+    }).join('');
 
     menu.querySelectorAll('.pozo-selector-option').forEach(button => {
         button.addEventListener('click', () => selectFieldPozo(button.dataset.pozo || ''));
@@ -2335,11 +2629,24 @@ function selectFieldPozo(pozoName) {
     const displayField = document.getElementById('field-pozo-display');
     if (!hiddenField || !displayField) return;
 
+    const duplicatedReport = getDuplicatePozoReport(normalizedPozo);
+    if (duplicatedReport) {
+        hiddenField.value = '';
+        displayField.value = '';
+        closeFieldPozoMenu({ commitSearch: false });
+        const message = `${normalizedPozo} ya fue agregado a esta carga. Usa Continuar para editarlo o selecciona otro pozo.`;
+        showAlert(message, 'error');
+        updateStatus(message, true);
+        syncCaptureGateState();
+        return;
+    }
+
     hiddenField.value = normalizedPozo;
     displayField.value = normalizedPozo;
     closeFieldPozoMenu({ commitSearch: false });
     persistDraft();
     updateSummary();
+    syncCaptureGateState();
     prefillProductionMeasuresForSelectedPozo(normalizedPozo);
 }
 
@@ -2366,19 +2673,40 @@ function commitTypedPozoSelection() {
     }
 
     if (availablePozos.length === 0) {
+        if (getDuplicatePozoReport(normalizedPozo)) {
+            hiddenField.value = '';
+            displayField.value = '';
+            const message = `${normalizedPozo} ya fue agregado a esta carga. Usa Continuar para editarlo o selecciona otro pozo.`;
+            showAlert(message, 'error');
+            updateStatus(message, true);
+            syncCaptureGateState();
+            return;
+        }
         hiddenField.value = normalizedPozo;
         displayField.value = normalizedPozo;
         persistDraft();
         updateSummary();
+        syncCaptureGateState();
         prefillProductionMeasuresForSelectedPozo(normalizedPozo);
         return;
     }
 
     const exactMatch = availablePozos.find(pozo => pozo === normalizedPozo);
+    if (exactMatch && getDuplicatePozoReport(exactMatch)) {
+        hiddenField.value = '';
+        displayField.value = '';
+        const message = `${exactMatch} ya fue agregado a esta carga. Usa Continuar para editarlo o selecciona otro pozo.`;
+        showAlert(message, 'error');
+        updateStatus(message, true);
+        syncCaptureGateState();
+        return;
+    }
+
     hiddenField.value = exactMatch || '';
     displayField.value = exactMatch || normalizedPozo;
     persistDraft();
     updateSummary();
+    syncCaptureGateState();
     if (exactMatch) {
         prefillProductionMeasuresForSelectedPozo(exactMatch);
     }
@@ -2599,12 +2927,12 @@ function renderPozoList(journeyId) {
     const journeys = getSubmittedJourneys();
     const journey = journeys.find(j => String(j.id) === String(journeyId));
     if (!journey) {
-        listEl.innerHTML = '<li>No se encontraron pozos para esta jornada.</li>';
+        listEl.innerHTML = '<li>No se encontraron pozos para esta carga.</li>';
         return;
     }
     const pozos = Array.isArray(journey.pozoNames) ? journey.pozoNames : [];
     if (pozos.length === 0) {
-        listEl.innerHTML = '<li>No hay pozos registrados en esta jornada.</li>';
+        listEl.innerHTML = '<li>No hay pozos registrados en esta carga.</li>';
         return;
     }
     listEl.innerHTML = pozos.map(p => `<li style="margin:6px 0;">• ${escapeHtml(p)}</li>`).join('');
@@ -2631,7 +2959,7 @@ async function renderTicketViewer(journeyId) {
     ];
 
     if (!combined || combined.length === 0) {
-        container.innerHTML = '<div class="field-ticket-empty">No hay tickets vinculados a esta jornada.</div>';
+        container.innerHTML = '<div class="field-ticket-empty">No hay tickets vinculados a esta captura.</div>';
         return;
     }
 

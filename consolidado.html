@@ -169,7 +169,7 @@
                             <div id="consolidado-config-menu" class="consolidado-config-menu" hidden>
                                 <button type="button" id="consolidado-open-import-btn">Importar / reemplazar Excel base</button>
                                 <button type="button" id="consolidado-save-db-btn" disabled>Guardar Excel importado en base de datos</button>
-                                <button type="button" id="consolidado-sync-technical-btn">Sincronizar datos técnicos desde consolidado</button>
+                                <button type="button" id="consolidado-sync-technical-btn">Sincronizar datos técnicos y ficha BES</button>
                                 <button type="button" id="consolidado-export-structure-btn" disabled>Exportar archivo recién importado</button>
                                 <button type="button" id="consolidado-refresh-db-btn">Actualizar conteo</button>
                                 <button type="button" id="consolidado-select-field-rows-btn" class="is-danger" disabled>Seleccionar Campo Admin</button>
@@ -231,11 +231,20 @@
                     </div>
                 </article>
 
-                <article class="consolidado-card">
+                <article class="consolidado-card consolidado-template-card">
                     <div class="consolidado-card-head">
-                        <div>
+                        <div class="consolidado-template-title">
+                            <span class="consolidado-template-title-icon" aria-hidden="true">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 13h8M8 17h5"></path>
+                                </svg>
+                            </span>
+                            <div>
                             <h2>Archivo base</h2>
                             <p>La estructura del Excel queda disponible solo para mantenimiento; no hace falta verla para exportar el consolidado guardado.</p>
+                            </div>
                         </div>
                     </div>
                     <div id="consolidado-template-summary" class="consolidado-template-summary"></div>
