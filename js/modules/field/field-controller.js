@@ -1339,26 +1339,27 @@ function buildJourneyWellMessageBlock(report) {
     ];
 
     const measurementLines = [
-        ['Hz', report.frecuencia],
+        ['Hz', report.frecuencia, 'Hz'],
         ['Sentido', report.sentido_giro],
-        ['I VSD', formatSlashValues([report.i_vsd_a, report.i_vsd_b, report.i_vsd_c])],
-        ['V VSD', report.out_vsd],
-        ['I Mot', report.i_motor],
-        ['V Mot', report.v_motor],
-        ['PIP', report.pip_psi],
-        ['PD', report.pd_psi],
-        ['TI', report.ti_f],
-        ['TM', report.tm_f],
-        ['Vx', report.vx_g],
-        ['Vy', report.vy_g],
-        ['Vz', report.vz_g],
-        ['THP', report.thp_psi],
-        ['CHP', report.chp_psi],
-        ['LF', report.lf_psi]
+        ['I VSD', formatSlashValues([report.i_vsd_a, report.i_vsd_b, report.i_vsd_c]), 'Amp'],
+        ['V VSD', report.out_vsd, 'Volt'],
+        ['I Mot', report.i_motor, 'Amp'],
+        ['V Mot', report.v_motor, 'Volt'],
+        ['PIP', report.pip_psi, 'psi'],
+        ['PD', report.pd_psi, 'psi'],
+        ['TI', report.ti_f, '°F'],
+        ['TM', report.tm_f, '°F'],
+        ['Vx', report.vx_g, 'G'],
+        ['Vy', report.vy_g, 'G'],
+        ['Vz', report.vz_g, 'G'],
+        ['THP', report.thp_psi, 'psi'],
+        ['CHP', report.chp_psi, 'psi'],
+        ['LF', report.lf_psi, 'psi']
     ];
 
-    measurementLines.forEach(([label, value]) => {
-        if (!isBlankValue(value)) lines.push(`${label}: ${formatShareValue(value)}`);
+    measurementLines.forEach(([label, value, unit]) => {
+        const formattedValue = formatShareValueWithUnit(value, unit);
+        if (formattedValue) lines.push(`${label}: ${formattedValue}`);
     });
 
     lines.push('', `Observaciones: ${formatShareValue(report.observaciones_pozo || 'Sin observaciones.')}`);
@@ -1389,6 +1390,12 @@ function formatSlashValues(values = []) {
 function formatShareValue(value) {
     if (isBlankValue(value)) return '';
     return String(value).trim();
+}
+
+function formatShareValueWithUnit(value, unit = '') {
+    const formattedValue = formatShareValue(value);
+    if (!formattedValue) return '';
+    return unit ? `${formattedValue} ${unit}` : formattedValue;
 }
 
 function copyTextWithFallback(text) {
@@ -2093,19 +2100,23 @@ function restoreSubmittedJourneyToWorkspace(journeyId, reportId = null) {
 
     localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(journey.records));
     currentEditingJourneyId = journey.id;
+    isJourneyStarted = true;
+    localStorage.setItem(JOURNEY_STARTED_STORAGE_KEY, 'true');
     renderJourneyReports();
     updateSummary();
 
     const targetReport = journey.records.find(record => record.id === reportId) || journey.records[0];
     if (targetReport) {
-        loadReportIntoForm(targetReport);
         currentEditingReportId = targetReport.id;
+        loadReportIntoForm(targetReport);
     }
 
     closeReportPreview();
     persistDraft();
     recalculateComputedFields();
     syncAddButtonState();
+    syncJourneyStartGate();
+    syncCaptureGateState();
     updateEditingContext();
     scrollToCaptureStart();
     updateStatus(`Editando ${String(targetReport?.pozo || '').toUpperCase()} desde una carga recuperada.`);

@@ -255,6 +255,14 @@ function buildJourneyKey(report = {}, userEmail = '') {
     return parts.join('|');
 }
 
+function buildJourneyLocationLabel(reports = []) {
+    const locations = [...new Set((Array.isArray(reports) ? reports : [])
+        .map(report => String(report?.locacion_jornada || '').trim())
+        .filter(Boolean))];
+
+    return locations.join(' / ');
+}
+
 function mapFieldReportToRow(report, session) {
     return {
         user_id: session.user.id,
@@ -291,6 +299,7 @@ function mapFieldReportToRow(report, session) {
 function buildWorkflowJourneyRow(reports, session, journeyId) {
     const firstReport = reports[0] || {};
     const submittedAt = new Date().toISOString();
+    const locationLabel = buildJourneyLocationLabel(reports);
 
     return {
         id: journeyId || undefined,
@@ -299,7 +308,7 @@ function buildWorkflowJourneyRow(reports, session, journeyId) {
         journey_date: firstReport.fecha,
         jornada: firstReport.jornada || 'Diurna',
         equipo_guardia: String(firstReport.equipo_guardia || '').trim(),
-        locacion_jornada: String(firstReport.locacion_jornada || '').trim() || null,
+        locacion_jornada: locationLabel || String(firstReport.locacion_jornada || '').trim() || null,
         status: 'submitted',
         submission_source: 'field-web',
         submitted_at: submittedAt
