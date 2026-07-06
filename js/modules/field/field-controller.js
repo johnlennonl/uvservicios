@@ -394,7 +394,7 @@ let isSubmittingJourney = false;
 let productionPrefillRequestId = 0;
 let isCaptureStarted = localStorage.getItem(CAPTURE_STARTED_STORAGE_KEY) === 'true';
 let messageComposerReports = [];
-let isJourneyStarted = localStorage.getItem(JOURNEY_STARTED_STORAGE_KEY) === 'true';
+let isJourneyStarted = localStorage.getItem(JOURNEY_STARTED_STORAGE_KEY) === 'true' && getJourneyReports().length > 0;
 
 const FIELD_PRODUCTION_MEASURE_MAP = {
     campo: 'campo_name',
@@ -426,6 +426,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     preloadDefaults();
     restoreDraft();
     syncJourneyFromTime();
+    syncJourneyStartGate();
     await hydratePozoOptions();
     wireForm();
     recalculateComputedFields();
@@ -544,7 +545,7 @@ function syncJourneyStartGate() {
     const overlay = document.getElementById('field-journey-start-overlay');
     if (!formCard || !overlay) return;
 
-    const hasWorkingData = getJourneyReports().length > 0 || Boolean(currentEditingReportId) || isCaptureStarted;
+    const hasWorkingData = getJourneyReports().length > 0 || Boolean(currentEditingReportId);
     const unlocked = isJourneyStarted || hasWorkingData;
     formCard.classList.toggle('is-journey-start-locked', !unlocked);
     overlay.hidden = unlocked;
@@ -834,6 +835,11 @@ function clearForm() {
     currentEditingReportId = null;
     isCaptureStarted = false;
     localStorage.removeItem(CAPTURE_STARTED_STORAGE_KEY);
+
+    if (getJourneyReports().length === 0) {
+        isJourneyStarted = false;
+        localStorage.removeItem(JOURNEY_STARTED_STORAGE_KEY);
+    }
 
     Object.entries(preserved).forEach(([key, value]) => {
         const field = document.querySelector(`[name="${key}"]`);
@@ -2910,6 +2916,7 @@ function selectFieldPozo(pozoName) {
 
     hiddenField.value = normalizedPozo;
     displayField.value = normalizedPozo;
+    syncLocationFromPozo(normalizedPozo);
     closeFieldPozoMenu({ commitSearch: false });
     persistDraft();
     updateSummary();
@@ -2925,6 +2932,7 @@ function syncPozoDisplayFromValue() {
     const normalizedPozo = normalizePozoValue(hiddenField.value);
     hiddenField.value = normalizedPozo;
     displayField.value = normalizedPozo;
+    syncLocationFromPozo(normalizedPozo);
 }
 
 function commitTypedPozoSelection() {
@@ -2951,6 +2959,7 @@ function commitTypedPozoSelection() {
         }
         hiddenField.value = normalizedPozo;
         displayField.value = normalizedPozo;
+        syncLocationFromPozo(normalizedPozo);
         persistDraft();
         updateSummary();
         syncCaptureGateState();
@@ -2971,6 +2980,7 @@ function commitTypedPozoSelection() {
 
     hiddenField.value = exactMatch || '';
     displayField.value = exactMatch || normalizedPozo;
+    syncLocationFromPozo(exactMatch || '');
     persistDraft();
     updateSummary();
     syncCaptureGateState();
@@ -2981,6 +2991,21 @@ function commitTypedPozoSelection() {
 
 function normalizePozoValue(value) {
     return String(value || '').trim().toUpperCase();
+}
+
+function inferLocationFromPozo(pozoName) {
+    const normalizedPozo = normalizePozoValue(pozoName);
+    if (normalizedPozo.startsWith('CEI')) return 'LA CEIBA';
+    if (normalizedPozo.startsWith('TOM')) return 'TOMOPORO';
+    return '';
+}
+
+function syncLocationFromPozo(pozoName) {
+    const inferredLocation = inferLocationFromPozo(pozoName);
+    const locationField = document.getElementById('field-locacion-jornada');
+    if (!inferredLocation || !locationField) return;
+
+    locationField.value = inferredLocation;
 }
 
 function handleDocumentClick(event) {
