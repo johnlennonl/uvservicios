@@ -9,6 +9,15 @@ const REPORTS_STORAGE_KEY = 'uv-field-capture-reports';
 const SUBMITTED_JOURNEYS_STORAGE_KEY = 'uv-field-submitted-journeys-preview';
 const DRAFT_JOURNEY_KEY_STORAGE_KEY = 'uv-field-draft-journey-key';
 const CAPTURE_STARTED_STORAGE_KEY = 'uv-field-capture-started';
+const MESSAGE_HEADER_STORAGE_KEY = 'uv-field-message-header';
+const JOURNEY_STARTED_STORAGE_KEY = 'uv-field-journey-started';
+
+const DEFAULT_MESSAGE_HEADER = {
+    empresaMixta: 'PQQ',
+    empresaServicios: 'U. V. Servicios.',
+    actividad: 'Monitoreo de Equipos BES',
+    personal: 'Personal UV Servicios en conjunto con personal de Operaciones PQQ.'
+};
 
 const REPORT_COLUMNS = [
     ['TÉCNICO 1', 'tecnico_1'],
@@ -384,6 +393,8 @@ let availablePozos = [];
 let isSubmittingJourney = false;
 let productionPrefillRequestId = 0;
 let isCaptureStarted = localStorage.getItem(CAPTURE_STARTED_STORAGE_KEY) === 'true';
+let messageComposerReports = [];
+let isJourneyStarted = localStorage.getItem(JOURNEY_STARTED_STORAGE_KEY) === 'true';
 
 const FIELD_PRODUCTION_MEASURE_MAP = {
     campo: 'campo_name',
@@ -424,6 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     syncAddButtonState();
     updateEditingContext();
     updateStatus('Completa el bloque mínimo y agrega el pozo a la carga.');
+    syncJourneyStartGate();
     syncCaptureGateState();
 });
 
@@ -431,13 +443,24 @@ function bindStaticActions() {
     document.getElementById('logout-btn')?.addEventListener('click', logout);
     document.getElementById('mobile-logout-btn')?.addEventListener('click', logout);
     document.getElementById('field-clear-form-btn')?.addEventListener('click', clearForm);
+    document.getElementById('field-start-journey-btn')?.addEventListener('click', startFieldJourney);
     document.getElementById('field-add-report-btn')?.addEventListener('click', addCurrentReportToJourney);
     document.getElementById('field-start-capture-btn')?.addEventListener('click', handleStartCapture);
     document.getElementById('field-new-pozo-btn')?.addEventListener('click', startNewPozoCapture);
     document.getElementById('field-resume-edit-btn')?.addEventListener('click', resumeEditingCurrentPozo);
     document.getElementById('field-submit-journey-btn')?.addEventListener('click', submitJourneyForAdminPreview);
+    document.getElementById('field-copy-journey-message-btn')?.addEventListener('click', copyJourneyMessageToClipboard);
     document.getElementById('field-back-to-capture-btn')?.addEventListener('click', scrollBackToCapture);
     document.getElementById('field-report-preview-close')?.addEventListener('click', closeReportPreview);
+    document.getElementById('field-message-composer-close')?.addEventListener('click', closeJourneyMessageComposer);
+    document.getElementById('field-message-composer-copy')?.addEventListener('click', copyJourneyMessageFromComposer);
+    document.getElementById('field-message-composer-refresh')?.addEventListener('click', syncJourneyMessageComposerText);
+    document.getElementById('field-message-composer-modal')?.addEventListener('click', event => {
+        if (event.target?.id === 'field-message-composer-modal') closeJourneyMessageComposer();
+    });
+    ['message-company-mixta', 'message-company-service', 'message-activity', 'message-personnel'].forEach(fieldId => {
+        document.getElementById(fieldId)?.addEventListener('input', syncJourneyMessageComposerText);
+    });
     document.getElementById('field-send-ticket-btn')?.addEventListener('click', openTicketModal);
     document.getElementById('field-ticket-close')?.addEventListener('click', closeTicketModal);
     document.getElementById('field-ticket-cancel')?.addEventListener('click', closeTicketModal);
@@ -506,6 +529,25 @@ function wireForm() {
             }
         });
     });
+}
+
+function startFieldJourney() {
+    isJourneyStarted = true;
+    localStorage.setItem(JOURNEY_STARTED_STORAGE_KEY, 'true');
+    syncJourneyStartGate();
+    updateStatus('Jornada iniciada. Completa la cabecera y selecciona el pozo.', 'success');
+    focusFieldById('field-tecnico-1');
+}
+
+function syncJourneyStartGate() {
+    const formCard = document.querySelector('.field-form-card');
+    const overlay = document.getElementById('field-journey-start-overlay');
+    if (!formCard || !overlay) return;
+
+    const hasWorkingData = getJourneyReports().length > 0 || Boolean(currentEditingReportId) || isCaptureStarted;
+    const unlocked = isJourneyStarted || hasWorkingData;
+    formCard.classList.toggle('is-journey-start-locked', !unlocked);
+    overlay.hidden = unlocked;
 }
 
 function initializeAccordionProgressControls() {
@@ -809,6 +851,7 @@ function clearForm() {
     syncAddButtonState();
     syncJourneyFieldLocks();
     updateEditingContext();
+    syncJourneyStartGate();
     syncCaptureGateState();
 }
 
@@ -886,6 +929,7 @@ async function addCurrentReportToJourney() {
     localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(reports));
     renderJourneyReports();
     updateSummary();
+    syncJourneyStartGate();
     syncCaptureGateState();
 
     await handleSavedReportFlow(wasEditingReport, reportRecord);
@@ -1039,6 +1083,7 @@ function removeJourneyReport(reportId) {
     }
     renderJourneyReports();
     updateSummary();
+    syncJourneyStartGate();
     updateStatus('Registro eliminado de la carga.');
 }
 
@@ -1142,6 +1187,214 @@ function enforceLockedJourneySelection() {
     const jornadaField = document.getElementById('field-jornada');
     if (!jornadaField || !jornadaField.disabled) return;
     jornadaField.value = jornadaField.dataset.lockedValue || jornadaField.value;
+}
+
+async function copyJourneyMessageToClipboard() {
+    const reports = getJourneyReports();
+    if (reports.length === 0) {
+        const message = 'Agrega al menos un pozo para generar el mensaje de jornada.';
+        showAlert(message, 'warning');
+        updateStatus(message, true);
+        return;
+    }
+
+    openJourneyMessageComposer(reports);
+}
+
+function copySubmittedJourneyMessageToClipboard(journeyId) {
+    const journey = getSubmittedJourneys().find(item => item.id === journeyId);
+    const reports = Array.isArray(journey?.records) ? journey.records : [];
+    if (!journey || reports.length === 0) {
+        showAlert('No hay registros disponibles para generar el mensaje de esta carga.', 'warning');
+        return;
+    }
+
+    openJourneyMessageComposer(reports);
+}
+
+function openJourneyMessageComposer(reports = []) {
+    messageComposerReports = Array.isArray(reports) ? [...reports] : [];
+    const modal = document.getElementById('field-message-composer-modal');
+    if (!modal || messageComposerReports.length === 0) return;
+
+    const header = getStoredMessageHeader();
+    setMessageInputValue('message-company-mixta', header.empresaMixta);
+    setMessageInputValue('message-company-service', header.empresaServicios);
+    setMessageInputValue('message-activity', header.actividad);
+    setMessageInputValue('message-personnel', header.personal);
+    syncJourneyMessageComposerText();
+    modal.hidden = false;
+    document.body.classList.add('field-preview-open');
+    document.getElementById('field-message-composer-text')?.focus();
+}
+
+function closeJourneyMessageComposer() {
+    const modal = document.getElementById('field-message-composer-modal');
+    if (!modal) return;
+    modal.hidden = true;
+    document.body.classList.remove('field-preview-open');
+}
+
+function syncJourneyMessageComposerText() {
+    const textArea = document.getElementById('field-message-composer-text');
+    if (!textArea || messageComposerReports.length === 0) return;
+
+    const header = getMessageHeaderFromInputs();
+    textArea.value = buildJourneyShareMessage(messageComposerReports, header);
+}
+
+async function copyJourneyMessageFromComposer() {
+    const textArea = document.getElementById('field-message-composer-text');
+    if (!textArea) return;
+
+    saveMessageHeader(getMessageHeaderFromInputs());
+    await copyJourneyTextToClipboard(textArea.value);
+    closeJourneyMessageComposer();
+}
+
+function getStoredMessageHeader() {
+    try {
+        const storedHeader = JSON.parse(localStorage.getItem(MESSAGE_HEADER_STORAGE_KEY) || '{}');
+        return { ...DEFAULT_MESSAGE_HEADER, ...(storedHeader || {}) };
+    } catch (error) {
+        localStorage.removeItem(MESSAGE_HEADER_STORAGE_KEY);
+        return { ...DEFAULT_MESSAGE_HEADER };
+    }
+}
+
+function saveMessageHeader(header) {
+    localStorage.setItem(MESSAGE_HEADER_STORAGE_KEY, JSON.stringify({
+        ...DEFAULT_MESSAGE_HEADER,
+        ...header
+    }));
+}
+
+function getMessageHeaderFromInputs() {
+    return {
+        empresaMixta: getMessageInputValue('message-company-mixta'),
+        empresaServicios: getMessageInputValue('message-company-service'),
+        actividad: getMessageInputValue('message-activity'),
+        personal: getMessageInputValue('message-personnel')
+    };
+}
+
+function getMessageInputValue(fieldId) {
+    return String(document.getElementById(fieldId)?.value || '').trim();
+}
+
+function setMessageInputValue(fieldId, value) {
+    const field = document.getElementById(fieldId);
+    if (field) field.value = value || '';
+}
+
+async function copyJourneyTextToClipboard(journeyMessage) {
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(journeyMessage);
+        } else {
+            copyTextWithFallback(journeyMessage);
+        }
+
+        showAlert('Mensaje de jornada copiado.', 'success');
+        updateStatus('Mensaje de jornada copiado. Ya puedes pegarlo en WhatsApp o correo.');
+    } catch (error) {
+        copyTextWithFallback(journeyMessage);
+        showAlert('Mensaje preparado. Si no se copió automáticamente, selecciona y copia el texto mostrado.', 'info');
+    }
+}
+
+function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader = DEFAULT_MESSAGE_HEADER) {
+    const sortedReports = [...reports].sort((left, right) => String(left.hora || '').localeCompare(String(right.hora || '')));
+    const firstReport = sortedReports[0] || {};
+    const journey = firstReport.jornada || document.getElementById('field-jornada')?.value || 'Diurna';
+    const technicians = formatTechnicianCrew(firstReport);
+    const date = formatShareDate(firstReport.fecha || document.getElementById('field-fecha')?.value || '');
+    const headerConfig = { ...DEFAULT_MESSAGE_HEADER, ...(messageHeader || {}) };
+    const header = [
+        'Servicio de Monitoreo y Toma de Nivel.',
+        headerConfig.empresaMixta ? `Empresa Mixta: ${headerConfig.empresaMixta}` : '',
+        headerConfig.empresaServicios ? `Empresa de Servicios: ${headerConfig.empresaServicios}` : '',
+        `Fecha ${date || '--'}`,
+        `Cuadrilla ${journey}: ${technicians || '--'}`,
+        headerConfig.actividad ? `Actividad Realizada: ${headerConfig.actividad}` : '',
+        `Avance: #${sortedReports.length}.`,
+        '',
+        headerConfig.personal || ''
+    ].filter((line, index, lines) => line || lines[index - 1] !== '');
+
+    const wellBlocks = sortedReports.map(buildJourneyWellMessageBlock).filter(Boolean);
+    return [...header, '', ...wellBlocks].join('\n');
+}
+
+function buildJourneyWellMessageBlock(report) {
+    const lines = [
+        `Pozo: ${String(report.pozo || '').toUpperCase() || '--'}`,
+        `Hora ${formatShareValue(report.hora)}`
+    ];
+
+    const measurementLines = [
+        ['Hz', report.frecuencia],
+        ['Sentido', report.sentido_giro],
+        ['I VSD', formatSlashValues([report.i_vsd_a, report.i_vsd_b, report.i_vsd_c])],
+        ['V VSD', report.out_vsd],
+        ['I Mot', report.i_motor],
+        ['V Mot', report.v_motor],
+        ['PIP', report.pip_psi],
+        ['PD', report.pd_psi],
+        ['TI', report.ti_f],
+        ['TM', report.tm_f],
+        ['Vx', report.vx_g],
+        ['Vy', report.vy_g],
+        ['Vz', report.vz_g],
+        ['THP', report.thp_psi],
+        ['CHP', report.chp_psi],
+        ['LF', report.lf_psi]
+    ];
+
+    measurementLines.forEach(([label, value]) => {
+        if (!isBlankValue(value)) lines.push(`${label}: ${formatShareValue(value)}`);
+    });
+
+    lines.push('', `Observaciones: ${formatShareValue(report.observaciones_pozo || 'Sin observaciones.')}`);
+    return lines.join('\n');
+}
+
+function formatTechnicianCrew(report = {}) {
+    const technicians = [report.tecnico_1, report.tecnico_2]
+        .map(value => String(value || '').trim())
+        .filter(Boolean);
+    if (technicians.length > 0) return technicians.join(' / ');
+    return String(report.equipo_guardia || '').trim();
+}
+
+function formatShareDate(value) {
+    const rawValue = String(value || '').trim();
+    if (!rawValue) return '';
+    const [year, month, day] = rawValue.split('-');
+    if (year && month && day) return `${day}/${month}/${year}`;
+    return rawValue;
+}
+
+function formatSlashValues(values = []) {
+    const formattedValues = values.map(formatShareValue).filter(value => value !== '');
+    return formattedValues.length ? formattedValues.join(' /') : '';
+}
+
+function formatShareValue(value) {
+    if (isBlankValue(value)) return '';
+    return String(value).trim();
+}
+
+function copyTextWithFallback(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    textArea.remove();
 }
 
 async function submitJourneyForAdminPreview() {
@@ -1258,6 +1511,7 @@ function updateSummary() {
     const modeTitle = document.getElementById('field-summary-mode-title');
     const modeCopy = document.getElementById('field-summary-mode-copy');
     const submitCopy = document.getElementById('field-summary-submit-copy');
+    const copyMessageButton = document.getElementById('field-copy-journey-message-btn');
     const guideSteps = Array.from(document.querySelectorAll('.field-journey-guide-steps span'));
     const currentEditingReport = currentEditingReportId
         ? reports.find(report => report.id === currentEditingReportId) || null
@@ -1265,6 +1519,11 @@ function updateSummary() {
     const lastReport = reports[reports.length - 1] || null;
 
     syncQuickActionButtons(reports);
+
+    if (copyMessageButton) {
+        copyMessageButton.disabled = reports.length === 0;
+        copyMessageButton.title = reports.length === 0 ? 'Agrega pozos para generar el mensaje.' : 'Copiar mensaje operativo de la jornada.';
+    }
 
     if (currentJourney) currentJourney.textContent = payload.jornada || 'Diurna';
     if (count) count.textContent = String(reports.length);
@@ -1344,6 +1603,7 @@ function renderAdminPreview() {
                     <button type="button" class="field-admin-ticket-count-btn" data-journey-id="${journey.id}">${escapeHtml(String(journey.reportCount || 0))} ${Number(journey.reportCount || 0) === 1 ? 'pozo' : 'pozos'}</button>
                     <div class="field-admin-ticket-actions">
                         ${(hasLocalTicketForJourney(journey.id) || Number(journey.reportCount || 0) > 0) ? `<button type="button" class="field-admin-ticket-action field-admin-ticket-viewticket" data-journey-id="${journey.id}" title="Ver tickets"><i class="fa-solid fa-envelope-circle-check"></i></button>` : ''}
+                        <button type="button" class="field-admin-ticket-action field-admin-ticket-copy-message" data-journey-id="${journey.id}" title="Copiar mensaje de jornada"><i class="fa-solid fa-copy"></i></button>
                         <button type="button" class="field-admin-ticket-action" data-preview-mode="journey" data-journey-id="${journey.id}" title="Ver carga"><i class="fa-solid fa-eye"></i></button>
                         <button type="button" class="field-admin-ticket-action" data-preview-mode="well" data-journey-id="${journey.id}" title="Ver por pozo"><i class="fa-solid fa-list"></i></button>
                         ${!CURRENT_ACCESS_PROFILE?.isFieldOperator ? `<button type="button" class="field-admin-ticket-action field-admin-ticket-excel" data-journey-id="${journey.id}" title="Obtener Excel"><i class="fa-solid fa-file-excel"></i></button>` : ''}
@@ -1368,6 +1628,10 @@ function renderAdminPreview() {
 
     list.querySelectorAll('.field-admin-ticket-viewticket').forEach(btn => {
         btn.addEventListener('click', () => openTicketViewer(btn.dataset.journeyId));
+    });
+
+    list.querySelectorAll('.field-admin-ticket-copy-message').forEach(button => {
+        button.addEventListener('click', () => copySubmittedJourneyMessageToClipboard(button.dataset.journeyId));
     });
     list.querySelectorAll('.field-admin-ticket-count-btn').forEach(btn => {
         btn.addEventListener('click', () => openPozoList(btn.dataset.journeyId));
@@ -2468,9 +2732,11 @@ function resetJourneyWorkspace() {
     localStorage.removeItem(REPORTS_STORAGE_KEY);
     localStorage.removeItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
     localStorage.removeItem(CAPTURE_STARTED_STORAGE_KEY);
+    localStorage.removeItem(JOURNEY_STARTED_STORAGE_KEY);
     currentEditingReportId = null;
     currentEditingJourneyId = null;
     isCaptureStarted = false;
+    isJourneyStarted = false;
 
     const form = document.getElementById('field-report-form');
     if (form) {
@@ -2485,6 +2751,7 @@ function resetJourneyWorkspace() {
     syncJourneyFieldLocks([]);
     updateEditingContext([]);
     resetAccordionProgressControls();
+    syncJourneyStartGate();
     syncCaptureGateState();
 }
 
@@ -2751,6 +3018,12 @@ function handlePreviewKeydown(event) {
     }
 
     const modal = document.getElementById('field-report-preview-modal');
+    const messageModal = document.getElementById('field-message-composer-modal');
+    if (messageModal && !messageModal.hidden) {
+        closeJourneyMessageComposer();
+        return;
+    }
+
     if (!modal || modal.hidden) return;
     closeReportPreview();
 }

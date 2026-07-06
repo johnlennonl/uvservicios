@@ -66,6 +66,18 @@
                         </div>
                     </div>
 
+                    <div id="field-journey-start-overlay" class="field-journey-start-overlay">
+                        <div class="field-journey-start-card">
+                            <span>Jornada sin iniciar</span>
+                            <strong>INICIAR JORNADA</strong>
+                            <p>Activa la captura para seleccionar técnico, pozo y comenzar el recorrido.</p>
+                            <button type="button" id="field-start-journey-btn" class="field-start-journey-btn">
+                                <i class="fa-solid fa-play" aria-hidden="true"></i>
+                                <span>Iniciar jornada</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <div id="field-editing-context" class="field-continue-banner" hidden></div>
 
                     <div class="field-quick-actions" aria-label="Accesos rápidos de captura">
@@ -383,8 +395,7 @@
                 <aside class="field-card field-summary-panel">
                     <div class="field-card-header">
                         <div>
-                            <h2>Centro de captura</h2>
-                            <p>Administra la carga activa sin perder el hilo: agrega pozos, retoma uno en edición y confirma cuándo ya está lista para enviarse.</p>
+                            <h2>Resumen del turno</h2>
                         </div>
                     </div>
 
@@ -392,7 +403,7 @@
                         <div class="field-journey-guide-copy">
                             <span class="field-journey-guide-kicker">Flujo recomendado</span>
                             <strong id="field-summary-mode-title">Construyendo carga</strong>
-                            <p id="field-summary-mode-copy">Empieza cargando el primer pozo. Cada registro queda guardado en esta captura mientras completas el turno.</p>
+                            <p id="field-summary-mode-copy">Emza cargando el primer pozo. Cada registro queda guardado en esta captura mientras completas el turno.pie</p>
                         </div>
                         <div class="field-journey-guide-steps">
                             <span class="is-active">1. Agrega</span>
@@ -428,8 +439,7 @@
                     <div class="field-journey-shell">
                         <div class="field-journey-header">
                             <div>
-                                <h3>Bandeja de pozos de esta carga</h3>
-                                <p>Usa esta lista para continuar un pozo, revisar el orden de captura o quitar registros antes de enviar la carga.</p>
+                                <h3>Pozos cargados</h3>
                             </div>
                             <span id="field-journey-count" class="field-journey-count">0 pozos</span>
                         </div>
@@ -439,20 +449,26 @@
                     </div>
 
                     <div class="field-submit-shell">
-                        <button type="button" id="field-submit-journey-btn" class="btn-submit field-submit-btn">Enviar captura a revisión</button>
-                        <p id="field-summary-submit-copy">Cuando la lista esté completa, envía la captura para que administración la reciba como un solo paquete operativo.</p>
-                        <div class="field-summary-support-row">
+                        <div class="field-submit-action-row" aria-label="Acciones de cierre de captura">
+                            <button type="button" id="field-copy-journey-message-btn" class="btn-secondary field-copy-message-btn" title="Copiar mensaje de jornada">
+                                <i class="fa-solid fa-message" aria-hidden="true"></i>
+                                <span>Copiar mensaje</span>
+                            </button>
+                            <button type="button" id="field-submit-journey-btn" class="btn-submit field-submit-btn" title="Enviar captura a revisión">
+                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                                <span>Enviar captura</span>
+                            </button>
                             <button type="button" id="field-send-ticket-btn" class="btn-submit field-ticket-trigger-btn" title="Reportar incidencia">
-                                <i class="fa-solid fa-envelope-open-text" aria-hidden="true" style="font-size:18px"></i>
+                                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                                 <span>Reportar incidencia</span>
                             </button>
-                            <small>Reporta incidencias o consultas ligadas a esta captura mientras sigues trabajando.</small>
                         </div>
+                        <p id="field-summary-submit-copy">Cuando la lista esté completa, envía la captura para que administración la reciba como un solo paquete operativo.</p>
                     </div>
 
                     <div class="field-note-box">
                         <strong>Tip operativo:</strong>
-                        si vas por varios pozos del mismo turno, deja fijo el turno y usa esta bandeja como lista de control para no repetir ni omitir parámetros.
+                        revisa la lista antes de enviar para no repetir pozos.
                     </div>
                 </aside>
             </section>
@@ -489,6 +505,34 @@
                         <button type="button" id="field-report-preview-close" class="field-report-preview-close" aria-label="Cerrar vista previa">×</button>
                     </div>
                     <div id="field-report-preview-body" class="field-report-preview-body"></div>
+                </div>
+            </section>
+
+            <section id="field-message-composer-modal" class="field-report-preview-modal" hidden>
+                <div class="field-report-preview-dialog field-message-composer-dialog" role="dialog" aria-modal="true" aria-labelledby="field-message-composer-title">
+                    <div class="field-report-preview-header">
+                        <div>
+                            <span class="field-report-preview-kicker">Mensaje editable</span>
+                            <h2 id="field-message-composer-title">Mensaje de jornada</h2>
+                        </div>
+                        <button type="button" id="field-message-composer-close" class="field-report-preview-close" aria-label="Cerrar mensaje">×</button>
+                    </div>
+                    <div class="field-report-preview-body field-message-composer-body">
+                        <div class="field-message-composer-grid">
+                            <label class="field-input-group"><span>Empresa Mixta</span><input type="text" id="message-company-mixta" value="PQQ"></label>
+                            <label class="field-input-group"><span>Empresa de Servicios</span><input type="text" id="message-company-service" value="U. V. Servicios."></label>
+                            <label class="field-input-group"><span>Actividad</span><input type="text" id="message-activity" value="Monitoreo de Equipos BES"></label>
+                            <label class="field-input-group field-input-group-full"><span>Personal / acompañamiento</span><input type="text" id="message-personnel" value="Personal UV Servicios en conjunto con personal de Operaciones PQQ."></label>
+                        </div>
+                        <label class="field-input-group field-input-group-full field-message-textarea-wrap">
+                            <span>Mensaje listo para copiar</span>
+                            <textarea id="field-message-composer-text" rows="18" spellcheck="true"></textarea>
+                        </label>
+                        <div class="field-message-composer-actions">
+                            <button type="button" id="field-message-composer-refresh" class="btn-secondary"><i class="fa-solid fa-rotate"></i> Regenerar</button>
+                            <button type="button" id="field-message-composer-copy" class="btn-submit"><i class="fa-solid fa-copy"></i> Copiar mensaje</button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
