@@ -70,8 +70,6 @@ const DAILY_EXCEL_LAYOUTS = [
                 vsd_c: getExcelCellValue(row, 'O'),
                 pip: getLikelyPipValue(getExcelCellValue(row, 'AB'), getExcelCellValue(row, 'V'), getExcelCellValue(row, 'M')),
                 tm: getExcelCellValue(row, 'Y'),
-                presion_thp: getExcelCellValue(row, 'BH'),
-                presion_chp: getExcelCellValue(row, 'BI'),
                 observaciones: collectExcelObservationText(row, 'EW')
             };
         }
@@ -1145,19 +1143,21 @@ function collectExcelObservationText(row, startColumnLabel = 'EW') {
     if (!Array.isArray(row)) return undefined;
 
     const startIndex = excelColumnToIndex(startColumnLabel);
-    return row
-        .slice(startIndex)
-        .map(value => value === undefined || value === null ? '' : String(value).trim())
-        .filter(Boolean)
-        .join(' | ');
+    return extractOperationalObservation(row.slice(startIndex));
 }
 
 function collectExcelObservationTextFromIndex(row, startIndex = 0) {
     if (!Array.isArray(row)) return undefined;
 
-    return row
-        .slice(startIndex)
+    return extractOperationalObservation(row.slice(startIndex));
+}
+
+function extractOperationalObservation(values = []) {
+    const parts = values
         .map(value => value === undefined || value === null ? '' : String(value).trim())
-        .filter(Boolean)
-        .join(' | ');
+        .filter(Boolean);
+
+    if (!parts.length) return undefined;
+
+    return [...parts].reverse().find(value => /observ|oper|condici|normal|falla|monitoreo|pozo/i.test(value)) || parts[parts.length - 1];
 }

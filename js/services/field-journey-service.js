@@ -4,6 +4,8 @@ import { getAccessProfile } from '../core/access-control.js';
 import { previewMonitoringSync, syncMonitoringRecords } from './monitoring-records-service.js';
 import { getWellTechnicalData } from './technical-measurements-service.js';
 
+const CONSOLIDATED_OPERATIONAL_TABLE = 'consolidated_dashboard_operational';
+
 const FIELD_PRODUCTION_MEASURE_MAP = {
     campo: 'campo_name',
     ef: 'ef',
@@ -744,6 +746,100 @@ export async function getAdminFieldJourneyDetail(journeyId) {
     }
 }
 
+export async function getFieldSubmittedJourneys(options = {}) {
+    const { session } = await ensureFieldSessionAccess();
+    const limit = Number(options.limit);
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 80;
+
+    let query = supabase
+        .from('field_journeys')
+        .select('*')
+        .eq('submitted_by_user_id', session.user.id)
+        .order('journey_date', { ascending: false })
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(safeLimit);
+
+    if (options.startDate) {
+        query = query.gte('journey_date', options.startDate);
+    }
+
+    if (options.endDate) {
+        query = query.lte('journey_date', options.endDate);
+    }
+
+    try {
+        const { data: journeys, error } = await query;
+        if (error) throw error;
+
+        const journeyList = Array.isArray(journeys) ? journeys : [];
+        if (journeyList.length === 0) return [];
+
+        const journeyIds = journeyList.map(journey => journey.id).filter(Boolean);
+        const { data: records, error: recordsError } = await supabase
+            .from('field_journey_records')
+            .select('journey_id, pozo, report_time')
+            .in('journey_id', journeyIds)
+            .order('report_time', { ascending: true })
+            .order('pozo', { ascending: true });
+
+        if (recordsError) throw recordsError;
+
+        const recordsByJourney = new Map();
+        (records || []).forEach(record => {
+            const key = record.journey_id;
+            if (!recordsByJourney.has(key)) {
+                recordsByJourney.set(key, []);
+            }
+            recordsByJourney.get(key).push(record);
+        });
+
+        return journeyList
+            .map(journey => buildJourneyPreviewSummary(journey, recordsByJourney.get(journey.id) || []))
+            .filter(journey => matchesJourneySearch(journey, options.searchTerm));
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
+export async function getFieldSubmittedJourneyDetail(journeyId) {
+    const { session } = await ensureFieldSessionAccess();
+    const normalizedJourneyId = String(journeyId || '').trim();
+    if (!normalizedJourneyId) {
+        throw new Error('No se recibió un identificador válido para consultar la jornada enviada.');
+    }
+
+    try {
+        const [{ data: journey, error: journeyError }, { data: records, error: recordsError }] = await Promise.all([
+            supabase
+                .from('field_journeys')
+                .select('*')
+                .eq('id', normalizedJourneyId)
+                .eq('submitted_by_user_id', session.user.id)
+                .maybeSingle(),
+            supabase
+                .from('field_journey_records')
+                .select('*')
+                .eq('journey_id', normalizedJourneyId)
+                .order('report_time', { ascending: true })
+                .order('pozo', { ascending: true })
+        ]);
+
+        if (journeyError) throw journeyError;
+        if (recordsError) throw recordsError;
+        if (!journey) {
+            throw new Error('La jornada enviada no existe o no pertenece a tu usuario.');
+        }
+
+        return {
+            journey: buildJourneyPreviewSummary(journey, records || []),
+            records: records || []
+        };
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
 export async function deleteAdminFieldJourney(journeyId) {
     await ensureFieldAdminReadAccess();
 
@@ -1054,7 +1150,7 @@ function mapWorkflowRecordToMonitoringRecord(record = {}) {
         vsd_c: normalizeOptionalNumber(record.i_vsd_c ?? payload.i_vsd_c ?? record.vsd_c ?? payload.vsd_c),
         sentido_giro: String(record.sentido_giro || payload.sentido_giro || '').trim(),
         estatus: String(record.estatus || payload.estatus || '').trim(),
-        observaciones: String(record.observaciones_pozo || payload.observaciones_pozo || payload.diagnostico || '').trim()
+        observaciones: String(record.observaciones_pozo || payload.observaciones_pozo || '').trim()
     };
 }
 
@@ -1183,7 +1279,7 @@ async function upsertFieldJourneyIntoConsolidatedDashboard(records = [], journey
     if (!rows.length) return { saved: 0, error: null };
 
     const { error } = await supabase
-        .from('consolidated_dashboard_general')
+        .from(CONSOLIDATED_OPERATIONAL_TABLE)
         .upsert(rows, { onConflict: 'row_hash' });
 
     if (error) {

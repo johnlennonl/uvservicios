@@ -1887,6 +1887,28 @@ body {
     gap: 12px;
 }
 
+.field-admin-preview-filters {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.7fr) minmax(150px, 0.7fr) minmax(220px, 1.4fr) auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 16px;
+    padding: 14px;
+    border: 1px solid rgba(226, 232, 240, 0.92);
+    border-radius: 18px;
+    background: rgba(248, 250, 252, 0.86);
+}
+
+.field-admin-preview-filters .field-input-group {
+    gap: 7px;
+}
+
+.field-admin-preview-filters .field-back-btn {
+    min-height: 44px;
+    border-radius: 14px;
+    white-space: nowrap;
+}
+
 .field-back-btn {
     border-radius: 999px;
     padding: 10px 14px;
@@ -2644,6 +2666,11 @@ body.field-preview-open {
     .field-admin-preview-toolbar {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .field-admin-preview-filters {
+        grid-template-columns: 1fr;
+        padding: 12px;
     }
 
     .field-admin-ticket {

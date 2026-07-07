@@ -1,5 +1,5 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
-import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo } from './services/field-journey-service.js';
+import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, saveAdminFieldJourneyReview, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo } from './services/field-journey-service.js';
 import { exportFieldJourneyToExcel, openFieldJourneyPdf, exportHistoricalFieldReportsToExcel } from './services/field-journey-export.js';
 import { validateFieldReport } from './modules/field/field-validation.js';
 
@@ -1458,11 +1458,11 @@ function buildPublicationChangesList(changedFields = []) {
                     <strong style="font-size:13px;color:#0f172a;">${escapeHtml(PUBLICATION_FIELD_LABELS[change.fieldName] || change.fieldName)}</strong>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
                         <div style="padding:10px;border-radius:12px;background:rgba(241,245,249,0.95);">
-                            <span style="display:block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#64748b;">Actual</span>
+                            <span style="display:block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#64748b;">Actual en dashboard</span>
                             <span style="display:block;font-size:14px;color:#0f172a;">${escapeHtml(formatPublicationValue(change.fieldName, change.previousValue))}</span>
                         </div>
                         <div style="padding:10px;border-radius:12px;background:rgba(236,253,245,0.95);">
-                            <span style="display:block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#047857;">Nuevo</span>
+                            <span style="display:block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#047857;">Nuevo desde Campo</span>
                             <span style="display:block;font-size:14px;color:#0f172a;">${escapeHtml(formatPublicationValue(change.fieldName, change.nextValue))}</span>
                         </div>
                     </div>
@@ -1607,7 +1607,7 @@ function buildPublicationPreviewHtml(preview, reviewSummary, records = []) {
         <div class="campo-admin-upload-preview">
             <div style="padding:16px 18px;border-radius:18px;background:rgba(15,118,110,0.08);border:1px solid rgba(15,118,110,0.16);display:grid;gap:6px;">
                 <strong style="font-size:16px;color:#0f172a;">Vista previa de subida operativa</strong>
-                <p style="margin:0;color:#475569;line-height:1.5;">Aquí solo se revisan parámetros operativos hacia el dashboard. La medición técnica no se toca.</p>
+                <p style="margin:0;color:#475569;line-height:1.5;">Aquí se compara lo actual del dashboard contra lo nuevo enviado desde Campo. Al confirmar, Campo reemplaza esos campos operativos.</p>
             </div>
 
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
@@ -2048,6 +2048,34 @@ async function showPublicationReadiness() {
     );
 }
 
+async function approveCurrentJourney() {
+    if (!state.currentDetail?.journey?.id) return;
+
+    const reviewSummary = summarizeJourneyReview(state.currentDetail.records, state.currentDetail.journey);
+    if (reviewSummary.blocked > 0) {
+        await notify('No se puede aprobar todavía. Corrige los pozos con bloqueos críticos primero.', 'warning');
+        return;
+    }
+
+    setActionButtonsBusy(true);
+    await saveAdminFieldJourneyReview(state.currentDetail.journey.id, {
+        status: 'approved',
+        comment: `Jornada aprobada desde Admin Campo. Listos: ${reviewSummary.ready}. Con alerta: ${reviewSummary.warning}.`,
+        metadata: {
+            ready: reviewSummary.ready,
+            warning: reviewSummary.warning,
+            blocked: reviewSummary.blocked,
+            total_records: state.currentDetail.records.length
+        }
+    });
+
+    await loadJourneys();
+    if (state.selectedJourneyId) {
+        await selectJourney(state.selectedJourneyId, { keepList: true });
+    }
+    await notify('Jornada aprobada. Todavía no se ha publicado al dashboard.', 'success');
+}
+
 function renderEmptyDetail(message = 'Selecciona una jornada para ver su detalle.') {
     state.currentDetail = null;
     closeRecordModal();
@@ -2182,7 +2210,7 @@ async function renderDetail(detail) {
                             Acciones
                         </span>
                         <span class="campo-admin-drawer-summary-side">
-                            <span class="campo-admin-count-badge">4</span>
+                            <span class="campo-admin-count-badge">5</span>
                             <span class="campo-admin-drawer-arrow" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"></path>
@@ -2192,6 +2220,7 @@ async function renderDetail(detail) {
                     </summary>
                     <div class="campo-admin-drawer-content">
                         <div class="campo-admin-detail-actions">
+                            <button type="button" class="campo-admin-action-btn campo-admin-action-btn-secondary" data-detail-action="approve">Aprobar jornada</button>
                             <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-detail-action="review-publication">Preparar subida</button>
                             <button type="button" class="campo-admin-action-btn" data-detail-action="excel">Excel consolidado</button>
                             <button type="button" class="campo-admin-action-btn campo-admin-action-btn-secondary" data-detail-action="pdf">PDF consolidado</button>
@@ -2472,6 +2501,11 @@ async function handleDetailAction(action) {
 
         if (action === 'review-publication') {
             await showPublicationReadiness();
+            return;
+        }
+
+        if (action === 'approve') {
+            await approveCurrentJourney();
             return;
         }
 

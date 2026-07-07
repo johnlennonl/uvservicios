@@ -5,6 +5,7 @@
 
 import { logout, getAccessProfile, getSession } from './auth.js';
 import { getMonitoringData, getLatestDate, getLatestMonitoringRecords, getNeighborRecords, getPozoRecordDates, getPozosHistorySummary, getWellRibbonData } from './data-service.js';
+import { fetchConsolidatedDashboardRows } from './services/consolidado-service.js';
 import { hideFullLoader, showFullLoader } from './ui.js';
 
 let charts = {};
@@ -849,9 +850,14 @@ async function updateDashboard() {
     try {
         const requestedRecordCount = getTrendWindowRecordCount();
         const shouldUseFixedRecordWindow = selectedPozos.length === 1 && isFocusedTrendMode();
-        const data = shouldUseFixedRecordWindow
+        const rawData = shouldUseFixedRecordWindow
             ? await getLatestMonitoringRecords(selectedPozos[0], requestedRecordCount)
             : await getMonitoringData(selectedPozos, start, end);
+        const data = await applyConsolidatedOperationalOverrides(rawData, {
+            selectedPozos,
+            startDate: start,
+            endDate: end
+        });
         const ribbonData = selectedPozos.length === 1
             ? await getWellRibbonData(selectedPozos[0])
             : null;
@@ -910,11 +916,16 @@ async function updateDashboard() {
             
             // Trae vecinos fuera del rango para evitar cortes bruscos en las lineas.
             const neighbors = await getNeighborRecords(selectedPozos[0], oldestDate, newestDate);
-            extendedData = [...extendedData, ...neighbors];
+            const normalizedNeighbors = await applyConsolidatedOperationalOverrides(neighbors, {
+                selectedPozos,
+                startDate: oldestDate,
+                endDate: newestDate
+            });
+            extendedData = [...extendedData, ...normalizedNeighbors];
         }
 
         const trendSourceData = shouldUseFocusedTrendData
-            ? await getLatestMonitoringRecords(selectedPozos[0], requestedRecordCount)
+            ? data
             : extendedData;
 
         // Ordena por fecha y hora antes de alimentar las graficas de tendencia.
@@ -1548,15 +1559,120 @@ function renderObservations(data) {
     if (!tbody) return;
     tbody.innerHTML = '';
     data.slice(0, 15).forEach(record => {
-        if (record.observaciones) {
+        const observationText = formatObservationText(record.observaciones);
+        if (observationText) {
             const tr = document.createElement('tr');
             tr.innerHTML = `<td style="padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-body);">
                 <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">${escapeHtml(record.pozo_name)} - ${escapeHtml(record.fecha)} ${escapeHtml(record.hora)}</span>
-                ${escapeHtml(record.observaciones)}
+                ${escapeHtml(observationText)}
             </td>`;
             tbody.appendChild(tr);
         }
     });
+}
+
+function formatObservationText(value) {
+    const rawValue = String(value || '').trim();
+    if (!rawValue) return '';
+
+    const parts = rawValue
+        .split('|')
+        .map(item => item.trim())
+        .filter(Boolean);
+
+    if (!parts.length) return '';
+    const operationalPart = [...parts].reverse().find(part => /observ|oper|condici|normal|falla|monitoreo|pozo/i.test(part));
+    return operationalPart || parts[parts.length - 1];
+}
+
+function normalizeDashboardTime(value) {
+    const rawValue = String(value || '').trim();
+    if (!rawValue) return '';
+    const match = rawValue.match(/^(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?/);
+    if (!match) return rawValue;
+    const hours = String(Math.min(Number(match[1]) || 0, 23)).padStart(2, '0');
+    const minutes = String(Math.min(Number(match[2]) || 0, 59)).padStart(2, '0');
+    const seconds = String(Math.min(Number(match[3]) || 0, 59)).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+}
+
+function buildDashboardRecordKey({ pozo_name, pozo, fecha, report_date, hora, report_time } = {}) {
+    const pozoName = String(pozo_name || pozo || '').trim().toUpperCase();
+    const dateValue = String(fecha || report_date || '').trim().slice(0, 10);
+    const timeValue = normalizeDashboardTime(hora || report_time || '');
+    if (!pozoName || !dateValue || !timeValue) return '';
+    return `${pozoName}|${dateValue}|${timeValue}`;
+}
+
+function getConsolidatedRowValue(rowData = {}, aliases = []) {
+    const normalizeKey = value => String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9%]+/g, '')
+        .toUpperCase();
+    const normalizedAliases = new Set(aliases.map(normalizeKey));
+
+    for (const [key, value] of Object.entries(rowData || {})) {
+        if (!normalizedAliases.has(normalizeKey(key))) continue;
+        if (value !== undefined && value !== null && String(value).trim() !== '') return value;
+    }
+
+    return undefined;
+}
+
+function buildConsolidatedOperationalMap(rows = []) {
+    const map = new Map();
+
+    rows.forEach(row => {
+        const rowData = row.row_data && typeof row.row_data === 'object' ? row.row_data : {};
+        const key = buildDashboardRecordKey({
+            pozo: row.pozo || getConsolidatedRowValue(rowData, ['POZO']),
+            report_date: row.report_date || getConsolidatedRowValue(rowData, ['FECHA']),
+            report_time: row.report_time || getConsolidatedRowValue(rowData, ['HORA'])
+        });
+        if (!key) return;
+
+        const patch = {
+            presion_thp: getConsolidatedRowValue(rowData, ['THP [psi]', 'THP']),
+            presion_chp: getConsolidatedRowValue(rowData, ['CHP [psi]', 'CHP']),
+            presion_lf: getConsolidatedRowValue(rowData, ['LF [psi]', 'LF']),
+            observaciones: getConsolidatedRowValue(rowData, ['OBSERVACIONES', 'OBSERVACION'])
+        };
+
+        Object.keys(patch).forEach(fieldName => {
+            if (patch[fieldName] === undefined || patch[fieldName] === null || String(patch[fieldName]).trim() === '') {
+                delete patch[fieldName];
+            }
+        });
+
+        if (Object.keys(patch).length) map.set(key, patch);
+    });
+
+    return map;
+}
+
+async function applyConsolidatedOperationalOverrides(records = [], { selectedPozos = [], startDate = '', endDate = '' } = {}) {
+    if (!Array.isArray(records) || records.length === 0) return records;
+
+    try {
+        const pozo = selectedPozos.length === 1 ? selectedPozos[0] : '';
+        const consolidatedRows = await fetchConsolidatedDashboardRows({
+            limit: 2000,
+            pozo,
+            startDate,
+            endDate
+        });
+        const operationalMap = buildConsolidatedOperationalMap(consolidatedRows);
+        if (!operationalMap.size) return records;
+
+        return records.map(record => {
+            const patch = operationalMap.get(buildDashboardRecordKey(record));
+            return patch ? { ...record, ...patch } : record;
+        });
+    } catch (error) {
+        console.warn('No se pudieron cruzar datos operativos del consolidado para el dashboard.', error);
+        return records;
+    }
 }
 
 function renderOrUpdate(id, options) {

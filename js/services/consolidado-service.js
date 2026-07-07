@@ -7,6 +7,7 @@ import { saveTechnicalMeasurement } from './technical-measurements-service.js';
 import { getWellBESProfile, upsertWellBESProfile } from './bes-profile-service.js';
 
 const CONSOLIDATED_TABLE = 'consolidated_dashboard_general';
+const CONSOLIDATED_OPERATIONAL_TABLE = 'consolidated_dashboard_operational';
 const POZO_KEYS = ['POZO', 'Pozo', 'pozo'];
 const CAMPO_KEYS = ['CAMPO', 'Campo', 'campo'];
 const EF_KEYS = ['EF', 'Ef', 'ef'];
@@ -40,8 +41,8 @@ const BES_PROFILE_KEY_MAP = Object.freeze({
 });
 const BES_PROFILE_FIELDS = Object.keys(BES_PROFILE_KEY_MAP);
 const SOURCE_ORDER = Object.freeze({
-    legacy_excel: 0,
-    manual_adjustment: 1,
+    manual_adjustment: 0,
+    legacy_excel: 1,
     field_journey: 2
 });
 const MANUAL_MONITORING_AUXILIARY_COLUMNS = new Set([
@@ -158,8 +159,13 @@ function getUsableManualMonitoringSourceEntries(source = {}) {
 }
 
 function hasCompleteConsolidatedSourceRow(source = {}) {
+    const sourceEntries = Object.entries(source || {})
+        .filter(([key]) => {
+            const normalizedKey = String(key || '').trim();
+            return normalizedKey && !normalizedKey.startsWith('__');
+        });
     const usableEntries = getUsableManualMonitoringSourceEntries(source);
-    const normalizedKeys = new Set(usableEntries.map(([key]) => normalizeRowDataKey(key)));
+    const normalizedKeys = new Set(sourceEntries.map(([key]) => normalizeRowDataKey(key)));
     const hasIdentity = POZO_KEYS.some(key => normalizedKeys.has(normalizeRowDataKey(key)))
         && DATE_KEYS.some(key => normalizedKeys.has(normalizeRowDataKey(key)))
         && TIME_KEYS.some(key => normalizedKeys.has(normalizeRowDataKey(key)));
@@ -207,6 +213,13 @@ function buildConsolidatedMonitoringKeyCandidates({ pozoValues = [], fechaValues
 function buildConsolidatedRowMonitoringKey(row = {}) {
     const rowData = row.row_data && typeof row.row_data === 'object' ? row.row_data : {};
     return [...buildConsolidatedRowMonitoringKeyCandidates(row)][0] || null;
+}
+
+function buildConsolidatedRowDateKey(row = {}) {
+    const rowData = row.row_data && typeof row.row_data === 'object' ? row.row_data : {};
+    const pozoName = String(row.pozo || getFirstValueByNormalizedKey(rowData, POZO_KEYS) || '').trim().toUpperCase();
+    const reportDate = normalizeDate(row.report_date || getFirstValueByNormalizedKey(rowData, DATE_KEYS)) || '';
+    return pozoName && reportDate ? `${pozoName}|${reportDate}` : null;
 }
 
 function buildConsolidatedRowMonitoringKeyCandidates(row = {}) {
@@ -455,7 +468,7 @@ function isConsolidadoMissingRelationError(error) {
     const code = String(error?.code || '');
     const message = String(error?.message || '');
     return code === '42P01'
-        || (/consolidated_dashboard_general/i.test(message) && /does not exist|not found|no existe/i.test(message));
+    || (/(consolidated_dashboard_general|consolidated_dashboard_operational)/i.test(message) && /does not exist|not found|no existe/i.test(message));
 }
 
 function buildConsolidadoDatabaseError(error) {
@@ -464,7 +477,7 @@ function buildConsolidadoDatabaseError(error) {
     }
 
     if (isConsolidadoMissingRelationError(error)) {
-        return new Error('No se encontro la tabla consolidated_dashboard_general en el proyecto Supabase conectado a la app. Verifica que ejecutaste supabase/consolidated_dashboard_general.sql en el proyecto ktfiglhhsqinvqvqynhg.');
+        return new Error('No se encontro una tabla del consolidado en Supabase. Verifica que ejecutaste supabase/consolidated_dashboard_general.sql y supabase/consolidated_dashboard_operational.sql en el proyecto ktfiglhhsqinvqvqynhg.');
     }
 
     return error;
@@ -513,9 +526,8 @@ async function fetchFieldJourneyRowsByIds(ids = []) {
     if (!selectedIds.length) return [];
 
     const { data, error } = await supabase
-        .from(CONSOLIDATED_TABLE)
+        .from(CONSOLIDATED_OPERATIONAL_TABLE)
         .select('id, source_journey_id, source_record_id, pozo, campo, ef, report_date, report_time, row_data, created_at')
-        .eq('source_type', 'field_journey')
         .in('id', selectedIds);
 
     if (error) throw buildConsolidadoDatabaseError(error);
@@ -564,6 +576,15 @@ async function countConsolidatedRowsBySource(sourceType) {
     return count || 0;
 }
 
+async function countRowsFromTable(tableName) {
+    const { count, error } = await supabase
+        .from(tableName)
+        .select('id', { count: 'exact', head: true });
+
+    if (error) throw buildConsolidadoDatabaseError(error);
+    return count || 0;
+}
+
 export async function getConsolidatedDashboardSummary() {
     await ensureConsolidadoReadAccess();
 
@@ -575,7 +596,7 @@ export async function getConsolidatedDashboardSummary() {
 
     const [legacyCount, fieldJourneyCount, manualCount] = await Promise.all([
         countConsolidatedRowsBySource('legacy_excel'),
-        countConsolidatedRowsBySource('field_journey'),
+        countRowsFromTable(CONSOLIDATED_OPERATIONAL_TABLE),
         countConsolidatedRowsBySource('manual_adjustment')
     ]);
 
@@ -588,7 +609,7 @@ export async function getConsolidatedDashboardSummary() {
     if (latestError) throw buildConsolidadoDatabaseError(latestError);
 
     return {
-        total: count || 0,
+        total: legacyCount + fieldJourneyCount,
         legacyCount,
         fieldJourneyCount,
         manualCount,
@@ -599,19 +620,10 @@ export async function getConsolidatedDashboardSummary() {
 export async function getConsolidatedDashboardFilterOptions() {
     await ensureConsolidadoReadAccess();
 
-    const rows = [];
-    const pageSize = 1000;
-
-    for (let startIndex = 0; startIndex < 10000; startIndex += pageSize) {
-        const { data, error } = await supabase
-            .from(CONSOLIDATED_TABLE)
-            .select('pozo, report_date')
-            .range(startIndex, startIndex + pageSize - 1);
-
-        if (error) throw buildConsolidadoDatabaseError(error);
-        rows.push(...(data || []));
-        if (!data || data.length < pageSize) break;
-    }
+    const rows = [
+        ...await fetchConsolidatedRowsPage(CONSOLIDATED_TABLE, { select: 'pozo, report_date', sourceType: 'legacy_excel' }),
+        ...await fetchConsolidatedRowsPage(CONSOLIDATED_OPERATIONAL_TABLE, { select: 'pozo, report_date' })
+    ];
 
     const pozos = [...new Set(rows
         .map(row => String(row.pozo || '').trim().toUpperCase())
@@ -630,9 +642,7 @@ export async function getConsolidatedDashboardFilterOptions() {
     };
 }
 
-export async function fetchConsolidatedDashboardRows({ limit = 10000, pozo = '', startDate = '', endDate = '' } = {}) {
-    await ensureConsolidadoReadAccess();
-
+async function fetchConsolidatedRowsPage(tableName, { limit = 10000, pozo = '', startDate = '', endDate = '', select = 'source_type, source_file_name, source_sheet_name, source_row_number, pozo, campo, ef, report_date, report_time, row_data, column_labels, created_at, updated_at', sourceType = '' } = {}) {
     const pageSize = 1000;
     const rows = [];
     const normalizedPozo = String(pozo || '').trim().toUpperCase();
@@ -640,10 +650,11 @@ export async function fetchConsolidatedDashboardRows({ limit = 10000, pozo = '',
     for (let startIndex = 0; startIndex < limit; startIndex += pageSize) {
         const endIndex = Math.min(startIndex + pageSize - 1, limit - 1);
         let query = supabase
-            .from(CONSOLIDATED_TABLE)
-            .select('source_type, source_file_name, source_sheet_name, source_row_number, pozo, campo, ef, report_date, report_time, row_data, column_labels, created_at, updated_at')
+            .from(tableName)
+            .select(select)
             .order('created_at', { ascending: true });
 
+        if (sourceType) query = query.eq('source_type', sourceType);
         if (normalizedPozo) query = query.eq('pozo', normalizedPozo);
         if (startDate) query = query.gte('report_date', startDate);
         if (endDate) query = query.lte('report_date', endDate);
@@ -654,6 +665,22 @@ export async function fetchConsolidatedDashboardRows({ limit = 10000, pozo = '',
         rows.push(...(data || []));
 
         if (!data || data.length < pageSize) break;
+    }
+
+    return rows;
+}
+
+export async function fetchConsolidatedDashboardRows({ limit = 10000, pozo = '', startDate = '', endDate = '', source = 'base' } = {}) {
+    await ensureConsolidadoReadAccess();
+
+    const rows = [];
+
+    if (source === 'base' || source === 'completo') {
+        rows.push(...await fetchConsolidatedRowsPage(CONSOLIDATED_TABLE, { limit, pozo, startDate, endDate, sourceType: 'legacy_excel' }));
+    }
+
+    if (source === 'operativo' || source === 'completo') {
+        rows.push(...await fetchConsolidatedRowsPage(CONSOLIDATED_OPERATIONAL_TABLE, { limit, pozo, startDate, endDate }));
     }
 
     return dedupeConsolidatedRowsForExport(rows).sort(sortConsolidatedRows);
@@ -672,8 +699,16 @@ function shouldPreferConsolidatedExportRow(candidate = {}, current = {}) {
 function dedupeConsolidatedRowsForExport(rows = []) {
     const rowsByKey = new Map();
     const looseRows = [];
+    const legacyDateKeys = new Set(rows
+        .filter(row => row.source_type === 'legacy_excel')
+        .map(buildConsolidatedRowDateKey)
+        .filter(Boolean));
 
     rows.forEach(row => {
+        if (row.source_type === 'manual_adjustment' && legacyDateKeys.has(buildConsolidatedRowDateKey(row))) {
+            return;
+        }
+
         const key = buildConsolidatedRowMonitoringKey(row);
         if (!key) {
             looseRows.push(row);
@@ -941,8 +976,7 @@ async function updateLegacyRowsWithManualMonitoringRows(rows = []) {
 
         rowKeys.forEach(candidateKey => matchedKeys.add(candidateKey));
         const latestLegacyRow = updatesById.get(legacyRow.id)?.workingRow || legacyRow;
-        const patchRowData = pickManualMonitoringPatchRowData(row.row_data || {});
-        const merged = mergeManualMonitoringIntoConsolidatedRow(latestLegacyRow, patchRowData);
+        const merged = mergeManualMonitoringIntoConsolidatedRow(latestLegacyRow, row.row_data || {});
         if (!merged.changed) return;
 
         const rowData = merged.rowData;
@@ -995,8 +1029,7 @@ async function previewLegacyRowsWithManualMonitoringRows(rows = []) {
         if (!legacyRow) return;
 
         rowKeys.forEach(candidateKey => matchedKeys.add(candidateKey));
-        const patchRowData = pickManualMonitoringPatchRowData(row.row_data || {});
-        const merged = mergeManualMonitoringIntoConsolidatedRow(legacyRow, patchRowData);
+        const merged = mergeManualMonitoringIntoConsolidatedRow(legacyRow, row.row_data || {});
         if (merged.changed) updateIds.add(legacyRow.id);
     });
 
@@ -1027,39 +1060,12 @@ function buildManualMonitoringRowFromTemplate(row = {}, template = null) {
 
 export async function upsertManualMonitoringIntoConsolidated(records = [], { sourceFileName = '' } = {}) {
     await ensureConsolidadoManagementAccess();
-
-    const rows = dedupeConsolidatedRowsByHash(await buildManualMonitoringConsolidatedRows(records, sourceFileName));
-    if (!rows.length) return { saved: 0, updated: 0, inserted: 0 };
-
-    const mergeResult = await updateLegacyRowsWithManualMonitoringRows(rows);
-    const rowsToInsert = rows
-        .filter(row => ![...buildConsolidatedRowMonitoringKeyCandidates(row)].some(key => mergeResult.matchedKeys.has(key)))
-        .map(row => buildManualMonitoringRowFromTemplate(row, mergeResult.templateByPozo.get(getConsolidatedRowPozo(row))));
-
-    const chunkSize = 400;
-    let inserted = 0;
-
-    for (let startIndex = 0; startIndex < rowsToInsert.length; startIndex += chunkSize) {
-        const chunk = rowsToInsert.slice(startIndex, startIndex + chunkSize);
-        const { error } = await supabase
-            .from(CONSOLIDATED_TABLE)
-            .upsert(chunk, { onConflict: 'row_hash' });
-
-        if (error) throw buildConsolidadoDatabaseError(error);
-        inserted += chunk.length;
-    }
-
-    return { saved: mergeResult.updated + inserted, updated: mergeResult.updated, inserted };
+    return { saved: 0, updated: 0, inserted: 0, skipped: Array.isArray(records) ? records.length : 0, sourceFileName };
 }
 
 export async function previewManualMonitoringIntoConsolidated(records = []) {
     await ensureConsolidadoReadAccess();
-
-    const rows = dedupeConsolidatedRowsByHash(await buildManualMonitoringConsolidatedRows(records, 'preview'));
-    if (!rows.length) return { total: 0, updated: 0, inserted: 0 };
-
-    const preview = await previewLegacyRowsWithManualMonitoringRows(rows);
-    return { total: rows.length, updated: preview.updateCount, inserted: preview.insertCount };
+    return { total: Array.isArray(records) ? records.length : 0, updated: 0, inserted: 0 };
 }
 
 async function fetchExistingTechnicalRows(pozoNames = []) {
@@ -1222,9 +1228,8 @@ export async function fetchFieldJourneyConsolidatedRows({ limit = 200 } = {}) {
     await ensureConsolidadoReadAccess();
 
     const { data, error } = await supabase
-        .from(CONSOLIDATED_TABLE)
+        .from(CONSOLIDATED_OPERATIONAL_TABLE)
         .select('id, source_journey_id, source_record_id, pozo, campo, ef, report_date, report_time, row_data, created_at')
-        .eq('source_type', 'field_journey')
         .order('created_at', { ascending: true })
         .limit(limit);
 
@@ -1242,7 +1247,7 @@ export async function deleteAllFieldJourneyConsolidatedRows() {
     const operationalResult = await deleteOperationalRowsForConsolidatedRows(rows);
 
     const { error } = await supabase
-        .from(CONSOLIDATED_TABLE)
+        .from(CONSOLIDATED_OPERATIONAL_TABLE)
         .delete()
         .eq('source_type', 'field_journey');
 
@@ -1274,7 +1279,7 @@ export async function deleteSelectedFieldJourneyConsolidatedRows(ids = []) {
     const operationalResult = await deleteOperationalRowsForConsolidatedRows(selectedRows);
 
     const { error } = await supabase
-        .from(CONSOLIDATED_TABLE)
+        .from(CONSOLIDATED_OPERATIONAL_TABLE)
         .delete()
         .eq('source_type', 'field_journey')
         .in('id', selectedRows.map(row => row.id));

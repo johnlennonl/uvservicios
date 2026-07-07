@@ -1,12 +1,11 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from '../../auth.js';
 import { getUniquePozos } from '../../services/monitoring-service.js';
-import { submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney } from '../../services/field-journey-service.js';
+import { submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney, getFieldSubmittedJourneys, getFieldSubmittedJourneyDetail } from '../../services/field-journey-service.js';
 import { getWellTechnicalData } from '../../services/technical-measurements-service.js';
 import { validateFieldJourneyForSubmission, validateFieldReport } from './field-validation.js';
 
 const DRAFT_STORAGE_KEY = 'uv-field-capture-draft';
 const REPORTS_STORAGE_KEY = 'uv-field-capture-reports';
-const SUBMITTED_JOURNEYS_STORAGE_KEY = 'uv-field-submitted-journeys-preview';
 const DRAFT_JOURNEY_KEY_STORAGE_KEY = 'uv-field-draft-journey-key';
 const CAPTURE_STARTED_STORAGE_KEY = 'uv-field-capture-started';
 const MESSAGE_HEADER_STORAGE_KEY = 'uv-field-message-header';
@@ -386,6 +385,16 @@ const FIELD_REVIEW_SUMMARY_ITEMS = [
     ['Observaciones', 'observaciones_pozo']
 ];
 
+const FIELD_JOURNEY_STATUS_LABELS = {
+    draft: 'Borrador',
+    submitted: 'Pendiente de revisión',
+    under_review: 'En revisión',
+    approved: 'Aprobada',
+    published: 'Publicada',
+    rejected: 'Rechazada',
+    archived: 'Archivada'
+};
+
 let currentEditingReportId = null;
 let currentEditingJourneyId = null;
 let CURRENT_ACCESS_PROFILE = null;
@@ -394,6 +403,8 @@ let isSubmittingJourney = false;
 let productionPrefillRequestId = 0;
 let isCaptureStarted = localStorage.getItem(CAPTURE_STARTED_STORAGE_KEY) === 'true';
 let messageComposerReports = [];
+let fieldSubmittedJourneys = [];
+let fieldAdminPreviewRequestId = 0;
 let isJourneyStarted = localStorage.getItem(JOURNEY_STARTED_STORAGE_KEY) === 'true' && getJourneyReports().length > 0;
 
 const FIELD_PRODUCTION_MEASURE_MAP = {
@@ -431,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     wireForm();
     recalculateComputedFields();
     renderJourneyReports();
-    renderAdminPreview();
+    await renderAdminPreview();
     updateSummary();
     syncAddButtonState();
     updateEditingContext();
@@ -452,6 +463,10 @@ function bindStaticActions() {
     document.getElementById('field-submit-journey-btn')?.addEventListener('click', submitJourneyForAdminPreview);
     document.getElementById('field-copy-journey-message-btn')?.addEventListener('click', copyJourneyMessageToClipboard);
     document.getElementById('field-back-to-capture-btn')?.addEventListener('click', scrollBackToCapture);
+    document.getElementById('field-admin-filter-start')?.addEventListener('change', renderAdminPreview);
+    document.getElementById('field-admin-filter-end')?.addEventListener('change', renderAdminPreview);
+    document.getElementById('field-admin-filter-search')?.addEventListener('input', renderAdminPreview);
+    document.getElementById('field-admin-filter-clear')?.addEventListener('click', clearAdminPreviewFilters);
     document.getElementById('field-report-preview-close')?.addEventListener('click', closeReportPreview);
     document.getElementById('field-message-composer-close')?.addEventListener('click', closeJourneyMessageComposer);
     document.getElementById('field-message-composer-copy')?.addEventListener('click', copyJourneyMessageFromComposer);
@@ -954,19 +969,6 @@ function getJourneyReports() {
     }
 }
 
-function getSubmittedJourneys() {
-    const raw = localStorage.getItem(SUBMITTED_JOURNEYS_STORAGE_KEY);
-    if (!raw) return [];
-
-    try {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-        localStorage.removeItem(SUBMITTED_JOURNEYS_STORAGE_KEY);
-        return [];
-    }
-}
-
 function mergeJourneyRecords(existingRecords = [], draftRecords = []) {
     const merged = new Map();
 
@@ -1207,8 +1209,8 @@ async function copyJourneyMessageToClipboard() {
     openJourneyMessageComposer(reports);
 }
 
-function copySubmittedJourneyMessageToClipboard(journeyId) {
-    const journey = getSubmittedJourneys().find(item => item.id === journeyId);
+async function copySubmittedJourneyMessageToClipboard(journeyId) {
+    const journey = await fetchSubmittedJourneyForField(journeyId);
     const reports = Array.isArray(journey?.records) ? journey.records : [];
     if (!journey || reports.length === 0) {
         showAlert('No hay registros disponibles para generar el mensaje de esta carga.', 'warning');
@@ -1425,19 +1427,9 @@ async function submitJourneyForAdminPreview() {
         return;
     }
 
-    const submittedJourneys = getSubmittedJourneys();
-    const matchedJourney = currentEditingJourneyId
-        ? submittedJourneys.find(journey => journey.id === currentEditingJourneyId) || null
-        : null;
-    const resolvedJourneyId = currentEditingJourneyId || matchedJourney?.id || null;
-    const existingJourneyIndex = resolvedJourneyId
-        ? submittedJourneys.findIndex(journey => journey.id === resolvedJourneyId)
-        : -1;
-    const previousJourney = existingJourneyIndex >= 0 ? submittedJourneys[existingJourneyIndex] : null;
-    let mergedReports = previousJourney?.records?.length
-        ? mergeJourneyRecords(previousJourney.records, reports)
-        : reports;
-    const isUpdatingExistingJourney = Boolean(previousJourney);
+    const resolvedJourneyId = currentEditingJourneyId || null;
+    let mergedReports = reports;
+    const isUpdatingExistingJourney = Boolean(resolvedJourneyId);
     let workflowResult;
     const submitButton = document.getElementById('field-submit-journey-btn');
 
@@ -1480,26 +1472,8 @@ async function submitJourneyForAdminPreview() {
         return;
     }
 
-    const journeyRecord = buildSubmittedJourneyRecord({
-        ...(previousJourney || {}),
-        id: workflowResult.journeyId,
-        createdAt: previousJourney?.createdAt || workflowResult.submittedAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: 'Pendiente de revisión',
-        workflowStatus: workflowResult.status || 'submitted',
-        syncedAt: new Date().toISOString(),
-        records: mergedReports
-    });
-
-    if (existingJourneyIndex >= 0) {
-        submittedJourneys[existingJourneyIndex] = journeyRecord;
-    } else {
-        submittedJourneys.unshift(journeyRecord);
-    }
-
     relinkDraftTicketsToJourney(workflowResult.journeyId);
-    localStorage.setItem(SUBMITTED_JOURNEYS_STORAGE_KEY, JSON.stringify(submittedJourneys));
-    renderAdminPreview();
+    await renderAdminPreview();
     resetJourneyWorkspace();
     showAlert(isUpdatingExistingJourney ? 'Captura actualizada en Admin Campo.' : 'Captura enviada a Admin Campo.', 'success');
     updateStatus(isUpdatingExistingJourney ? 'Han actualizado la captura y se sincronizó con Admin Campo.' : 'Captura enviada y sincronizada con Admin Campo.');
@@ -1591,16 +1565,56 @@ function updateSummary() {
     }
 }
 
-function renderAdminPreview() {
+function clearAdminPreviewFilters() {
+    const startField = document.getElementById('field-admin-filter-start');
+    const endField = document.getElementById('field-admin-filter-end');
+    const searchField = document.getElementById('field-admin-filter-search');
+    if (startField) startField.value = '';
+    if (endField) endField.value = '';
+    if (searchField) searchField.value = '';
+    renderAdminPreview();
+}
+
+function getAdminPreviewFilters() {
+    return {
+        startDate: String(document.getElementById('field-admin-filter-start')?.value || '').trim(),
+        endDate: String(document.getElementById('field-admin-filter-end')?.value || '').trim(),
+        searchTerm: String(document.getElementById('field-admin-filter-search')?.value || '').trim()
+    };
+}
+
+function normalizeJourneyStatusLabel(status) {
+    const normalizedStatus = String(status || '').trim().toLowerCase();
+    return FIELD_JOURNEY_STATUS_LABELS[normalizedStatus] || status || 'Pendiente de revisión';
+}
+
+async function renderAdminPreview() {
     const count = document.getElementById('field-admin-preview-count');
     const list = document.getElementById('field-admin-preview-list');
     if (!count || !list) return;
 
-    const journeys = getSubmittedJourneys();
+    const requestId = ++fieldAdminPreviewRequestId;
+    list.innerHTML = '<div class="field-admin-preview-empty">Cargando jornadas enviadas...</div>';
+
+    try {
+        fieldSubmittedJourneys = await getFieldSubmittedJourneys({
+            ...getAdminPreviewFilters(),
+            limit: 120
+        });
+    } catch (error) {
+        if (requestId !== fieldAdminPreviewRequestId) return;
+        count.textContent = 'Bandeja no disponible';
+        list.innerHTML = `<div class="field-admin-preview-empty">${escapeHtml(error?.message || 'No se pudo cargar la bandeja real de Campo.')}</div>`;
+        return;
+    }
+
+    if (requestId !== fieldAdminPreviewRequestId) return;
+
+    const journeys = fieldSubmittedJourneys;
     count.textContent = `${journeys.length} ${journeys.length === 1 ? 'carga pendiente' : 'cargas pendientes'}`;
 
     if (journeys.length === 0) {
-        list.innerHTML = '<div class="field-admin-preview-empty">Todavía no has enviado ninguna carga a revisión.</div>';
+        list.innerHTML = '<div class="field-admin-preview-empty">No hay cargas enviadas con esos filtros.</div>';
         return;
     }
 
@@ -1608,29 +1622,28 @@ function renderAdminPreview() {
         <article class="field-admin-ticket">
             <div class="field-admin-ticket-top">
                 <div>
-                    <span class="field-admin-ticket-kicker">${escapeHtml(journey.status || 'Pendiente de revisión')}</span>
+                    <span class="field-admin-ticket-kicker">${escapeHtml(normalizeJourneyStatusLabel(journey.status))}</span>
                     <h3>${escapeHtml(journey.locacion_jornada || 'Locación sin definir')}</h3>
-                    <p>${escapeHtml(journey.equipo_guardia || '--')} | ${escapeHtml(journey.fecha || '--')} | ${escapeHtml(journey.jornada || '--')}</p>
+                    <p>${escapeHtml(journey.equipo_guardia || '--')} | ${escapeHtml(journey.journey_date || '--')} | ${escapeHtml(journey.jornada || '--')}</p>
                 </div>
                 <div style="display:flex; align-items:flex-start; gap:12px;">
-                    <button type="button" class="field-admin-ticket-count-btn" data-journey-id="${journey.id}">${escapeHtml(String(journey.reportCount || 0))} ${Number(journey.reportCount || 0) === 1 ? 'pozo' : 'pozos'}</button>
+                    <button type="button" class="field-admin-ticket-count-btn" data-journey-id="${journey.id}">${escapeHtml(String(journey.total_reports || 0))} ${Number(journey.total_reports || 0) === 1 ? 'pozo' : 'pozos'}</button>
                     <div class="field-admin-ticket-actions">
-                        ${(hasLocalTicketForJourney(journey.id) || Number(journey.reportCount || 0) > 0) ? `<button type="button" class="field-admin-ticket-action field-admin-ticket-viewticket" data-journey-id="${journey.id}" title="Ver tickets"><i class="fa-solid fa-envelope-circle-check"></i></button>` : ''}
+                        ${(hasLocalTicketForJourney(journey.id) || Number(journey.total_reports || 0) > 0) ? `<button type="button" class="field-admin-ticket-action field-admin-ticket-viewticket" data-journey-id="${journey.id}" title="Ver tickets"><i class="fa-solid fa-envelope-circle-check"></i></button>` : ''}
                         <button type="button" class="field-admin-ticket-action field-admin-ticket-copy-message" data-journey-id="${journey.id}" title="Copiar mensaje de jornada"><i class="fa-solid fa-copy"></i></button>
                         <button type="button" class="field-admin-ticket-action" data-preview-mode="journey" data-journey-id="${journey.id}" title="Ver carga"><i class="fa-solid fa-eye"></i></button>
                         <button type="button" class="field-admin-ticket-action" data-preview-mode="well" data-journey-id="${journey.id}" title="Ver por pozo"><i class="fa-solid fa-list"></i></button>
                         ${!CURRENT_ACCESS_PROFILE?.isFieldOperator ? `<button type="button" class="field-admin-ticket-action field-admin-ticket-excel" data-journey-id="${journey.id}" title="Obtener Excel"><i class="fa-solid fa-file-excel"></i></button>` : ''}
                         <button type="button" class="field-admin-ticket-action field-admin-ticket-recover" data-journey-id="${journey.id}" title="Recuperar"><i class="fa-solid fa-rotate-left"></i></button>
-                        <button type="button" class="field-admin-ticket-action field-admin-ticket-delete" data-journey-id="${journey.id}" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
             </div>
             <div class="field-admin-ticket-meta">
-                <span>Ventana monitoreada: ${escapeHtml(journey.firstHour || '--')} a ${escapeHtml(journey.lastHour || '--')}</span>
-                <span>Recibido: ${escapeHtml(formatSubmittedTimestamp(journey.createdAt))}</span>
+                <span>Ventana monitoreada: ${escapeHtml(journey.first_report_time || '--')} a ${escapeHtml(journey.last_report_time || '--')}</span>
+                <span>Recibido: ${escapeHtml(formatSubmittedTimestamp(journey.submitted_at || journey.created_at))}</span>
             </div>
             <div class="field-admin-ticket-tags">
-                ${journey.pozoNames.map(pozo => `<span class="field-admin-ticket-tag">${escapeHtml(pozo)}</span>`).join('')}
+                ${(journey.pozoNames || []).map(pozo => `<span class="field-admin-ticket-tag">${escapeHtml(pozo)}</span>`).join('')}
             </div>
         </article>
     `).join('');
@@ -1658,9 +1671,6 @@ function renderAdminPreview() {
         button.addEventListener('click', () => exportJourneyToExcel(button.dataset.journeyId));
     });
 
-    list.querySelectorAll('.field-admin-ticket-delete').forEach(button => {
-        button.addEventListener('click', () => removeSubmittedJourney(button.dataset.journeyId));
-    });
 }
 
 function updateStatus(message, isError = false) {
@@ -1918,9 +1928,8 @@ function scrollToPozoField() {
     openFieldPozoMenu(true);
 }
 
-function openReportPreview(journeyId, mode = 'journey') {
-    const journeys = getSubmittedJourneys();
-    const journey = journeys.find(item => item.id === journeyId);
+async function openReportPreview(journeyId, mode = 'journey') {
+    const journey = await fetchSubmittedJourneyForField(journeyId);
     if (!journey) {
         showAlert('No se encontró la carga seleccionada para la vista previa.', 'error');
         return;
@@ -1947,7 +1956,8 @@ function openReportPreview(journeyId, mode = 'journey') {
     });
 
     body.querySelectorAll('[data-delete-journey-id][data-delete-report-id]').forEach(button => {
-        button.addEventListener('click', () => removeSubmittedJourneyReport(button.dataset.deleteJourneyId, button.dataset.deleteReportId, mode));
+        button.disabled = true;
+        button.title = 'La bandeja real no elimina pozos desde Campo. Recupera la carga si necesitas corregirla.';
     });
 
     modal.hidden = false;
@@ -2091,8 +2101,70 @@ function formatPreviewValue(value, fieldName) {
     return normalized;
 }
 
-function restoreSubmittedJourneyToWorkspace(journeyId, reportId = null) {
-    const journey = getSubmittedJourneys().find(item => item.id === journeyId);
+function normalizeWorkflowTimeForField(value) {
+    const normalized = String(value || '').trim();
+    if (/^\d{2}:\d{2}:\d{2}$/.test(normalized)) return normalized.slice(0, 5);
+    return normalized;
+}
+
+function normalizeWorkflowRecordForField(record = {}) {
+    const payload = record.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
+    return {
+        ...payload,
+        id: payload.id || record.source_client_report_id || record.id || crypto.randomUUID(),
+        pozo: String(record.pozo || payload.pozo || '').trim().toUpperCase(),
+        fecha: record.report_date || payload.fecha || '',
+        hora: normalizeWorkflowTimeForField(record.report_time || payload.hora || ''),
+        campo: record.campo ?? payload.campo ?? '',
+        ef: record.ef ?? payload.ef ?? '',
+        estado: record.estado ?? payload.estado ?? '',
+        categoria: record.categoria ?? payload.categoria ?? '',
+        actividad: record.actividad ?? payload.actividad ?? '',
+        estatus: record.estatus ?? payload.estatus ?? '',
+        modo_operacion: record.modo_operacion ?? payload.modo_operacion ?? '',
+        sentido_giro: record.sentido_giro ?? payload.sentido_giro ?? 'FWD',
+        potencial: record.potencial ?? payload.potencial ?? '',
+        bruta: record.bruta ?? payload.bruta ?? '',
+        neta: record.neta ?? payload.neta ?? '',
+        ays_percentage: record.ays_percentage ?? payload.ays_percentage ?? '',
+        frecuencia: record.frecuencia ?? payload.frecuencia ?? '',
+        i_motor: record.i_motor ?? payload.i_motor ?? '',
+        v_motor: record.v_motor ?? payload.v_motor ?? '',
+        out_vsd: record.out_vsd ?? payload.out_vsd ?? '',
+        pip_psi: record.pip_psi ?? payload.pip_psi ?? '',
+        pd_psi: record.pd_psi ?? payload.pd_psi ?? '',
+        ti_f: record.ti_f ?? payload.ti_f ?? '',
+        tm_f: record.tm_f ?? payload.tm_f ?? '',
+        thp_psi: record.thp_psi ?? payload.thp_psi ?? '',
+        chp_psi: record.chp_psi ?? payload.chp_psi ?? '',
+        lf_psi: record.lf_psi ?? payload.lf_psi ?? '',
+        observaciones_pozo: record.observaciones_pozo ?? payload.observaciones_pozo ?? '',
+        diagnostico: record.diagnostico ?? payload.diagnostico ?? ''
+    };
+}
+
+async function fetchSubmittedJourneyForField(journeyId) {
+    try {
+        const detail = await getFieldSubmittedJourneyDetail(journeyId);
+        const records = (detail.records || []).map(normalizeWorkflowRecordForField);
+        return buildSubmittedJourneyRecord({
+            ...detail.journey,
+            id: detail.journey.id,
+            fecha: detail.journey.journey_date || '',
+            createdAt: detail.journey.submitted_at || detail.journey.created_at || '',
+            updatedAt: detail.journey.updated_at || '',
+            status: normalizeJourneyStatusLabel(detail.journey.status),
+            workflowStatus: detail.journey.status,
+            records
+        });
+    } catch (error) {
+        showAlert(error?.message || 'No se pudo abrir la jornada enviada.', 'error');
+        return null;
+    }
+}
+
+async function restoreSubmittedJourneyToWorkspace(journeyId, reportId = null) {
+    const journey = await fetchSubmittedJourneyForField(journeyId);
     if (!journey || !Array.isArray(journey.records) || journey.records.length === 0) {
         showAlert('No se encontro una carga valida para recuperar.', 'error');
         return;
@@ -2144,63 +2216,6 @@ function buildSubmittedJourneyRecord(baseJourney) {
     };
 }
 
-function removeSubmittedJourney(journeyId) {
-    const journeys = getSubmittedJourneys();
-    const nextJourneys = journeys.filter(journey => journey.id !== journeyId);
-    if (nextJourneys.length === journeys.length) {
-        showAlert('No se encontro la carga que querias eliminar.', 'error');
-        return;
-    }
-
-    localStorage.setItem(SUBMITTED_JOURNEYS_STORAGE_KEY, JSON.stringify(nextJourneys));
-    if (currentEditingJourneyId === journeyId) {
-        currentEditingJourneyId = null;
-    }
-    renderAdminPreview();
-    updateStatus('Carga de prueba eliminada de la bandeja simulada.');
-    showAlert('Carga eliminada.', 'success');
-}
-
-function removeSubmittedJourneyReport(journeyId, reportId, mode = 'well') {
-    const journeys = getSubmittedJourneys();
-    const journeyIndex = journeys.findIndex(journey => journey.id === journeyId);
-    if (journeyIndex === -1) {
-        showAlert('No se encontro la carga para eliminar el pozo.', 'error');
-        return;
-    }
-
-    const journey = journeys[journeyIndex];
-    const remainingRecords = (journey.records || []).filter(record => record.id !== reportId);
-    if (remainingRecords.length === (journey.records || []).length) {
-        showAlert('No se encontro el pozo seleccionado.', 'error');
-        return;
-    }
-
-    if (remainingRecords.length === 0) {
-        journeys.splice(journeyIndex, 1);
-        localStorage.setItem(SUBMITTED_JOURNEYS_STORAGE_KEY, JSON.stringify(journeys));
-        if (currentEditingJourneyId === journeyId) {
-            currentEditingJourneyId = null;
-        }
-        renderAdminPreview();
-        closeReportPreview();
-        updateStatus('La carga quedo vacia y fue eliminada de la bandeja simulada.');
-        showAlert('Pozo eliminado. La carga de prueba quedo vacia y se removio.', 'success');
-        return;
-    }
-
-    journeys[journeyIndex] = buildSubmittedJourneyRecord({
-        ...journey,
-        records: remainingRecords
-    });
-
-    localStorage.setItem(SUBMITTED_JOURNEYS_STORAGE_KEY, JSON.stringify(journeys));
-    renderAdminPreview();
-    openReportPreview(journeyId, mode);
-    updateStatus('Pozo eliminado de la carga de prueba.');
-    showAlert('Pozo eliminado de la vista de prueba.', 'success');
-}
-
 async function exportJourneyToExcel(journeyId) {
     if (CURRENT_ACCESS_PROFILE?.isFieldOperator) {
         showAlert('No tienes permisos para exportar cargas.', 'error');
@@ -2211,7 +2226,7 @@ async function exportJourneyToExcel(journeyId) {
         return;
     }
 
-    const journey = getSubmittedJourneys().find(item => item.id === journeyId);
+    const journey = await fetchSubmittedJourneyForField(journeyId);
     if (!journey) {
         showAlert('No se encontro la carga para exportar.', 'error');
         return;
@@ -3218,10 +3233,10 @@ function closeTicketViewer() {
     modal.hidden = true;
 }
 
-function openPozoList(journeyId) {
+async function openPozoList(journeyId) {
     const modal = document.getElementById('field-pozo-list-modal');
     if (!modal) return;
-    renderPozoList(journeyId);
+    await renderPozoList(journeyId);
     modal.hidden = false;
 }
 
@@ -3231,11 +3246,11 @@ function closePozoList() {
     modal.hidden = true;
 }
 
-function renderPozoList(journeyId) {
+async function renderPozoList(journeyId) {
     const listEl = document.getElementById('field-pozo-list');
     if (!listEl) return;
-    const journeys = getSubmittedJourneys();
-    const journey = journeys.find(j => String(j.id) === String(journeyId));
+    listEl.innerHTML = '<li>Cargando pozos...</li>';
+    const journey = await fetchSubmittedJourneyForField(journeyId);
     if (!journey) {
         listEl.innerHTML = '<li>No se encontraron pozos para esta carga.</li>';
         return;

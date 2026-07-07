@@ -180,6 +180,20 @@
                     </div>
                     <input id="consolidado-file-input" type="file" accept=".xlsx,.xls" hidden>
                     <div class="consolidado-export-panel">
+                        <div class="consolidado-export-options" role="group" aria-label="Origen del consolidado">
+                            <label class="consolidado-export-option">
+                                <input type="radio" name="consolidado-export-source" value="base" checked>
+                                <span>Base histórica</span>
+                            </label>
+                            <label class="consolidado-export-option">
+                                <input type="radio" name="consolidado-export-source" value="operativo">
+                                <span>Nuevo Campo</span>
+                            </label>
+                            <label class="consolidado-export-option">
+                                <input type="radio" name="consolidado-export-source" value="completo">
+                                <span>Base + nuevo</span>
+                            </label>
+                        </div>
                         <div class="consolidado-export-options" role="group" aria-label="Tipo de exportación">
                             <label class="consolidado-export-option">
                                 <input type="radio" name="consolidado-export-mode" value="historico" checked>

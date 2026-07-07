@@ -103,12 +103,13 @@
                                 <label class="field-input-group">
                                     <span>Técnico 1</span>
                                     <select name="tecnico_1" id="field-tecnico-1" required>
-                                        <option value="">Selecciona técnico</option>
-                                        <option value="Carlos Ruiz">Carlos Ruiz</option>
-                                        <option value="Ana Perez">Ana Perez</option>
-                                        <option value="Luis Moreno">Luis Moreno</option>
-                                        <option value="María Torres">María Torres</option>
-                                        <option value="José Vargas">José Vargas</option>
+                                        <option value="Carlos Ruiz">Carlos Reyes</option>
+                                        <option value="Luis Moreno">Hector Diaz</option>
+                                        <option value="María Torres">Cesar Medina</option>
+                                        <option value="José Vargas">Wilson Silva</option>
+                                        <option value="Carlos Ruiz">Marvil </option>
+                                        <option value="Luis Moreno">Ross Saenz</option>
+                                        <option value="María Torres">David Molero</option>
                                     </select>
                                     <small class="field-input-hint">Responsable principal de la carga.</small>
                                 </label>
@@ -116,11 +117,14 @@
                                     <span>Técnico 2</span>
                                     <select name="tecnico_2" id="field-tecnico-2">
                                         <option value="">Sin segundo técnico</option>
-                                        <option value="Carlos Ruiz">Carlos Ruiz</option>
-                                        <option value="Ana Perez">Ana Perez</option>
-                                        <option value="Luis Moreno">Luis Moreno</option>
-                                        <option value="María Torres">María Torres</option>
-                                        <option value="José Vargas">José Vargas</option>
+                                        <option value="Carlos Ruiz">Carlos Reyes</option>
+                                        <option value="Luis Moreno">Hector Diaz</option>
+                                        <option value="María Torres">Cesar Medina</option>
+                                        <option value="José Vargas">Wilson Silva</option>
+                                        <option value="Carlos Ruiz">Marvil </option>
+                                        <option value="Luis Moreno">Ross Saenz</option>
+                                        <option value="María Torres">David Molero</option>
+                                        
                                     </select>
                                     <small class="field-input-hint">Opcional si la guardia trabaja con dos técnicos.</small>
                                 </label>
@@ -476,18 +480,33 @@
             <section class="field-card field-admin-preview-panel">
                 <div class="field-card-header">
                     <div>
-                        <h2>Bandeja Campo Admin · Simulada</h2>
-                        <p>Así se verían aquí las cargas enviadas desde Campo antes de conectar la integración real entre roles.</p>
+                        <h2>Bandeja de cargas enviadas</h2>
+                        <p>Consulta las jornadas enviadas al workflow real, filtra por fecha y recupera una carga cuando necesites corregirla.</p>
                     </div>
                 </div>
 
                 <div class="field-admin-preview-shell">
                     <div class="field-admin-preview-headline">
-                        <span class="field-admin-preview-badge">Prueba local</span>
+                        <span class="field-admin-preview-badge">Supabase</span>
                         <div class="field-admin-preview-toolbar">
                             <strong id="field-admin-preview-count">0 cargas pendientes</strong>
                             <button type="button" id="field-back-to-capture-btn" class="btn-secondary field-back-btn">Volver a captura</button>
                         </div>
+                    </div>
+                    <div class="field-admin-preview-filters" aria-label="Filtros de cargas enviadas">
+                        <label class="field-input-group">
+                            <span>Desde</span>
+                            <input type="date" id="field-admin-filter-start">
+                        </label>
+                        <label class="field-input-group">
+                            <span>Hasta</span>
+                            <input type="date" id="field-admin-filter-end">
+                        </label>
+                        <label class="field-input-group field-input-group-full">
+                            <span>Buscar</span>
+                            <input type="search" id="field-admin-filter-search" placeholder="Pozo, locación, turno o técnico">
+                        </label>
+                        <button type="button" id="field-admin-filter-clear" class="btn-secondary field-back-btn">Limpiar filtros</button>
                     </div>
                     <div id="field-admin-preview-list" class="field-admin-preview-list">
                         <div class="field-admin-preview-empty">Todavía no has enviado ninguna carga a revisión.</div>

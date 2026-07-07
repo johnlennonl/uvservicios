@@ -42,7 +42,8 @@ const elements = {
     exportModeInputs: document.querySelectorAll('[name="consolidado-export-mode"]'),
     pozoFilter: document.getElementById('consolidado-pozo-filter'),
     startDate: document.getElementById('consolidado-start-date'),
-    endDate: document.getElementById('consolidado-end-date')
+    endDate: document.getElementById('consolidado-end-date'),
+    exportSourceInputs: document.querySelectorAll('[name="consolidado-export-source"]')
 };
 
 let activeTemplate = null;
@@ -109,6 +110,22 @@ function showResultModal(icon, title, message) {
         icon,
         title,
         text: message,
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#0f172a',
+        customClass: {
+            popup: 'consolidado-swal-popup',
+            title: 'consolidado-swal-title'
+        }
+    });
+}
+
+function showExportMaintenanceNotice() {
+    if (!hasSwal()) return;
+
+    window.Swal.fire({
+        icon: 'info',
+        title: 'Sección en mantenimiento',
+        text: 'Por los momentos esta sección no está disponible porque se encuentra en mantenimiento. Puedes visualizarla, pero algunas acciones pueden estar temporalmente limitadas.',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#0f172a',
         customClass: {
@@ -199,19 +216,30 @@ function getSelectedExportMode() {
     return Array.from(elements.exportModeInputs || []).find(input => input.checked)?.value || 'historico';
 }
 
+function getSelectedExportSource() {
+    return Array.from(elements.exportSourceInputs || []).find(input => input.checked)?.value || 'base';
+}
+
 function getExportFilters() {
     const mode = getSelectedExportMode();
+    const source = getSelectedExportSource();
     const pozo = mode === 'pozo' ? elements.pozoFilter?.value || '' : '';
     const startDate = mode === 'fecha' ? elements.startDate?.value || '' : '';
     const endDate = mode === 'fecha' ? elements.endDate?.value || '' : '';
 
-    return { mode, pozo, startDate, endDate };
+    return { mode, source, pozo, startDate, endDate };
 }
 
 function getExportModeLabel(mode) {
     if (mode === 'pozo') return 'por pozo';
     if (mode === 'fecha') return 'por fecha';
     return 'histórico completo';
+}
+
+function getExportSourceLabel(source) {
+    if (source === 'operativo') return 'nuevo Campo';
+    if (source === 'completo') return 'base + nuevo';
+    return 'base histórica';
 }
 
 function loadStoredTemplate() {
@@ -514,16 +542,16 @@ function renderDatabaseSummary() {
     if (!consolidatedSummary) {
         elements.dbSummary.innerHTML = `
             <div><span>Guardado</span><strong>--</strong></div>
-            <div><span>Excel viejo</span><strong>--</strong></div>
-            <div><span>Campo Admin</span><strong>--</strong></div>
+            <div><span>Base histórica</span><strong>--</strong></div>
+            <div><span>Nuevo Campo</span><strong>--</strong></div>
         `;
         return;
     }
 
     elements.dbSummary.innerHTML = `
         <div><span>Guardado</span><strong>${consolidatedSummary.total}</strong></div>
-        <div><span>Excel viejo</span><strong>${consolidatedSummary.legacyCount}</strong></div>
-        <div><span>Campo Admin</span><strong>${consolidatedSummary.fieldJourneyCount}</strong></div>
+        <div><span>Base histórica</span><strong>${consolidatedSummary.legacyCount}</strong></div>
+        <div><span>Nuevo Campo</span><strong>${consolidatedSummary.fieldJourneyCount}</strong></div>
     `;
 }
 
@@ -631,7 +659,7 @@ async function refreshDatabaseSummary({ silent = false } = {}) {
     try {
         if (!silent) {
             setBusyState(true);
-            showLoadingModal('Consultando base de datos', 'Leyendo conteos del consolidado maestro.', 'Excel viejo y Campo Admin.');
+            showLoadingModal('Consultando base de datos', 'Leyendo conteos del consolidado maestro.', 'Base histórica y nuevo Campo.');
         }
 
         [consolidatedSummary, filterOptions] = await Promise.all([
@@ -640,7 +668,7 @@ async function refreshDatabaseSummary({ silent = false } = {}) {
         ]);
         renderTemplate();
 
-        const message = `Base de datos: ${consolidatedSummary.total} filas guardadas (${consolidatedSummary.legacyCount} del Excel viejo y ${consolidatedSummary.fieldJourneyCount} de Campo Admin).`;
+        const message = `Base de datos: ${consolidatedSummary.total} filas guardadas (${consolidatedSummary.legacyCount} de base histórica y ${consolidatedSummary.fieldJourneyCount} de nuevo Campo).`;
         setStatus(message, consolidatedSummary.total ? 'success' : 'neutral');
 
         if (!silent) {
@@ -762,7 +790,11 @@ function getStoredRowExportValue(storedRow = {}, label = '') {
         return String(storedRow.report_time).slice(0, 8);
     }
 
-    return storedRow.row_data?.[label] ?? '';
+    const rowData = storedRow.row_data || {};
+    if (rowData[label] !== undefined) return rowData[label];
+
+    const matchingKey = Object.keys(rowData).find(key => normalizeSheetName(key) === normalizedLabel);
+    return matchingKey ? rowData[matchingKey] : '';
 }
 
 function buildRowsFromStoredRows(storedRows = [], columns = []) {
@@ -788,7 +820,7 @@ async function exportDashboardGeneralFromDatabase() {
         }
 
         setBusyState(true);
-        showLoadingModal('Exportando consolidado guardado', 'Leyendo filas desde Supabase para generar el Dashboard General.', `Modo: ${getExportModeLabel(filters.mode)}.`);
+        showLoadingModal('Exportando consolidado guardado', 'Leyendo filas desde Supabase para generar el Dashboard General.', `Origen: ${getExportSourceLabel(filters.source)} · Modo: ${getExportModeLabel(filters.mode)}.`);
         setStatus('Consultando filas guardadas del consolidado maestro...', 'neutral');
 
         const storedRows = await fetchConsolidatedDashboardRows(filters);
@@ -806,7 +838,7 @@ async function exportDashboardGeneralFromDatabase() {
             rows,
             sourceSheet,
             filePrefix: 'UV_CONSOLIDADO_DB_DASHBOARD_GENERAL',
-            sourceLabel: `Origen: Base de datos · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${rows.length} · Generado: ${new Date().toLocaleString('es-ES')}`,
+            sourceLabel: `Origen: ${getExportSourceLabel(filters.source)} · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${rows.length} · Generado: ${new Date().toLocaleString('es-ES')}`,
             emptyMessage: 'No hay filas guardadas en base de datos para exportar.'
         });
 
@@ -1260,6 +1292,9 @@ function bindEvents() {
     elements.exportModeInputs?.forEach(input => {
         input.addEventListener('change', renderTemplate);
     });
+    elements.exportSourceInputs?.forEach(input => {
+        input.addEventListener('change', renderTemplate);
+    });
 
     elements.dropZone?.addEventListener('click', () => elements.fileInput?.click());
     elements.dropZone?.addEventListener('keydown', event => {
@@ -1308,6 +1343,7 @@ async function init() {
     bindEvents();
     activeTemplate = loadStoredTemplate();
     renderTemplate();
+    showExportMaintenanceNotice();
     refreshDatabaseSummary({ silent: true });
 
     if (activeTemplate?.sheets?.length) {
