@@ -3,6 +3,7 @@ import { getSession } from '../auth.js';
 import { getAccessProfile } from '../core/access-control.js';
 import { previewMonitoringSync, syncMonitoringRecords } from './monitoring-records-service.js';
 import { getWellTechnicalData } from './technical-measurements-service.js';
+import { REPORT_COLUMNS } from './field-journey-export.js';
 
 const CONSOLIDATED_OPERATIONAL_TABLE = 'consolidated_dashboard_operational';
 
@@ -66,6 +67,13 @@ function wrapFieldJourneyError(error) {
 function normalizeJourneyStatus(value) {
     const normalized = String(value || '').trim().toLowerCase();
     return normalized || 'submitted';
+}
+
+function normalizeUuid(value) {
+    const raw = String(value || '').trim();
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)
+        ? raw
+        : null;
 }
 
 function normalizeJourneyStatuses(statuses = []) {
@@ -314,6 +322,24 @@ function buildWorkflowJourneyRow(reports, session, journeyId) {
         status: 'submitted',
         submission_source: 'field-web',
         submitted_at: submittedAt
+    };
+}
+
+function buildWorkflowDraftJourneyRow(reports, session, journeyId) {
+    const firstReport = reports[0] || {};
+    const locationLabel = buildJourneyLocationLabel(reports);
+
+    return {
+        id: journeyId || undefined,
+        submitted_by_user_id: session.user.id,
+        submitted_by_email: session.user.email,
+        journey_date: firstReport.fecha,
+        jornada: firstReport.jornada || 'Diurna',
+        equipo_guardia: String(firstReport.equipo_guardia || '').trim() || 'Sin definir',
+        locacion_jornada: locationLabel || String(firstReport.locacion_jornada || '').trim() || null,
+        status: 'draft',
+        submission_source: 'field-web',
+        submitted_at: null
     };
 }
 
@@ -887,6 +913,94 @@ export async function deleteFieldJourneyReport(clientReportId) {
     }
 }
 
+export async function getLatestFieldJourneyDraft() {
+    const { session } = await ensureFieldSessionAccess();
+
+    try {
+        const { data: journey, error: journeyError } = await supabase
+            .from('field_journeys')
+            .select('*')
+            .eq('submitted_by_user_id', session.user.id)
+            .eq('status', 'draft')
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (journeyError) throw journeyError;
+        if (!journey?.id) return null;
+
+        const { data: records, error: recordsError } = await supabase
+            .from('field_journey_records')
+            .select('*')
+            .eq('journey_id', journey.id)
+            .order('report_time', { ascending: true })
+            .order('pozo', { ascending: true });
+
+        if (recordsError) throw recordsError;
+
+        return { journey, records: records || [] };
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
+export async function autosaveFieldJourneyDraft(reports = [], options = {}) {
+    const { session, accessProfile } = await ensureFieldSessionAccess();
+    if (!accessProfile.canCreateFieldReports || accessProfile.isReadOnly) {
+        return { saved: 0, journeyId: String(options.journeyId || '').trim() || null };
+    }
+
+    const requestedJourneyId = normalizeUuid(options.journeyId);
+    let normalizedReports = (Array.isArray(reports) ? reports : []).filter(report => report?.id && report?.pozo && report?.fecha);
+    if (normalizedReports.length === 0) {
+        if (requestedJourneyId) {
+            const { error } = await supabase
+                .from('field_journeys')
+                .delete()
+                .eq('id', requestedJourneyId)
+                .eq('status', 'draft');
+
+            if (error) throw wrapFieldJourneyError(error);
+        }
+
+        return { saved: 0, journeyId: null };
+    }
+
+    normalizedReports = await inheritReportsProductionMeasures(normalizedReports);
+
+    try {
+        const journeyRow = buildWorkflowDraftJourneyRow(normalizedReports, session, requestedJourneyId);
+        const { data: journey, error: journeyError } = await supabase
+            .from('field_journeys')
+            .upsert(journeyRow, { onConflict: 'id' })
+            .select('id, status, updated_at')
+            .single();
+
+        if (journeyError) throw journeyError;
+
+        const journeyId = journey?.id;
+        if (!journeyId) throw new Error('Supabase no devolvió el identificador del borrador de jornada.');
+
+        const { error: deleteRecordsError } = await supabase
+            .from('field_journey_records')
+            .delete()
+            .eq('journey_id', journeyId);
+
+        if (deleteRecordsError) throw deleteRecordsError;
+
+        const recordRows = normalizedReports.map(report => mapFieldReportToWorkflowRecord(report, journeyId));
+        const { error: recordsError } = await supabase
+            .from('field_journey_records')
+            .insert(recordRows);
+
+        if (recordsError) throw recordsError;
+
+        return { saved: recordRows.length, journeyId, syncedAt: new Date().toISOString() };
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
 export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
     const { session, accessProfile } = await ensureFieldSessionAccess();
     if (!accessProfile.canCreateFieldReports || accessProfile.isReadOnly) {
@@ -901,7 +1015,7 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
 
     normalizedReports = await inheritReportsProductionMeasures(normalizedReports);
 
-    const requestedJourneyId = String(options.journeyId || '').trim() || null;
+    const requestedJourneyId = normalizeUuid(options.journeyId);
 
     try {
         if (requestedJourneyId && !accessProfile.canViewManagement) {
@@ -1196,49 +1310,24 @@ async function createStableHash(value) {
         .join('');
 }
 
+function getConsolidatedFieldValue(record = {}, payload = {}, fieldName = '') {
+    if (fieldName === 'fecha') return record.report_date ?? payload.fecha ?? '';
+    if (fieldName === 'hora') return record.report_time ?? payload.hora ?? '';
+    if (fieldName === 'pozo') return String(record.pozo ?? payload.pozo ?? '').trim().toUpperCase();
+    if (fieldName === 'campo') return String(record.campo ?? payload.campo ?? '').trim();
+    if (fieldName === 'ef') return String(record.ef ?? payload.ef ?? '').trim();
+    if (fieldName === 'estado') return String(record.estado ?? payload.estado ?? '').trim();
+    if (fieldName === 'actividad') return String(record.actividad ?? payload.actividad ?? '').trim();
+    if (fieldName === 'estatus') return String(record.estatus ?? payload.estatus ?? '').trim();
+    return record[fieldName] ?? payload[fieldName] ?? '';
+}
+
 function buildConsolidatedFieldRowData(record = {}) {
     const payload = record.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
-    return {
-        'TÉCNICO 1': String(payload.tecnico_1 || '').trim(),
-        'TÉCNICO 2': String(payload.tecnico_2 || '').trim(),
-        POZO: String(record.pozo || payload.pozo || '').trim().toUpperCase(),
-        CAMPO: String(record.campo || payload.campo || '').trim(),
-        EF: String(record.ef || payload.ef || '').trim(),
-        ESTADO: String(record.estado || payload.estado || '').trim(),
-        CATEGORIA: record.categoria ?? payload.categoria ?? '',
-        POTENCIAL: record.potencial ?? payload.potencial ?? '',
-        BRUTA: record.bruta ?? payload.bruta ?? '',
-        NETA: record.neta ?? payload.neta ?? '',
-        '%AyS': record.ays_percentage ?? payload.ays_percentage ?? '',
-        FECHA: record.report_date || payload.fecha || '',
-        HORA: record.report_time || payload.hora || '',
-        ACTIVIDAD: String(record.actividad || payload.actividad || '').trim(),
-        ESTATUS: String(record.estatus || payload.estatus || '').trim(),
-        FREC: record.frecuencia ?? payload.frecuencia ?? '',
-        'MODO DE OPERACION': String(record.modo_operacion || payload.modo_operacion || '').trim(),
-        'SENTIDO DE GIRO': String(record.sentido_giro || payload.sentido_giro || '').trim(),
-        'I Motor [Amp]': record.i_motor ?? payload.i_motor ?? '',
-        'V Motor [Volt]': record.v_motor ?? payload.v_motor ?? '',
-        'Out VSD [Volt]': record.out_vsd ?? payload.out_vsd ?? '',
-        'I VSD A [A]': payload.i_vsd_a ?? record.i_vsd_a ?? payload.vsd_a ?? '',
-        'I VSD B [A]': payload.i_vsd_b ?? record.i_vsd_b ?? payload.vsd_b ?? '',
-        'I VSD C [A]': payload.i_vsd_c ?? record.i_vsd_c ?? payload.vsd_c ?? '',
-        'PROM I VSD [A]': payload.prom_i_vsd ?? record.prom_i_vsd ?? '',
-        'Desv. Fase A': payload.desv_fase_a ?? record.desv_fase_a ?? '',
-        'Desv. Fase B': payload.desv_fase_b ?? record.desv_fase_b ?? '',
-        'Desv. Fase C': payload.desv_fase_c ?? record.desv_fase_c ?? '',
-        'Máx. Desviación': payload.max_desviacion_vsd ?? record.max_desviacion_vsd ?? '',
-        '% Desbalance Corriente VSD [A]': payload.desbalance_corriente_vsd ?? record.desbalance_corriente_vsd ?? '',
-        'PIP [psi]': record.pip_psi ?? payload.pip_psi ?? '',
-        'PD [psi]': record.pd_psi ?? payload.pd_psi ?? '',
-        'Ti [°F]': record.ti_f ?? payload.ti_f ?? '',
-        'Tm [°F]': record.tm_f ?? payload.tm_f ?? '',
-        'THP [psi]': record.thp_psi ?? payload.thp_psi ?? '',
-        'CHP [psi]': record.chp_psi ?? payload.chp_psi ?? '',
-        'LF [psi]': record.lf_psi ?? payload.lf_psi ?? '',
-        DIAGNOSTICO: String(record.diagnostico || payload.diagnostico || '').trim(),
-        OBSERVACIONES: String(record.observaciones_pozo || payload.observaciones_pozo || '').trim()
-    };
+    return Object.fromEntries(REPORT_COLUMNS.map(([label, fieldName]) => [
+        label,
+        getConsolidatedFieldValue(record, payload, fieldName)
+    ]));
 }
 
 function buildConsolidatedFieldRowHashSeed({ rowData, journeyId, record, index }) {

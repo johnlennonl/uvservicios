@@ -45,14 +45,20 @@ function areEquivalentTechnicalRecords(left = {}, right = {}) {
     });
 }
 
+function normalizeWellLookupKey(value) {
+    return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
 export async function getWellTechnicalData(pozoName) {
     if (!pozoName || pozoName === 'Todas') return null;
     await ensureMonitoringReadAccess();
 
+    const normalizedPozo = String(pozoName || '').trim().toUpperCase();
+
     const { data, error } = await supabase
         .from('well_production')
         .select('*')
-        .eq('pozo_name', pozoName)
+        .eq('pozo_name', normalizedPozo)
         .order('fecha', { ascending: false })
         .limit(1);
 
@@ -61,7 +67,25 @@ export async function getWellTechnicalData(pozoName) {
         return null;
     }
 
-    return data && data.length > 0 ? data[0] : null;
+    if (data && data.length > 0) return data[0];
+
+    const lookupKey = normalizeWellLookupKey(normalizedPozo);
+    const prefix = lookupKey.slice(0, 3);
+    if (!lookupKey || !prefix) return null;
+
+    const fallback = await supabase
+        .from('well_production')
+        .select('*')
+        .ilike('pozo_name', `%${prefix}%`)
+        .order('fecha', { ascending: false })
+        .limit(200);
+
+    if (fallback.error) {
+        console.error('Error fetching fallback well technical data:', fallback.error);
+        return null;
+    }
+
+    return (fallback.data || []).find(record => normalizeWellLookupKey(record?.pozo_name) === lookupKey) || null;
 }
 
 export async function getLatestTechnicalSnapshot() {
@@ -366,25 +390,47 @@ export async function getWellRibbonData(pozoName) {
     if (!pozoName || pozoName === 'Todas') return null;
     await ensureMonitoringReadAccess();
 
+    const normalizedPozo = String(pozoName || '').trim().toUpperCase();
+
     const [latestMonitoringResult, latestTechnical, besProfile] = await Promise.all([
         supabase
             .from('monitoreo_pozos')
             .select('*')
-            .eq('pozo_name', pozoName)
+            .eq('pozo_name', normalizedPozo)
             .order('fecha', { ascending: false })
             .order('hora', { ascending: false })
             .limit(1),
-        getWellTechnicalData(pozoName),
-        getWellBESProfile(pozoName)
+        getWellTechnicalData(normalizedPozo),
+        getWellBESProfile(normalizedPozo)
     ]);
 
     if (latestMonitoringResult.error) {
         console.error('Error fetching latest monitoring data for ribbon:', latestMonitoringResult.error);
     }
 
-    const latestMonitoring = latestMonitoringResult.data && latestMonitoringResult.data.length > 0
+    let latestMonitoring = latestMonitoringResult.data && latestMonitoringResult.data.length > 0
         ? latestMonitoringResult.data[0]
         : null;
+
+    if (!latestMonitoring) {
+        const lookupKey = normalizeWellLookupKey(normalizedPozo);
+        const prefix = lookupKey.slice(0, 3);
+        if (lookupKey && prefix) {
+            const fallbackMonitoring = await supabase
+                .from('monitoreo_pozos')
+                .select('*')
+                .ilike('pozo_name', `%${prefix}%`)
+                .order('fecha', { ascending: false })
+                .order('hora', { ascending: false })
+                .limit(200);
+
+            if (fallbackMonitoring.error) {
+                console.error('Error fetching fallback monitoring data for ribbon:', fallbackMonitoring.error);
+            } else {
+                latestMonitoring = (fallbackMonitoring.data || []).find(record => normalizeWellLookupKey(record?.pozo_name) === lookupKey) || null;
+            }
+        }
+    }
 
     if (!latestMonitoring && !latestTechnical) return null;
 

@@ -1223,6 +1223,10 @@ body {
     align-items: center;
 }
 
+.field-quick-actions[hidden] {
+    display: none;
+}
+
 .field-quick-actions-copy {
     display: grid;
     gap: 6px;
@@ -2201,22 +2205,56 @@ body {
 }
 
 /* processing modal step list styles */
-#field-processing-steps li {
+.field-processing-modal {
+    place-items: center;
+}
+
+.field-processing-dialog {
+    width: min(520px, calc(100vw - 32px));
+    max-height: none;
+    overflow: hidden;
+    border-radius: 22px;
+}
+
+.field-processing-body {
+    padding: 20px 24px 24px;
+}
+
+.field-processing-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.field-processing-steps li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 12px 14px;
     border-radius: 12px;
     background: #fff;
     border: 1px solid rgba(226,232,240,0.9);
     color: #334155;
+    opacity: 0.62;
 }
 
-#field-processing-steps li::before {
+.field-processing-steps li::before {
     content: '';
-    display: inline-block;
+    flex: 0 0 auto;
     width: 10px;
     height: 10px;
-    margin-right: 10px;
     border-radius: 50%;
     background: linear-gradient(135deg,#93C5FD,#2563EB);
+}
+
+.field-processing-steps li.is-active {
+    color: #0f172a;
+    font-weight: 800;
+    opacity: 1;
+    border-color: rgba(37,99,235,0.22);
+    box-shadow: 0 8px 22px rgba(37,99,235,0.08);
 }
 
 /* Ticket viewer and card styles */

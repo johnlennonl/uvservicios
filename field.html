@@ -103,13 +103,22 @@
                                 <label class="field-input-group">
                                     <span>Técnico 1</span>
                                     <select name="tecnico_1" id="field-tecnico-1" required>
-                                        <option value="Carlos Ruiz">Carlos Reyes</option>
-                                        <option value="Luis Moreno">Hector Diaz</option>
-                                        <option value="María Torres">Cesar Medina</option>
-                                        <option value="José Vargas">Wilson Silva</option>
-                                        <option value="Carlos Ruiz">Marvil </option>
-                                        <option value="Luis Moreno">Ross Saenz</option>
-                                        <option value="María Torres">David Molero</option>
+                                        <option value="ALFREEDO JESUS CHIRINOS AREVALO">ALFREEDO JESUS CHIRINOS AREVALO</option>
+                                        <option value="ALEXANDER JOSE CHIRINOS APOSTOL">ALEXANDER JOSE CHIRINOS APOSTOL</option>
+                                        <option value="ARMANDO JESUS CHIRINOS APOSTOL">ARMANDO JESUS CHIRINOS APOSTOL</option>
+                                        <option value="JUAN CARLOS CHIRINOS AREVALO">JUAN CARLOS CHIRINOS AREVALO</option>
+                                        <option value="OSWALDO JOSE CURIEL ROMERO">OSWALDO JOSE CURIEL ROMERO</option>
+                                        <option value="MARVIL XAVIER CARDONA HERRERA">MARVIL XAVIER CARDONA HERRERA</option>
+                                        <option value="WILSON JOSE SILVA APUSHANA">WILSON JOSE SILVA APUSHANA</option>
+                                        <option value="CARLOS LUIS REYES LARA">CARLOS LUIS REYES LARA</option>
+                                        <option value="HECTOR JOSE DIAZ ELIAS">HECTOR JOSE DIAZ ELIAS</option>
+                                        <option value="JOSE LUIS CHIRINOS">JOSE LUIS CHIRINOS</option>
+                                        <option value="CESAR JOSE MEDINA CANIZALEZ">CESAR JOSE MEDINA CANIZALEZ</option>
+                                        <option value="ROSS AMEL SAEN ZAMBRANO">ROSS AMEL SAEN ZAMBRANO</option>
+                                        <option value="EDIXON ENRIQUE CHIRINOS AREVALO">EDIXON ENRIQUE CHIRINOS AREVALO</option>
+                                        <option value="DAVID ANDRE MORELO PARRA">DAVID ANDRE MORELO PARRA</option>
+                                        <option value="JOSMAR GREGORIO MORALES SANCHEZ">JOSMAR GREGORIO MORALES SANCHEZ</option>
+                                        <option value="ELDY FRANCISCO DEBEL CHOURIO">ELDY FRANCISCO DEBEL CHOURIO</option>
                                     </select>
                                     <small class="field-input-hint">Responsable principal de la carga.</small>
                                 </label>
@@ -117,13 +126,22 @@
                                     <span>Técnico 2</span>
                                     <select name="tecnico_2" id="field-tecnico-2">
                                         <option value="">Sin segundo técnico</option>
-                                        <option value="Carlos Ruiz">Carlos Reyes</option>
-                                        <option value="Luis Moreno">Hector Diaz</option>
-                                        <option value="María Torres">Cesar Medina</option>
-                                        <option value="José Vargas">Wilson Silva</option>
-                                        <option value="Carlos Ruiz">Marvil </option>
-                                        <option value="Luis Moreno">Ross Saenz</option>
-                                        <option value="María Torres">David Molero</option>
+                                        <option value="ALFREEDO JESUS CHIRINOS AREVALO">ALFREEDO JESUS CHIRINOS AREVALO</option>
+                                        <option value="ALEXANDER JOSE CHIRINOS APOSTOL">ALEXANDER JOSE CHIRINOS APOSTOL</option>
+                                        <option value="ARMANDO JESUS CHIRINOS APOSTOL">ARMANDO JESUS CHIRINOS APOSTOL</option>
+                                        <option value="JUAN CARLOS CHIRINOS AREVALO">JUAN CARLOS CHIRINOS AREVALO</option>
+                                        <option value="OSWALDO JOSE CURIEL ROMERO">OSWALDO JOSE CURIEL ROMERO</option>
+                                        <option value="MARVIL XAVIER CARDONA HERRERA">MARVIL XAVIER CARDONA HERRERA</option>
+                                        <option value="WILSON JOSE SILVA APUSHANA">WILSON JOSE SILVA APUSHANA</option>
+                                        <option value="CARLOS LUIS REYES LARA">CARLOS LUIS REYES LARA</option>
+                                        <option value="HECTOR JOSE DIAZ ELIAS">HECTOR JOSE DIAZ ELIAS</option>
+                                        <option value="JOSE LUIS CHIRINOS">JOSE LUIS CHIRINOS</option>
+                                        <option value="CESAR JOSE MEDINA CANIZALEZ">CESAR JOSE MEDINA CANIZALEZ</option>
+                                        <option value="ROSS AMEL SAEN ZAMBRANO">ROSS AMEL SAEN ZAMBRANO</option>
+                                        <option value="EDIXON ENRIQUE CHIRINOS AREVALO">EDIXON ENRIQUE CHIRINOS AREVALO</option>
+                                        <option value="DAVID ANDRE MORELO PARRA">DAVID ANDRE MORELO PARRA</option>
+                                        <option value="JOSMAR GREGORIO MORALES SANCHEZ">JOSMAR GREGORIO MORALES SANCHEZ</option>
+                                        <option value="ELDY FRANCISCO DEBEL CHOURIO">ELDY FRANCISCO DEBEL CHOURIO</option>
                                         
                                     </select>
                                     <small class="field-input-hint">Opcional si la guardia trabaja con dos técnicos.</small>
@@ -556,8 +574,8 @@
             </section>
 
             <!-- Processing modal for sending journey -->
-            <section id="field-processing-modal" class="field-report-preview-modal" hidden>
-                <div class="field-report-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="field-processing-title">
+            <section id="field-processing-modal" class="field-report-preview-modal field-processing-modal" hidden>
+                <div class="field-report-preview-dialog field-processing-dialog" role="dialog" aria-modal="true" aria-labelledby="field-processing-title">
                     <div class="field-report-preview-header">
                         <div>
                             <span class="field-report-preview-kicker">Envío de captura</span>
@@ -565,11 +583,11 @@
                         </div>
                         <button type="button" id="field-processing-close" class="field-report-preview-close" aria-label="Cerrar" hidden>×</button>
                     </div>
-                    <div id="field-processing-body" class="field-report-preview-body">
-                        <ol id="field-processing-steps" style="list-style:none; padding:0; margin:0; display:grid; gap:12px;">
-                            <li data-step="1">• Generando captura...</li>
-                            <li data-step="2">• Cargando captura al servidor...</li>
-                            <li data-step="3">• Finalizando y marcando como enviada...</li>
+                    <div id="field-processing-body" class="field-report-preview-body field-processing-body">
+                        <ol id="field-processing-steps" class="field-processing-steps">
+                            <li data-step="1">Generando captura...</li>
+                            <li data-step="2">Cargando captura al servidor...</li>
+                            <li data-step="3">Finalizando y marcando como enviada...</li>
                         </ol>
                     </div>
                 </div>

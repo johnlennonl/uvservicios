@@ -1306,39 +1306,21 @@ export async function saveLegacyDashboardGeneralRows({ template, sheet, columns,
 
     onProgress?.({ currentChunk: 0, totalChunks: 1, saved: 0, total: rows.length, phase: 'hashing' });
     const payload = dedupeConsolidatedRowsByHash(await buildDashboardPayload({ template, sheet, columns, rows }));
-    const { updatesById, rowsToInsert } = await splitLegacyDashboardPayloadForSave(payload);
     const chunkSize = 400;
-    const totalChunks = Math.max(1, Math.ceil(rowsToInsert.length / chunkSize));
+    const totalChunks = Math.max(1, Math.ceil(payload.length / chunkSize));
     let saved = 0;
 
-    for (const [id, row] of updatesById.entries()) {
-        const { error } = await supabase
-            .from(CONSOLIDATED_TABLE)
-            .update({
-                source_type: row.source_type,
-                source_file_name: row.source_file_name,
-                source_sheet_name: row.source_sheet_name,
-                source_row_number: row.source_row_number,
-                row_hash: row.row_hash,
-                pozo: row.pozo,
-                campo: row.campo,
-                ef: row.ef,
-                report_date: row.report_date,
-                report_time: row.report_time,
-                row_data: row.row_data,
-                column_labels: row.column_labels
-            })
-            .eq('id', id);
+    const { count: replacedCount, error: deleteError } = await supabase
+        .from(CONSOLIDATED_TABLE)
+        .delete({ count: 'exact' })
+        .eq('source_type', 'legacy_excel');
 
-        if (error) {
-            throw buildConsolidadoDatabaseError(error);
-        }
-
-        saved += 1;
+    if (deleteError) {
+        throw buildConsolidadoDatabaseError(deleteError);
     }
 
-    for (let startIndex = 0; startIndex < rowsToInsert.length; startIndex += chunkSize) {
-        const chunk = rowsToInsert.slice(startIndex, startIndex + chunkSize);
+    for (let startIndex = 0; startIndex < payload.length; startIndex += chunkSize) {
+        const chunk = payload.slice(startIndex, startIndex + chunkSize);
         const currentChunk = Math.floor(startIndex / chunkSize) + 1;
         onProgress?.({ currentChunk, totalChunks, saved, total: payload.length });
 
@@ -1356,8 +1338,9 @@ export async function saveLegacyDashboardGeneralRows({ template, sheet, columns,
 
     return {
         saved,
-        updated: updatesById.size,
-        inserted: rowsToInsert.length,
+        updated: 0,
+        inserted: payload.length,
+        replaced: replacedCount || 0,
         total: payload.length,
         sourceFileName: template.fileName,
         sourceSheetName: sheet.name

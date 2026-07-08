@@ -202,6 +202,14 @@ function normalizeSheetName(value) {
         .toUpperCase();
 }
 
+function normalizeColumnIdentity(value) {
+    return normalizeSheetName(value)
+        .replace(/\bAMP\b/g, 'A')
+        .replace(/\bVOLT\b/g, 'V')
+        .replace(/\bF\b/g, 'F')
+        .replace(/[^A-Z0-9%]+/g, '');
+}
+
 function isDashboardGeneralSheet(sheetName) {
     return normalizeSheetName(sheetName).includes('DASHBOARD GENERAL');
 }
@@ -330,6 +338,47 @@ function normalizeDataRows(rows = [], headerRowIndex = 0, columns = []) {
         .filter(row => row.some(cell => normalizeCell(cell)));
 }
 
+function getColumnIndexByName(columns = [], names = []) {
+    const normalizedNames = new Set(names.map(normalizeSheetName));
+    return columns.findIndex(item => normalizedNames.has(normalizeSheetName(item.originalName || item.name)));
+}
+
+function parseDashboardDateValue(value) {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return value.toISOString().slice(0, 10);
+    }
+
+    const raw = normalizeCell(value);
+    if (!raw) return '';
+
+    const isoMatch = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (isoMatch) {
+        const [, year, month, day] = isoMatch;
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+
+    const latinMatch = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
+    if (latinMatch) {
+        const [, day, month, yearValue] = latinMatch;
+        const year = yearValue.length === 2 ? `20${yearValue}` : yearValue;
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+
+    return '';
+}
+
+function getDashboardRowsDateRange(rows = [], columns = []) {
+    const dateIndex = getColumnIndexByName(columns, ['FECHA', 'Fecha', 'fecha']);
+    if (dateIndex < 0) return { minDate: '', maxDate: '' };
+
+    const dates = rows
+        .map(row => parseDashboardDateValue(row[dateIndex]))
+        .filter(Boolean)
+        .sort();
+
+    return { minDate: dates[0] || '', maxDate: dates[dates.length - 1] || '' };
+}
+
 function parseWorkbookTemplate(file, workbook) {
     const sheets = workbook.SheetNames.map(sheetName => {
         const worksheet = workbook.Sheets[sheetName];
@@ -391,12 +440,17 @@ async function handleFile(file) {
         activeSheetIndex = 0;
         saveTemplate(activeTemplate);
         renderTemplate();
+        const dashboardSheet = getDashboardGeneralSheet();
+        const importedRange = getDashboardRowsDateRange(activeDashboardRows, dashboardSheet?.columns || []);
+        const rangeMessage = importedRange.minDate && importedRange.maxDate
+            ? ` Rango detectado: ${formatStoredDateForExcel(importedRange.minDate)} - ${formatStoredDateForExcel(importedRange.maxDate)}.`
+            : ' No pude detectar un rango de fechas en Dashboard General.';
         const dashboardRowsMessage = activeDashboardRows.length
-            ? ` Se cargaron ${activeDashboardRows.length} filas de Dashboard General para exportarlas con diseño.`
+            ? ` Se cargaron ${activeDashboardRows.length} filas de Dashboard General para exportarlas con diseño.${rangeMessage}`
             : ' No se encontraron filas útiles en Dashboard General; se exportará el formato con encabezados reales e información de control.';
         setStatus(`Estructura importada desde ${file.name}.${dashboardRowsMessage}`, 'success');
         closeLoadingModal();
-        showResultModal('success', 'Consolidado cargado', `Se detectaron ${activeTemplate.sheetCount} hojas, ${activeTemplate.totalColumnCount} columnas y ${activeDashboardRows.length} filas de Dashboard General.`);
+        showResultModal('success', 'Consolidado cargado', `Se detectaron ${activeTemplate.sheetCount} hojas, ${activeTemplate.totalColumnCount} columnas y ${activeDashboardRows.length} filas de Dashboard General.${rangeMessage}`);
     } catch (error) {
         console.error('No se pudo procesar el consolidado:', error);
         setStatus('No se pudo procesar el Excel. Verifica que no esté dañado o protegido.', 'error');
@@ -640,11 +694,11 @@ async function saveDashboardGeneralToDatabase() {
             }
         });
 
-        const saveDetail = `${result.updated || 0} actualizadas, ${result.inserted || 0} nuevas`;
-        setStatus(`Consolidado guardado: ${result.saved} filas de ${result.sourceSheetName} quedaron registradas (${saveDetail}).`, 'success');
+        const saveDetail = `${result.replaced || 0} anteriores reemplazadas, ${result.inserted || 0} nuevas guardadas`;
+        setStatus(`Base histórica actualizada: ${result.saved} filas de ${result.sourceSheetName} quedaron registradas (${saveDetail}).`, 'success');
         await refreshDatabaseSummary({ silent: true });
         closeLoadingModal();
-        showResultModal('success', 'Base de datos actualizada', `${result.saved} filas quedaron registradas en el consolidado maestro: ${saveDetail}.`);
+        showResultModal('success', 'Base histórica actualizada', `${result.saved} filas quedaron registradas en el consolidado maestro: ${saveDetail}.`);
     } catch (error) {
         console.error('No se pudo guardar el consolidado:', error);
         setStatus(error?.message || 'No se pudo guardar el consolidado en la base de datos.', 'error');
@@ -748,6 +802,52 @@ function buildColumnsFromStoredRows(rows = []) {
     }));
 }
 
+function addStoredColumnLabel(labels = [], seen = new Set(), label = '') {
+    const normalizedLabel = normalizeCell(label);
+    const identity = normalizeColumnIdentity(normalizedLabel);
+    if (!normalizedLabel || seen.has(identity)) return;
+    seen.add(identity);
+    labels.push(normalizedLabel);
+}
+
+function getBaseTemplateColumns() {
+    const dashboardSheet = getDashboardGeneralSheet();
+    return Array.isArray(dashboardSheet?.columns) ? dashboardSheet.columns : [];
+}
+
+function mapLabelsToColumns(labels = []) {
+    return labels.map((label, index) => ({
+        key: `${getColumnLetter(index)}_${label}`,
+        letter: getColumnLetter(index),
+        name: label,
+        originalName: label,
+        index
+    }));
+}
+
+function buildExportColumnsFromStoredRows(rows = [], source = 'base') {
+    const labels = [];
+    const seen = new Set();
+    const baseColumns = getBaseTemplateColumns();
+
+    baseColumns.forEach(column => addStoredColumnLabel(labels, seen, column.originalName || column.name));
+
+    if ((source === 'base' || source === 'completo') && labels.length > 0) {
+        return mapLabelsToColumns(labels);
+    }
+
+    rows.forEach(row => {
+        const rowLabels = Array.isArray(row.column_labels) ? row.column_labels : [];
+        rowLabels.forEach(label => addStoredColumnLabel(labels, seen, label));
+    });
+
+    rows.forEach(row => {
+        Object.keys(row.row_data || {}).forEach(label => addStoredColumnLabel(labels, seen, label));
+    });
+
+    return mapLabelsToColumns(labels);
+}
+
 function formatStoredDateForExcel(dateValue) {
     const isoDate = String(dateValue || '').slice(0, 10);
     const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -793,7 +893,8 @@ function getStoredRowExportValue(storedRow = {}, label = '') {
     const rowData = storedRow.row_data || {};
     if (rowData[label] !== undefined) return rowData[label];
 
-    const matchingKey = Object.keys(rowData).find(key => normalizeSheetName(key) === normalizedLabel);
+    const normalizedIdentity = normalizeColumnIdentity(label);
+    const matchingKey = Object.keys(rowData).find(key => normalizeColumnIdentity(key) === normalizedIdentity || normalizeSheetName(key) === normalizedLabel);
     return matchingKey ? rowData[matchingKey] : '';
 }
 
@@ -829,7 +930,7 @@ async function exportDashboardGeneralFromDatabase() {
         }
 
         updateLoadingModal('Preparando columnas y filas...', `${storedRows.length} filas recuperadas desde Supabase.`);
-        const columns = buildColumnsFromStoredRows(storedRows);
+        const columns = buildExportColumnsFromStoredRows(storedRows, filters.source);
         const rows = buildRowsFromStoredRows(storedRows, columns);
         const sourceSheet = { name: DASHBOARD_GENERAL_SHEET_NAME, columns };
 
@@ -1343,7 +1444,7 @@ async function init() {
     bindEvents();
     activeTemplate = loadStoredTemplate();
     renderTemplate();
-    showExportMaintenanceNotice();
+    window.setTimeout(showExportMaintenanceNotice, 120);
     refreshDatabaseSummary({ silent: true });
 
     if (activeTemplate?.sheets?.length) {

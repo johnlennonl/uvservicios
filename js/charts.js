@@ -1670,7 +1670,7 @@ async function applyConsolidatedOperationalOverrides(records = [], { selectedPoz
             return patch ? { ...record, ...patch } : record;
         });
     } catch (error) {
-        console.warn('No se pudieron cruzar datos operativos del consolidado para el dashboard.', error);
+        console.warn('No se pudieron cruzar datos operativos del consolidado para el dashboard.', error); 
         return records;
     }
 }

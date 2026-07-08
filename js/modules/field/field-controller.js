@@ -1,13 +1,14 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from '../../auth.js';
 import { getUniquePozos } from '../../services/monitoring-service.js';
-import { submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney, getFieldSubmittedJourneys, getFieldSubmittedJourneyDetail } from '../../services/field-journey-service.js';
-import { getWellTechnicalData } from '../../services/technical-measurements-service.js';
+import { autosaveFieldJourneyDraft, submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney, getFieldSubmittedJourneys, getFieldSubmittedJourneyDetail, getLatestFieldJourneyDraft } from '../../services/field-journey-service.js';
+import { getWellRibbonData } from '../../services/technical-measurements-service.js';
 import { validateFieldJourneyForSubmission, validateFieldReport } from './field-validation.js';
 
 const DRAFT_STORAGE_KEY = 'uv-field-capture-draft';
 const REPORTS_STORAGE_KEY = 'uv-field-capture-reports';
 const DRAFT_JOURNEY_KEY_STORAGE_KEY = 'uv-field-draft-journey-key';
 const CAPTURE_STARTED_STORAGE_KEY = 'uv-field-capture-started';
+const ACCORDION_PROGRESS_STORAGE_KEY = 'uv-field-accordion-progress';
 const MESSAGE_HEADER_STORAGE_KEY = 'uv-field-message-header';
 const JOURNEY_STARTED_STORAGE_KEY = 'uv-field-journey-started';
 
@@ -405,7 +406,9 @@ let isCaptureStarted = localStorage.getItem(CAPTURE_STARTED_STORAGE_KEY) === 'tr
 let messageComposerReports = [];
 let fieldSubmittedJourneys = [];
 let fieldAdminPreviewRequestId = 0;
-let isJourneyStarted = localStorage.getItem(JOURNEY_STARTED_STORAGE_KEY) === 'true' && getJourneyReports().length > 0;
+let isAutosavingJourneyDraft = false;
+let pendingAutosaveJourneyDraft = false;
+let isJourneyStarted = false;
 
 const FIELD_PRODUCTION_MEASURE_MAP = {
     campo: 'campo_name',
@@ -442,6 +445,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     wireForm();
     recalculateComputedFields();
     renderJourneyReports();
+    await restoreRemoteDraftIfNeeded();
     await renderAdminPreview();
     updateSummary();
     syncAddButtonState();
@@ -491,7 +495,7 @@ function bindStaticActions() {
     document.addEventListener('keydown', handlePreviewKeydown);
 }
 
-function preloadDefaults() {
+function preloadDefaults({ refreshTime = false } = {}) {
     const dateInput = document.getElementById('field-fecha');
     const timeInput = document.getElementById('field-hora');
     const now = new Date();
@@ -500,7 +504,7 @@ function preloadDefaults() {
         dateInput.value = now.toISOString().slice(0, 10);
     }
 
-    if (timeInput && !timeInput.value) {
+    if (timeInput && (refreshTime || !timeInput.value)) {
         timeInput.value = now.toTimeString().slice(0, 5);
     }
 
@@ -512,6 +516,8 @@ function wireForm() {
     if (!form) return;
 
     initializeAccordionProgressControls();
+    resetAccordionProgressControls();
+    restoreAccordionProgressControls();
 
     form.addEventListener('input', () => {
         syncJourneyFromTime();
@@ -542,6 +548,11 @@ function wireForm() {
         details.addEventListener('toggle', () => {
             if (details.classList.contains('is-locked') && details.open) {
                 details.open = false;
+                return;
+            }
+
+            if (details.open) {
+                openOnlyAccordionSection(details);
             }
         });
     });
@@ -551,19 +562,37 @@ function startFieldJourney() {
     isJourneyStarted = true;
     localStorage.setItem(JOURNEY_STARTED_STORAGE_KEY, 'true');
     syncJourneyStartGate();
-    updateStatus('Jornada iniciada. Completa la cabecera y selecciona el pozo.', 'success');
+    updateStatus(getJourneyReports().length > 0 || localStorage.getItem(DRAFT_STORAGE_KEY)
+        ? 'Jornada recuperada. Continúa la captura donde la dejaste.'
+        : 'Jornada iniciada. Completa la cabecera y selecciona el pozo.', 'success');
     focusFieldById('field-tecnico-1');
 }
 
 function syncJourneyStartGate() {
     const formCard = document.querySelector('.field-form-card');
     const overlay = document.getElementById('field-journey-start-overlay');
+    const startJourneyButton = document.getElementById('field-start-journey-btn');
     if (!formCard || !overlay) return;
 
-    const hasWorkingData = getJourneyReports().length > 0 || Boolean(currentEditingReportId);
-    const unlocked = isJourneyStarted || hasWorkingData;
+    const hasWorkingData = getJourneyReports().length > 0 || Boolean(currentEditingReportId) || Boolean(localStorage.getItem(DRAFT_STORAGE_KEY));
+    const unlocked = isJourneyStarted;
     formCard.classList.toggle('is-journey-start-locked', !unlocked);
     overlay.hidden = unlocked;
+    if (startJourneyButton) {
+        const label = startJourneyButton.querySelector('span');
+        if (label) label.textContent = hasWorkingData ? 'Continuar jornada' : 'Iniciar jornada';
+    }
+
+    const overlayLabel = overlay.querySelector('.field-journey-start-card > span');
+    const overlayTitle = overlay.querySelector('.field-journey-start-card > strong');
+    const overlayCopy = overlay.querySelector('.field-journey-start-card > p');
+    if (overlayLabel) overlayLabel.textContent = hasWorkingData ? 'Jornada en curso' : 'Jornada sin iniciar';
+    if (overlayTitle) overlayTitle.textContent = hasWorkingData ? 'CONTINUAR JORNADA' : 'INICIAR JORNADA';
+    if (overlayCopy) {
+        overlayCopy.textContent = hasWorkingData
+            ? 'Hay una captura recuperada. Continúa desde el punto donde quedó.'
+            : 'Activa la captura para seleccionar técnico, pozo y comenzar el recorrido.';
+    }
 }
 
 function initializeAccordionProgressControls() {
@@ -629,9 +658,74 @@ function markAccordionSectionLoaded(section, loaded) {
     if (updateButton) updateButton.hidden = !loaded;
     if (loadedMark) loadedMark.hidden = !loaded;
 
+    persistAccordionProgressControls();
+
+    syncAccordionSequentialLocks();
+
     if (loaded) {
         openNextPendingAccordionSection(section);
+    } else {
+        openOnlyAccordionSection(section);
     }
+}
+
+function openOnlyAccordionSection(targetSection) {
+    getParameterSections().forEach(section => {
+        section.open = section === targetSection;
+    });
+}
+
+function getFirstPendingAccordionSection() {
+    return getParameterSections().find(section => !section.classList.contains('is-loaded')) || null;
+}
+
+function persistAccordionProgressControls() {
+    const loadedIndexes = getParameterSections()
+        .map((section, index) => section.classList.contains('is-loaded') ? index : null)
+        .filter(index => index !== null);
+    localStorage.setItem(ACCORDION_PROGRESS_STORAGE_KEY, JSON.stringify(loadedIndexes));
+}
+
+function restoreAccordionProgressControls() {
+    let loadedIndexes = [];
+    try {
+        const parsed = JSON.parse(localStorage.getItem(ACCORDION_PROGRESS_STORAGE_KEY) || '[]');
+        loadedIndexes = Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        loadedIndexes = [];
+    }
+
+    getParameterSections().forEach((section, index) => {
+        const loaded = loadedIndexes.includes(index);
+        section.classList.toggle('is-loaded', loaded);
+        const loadButton = section.querySelector('.field-accordion-load-btn');
+        const updateButton = section.querySelector('.field-accordion-update-btn');
+        const loadedMark = section.querySelector('.field-accordion-loaded-mark');
+        if (loadButton) loadButton.hidden = loaded;
+        if (updateButton) updateButton.hidden = !loaded;
+        if (loadedMark) loadedMark.hidden = !loaded;
+    });
+
+    syncAccordionSequentialLocks();
+    if (hasStartedCapture() && validateCaptureGate({ showMessage: false })) {
+        openFirstPendingAccordionSection();
+    }
+}
+
+function markAllAccordionSectionsLoaded() {
+    getParameterSections().forEach(section => {
+        section.classList.add('is-loaded');
+        section.open = false;
+        const loadButton = section.querySelector('.field-accordion-load-btn');
+        const updateButton = section.querySelector('.field-accordion-update-btn');
+        const loadedMark = section.querySelector('.field-accordion-loaded-mark');
+        if (loadButton) loadButton.hidden = true;
+        if (updateButton) updateButton.hidden = false;
+        if (loadedMark) loadedMark.hidden = false;
+    });
+
+    persistAccordionProgressControls();
+    syncAccordionSequentialLocks();
 }
 
 function openNextPendingAccordionSection(currentSection) {
@@ -640,13 +734,41 @@ function openNextPendingAccordionSection(currentSection) {
     const nextSection = sections.slice(currentIndex + 1).find(section => !section.classList.contains('is-loaded') && !section.classList.contains('is-locked'));
     if (!nextSection) return;
 
-    nextSection.open = true;
+    openOnlyAccordionSection(nextSection);
     nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function openFirstPendingAccordionSection() {
+    const firstPendingSection = getFirstPendingAccordionSection();
+    if (!firstPendingSection || firstPendingSection.classList.contains('is-locked')) {
+        getParameterSections().forEach(section => {
+            section.open = false;
+        });
+        return;
+    }
+
+    openOnlyAccordionSection(firstPendingSection);
+    firstPendingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function syncAccordionSequentialLocks() {
+    const captureReady = hasStartedCapture() && validateCaptureGate({ showMessage: false });
+    const firstPendingSection = captureReady ? getFirstPendingAccordionSection() : null;
+
+    getParameterSections().forEach(section => {
+        const locked = !captureReady || (!section.classList.contains('is-loaded') && section !== firstPendingSection);
+        section.classList.toggle('is-locked', locked);
+        if (locked) section.open = false;
+        section.querySelectorAll('.field-accordion-body input, .field-accordion-body select, .field-accordion-body textarea, .field-accordion-action-btn').forEach(field => {
+            field.disabled = locked;
+        });
+    });
 }
 
 function resetAccordionProgressControls() {
     getParameterSections().forEach(section => {
         section.classList.remove('is-loaded');
+        section.open = false;
         const loadButton = section.querySelector('.field-accordion-load-btn');
         const updateButton = section.querySelector('.field-accordion-update-btn');
         const loadedMark = section.querySelector('.field-accordion-loaded-mark');
@@ -654,6 +776,13 @@ function resetAccordionProgressControls() {
         if (updateButton) updateButton.hidden = true;
         if (loadedMark) loadedMark.hidden = true;
     });
+
+    syncAccordionSequentialLocks();
+}
+
+function clearAccordionProgressControls() {
+    localStorage.removeItem(ACCORDION_PROGRESS_STORAGE_KEY);
+    resetAccordionProgressControls();
 }
 
 function getJourneyFromTime(timeValue) {
@@ -697,9 +826,9 @@ function getHeaderMissingFields(payload = getFormPayload()) {
 }
 
 function getDuplicatePozoReport(pozoName, excludeReportId = currentEditingReportId) {
-    const normalizedPozo = normalizePozoValue(pozoName);
-    if (!normalizedPozo) return null;
-    return getJourneyReports().find(report => report.id !== excludeReportId && normalizePozoValue(report.pozo) === normalizedPozo) || null;
+    const pozoKey = normalizePozoIdentity(pozoName);
+    if (!pozoKey) return null;
+    return getJourneyReports().find(report => report.id !== excludeReportId && normalizePozoIdentity(report.pozo) === pozoKey) || null;
 }
 
 function validateCaptureGate({ showMessage = false } = {}) {
@@ -738,6 +867,7 @@ function handleStartCapture() {
     isCaptureStarted = true;
     localStorage.setItem(CAPTURE_STARTED_STORAGE_KEY, 'true');
     syncCaptureGateState();
+    openFirstPendingAccordionSection();
     updateStatus('Captura iniciada. Ya puedes abrir los bloques y llenar parámetros del pozo.', 'success');
 }
 
@@ -763,23 +893,29 @@ function handleLockedAccordionClick(event) {
 }
 
 function setParameterSectionsLocked(locked) {
-    getParameterSections().forEach(section => {
-        section.classList.toggle('is-locked', locked);
-        if (locked) section.open = false;
-        section.querySelectorAll('.field-accordion-body input, .field-accordion-body select, .field-accordion-body textarea, .field-accordion-action-btn').forEach(field => {
-            field.disabled = locked;
+    if (locked) {
+        getParameterSections().forEach(section => {
+            section.classList.add('is-locked');
+            section.open = false;
+            section.querySelectorAll('.field-accordion-body input, .field-accordion-body select, .field-accordion-body textarea, .field-accordion-action-btn').forEach(field => {
+                field.disabled = true;
+            });
         });
-    });
+        return;
+    }
+
+    syncAccordionSequentialLocks();
 }
 
 function syncCaptureGateState() {
     const captureReady = hasStartedCapture() && validateCaptureGate({ showMessage: false });
-    setParameterSectionsLocked(!captureReady);
-
     const startButton = document.getElementById('field-start-capture-btn');
+    setParameterSectionsLocked(!captureReady);
     if (startButton) {
         startButton.disabled = captureReady;
-        startButton.textContent = captureReady ? 'Captura iniciada' : 'Empezar captura';
+        startButton.textContent = captureReady
+            ? 'Captura iniciada'
+            : 'Iniciar captura';
     }
 
     const addButton = document.getElementById('field-add-report-btn');
@@ -850,6 +986,7 @@ function clearForm() {
     currentEditingReportId = null;
     isCaptureStarted = false;
     localStorage.removeItem(CAPTURE_STARTED_STORAGE_KEY);
+    localStorage.removeItem(ACCORDION_PROGRESS_STORAGE_KEY);
 
     if (getJourneyReports().length === 0) {
         isJourneyStarted = false;
@@ -861,10 +998,10 @@ function clearForm() {
         if (field) field.value = value;
     });
 
-    preloadDefaults();
+    preloadDefaults({ refreshTime: true });
     syncPozoDisplayFromValue();
     closeFieldPozoMenu({ commitSearch: false });
-    resetAccordionProgressControls();
+    clearAccordionProgressControls();
     recalculateComputedFields();
     persistDraft();
     updateSummary();
@@ -952,6 +1089,7 @@ async function addCurrentReportToJourney() {
     updateSummary();
     syncJourneyStartGate();
     syncCaptureGateState();
+    scheduleJourneyDraftAutosave();
 
     await handleSavedReportFlow(wasEditingReport, reportRecord);
 }
@@ -967,6 +1105,89 @@ function getJourneyReports() {
         localStorage.removeItem(REPORTS_STORAGE_KEY);
         return [];
     }
+}
+
+function normalizeWorkflowRecordForDraft(record = {}) {
+    const payload = record.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
+    return {
+        id: record.source_client_report_id || record.id || crypto.randomUUID(),
+        ...payload,
+        pozo: record.pozo ?? payload.pozo ?? '',
+        campo: record.campo ?? payload.campo ?? '',
+        ef: record.ef ?? payload.ef ?? '',
+        estado: record.estado ?? payload.estado ?? '',
+        categoria: record.categoria ?? payload.categoria ?? '',
+        fecha: record.report_date ?? payload.fecha ?? '',
+        hora: String(record.report_time ?? payload.hora ?? '').slice(0, 5),
+        jornada: payload.jornada || getJourneyFromTime(record.report_time ?? payload.hora ?? ''),
+        updatedAt: record.updated_at || payload.updatedAt || new Date().toISOString()
+    };
+}
+
+async function restoreRemoteDraftIfNeeded() {
+    if (getJourneyReports().length > 0 || localStorage.getItem(DRAFT_STORAGE_KEY)) return;
+
+    try {
+        const draft = await getLatestFieldJourneyDraft();
+        const records = (draft?.records || []).map(normalizeWorkflowRecordForDraft);
+        if (!draft?.journey?.id || records.length === 0) return;
+
+        localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(records));
+        localStorage.setItem(DRAFT_JOURNEY_KEY_STORAGE_KEY, draft.journey.id);
+        currentEditingJourneyId = draft.journey.id;
+        isJourneyStarted = false;
+        localStorage.removeItem(JOURNEY_STARTED_STORAGE_KEY);
+        renderJourneyReports();
+        updateSummary();
+        syncJourneyStartGate();
+        syncCaptureGateState();
+        updateStatus(`Borrador remoto recuperado: ${records.length} ${records.length === 1 ? 'pozo' : 'pozos'} en curso.`, 'success');
+    } catch (error) {
+        console.warn('No se pudo recuperar el borrador remoto de Campo:', error);
+    }
+}
+
+async function autosaveJourneyDraftRemote() {
+    const reports = getJourneyReports();
+    const existingJourneyId = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY) || null;
+    if ((reports.length === 0 && !existingJourneyId) || isSubmittingJourney) return;
+
+    if (isAutosavingJourneyDraft) {
+        pendingAutosaveJourneyDraft = true;
+        return;
+    }
+
+    isAutosavingJourneyDraft = true;
+    pendingAutosaveJourneyDraft = false;
+
+    try {
+        const result = await autosaveFieldJourneyDraft(reports, {
+            journeyId: existingJourneyId
+        });
+        if (result?.journeyId) {
+            currentEditingJourneyId = result.journeyId;
+            localStorage.setItem(DRAFT_JOURNEY_KEY_STORAGE_KEY, result.journeyId);
+        } else if (reports.length === 0) {
+            currentEditingJourneyId = null;
+            localStorage.removeItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
+        }
+        if (reports.length > 0) {
+            updateStatus(`Respaldo automático guardado: ${reports.length} ${reports.length === 1 ? 'pozo' : 'pozos'} en la nube.`, 'success');
+        }
+    } catch (error) {
+        console.warn('No se pudo guardar el borrador remoto de Campo:', error);
+        updateStatus('Captura guardada localmente. Sin respaldo en nube por ahora; revisa la conexión antes de cerrar.', true);
+    } finally {
+        isAutosavingJourneyDraft = false;
+        if (pendingAutosaveJourneyDraft) {
+            pendingAutosaveJourneyDraft = false;
+            autosaveJourneyDraftRemote();
+        }
+    }
+}
+
+function scheduleJourneyDraftAutosave() {
+    autosaveJourneyDraftRemote();
 }
 
 function mergeJourneyRecords(existingRecords = [], draftRecords = []) {
@@ -1092,6 +1313,8 @@ function removeJourneyReport(reportId) {
     renderJourneyReports();
     updateSummary();
     syncJourneyStartGate();
+    syncCaptureGateState();
+    scheduleJourneyDraftAutosave();
     updateStatus('Registro eliminado de la carga.');
 }
 
@@ -1102,6 +1325,7 @@ function syncAddButtonState() {
 }
 
 function syncQuickActionButtons(reports = getJourneyReports()) {
+    const quickActions = document.querySelector('.field-quick-actions');
     const newPozoButton = document.getElementById('field-new-pozo-btn');
     const resumeButton = document.getElementById('field-resume-edit-btn');
     const title = document.getElementById('field-quick-actions-title');
@@ -1110,6 +1334,10 @@ function syncQuickActionButtons(reports = getJourneyReports()) {
         ? reports.find(report => report.id === currentEditingReportId) || null
         : null;
     const fallbackReport = reports[reports.length - 1] || null;
+
+    if (quickActions) {
+        quickActions.hidden = reports.length > 0 && !currentEditingReportId;
+    }
 
     if (newPozoButton) {
         newPozoButton.textContent = currentEditingReportId ? 'Cambiar a nuevo pozo' : 'Nuevo pozo';
@@ -1166,10 +1394,11 @@ function updateEditingContext(reports = getJourneyReports()) {
         return;
     }
 
-    if (currentEditingJourneyId || reports.length > 0) {
+    const draftJourneyId = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
+    if (draftJourneyId || reports.length > 0) {
         banner.hidden = false;
         banner.classList.add('is-building');
-        if (currentEditingJourneyId) {
+        if (draftJourneyId) {
             captureCard?.classList.add('is-journey-context');
         }
         banner.innerHTML = `
@@ -1427,7 +1656,10 @@ async function submitJourneyForAdminPreview() {
         return;
     }
 
-    const resolvedJourneyId = currentEditingJourneyId || null;
+    const resolvedJourneyId = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY) || null;
+    if (resolvedJourneyId) {
+        currentEditingJourneyId = resolvedJourneyId;
+    }
     let mergedReports = reports;
     const isUpdatingExistingJourney = Boolean(resolvedJourneyId);
     let workflowResult;
@@ -1843,7 +2075,7 @@ async function fetchFieldProductionMeasures(pozoName) {
     if (!normalizedPozo) return null;
 
     try {
-        const technicalData = await getWellTechnicalData(normalizedPozo);
+        const technicalData = await getWellRibbonData(normalizedPozo);
         if (!technicalData) return null;
         return mapTechnicalDataToFieldMeasures(technicalData);
     } catch (error) {
@@ -1890,21 +2122,32 @@ async function prefillProductionMeasuresForSelectedPozo(pozoName) {
     const inheritedMeasures = await fetchFieldProductionMeasures(pozoName);
     if (requestId !== productionPrefillRequestId) return;
 
+    const locationField = document.getElementById('field-locacion-jornada');
     let loadedCount = 0;
     Object.keys(FIELD_PRODUCTION_MEASURE_MAP).forEach(fieldName => {
         const field = document.querySelector(`[name="${fieldName}"]`);
         if (!field) return;
 
         const inheritedValue = inheritedMeasures?.[fieldName] || '';
-        field.value = inheritedValue;
+        field.value = fieldName === 'campo' && !inheritedValue ? (locationField?.value || '') : inheritedValue;
         if (!isBlankValue(inheritedValue)) loadedCount += 1;
     });
 
+    const estadoField = document.querySelector('[name="estado"]');
+    const estatusField = document.querySelector('[name="estatus"]');
+    const actividadField = document.querySelector('[name="actividad"]');
+    const sentidoGiroField = document.querySelector('[name="sentido_giro"]');
+    if (estadoField && isBlankValue(estadoField.value)) estadoField.value = 'PC';
+    if (estatusField && isBlankValue(estatusField.value)) estatusField.value = 'RUN';
+    if (actividadField && isBlankValue(actividadField.value)) actividadField.value = 'MONITOREO';
+    if (sentidoGiroField && isBlankValue(sentidoGiroField.value)) sentidoGiroField.value = 'FWD';
+
     persistDraft();
+    recalculateComputedFields();
     updateSummary();
     updateStatus(loadedCount > 0
         ? `Información general cargada para ${normalizePozoValue(pozoName)} desde la ficha vigente.`
-        : `No hay información general registrada para ${normalizePozoValue(pozoName)}. Los campos quedaron vacíos para no arrastrar datos de otro pozo.`);
+        : `No encontré ficha técnica para ${normalizePozoValue(pozoName)}. Revisa que tenga potencial, bruta, neta y AyS cargados en la base técnica.`);
 }
 
 function formatNumber(value) {
@@ -2181,6 +2424,7 @@ async function restoreSubmittedJourneyToWorkspace(journeyId, reportId = null) {
     if (targetReport) {
         currentEditingReportId = targetReport.id;
         loadReportIntoForm(targetReport);
+        markAllAccordionSectionsLoaded();
     }
 
     closeReportPreview();
@@ -2766,6 +3010,7 @@ function resetJourneyWorkspace() {
     localStorage.removeItem(REPORTS_STORAGE_KEY);
     localStorage.removeItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
     localStorage.removeItem(CAPTURE_STARTED_STORAGE_KEY);
+    localStorage.removeItem(ACCORDION_PROGRESS_STORAGE_KEY);
     localStorage.removeItem(JOURNEY_STARTED_STORAGE_KEY);
     currentEditingReportId = null;
     currentEditingJourneyId = null;
@@ -2784,7 +3029,7 @@ function resetJourneyWorkspace() {
     syncAddButtonState();
     syncJourneyFieldLocks([]);
     updateEditingContext([]);
-    resetAccordionProgressControls();
+    clearAccordionProgressControls();
     syncJourneyStartGate();
     syncCaptureGateState();
 }
@@ -2874,7 +3119,8 @@ function renderFieldPozoOptions(ignoreSearch = false) {
     }
 
     const searchTerm = ignoreSearch ? '' : normalizePozoValue(displayField.value);
-    const filteredPozos = availablePozos.filter(pozo => !searchTerm || pozo.includes(searchTerm));
+    const searchKey = normalizePozoIdentity(searchTerm);
+    const filteredPozos = availablePozos.filter(pozo => !searchTerm || pozo.includes(searchTerm) || normalizePozoIdentity(pozo).includes(searchKey));
 
     if (filteredPozos.length === 0) {
         menu.innerHTML = '<div class="pozo-selector-empty">No hay pozos para esa búsqueda.</div>';
@@ -2994,7 +3240,8 @@ function commitTypedPozoSelection() {
         return;
     }
 
-    const exactMatch = availablePozos.find(pozo => pozo === normalizedPozo);
+    const exactMatch = availablePozos.find(pozo => pozo === normalizedPozo)
+        || availablePozos.find(pozo => normalizePozoIdentity(pozo) === normalizePozoIdentity(normalizedPozo));
     if (exactMatch && getDuplicatePozoReport(exactMatch)) {
         hiddenField.value = '';
         displayField.value = '';
@@ -3005,19 +3252,32 @@ function commitTypedPozoSelection() {
         return;
     }
 
-    hiddenField.value = exactMatch || '';
-    displayField.value = exactMatch || normalizedPozo;
-    syncLocationFromPozo(exactMatch || '');
+    if (!exactMatch) {
+        hiddenField.value = '';
+        displayField.value = normalizedPozo;
+        syncLocationFromPozo('');
+        persistDraft();
+        updateSummary();
+        syncCaptureGateState();
+        updateStatus(`Selecciona ${normalizedPozo} desde la lista de pozos para cargar sus medidas.`, true);
+        return;
+    }
+
+    hiddenField.value = exactMatch;
+    displayField.value = exactMatch;
+    syncLocationFromPozo(exactMatch);
     persistDraft();
     updateSummary();
     syncCaptureGateState();
-    if (exactMatch) {
-        prefillProductionMeasuresForSelectedPozo(exactMatch);
-    }
+    prefillProductionMeasuresForSelectedPozo(exactMatch);
 }
 
 function normalizePozoValue(value) {
     return String(value || '').trim().toUpperCase();
+}
+
+function normalizePozoIdentity(value) {
+    return normalizePozoValue(value).replace(/[^A-Z0-9]/g, '');
 }
 
 function inferLocationFromPozo(pozoName) {
@@ -3179,7 +3439,15 @@ function showProcessingModal() {
     if (!modal) return;
     modal.hidden = false;
     const steps = document.querySelectorAll('#field-processing-steps [data-step]');
-    steps.forEach(el => el.style.opacity = '0.6');
+    const defaultLabels = {
+        1: 'Generando captura...',
+        2: 'Cargando captura al servidor...',
+        3: 'Finalizando y marcando como enviada...'
+    };
+    steps.forEach(el => {
+        el.classList.remove('is-active');
+        el.textContent = defaultLabels[el.dataset.step] || el.textContent;
+    });
 }
 
 function hideProcessingModal() {
@@ -3192,9 +3460,7 @@ function setProcessingStep(stepNumber, text) {
     const el = document.querySelector(`#field-processing-steps [data-step="${stepNumber}"]`);
     if (!el) return;
     el.textContent = `✓ ${text}`;
-    el.style.color = '#0f172a';
-    el.style.fontWeight = '800';
-    el.style.opacity = '1';
+    el.classList.add('is-active');
 }
 
 function pause(ms = 300) {

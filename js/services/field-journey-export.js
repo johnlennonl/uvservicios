@@ -1,4 +1,4 @@
-const REPORT_COLUMNS = [
+export const REPORT_COLUMNS = [
     ['TÉCNICO 1', 'tecnico_1'],
     ['TÉCNICO 2', 'tecnico_2'],
     ['INGENIEROS / EQUIPO DE GUARDIA', 'equipo_guardia'],
