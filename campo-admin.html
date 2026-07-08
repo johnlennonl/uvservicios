@@ -2168,6 +2168,26 @@
                 grid-template-columns: minmax(0, 1fr);
             }
 
+            .campo-admin-list,
+            .campo-admin-record-scroll {
+                max-height: none;
+                overflow: visible;
+                padding-right: 0;
+            }
+
+            .campo-admin-filter-group {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                width: 100%;
+            }
+
+            .campo-admin-filter-chip {
+                min-height: 44px;
+                width: 100%;
+                justify-content: center;
+                text-align: center;
+            }
+
             .campo-admin-export-strip {
                 grid-template-columns: 1fr;
             }
@@ -2184,10 +2204,6 @@
             .campo-admin-export-audit-btn {
                 min-width: 0;
                 width: 100%;
-            }
-
-            .campo-admin-filter-group {
-                justify-content: flex-start;
             }
 
             .campo-admin-ticket-summary-grid,
@@ -2217,6 +2233,10 @@
 
             .campo-admin-detail-actions {
                 justify-content: flex-start;
+            }
+
+            .campo-admin-detail-actions .campo-admin-action-btn {
+                min-height: 44px;
             }
         }
 
@@ -2296,6 +2316,23 @@
             .campo-admin-record-row-actions,
             .campo-admin-modal-actions {
                 justify-content: flex-start;
+            }
+
+            .campo-admin-filter-group {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .campo-admin-search {
+                min-height: 48px;
+                font-size: 16px;
+            }
+
+            .campo-admin-ticket {
+                min-height: 112px;
+            }
+
+            .campo-admin-ticket-open-hint {
+                white-space: normal;
             }
 
             .campo-admin-historical-audit-toolbar-actions {
