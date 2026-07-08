@@ -259,6 +259,10 @@ body {
     background: linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(248, 250, 252, 0.96));
 }
 
+.field-start-panel > div {
+    min-width: 0;
+}
+
 .field-start-panel span {
     display: inline-flex;
     margin-bottom: 6px;
@@ -470,6 +474,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
 }
 
 .field-input-group span {
@@ -2588,6 +2593,100 @@ body.field-preview-open {
     .field-report-well-edit,
     .field-report-well-delete {
         flex: 1 1 160px;
+    }
+}
+
+@media (max-width: 760px) {
+    .field-form-grid-top,
+    .field-accordion-body.field-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .field-start-panel {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .field-start-capture-btn {
+        width: 100%;
+        min-height: 50px;
+    }
+
+    .field-input-group input,
+    .field-input-group select,
+    .field-input-group textarea {
+        min-height: 48px;
+        font-size: 16px;
+    }
+
+    .field-input-group select {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .field-accordion {
+        border-radius: 16px;
+    }
+
+    .field-accordion summary {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        padding: 14px;
+    }
+
+    .field-accordion summary::after {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .field-accordion-title {
+        line-height: 1.25;
+    }
+
+    .field-accordion-actions {
+        grid-column: 1 / -1;
+        justify-content: stretch;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        width: 100%;
+    }
+
+    .field-accordion-action-btn {
+        min-height: 42px;
+    }
+
+    .field-accordion-body {
+        padding: 0 14px 14px;
+    }
+
+    .field-pozo-selector .pozo-selector-toggle {
+        width: 40px;
+        height: 40px;
+        right: 8px;
+    }
+
+    .field-pozo-selector-wrap #field-pozo-display {
+        padding-right: 56px;
+    }
+
+    .field-journey-item-top,
+    .field-active-record-card {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .field-journey-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .field-journey-edit,
+    .field-journey-remove,
+    .field-journey-ticket {
+        justify-content: center;
+        min-height: 44px;
+        width: 100%;
     }
 }
 

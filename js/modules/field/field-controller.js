@@ -519,6 +519,13 @@ function wireForm() {
     resetAccordionProgressControls();
     restoreAccordionProgressControls();
 
+    form.querySelectorAll('input[type="number"]').forEach(input => {
+        input.inputMode = 'decimal';
+    });
+
+    document.getElementById('field-diagnostico')?.addEventListener('change', syncDiagnosisCustomInputState);
+    syncDiagnosisCustomInputState();
+
     form.addEventListener('input', () => {
         syncJourneyFromTime();
         recalculateComputedFields();
@@ -935,9 +942,27 @@ function getFormPayload() {
     payload.pozo = String(document.getElementById('field-pozo')?.value || payload.pozo || '').trim().toUpperCase();
     payload.jornada = getJourneyFromTime(payload.hora || document.getElementById('field-hora')?.value || '');
     payload.sentido_giro = String(payload.sentido_giro || '').trim() || 'FWD';
+    payload.diagnostico = resolveDiagnosisPayloadValue(payload.diagnostico);
     const guardField = document.getElementById('field-equipo-guardia');
     if (guardField) guardField.value = payload.equipo_guardia;
     return payload;
+}
+
+function resolveDiagnosisPayloadValue(selectedValue) {
+    const normalizedValue = String(selectedValue || '').trim();
+    if (normalizedValue !== 'OTRO') return normalizedValue;
+    return String(document.getElementById('field-diagnostico-custom')?.value || '').trim() || 'OTRO';
+}
+
+function syncDiagnosisCustomInputState() {
+    const diagnosisField = document.getElementById('field-diagnostico');
+    const customField = document.getElementById('field-diagnostico-custom');
+    if (!diagnosisField || !customField) return;
+
+    const isCustom = diagnosisField.value === 'OTRO';
+    customField.hidden = !isCustom;
+    customField.disabled = !isCustom;
+    if (!isCustom) customField.value = '';
 }
 
 function persistDraft() {
@@ -953,7 +978,7 @@ function restoreDraft() {
         Object.entries(payload).forEach(([key, value]) => {
             const field = document.querySelector(`[name="${key}"]`);
             if (field) {
-                field.value = value ?? '';
+                assignFieldValue(field, value ?? '');
             }
         });
         if (!payload.tecnico_1 && payload.equipo_guardia) {
@@ -2051,6 +2076,33 @@ function setFieldValue(fieldName, value) {
     if (field) field.value = value;
 }
 
+function assignFieldValue(field, value) {
+    const normalizedValue = String(value ?? '');
+    if (field instanceof HTMLSelectElement && field.name === 'diagnostico') {
+        assignDiagnosisFieldValue(field, normalizedValue);
+        return;
+    }
+    if (field instanceof HTMLSelectElement && normalizedValue && !Array.from(field.options).some(option => option.value === normalizedValue)) {
+        field.append(new Option(normalizedValue, normalizedValue));
+    }
+    field.value = normalizedValue;
+}
+
+function assignDiagnosisFieldValue(field, value) {
+    const customField = document.getElementById('field-diagnostico-custom');
+    const hasOption = Array.from(field.options).some(option => option.value === value);
+    if (value && !hasOption) {
+        field.value = 'OTRO';
+        if (customField) customField.value = value;
+        syncDiagnosisCustomInputState();
+        return;
+    }
+
+    field.value = value;
+    if (customField && value !== 'OTRO') customField.value = '';
+    syncDiagnosisCustomInputState();
+}
+
 function isBlankValue(value) {
     return value === undefined || value === null || String(value).trim() === '';
 }
@@ -2795,7 +2847,7 @@ function loadReportIntoForm(report) {
     localStorage.setItem(CAPTURE_STARTED_STORAGE_KEY, 'true');
     Object.entries(report).forEach(([key, value]) => {
         const field = document.querySelector(`[name="${key}"]`);
-        if (field) field.value = value ?? '';
+        if (field) assignFieldValue(field, value ?? '');
     });
 
     syncJourneyFromTime();
