@@ -2018,7 +2018,7 @@ function syncOperationalIndicators() {
     } else {
         const delta = pdMax - pd;
         setFieldValue('delta_presion_psi', formatNumber(delta));
-        setFieldValue('porcentaje_delta_presion', pdMax === 0 ? '' : formatNumber((delta / pdMax) * 100));
+        setFieldValue('porcentaje_delta_presion', pdMax === 0 ? '' : formatNumber((pd / pdMax) * 100));
     }
 }
 
