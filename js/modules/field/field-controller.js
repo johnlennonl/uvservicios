@@ -1579,13 +1579,12 @@ function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader =
         `Fecha ${date || '--'}`,
         `Cuadrilla ${journey}: ${technicians || '--'}`,
         headerConfig.actividad ? `Actividad Realizada: ${headerConfig.actividad}` : '',
-        `Avance: #${sortedReports.length}.`,
         '',
         headerConfig.personal || ''
     ].filter((line, index, lines) => line || lines[index - 1] !== '');
 
     const wellBlocks = sortedReports.map(buildJourneyWellMessageBlock).filter(Boolean);
-    return [...header, '', ...wellBlocks].join('\n');
+    return `${header.join('\n')}\n\n${wellBlocks.join('\n\n\n')}`;
 }
 
 function buildJourneyWellMessageBlock(report) {
