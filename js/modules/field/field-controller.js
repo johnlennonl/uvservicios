@@ -1617,7 +1617,7 @@ function buildJourneyWellMessageBlock(report) {
         if (formattedValue) lines.push(`${label}: ${formattedValue}`);
     });
 
-    lines.push('', `Observaciones: ${formatShareValue(report.observaciones_pozo || 'Sin observaciones.')}`);
+    lines.push(`Observaciones: ${formatShareValue(report.observaciones_pozo || 'Sin observaciones.')}`);
     return lines.join('\n');
 }
 
