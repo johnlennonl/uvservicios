@@ -44,6 +44,16 @@ create table if not exists public.well_bes_profile (
     motor_hp text,
     motor_voltage text,
     motor_current text,
+    amp_nominal_motor text,
+    volt_nominal_motor text,
+    frec_max_hz text,
+    low_speed_hz text,
+    ul_a text,
+    ol_a text,
+    i_limit_a text,
+    tiempo_desaceleracion_seg text,
+    low_pip_shutdown_psi text,
+    max_high_temp_shutdown_f text,
     sensor_model text,
     cable_type text,
     drain_valve text,
@@ -65,6 +75,16 @@ alter table public.well_bes_profile
     add column if not exists motor_hp text,
     add column if not exists motor_voltage text,
     add column if not exists motor_current text,
+    add column if not exists amp_nominal_motor text,
+    add column if not exists volt_nominal_motor text,
+    add column if not exists frec_max_hz text,
+    add column if not exists low_speed_hz text,
+    add column if not exists ul_a text,
+    add column if not exists ol_a text,
+    add column if not exists i_limit_a text,
+    add column if not exists tiempo_desaceleracion_seg text,
+    add column if not exists low_pip_shutdown_psi text,
+    add column if not exists max_high_temp_shutdown_f text,
     add column if not exists sensor_model text,
     add column if not exists cable_type text,
     add column if not exists drain_valve text,
@@ -121,3 +141,5 @@ begin
             with check (public.can_manage_monitoring());
     end if;
 end $$;
+
+notify pgrst, 'reload schema';

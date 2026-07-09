@@ -417,7 +417,17 @@ const FIELD_PRODUCTION_MEASURE_MAP = {
     potencial: 'potencial',
     bruta: 'bbpd',
     neta: 'bnpd',
-    ays_percentage: 'ays_percentage'
+    ays_percentage: 'ays_percentage',
+    amp_nominal_motor: 'amp_nominal_motor',
+    volt_nominal_motor: 'volt_nominal_motor',
+    frec_max_hz: 'frec_max_hz',
+    low_speed_hz: 'low_speed_hz',
+    ul_a: 'ul_a',
+    ol_a: 'ol_a',
+    i_limit_a: 'i_limit_a',
+    tiempo_desaceleracion_seg: 'tiempo_desaceleracion_seg',
+    low_pip_shutdown_psi: 'low_pip_shutdown_psi',
+    max_high_temp_shutdown_f: 'max_high_temp_shutdown_f'
 };
 
 document.addEventListener('DOMContentLoaded', async () => {

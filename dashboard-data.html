@@ -476,6 +476,47 @@
                                     <label>Fecha de Instalación</label>
                                     <input type="date" id="installed_at">
                                 </div>
+                                <div class="section-header section-technical"><span>Configuración del Sistema BES</span></div>
+                                <div class="form-group">
+                                    <label>AMP Nominal Motor [A]</label>
+                                    <input type="number" step="0.01" id="amp_nominal_motor" placeholder="Ej: 85">
+                                </div>
+                                <div class="form-group">
+                                    <label>VOLT Nominal Motor [V]</label>
+                                    <input type="number" step="0.01" id="volt_nominal_motor" placeholder="Ej: 2300">
+                                </div>
+                                <div class="form-group">
+                                    <label>FREC MAX [Hz]</label>
+                                    <input type="number" step="0.01" id="frec_max_hz" placeholder="Ej: 60">
+                                </div>
+                                <div class="form-group">
+                                    <label>LOW SPEED [Hz]</label>
+                                    <input type="number" step="0.01" id="low_speed_hz" placeholder="Ej: 42">
+                                </div>
+                                <div class="form-group">
+                                    <label>UL [A]</label>
+                                    <input type="number" step="0.01" id="ul_a" placeholder="Ej: 110">
+                                </div>
+                                <div class="form-group">
+                                    <label>OL [A]</label>
+                                    <input type="number" step="0.01" id="ol_a" placeholder="Ej: 95">
+                                </div>
+                                <div class="form-group">
+                                    <label>I-LIMIT [A]</label>
+                                    <input type="number" step="0.01" id="i_limit_a" placeholder="Ej: 120">
+                                </div>
+                                <div class="form-group">
+                                    <label>Tiempo desaceleración [seg]</label>
+                                    <input type="number" step="0.01" id="tiempo_desaceleracion_seg" placeholder="Ej: 30">
+                                </div>
+                                <div class="form-group">
+                                    <label>LOW PIP SHUT DOWN [PSI]</label>
+                                    <input type="number" step="0.01" id="low_pip_shutdown_psi" placeholder="Ej: 250">
+                                </div>
+                                <div class="form-group">
+                                    <label>MAX HIGH TEMP. SHUT DOWN [F]</label>
+                                    <input type="number" step="0.01" id="max_high_temp_shutdown_f" placeholder="Ej: 220">
+                                </div>
                                 <div class="form-group full-width">
                                     <label>Notas de Ficha BES</label>
                                     <textarea id="profile_notes" rows="3" placeholder="Observaciones del equipo instalado, cambios o referencia documental"></textarea>
@@ -756,6 +797,16 @@
             'motor_hp',
             'motor_voltage',
             'motor_current',
+            'amp_nominal_motor',
+            'volt_nominal_motor',
+            'frec_max_hz',
+            'low_speed_hz',
+            'ul_a',
+            'ol_a',
+            'i_limit_a',
+            'tiempo_desaceleracion_seg',
+            'low_pip_shutdown_psi',
+            'max_high_temp_shutdown_f',
             'sensor_model',
             'cable_type',
             'drain_valve',

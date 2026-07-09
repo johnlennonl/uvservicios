@@ -432,7 +432,7 @@ export async function getWellRibbonData(pozoName) {
         }
     }
 
-    if (!latestMonitoring && !latestTechnical) return null;
+    if (!latestMonitoring && !latestTechnical && !besProfile) return null;
 
     const hasUsableBESValue = value => value !== undefined
         && value !== null
@@ -458,6 +458,16 @@ export async function getWellRibbonData(pozoName) {
         gas_separator: firstUsableBESValue(besProfile?.gas_separator),
         seal_section: firstUsableBESValue(besProfile?.seal_section),
         drain_valve: firstUsableBESValue(besProfile?.drain_valve),
+        amp_nominal_motor: firstUsableBESValue(besProfile?.amp_nominal_motor, besProfile?.motor_current),
+        volt_nominal_motor: firstUsableBESValue(besProfile?.volt_nominal_motor, besProfile?.motor_voltage),
+        frec_max_hz: firstUsableBESValue(besProfile?.frec_max_hz),
+        low_speed_hz: firstUsableBESValue(besProfile?.low_speed_hz),
+        ul_a: firstUsableBESValue(besProfile?.ul_a),
+        ol_a: firstUsableBESValue(besProfile?.ol_a),
+        i_limit_a: firstUsableBESValue(besProfile?.i_limit_a),
+        tiempo_desaceleracion_seg: firstUsableBESValue(besProfile?.tiempo_desaceleracion_seg),
+        low_pip_shutdown_psi: firstUsableBESValue(besProfile?.low_pip_shutdown_psi),
+        max_high_temp_shutdown_f: firstUsableBESValue(besProfile?.max_high_temp_shutdown_f),
         fecha: firstDefined(latestTechnical?.fecha, latestMonitoring?.fecha),
         measurement_date: measurementDate,
         potencial: firstDefined(latestMonitoring?.potencial, latestTechnical?.potencial),

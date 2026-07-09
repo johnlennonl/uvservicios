@@ -1329,6 +1329,7 @@ function analyzeRecordForReview(recordPayload, records = [], journey = {}, curre
     NUMERIC_FIELD_NAMES.forEach(fieldName => {
         const rawValue = recordPayload[fieldName];
         if (rawValue === '' || rawValue === null || rawValue === undefined) return;
+        if (fieldName === 'delta_presion_psi') return;
         const numericValue = Number(rawValue);
         if (Number.isFinite(numericValue) && numericValue < 0) {
             critical.push(`${fieldName} no puede ser negativo.`);

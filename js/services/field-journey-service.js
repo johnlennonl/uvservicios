@@ -1627,21 +1627,20 @@ async function uploadAttachments(attachments = []) {
 
                 if (upErr) throw upErr;
 
-                // try signed url (preferred), fallback to public url
                 let url = null;
                 try {
-                    const { data: signed, error: signErr } = await supabase.storage
-                        .from(FIELD_TICKET_BUCKET)
-                        .createSignedUrl(path, 60 * 60);
-                    if (!signErr && signed && signed.signedURL) url = signed.signedURL;
+                    const pub = supabase.storage.from(FIELD_TICKET_BUCKET).getPublicUrl(path);
+                    if (pub && pub.data && pub.data.publicUrl) url = pub.data.publicUrl;
                 } catch (e) {
                     // ignore
                 }
 
                 if (!url) {
                     try {
-                        const pub = supabase.storage.from(FIELD_TICKET_BUCKET).getPublicUrl(path);
-                        if (pub && pub.data && pub.data.publicUrl) url = pub.data.publicUrl;
+                        const { data: signed, error: signErr } = await supabase.storage
+                            .from(FIELD_TICKET_BUCKET)
+                            .createSignedUrl(path, 60 * 60);
+                        if (!signErr && signed && signed.signedURL) url = signed.signedURL;
                     } catch (e) {
                         // ignore
                     }
@@ -1665,16 +1664,16 @@ async function uploadAttachments(attachments = []) {
 
                 let url = null;
                 try {
-                    const { data: signed, error: signErr } = await supabase.storage
-                        .from(FIELD_TICKET_BUCKET)
-                        .createSignedUrl(path, 60 * 60);
-                    if (!signErr && signed && signed.signedURL) url = signed.signedURL;
+                    const pub = supabase.storage.from(FIELD_TICKET_BUCKET).getPublicUrl(path);
+                    if (pub && pub.data && pub.data.publicUrl) url = pub.data.publicUrl;
                 } catch (e) {}
 
                 if (!url) {
                     try {
-                        const pub = supabase.storage.from(FIELD_TICKET_BUCKET).getPublicUrl(path);
-                        if (pub && pub.data && pub.data.publicUrl) url = pub.data.publicUrl;
+                        const { data: signed, error: signErr } = await supabase.storage
+                            .from(FIELD_TICKET_BUCKET)
+                            .createSignedUrl(path, 60 * 60);
+                        if (!signErr && signed && signed.signedURL) url = signed.signedURL;
                     } catch (e) {}
                 }
 
