@@ -259,9 +259,17 @@
         }
 
         @media print {
+            @page {
+                margin: 0;
+            }
+
             body,
             .view-mode-report {
                 background: #FFFFFF !important;
+            }
+
+            body {
+                padding: 12mm !important;
             }
 
             .sidebar,

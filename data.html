@@ -683,6 +683,23 @@
             document.getElementById('report-export-summary').textContent = summary;
         }
 
+        function printDataReport() {
+            const originalTitle = document.title;
+            const printTitle = activeDataView === 'daily-ticket'
+                ? 'Ticket diario de monitoreo'
+                : 'Reporte historico BES';
+
+            document.title = printTitle;
+            const restoreTitle = () => {
+                document.title = originalTitle;
+                window.removeEventListener('afterprint', restoreTitle);
+            };
+
+            window.addEventListener('afterprint', restoreTitle);
+            window.print();
+            setTimeout(restoreTitle, 1500);
+        }
+
         function setDataViewMode(mode) {
             activeDataView = mode === 'daily-ticket' ? 'daily-ticket' : 'history';
             const reportToggleLabel = document.getElementById('main-view-toggle')?.querySelector('span');
@@ -1562,7 +1579,7 @@
                 document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER A LA WEB';
 
                 // Abre automaticamente el dialogo de impresion o guardado en PDF.
-                setTimeout(() => { window.print(); }, 500);
+                setTimeout(printDataReport, 500);
             } else {
                 document.body.classList.remove('view-mode-report');
                 document.getElementById('main-view-toggle').querySelector('span').textContent = 'EXPORTAR REPORTE';
