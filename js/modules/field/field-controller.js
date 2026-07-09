@@ -851,7 +851,7 @@ function validateCaptureGate({ showMessage = false } = {}) {
         return false;
     }
 
-    const duplicatedReport = getDuplicatePozoReport(payload.pozo);
+    const duplicatedReport = getDuplicatePozoReport(payload.pozo, currentEditingReportId);
     if (duplicatedReport) {
         const message = `${payload.pozo} ya fue agregado a esta carga. Edita el registro existente o selecciona otro pozo.`;
         if (showMessage) {
@@ -1316,9 +1316,9 @@ function startEditingJourneyReport(reportId) {
         return;
     }
 
+    currentEditingReportId = reportId;
     loadReportIntoForm(report);
 
-    currentEditingReportId = reportId;
     recalculateComputedFields();
     persistDraft();
     syncAddButtonState();

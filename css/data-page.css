@@ -832,7 +832,7 @@
 
         .ticket-tools-actions {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: minmax(150px, 1fr) minmax(180px, 1fr) auto;
             gap: 12px;
             align-items: end;
         }
@@ -846,7 +846,8 @@
             color: #334155;
         }
 
-        .ticket-tools-field input {
+        .ticket-tools-field input,
+        .ticket-tools-field select {
             width: 100%;
             padding: 13px 14px;
             border-radius: 12px;
@@ -921,6 +922,52 @@
             gap: 16px;
             padding: 18px;
             background: #F8FAFC;
+        }
+
+        .daily-ticket-shift-section {
+            display: grid;
+            gap: 14px;
+            padding: 16px;
+            border: 1px solid rgba(203, 213, 225, 0.9);
+            border-radius: 22px;
+            background: linear-gradient(180deg, #FFFFFF, rgba(248, 250, 252, 0.92));
+        }
+
+        .daily-ticket-shift-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 4px 2px 2px;
+        }
+
+        .daily-ticket-shift-head h3 {
+            margin: 0;
+            color: #0F172A;
+            font-size: 1.02rem;
+            font-weight: 900;
+        }
+
+        .daily-ticket-shift-head p {
+            margin: 5px 0 0;
+            color: #64748B;
+            font-size: 0.84rem;
+            line-height: 1.45;
+        }
+
+        .daily-ticket-shift-body {
+            display: grid;
+            gap: 12px;
+        }
+
+        .daily-ticket-shift-day {
+            border-color: rgba(37, 99, 235, 0.18);
+            background: linear-gradient(180deg, #FFFFFF, rgba(239, 246, 255, 0.78));
+        }
+
+        .daily-ticket-shift-night {
+            border-color: rgba(15, 118, 110, 0.2);
+            background: linear-gradient(180deg, #FFFFFF, rgba(240, 253, 250, 0.78));
         }
 
         .daily-ticket-history-card {
@@ -1946,9 +1993,6 @@
         }
 
         @media (max-width: 640px) {
-            .main-container {
-            }
-
             .page-hero {
                 padding: 18px 16px;
                 border-radius: 18px;

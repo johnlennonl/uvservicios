@@ -290,12 +290,12 @@
                     <div class="ticket-tools-copy">
                         <span class="ticket-tools-kicker">Ticket diario</span>
                         <h2>Monitoreos ejecutados por fecha</h2>
-                        <p>Selecciona una fecha para listar todos los pozos monitoreados ese día y exportar el ticket consolidado en PDF.</p>
+                        <p>Selecciona la fecha operativa y la jornada para generar el ticket diurno o nocturno por separado.</p>
                         <div class="ticket-mode-instructions">
                             <strong>Instrucciones del modo ticket</strong>
                             <ol>
-                                <li>Selecciona la fecha exacta del seguimiento.</li>
-                                <li>Genera el ticket para consolidar todos los pozos intervenidos.</li>
+                                <li>Selecciona la fecha operativa del seguimiento.</li>
+                                <li>Elige Jornada Diurna o Jornada Nocturna antes de generar el ticket.</li>
                                 <li>Revisa las observaciones operativas debajo de cada contenedor antes de exportar.</li>
                             </ol>
                         </div>
@@ -304,6 +304,13 @@
                         <label class="ticket-tools-field" for="ticket-date">
                             <span>Fecha del ticket</span>
                             <input type="date" id="ticket-date">
+                        </label>
+                        <label class="ticket-tools-field" for="ticket-shift">
+                            <span>Jornada</span>
+                            <select id="ticket-shift">
+                                <option value="day">Jornada Diurna</option>
+                                <option value="night">Jornada Nocturna</option>
+                            </select>
                         </label>
                         <button type="button" id="btn-generate-daily-ticket" class="ticket-generate-btn">Generar ticket</button>
                     </div>
@@ -468,10 +475,19 @@
         let activePozo = null;
         let currentRecordData = [];
         let currentTicketGroups = [];
+        let currentTicketShiftGroups = [];
         let pozoSummaries = [];
         let activeHistoryMode = 'operational';
         let activeDataView = 'history';
         let currentAccessProfile = { isReadOnly: false, canViewManagement: true, canEditData: true };
+
+        function getSelectedTicketShift() {
+            return document.getElementById('ticket-shift')?.value === 'night' ? 'night' : 'day';
+        }
+
+        function getTicketShiftLabel(shift = getSelectedTicketShift()) {
+            return shift === 'night' ? 'Jornada Nocturna' : 'Jornada Diurna';
+        }
 
         function applyDataAccessProfile() {
             if (!currentAccessProfile?.canViewManagement) {
@@ -627,14 +643,15 @@
         // Prepara el resumen ejecutivo que se imprime/exporta en modo reporte.
         function updateReportExportHeader() {
             const ticketDate = document.getElementById('ticket-date')?.value || '';
+            const ticketShiftLabel = getTicketShiftLabel();
             const activeModeLabel = activeHistoryMode === 'technical'
                 ? 'Historial de medicion tecnica'
                 : 'Historial operativo';
             const reportTitle = activeDataView === 'daily-ticket'
-                ? 'Ticket Diario de Monitoreo'
+                ? `Ticket Diario de Monitoreo · ${ticketShiftLabel}`
                 : 'Reporte Historico BES';
             const filterLabel = activeDataView === 'daily-ticket'
-                ? (ticketDate ? `Fecha del ticket: ${ticketDate}` : 'Fecha del ticket pendiente')
+                ? (ticketDate ? `Fecha operativa: ${ticketDate} · ${ticketShiftLabel}` : 'Fecha del ticket pendiente')
                 : getActiveFilterLabel();
             const recordCount = activeDataView === 'daily-ticket'
                 ? `${currentRecordData.length} monitoreos / ${currentTicketGroups.length} pozos`
@@ -647,7 +664,7 @@
                 .join(' · ') || pumpType;
             const summary = activeDataView === 'daily-ticket'
                 ? (ticketDate
-                    ? `Ticket diario del ${ticketDate} con monitoreos ejecutados en ${currentTicketGroups.length} pozo(s).`
+                    ? `${ticketShiftLabel} del ${ticketDate} con monitoreos ejecutados en ${currentTicketGroups.length} pozo(s).`
                     : 'Ticket diario pendiente por fecha.')
                 : (activePozo
                     ? `${activeModeLabel} del pozo ${activePozo}. Filtro aplicado: ${filterLabel.toLowerCase()}.`
@@ -655,7 +672,7 @@
 
             document.getElementById('report-data-pozo').textContent = activeDataView === 'daily-ticket' ? 'Todos los pozos' : (activePozo || 'Sin seleccion');
             document.getElementById('report-data-pump').textContent = activeDataView === 'daily-ticket' ? 'Ticket multipozo' : pumpSummary;
-            document.getElementById('report-data-mode').textContent = activeDataView === 'daily-ticket' ? 'Ticket diario operativo' : activeModeLabel;
+            document.getElementById('report-data-mode').textContent = activeDataView === 'daily-ticket' ? ticketShiftLabel : activeModeLabel;
             document.getElementById('report-data-filter').textContent = filterLabel;
             document.getElementById('report-data-count').textContent = recordCount;
             document.getElementById('report-data-classification').textContent = activeDataView === 'daily-ticket'
@@ -745,6 +762,64 @@
                 .sort((left, right) => left.pozoName.localeCompare(right.pozoName));
         }
 
+        function addDaysToIsoDate(dateValue, days = 1) {
+            const date = new Date(`${dateValue}T00:00:00`);
+            date.setDate(date.getDate() + days);
+            return date.toISOString().slice(0, 10);
+        }
+
+        function getOperationalShiftForRecord(record = {}) {
+            const rawDate = String(record.fecha || '').slice(0, 10);
+            const rawTime = String(record.hora || '00:00').slice(0, 5);
+            const [hourText = '0', minuteText = '0'] = rawTime.split(':');
+            const minutes = (Number(hourText) * 60) + Number(minuteText);
+            if (!rawDate || !Number.isFinite(minutes)) return null;
+
+            if (minutes >= 360 && minutes < 1080) {
+                return { operationalDate: rawDate, shift: 'day' };
+            }
+
+            return {
+                operationalDate: minutes < 360 ? addDaysToIsoDate(rawDate, -1) : rawDate,
+                shift: 'night'
+            };
+        }
+
+        function filterRecordsByOperationalDate(records = [], ticketDate) {
+            return records
+                .map(record => ({ ...record, _operationalShift: getOperationalShiftForRecord(record) }))
+                .filter(record => record._operationalShift?.operationalDate === ticketDate);
+        }
+
+        function groupTicketRecordsByShift(records = []) {
+            const shiftDefinitions = [
+                {
+                    id: 'day',
+                    title: 'Jornada Diurna',
+                    windowLabel: '06:00 a.m. a 06:00 p.m.'
+                },
+                {
+                    id: 'night',
+                    title: 'Jornada Nocturna',
+                    windowLabel: '06:00 p.m. a 06:00 a.m. del día siguiente'
+                }
+            ];
+
+            return shiftDefinitions.map(shiftDefinition => {
+                const shiftRecords = records.filter(record => record._operationalShift?.shift === shiftDefinition.id);
+                return {
+                    ...shiftDefinition,
+                    records: shiftRecords,
+                    groups: groupMonitoringRecordsByPozo(shiftRecords)
+                };
+            });
+        }
+
+        function getSelectedTicketShiftGroup(records = []) {
+            const selectedShift = getSelectedTicketShift();
+            return groupTicketRecordsByShift(records).find(group => group.id === selectedShift) || groupTicketRecordsByShift([])[0];
+        }
+
         function collectGroupObservations(records = []) {
             const observations = [];
 
@@ -794,6 +869,7 @@
 
         function renderDailyTicket() {
             const ticketDate = document.getElementById('ticket-date')?.value || '';
+            const ticketShiftLabel = getTicketShiftLabel();
             const title = document.getElementById('daily-ticket-title');
             const summary = document.getElementById('daily-ticket-summary');
             const count = document.getElementById('daily-ticket-count');
@@ -809,48 +885,63 @@
                 return;
             }
 
-            title.textContent = `Ticket diario de monitoreo · ${ticketDate}`;
+            title.textContent = `Ticket diario de monitoreo · ${ticketDate} · ${ticketShiftLabel}`;
             summary.textContent = currentRecordData.length > 0
-                ? `Se detectaron ${currentRecordData.length} monitoreo(s) distribuidos en ${currentTicketGroups.length} pozo(s) para la fecha seleccionada.`
-                : 'No se encontraron monitoreos operativos para la fecha seleccionada.';
+                ? `Se detectaron ${currentRecordData.length} monitoreo(s) distribuidos en ${currentTicketGroups.length} pozo(s) para esta jornada.`
+                : `No se encontraron monitoreos operativos para ${ticketShiftLabel.toLowerCase()} en la fecha seleccionada.`;
             count.textContent = `${currentTicketGroups.length} pozos`;
 
             if (currentTicketGroups.length === 0) {
-                groupsContainer.innerHTML = '<div class="daily-ticket-empty">No hay monitoreos operativos registrados para esta fecha.</div>';
+                groupsContainer.innerHTML = '<div class="daily-ticket-empty">No hay monitoreos operativos registrados para esta fecha operativa.</div>';
                 return;
             }
 
-            groupsContainer.innerHTML = currentTicketGroups.map(group => {
+            groupsContainer.innerHTML = currentTicketShiftGroups.map(shiftGroup => {
                 return `
-                <article class="history-card daily-ticket-history-card">
-                    <div class="daily-ticket-history-topbar">
+                <section class="daily-ticket-shift-section daily-ticket-shift-${escapeHtml(shiftGroup.id)}">
+                    <div class="daily-ticket-shift-head">
                         <div>
-                            <h3>${escapeHtml(group.pozoName)}</h3>
-                            <p>Historial operativo consolidado del pozo para la fecha seleccionada.</p>
+                            <h3>${escapeHtml(shiftGroup.title)}</h3>
+                            <p>${escapeHtml(shiftGroup.windowLabel)}</p>
                         </div>
-                        <span class="daily-ticket-group-count">${group.records.length} registros</span>
+                        <span class="daily-ticket-group-count">${shiftGroup.records.length} registros</span>
                     </div>
-                    <div style="overflow-x: auto;">
-                        <table class="history-table daily-ticket-history-table">
-                            <thead>
-                                <tr>
-                                    <th>Fecha/Hora</th>
-                                    <th>Frecuencia</th>
-                                    <th>Giro</th>
-                                    <th>Corriente M.</th>
-                                    <th>PIP / TM</th>
-                                    <th>Presiones (THP/CHP/LF)</th>
-                                    <th>VSD A/B/C</th>
-                                    <th>Estatus</th>
-                                    <th style="text-align: right;"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${group.records.map(record => buildOperationalRowHtml(record, false)).join('')}
-                            </tbody>
-                        </table>
+                    <div class="daily-ticket-shift-body">
+                        ${shiftGroup.groups.length === 0
+                            ? '<div class="daily-ticket-empty">No hay monitoreos en esta jornada.</div>'
+                            : shiftGroup.groups.map(group => `
+                                <article class="history-card daily-ticket-history-card">
+                                    <div class="daily-ticket-history-topbar">
+                                        <div>
+                                            <h3>${escapeHtml(group.pozoName)}</h3>
+                                            <p>Historial operativo consolidado del pozo para esta jornada.</p>
+                                        </div>
+                                        <span class="daily-ticket-group-count">${group.records.length} registros</span>
+                                    </div>
+                                    <div style="overflow-x: auto;">
+                                        <table class="history-table daily-ticket-history-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha/Hora</th>
+                                                    <th>Frecuencia</th>
+                                                    <th>Giro</th>
+                                                    <th>Corriente M.</th>
+                                                    <th>PIP / TM</th>
+                                                    <th>Presiones (THP/CHP/LF)</th>
+                                                    <th>VSD A/B/C</th>
+                                                    <th>Estatus</th>
+                                                    <th style="text-align: right;"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${group.records.map(record => buildOperationalRowHtml(record, false)).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </article>
+                            `).join('')}
                     </div>
-                </article>
+                </section>
             `;
             }).join('');
         }
@@ -858,6 +949,9 @@
         async function loadDailyTicketData() {
             const ticketDate = document.getElementById('ticket-date')?.value;
             if (!ticketDate) {
+                currentRecordData = [];
+                currentTicketGroups = [];
+                currentTicketShiftGroups = [];
                 renderDailyTicket();
                 return;
             }
@@ -868,13 +962,21 @@
             }
 
             try {
-                const data = await getMonitoringData([], ticketDate, ticketDate);
-                currentRecordData = data;
-                currentTicketGroups = groupMonitoringRecordsByPozo(data);
+                const nextDate = addDaysToIsoDate(ticketDate, 1);
+                const data = await getMonitoringData([], ticketDate, nextDate);
+                const operationalRecords = filterRecordsByOperationalDate(data, ticketDate);
+                const selectedShiftGroup = getSelectedTicketShiftGroup(operationalRecords);
+                currentRecordData = selectedShiftGroup.records;
+                currentTicketGroups = groupMonitoringRecordsByPozo(currentRecordData);
+                currentTicketShiftGroups = [{
+                    ...selectedShiftGroup,
+                    groups: currentTicketGroups
+                }];
                 renderDailyTicket();
             } catch (err) {
                 currentRecordData = [];
                 currentTicketGroups = [];
+                currentTicketShiftGroups = [];
                 Swal.fire({ icon: 'error', title: 'Error BD', text: err.message });
                 renderDailyTicket();
             }
@@ -982,6 +1084,7 @@
             document.getElementById('btn-technical-history').addEventListener('click', () => setHistoryMode('technical'));
             document.getElementById('data-view-mode').addEventListener('change', (event) => setDataViewMode(event.target.value));
             document.getElementById('ticket-date').addEventListener('change', loadDailyTicketData);
+            document.getElementById('ticket-shift').addEventListener('change', loadDailyTicketData);
             document.getElementById('btn-generate-daily-ticket').addEventListener('click', loadDailyTicketData);
 
             await initPozos();
