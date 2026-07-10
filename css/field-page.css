@@ -488,6 +488,49 @@ body {
     color: #475569;
 }
 
+.field-input-group-readonly input:read-only {
+    cursor: not-allowed;
+    border-style: dashed;
+}
+
+.field-config-edit-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.field-config-edit-btn {
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: 999px;
+    background: #fff;
+    color: #1d4ed8;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.field-config-edit-btn.is-editing {
+    border-color: rgba(185, 28, 28, 0.22);
+    color: #b91c1c;
+}
+
+.field-config-edit-btn:disabled {
+    cursor: not-allowed;
+    color: #94a3b8;
+    background: #f1f5f9;
+}
+
 .field-input-group-full {
     grid-column: 1 / -1;
 }

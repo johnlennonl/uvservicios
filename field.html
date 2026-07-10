@@ -201,14 +201,14 @@
                         <details class="field-accordion" open>
                             <summary>Información General</summary>
                             <div class="field-accordion-body field-form-grid">
-                                <label class="field-input-group"><span>Campo</span><input type="text" name="campo" placeholder="TOMOPORO"></label>
-                                <label class="field-input-group"><span>EF</span><input type="text" name="ef" placeholder="VLG-11-7"></label>
-                                <label class="field-input-group"><span>Estado</span><input type="text" name="estado" placeholder="PC"></label>
-                                <label class="field-input-group"><span>Categoría</span><input type="text" name="categoria" placeholder="1"></label>
-                                <label class="field-input-group"><span>Potencial</span><input type="number" step="0.01" name="potencial" placeholder="1400"></label>
-                                <label class="field-input-group"><span>Bruta</span><input type="number" step="0.01" name="bruta" placeholder="1387"></label>
-                                <label class="field-input-group"><span>Neta</span><input type="number" step="0.01" name="neta" placeholder="1301"></label>
-                                <label class="field-input-group"><span>% AyS</span><input type="number" step="0.01" name="ays_percentage" placeholder="3"></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Campo</span><input type="text" name="campo" placeholder="TOMOPORO" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>EF</span><input type="text" name="ef" placeholder="VLG-11-7" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Estado</span><input type="text" name="estado" placeholder="PC" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Categoría</span><input type="text" name="categoria" placeholder="1" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Potencial</span><input type="number" step="0.01" name="potencial" placeholder="1400" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Bruta</span><input type="number" step="0.01" name="bruta" placeholder="1387" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Neta</span><input type="number" step="0.01" name="neta" placeholder="1301" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% AyS</span><input type="number" step="0.01" name="ays_percentage" placeholder="3" readonly></label>
                                 <label class="field-input-group"><span>Actividad</span><input type="text" name="actividad" placeholder="MONITOREO"></label>
                                 <label class="field-input-group"><span>Estatus</span><select name="estatus"><option value="RUN">RUN</option><option value="OFF">OFF</option></select></label>
                                 <label class="field-input-group"><span>Frec</span><input type="number" step="0.01" name="frecuencia" placeholder="50"></label>
@@ -244,17 +244,21 @@
 
                         <details class="field-accordion">
                             <summary>Configuración del Sistema BES</summary>
+                            <div class="field-config-edit-bar">
+                                <span>Valores precargados por pozo.</span>
+                                <button type="button" id="field-bes-config-edit-btn" class="field-config-edit-btn">Editar configuración</button>
+                            </div>
                             <div class="field-accordion-body field-form-grid">
-                                <label class="field-input-group"><span>AMP NOMINAL MOTOR [A]</span><input type="number" step="0.01" name="amp_nominal_motor"></label>
-                                <label class="field-input-group"><span>VOLT NOMINAL MOTOR [V]</span><input type="number" step="0.01" name="volt_nominal_motor"></label>
-                                <label class="field-input-group"><span>FREC MAX [Hz]</span><input type="number" step="0.01" name="frec_max_hz"></label>
-                                <label class="field-input-group"><span>LOW SPEED [Hz]</span><input type="number" step="0.01" name="low_speed_hz"></label>
-                                <label class="field-input-group"><span>UL [A]</span><input type="number" step="0.01" name="ul_a"></label>
-                                <label class="field-input-group"><span>OL [A]</span><input type="number" step="0.01" name="ol_a"></label>
-                                <label class="field-input-group"><span>I-LIMIT [A]</span><input type="number" step="0.01" name="i_limit_a"></label>
-                                <label class="field-input-group"><span>TIEMPO DE DESACELERACIÓN [SEG]</span><input type="number" step="0.01" name="tiempo_desaceleracion_seg"></label>
-                                <label class="field-input-group"><span>LOW PIP SHUT DOWN [PSI]</span><input type="number" step="0.01" name="low_pip_shutdown_psi"></label>
-                                <label class="field-input-group"><span>MAX HIGH TEMP. SHUT DOWN [°F]</span><input type="number" step="0.01" name="max_high_temp_shutdown_f"></label>
+                                <label class="field-input-group field-input-group-readonly"><span>AMP NOMINAL MOTOR [A]</span><input type="number" step="0.01" name="amp_nominal_motor" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>VOLT NOMINAL MOTOR [V]</span><input type="number" step="0.01" name="volt_nominal_motor" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>FREC MAX [Hz]</span><input type="number" step="0.01" name="frec_max_hz" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>LOW SPEED [Hz]</span><input type="number" step="0.01" name="low_speed_hz" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>UL [A]</span><input type="number" step="0.01" name="ul_a" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>OL [A]</span><input type="number" step="0.01" name="ol_a" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>I-LIMIT [A]</span><input type="number" step="0.01" name="i_limit_a" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>TIEMPO DE DESACELERACIÓN [SEG]</span><input type="number" step="0.01" name="tiempo_desaceleracion_seg" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>LOW PIP SHUT DOWN [PSI]</span><input type="number" step="0.01" name="low_pip_shutdown_psi" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>MAX HIGH TEMP. SHUT DOWN [°F]</span><input type="number" step="0.01" name="max_high_temp_shutdown_f" readonly></label>
                             </div>
                         </details>
 

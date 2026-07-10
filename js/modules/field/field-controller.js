@@ -12,6 +12,9 @@ const ACCORDION_PROGRESS_STORAGE_KEY = 'uv-field-accordion-progress';
 const MESSAGE_HEADER_STORAGE_KEY = 'uv-field-message-header';
 const JOURNEY_STARTED_STORAGE_KEY = 'uv-field-journey-started';
 
+const GENERAL_READONLY_FIELD_NAMES = ['campo', 'ef', 'estado', 'categoria', 'potencial', 'bruta', 'neta', 'ays_percentage'];
+const BES_CONFIG_FIELD_NAMES = ['amp_nominal_motor', 'volt_nominal_motor', 'frec_max_hz', 'low_speed_hz', 'ul_a', 'ol_a', 'i_limit_a', 'tiempo_desaceleracion_seg', 'low_pip_shutdown_psi', 'max_high_temp_shutdown_f'];
+
 const DEFAULT_MESSAGE_HEADER = {
     empresaMixta: 'PQQ',
     empresaServicios: 'U. V. Servicios.',
@@ -409,6 +412,7 @@ let fieldAdminPreviewRequestId = 0;
 let isAutosavingJourneyDraft = false;
 let pendingAutosaveJourneyDraft = false;
 let isJourneyStarted = false;
+let isBesConfigEditEnabled = false;
 
 const FIELD_PRODUCTION_MEASURE_MAP = {
     campo: 'campo_name',
@@ -559,6 +563,8 @@ function wireForm() {
     pozoDisplayField?.addEventListener('blur', handlePozoDisplayBlur);
     document.getElementById('field-pozo-toggle')?.addEventListener('click', handlePozoToggleClick);
     document.getElementById('field-jornada')?.addEventListener('change', enforceLockedJourneySelection);
+    document.getElementById('field-bes-config-edit-btn')?.addEventListener('click', toggleBesConfigEditMode);
+    syncReadonlyPrefilledFields();
 
     document.querySelectorAll('.field-accordion').forEach(details => {
         details.querySelector('summary')?.addEventListener('click', handleLockedAccordionClick);
@@ -780,6 +786,39 @@ function syncAccordionSequentialLocks() {
             field.disabled = locked;
         });
     });
+
+    syncReadonlyPrefilledFields();
+}
+
+function toggleBesConfigEditMode(event) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    isBesConfigEditEnabled = !isBesConfigEditEnabled;
+    syncReadonlyPrefilledFields();
+    persistDraft();
+}
+
+function setNamedFieldsReadonly(fieldNames, readonly) {
+    fieldNames.forEach(fieldName => {
+        const field = document.querySelector(`[name="${fieldName}"]`);
+        if (!field) return;
+        field.readOnly = readonly;
+        field.closest('.field-input-group')?.classList.toggle('field-input-group-readonly', readonly);
+    });
+}
+
+function syncReadonlyPrefilledFields() {
+    setNamedFieldsReadonly(GENERAL_READONLY_FIELD_NAMES, true);
+    setNamedFieldsReadonly(BES_CONFIG_FIELD_NAMES, !isBesConfigEditEnabled);
+
+    const button = document.getElementById('field-bes-config-edit-btn');
+    if (!button) return;
+
+    const section = button.closest('.field-accordion');
+    const locked = Boolean(section?.classList.contains('is-locked'));
+    button.disabled = locked;
+    button.textContent = isBesConfigEditEnabled ? 'Bloquear configuración' : 'Editar configuración';
+    button.classList.toggle('is-editing', isBesConfigEditEnabled);
 }
 
 function resetAccordionProgressControls() {
@@ -914,10 +953,11 @@ function setParameterSectionsLocked(locked) {
         getParameterSections().forEach(section => {
             section.classList.add('is-locked');
             section.open = false;
-            section.querySelectorAll('.field-accordion-body input, .field-accordion-body select, .field-accordion-body textarea, .field-accordion-action-btn').forEach(field => {
+            section.querySelectorAll('.field-accordion-body input, .field-accordion-body select, .field-accordion-body textarea, .field-accordion-action-btn, .field-config-edit-btn').forEach(field => {
                 field.disabled = true;
             });
         });
+        syncReadonlyPrefilledFields();
         return;
     }
 
@@ -1019,6 +1059,7 @@ function clearForm() {
 
     form.reset();
     currentEditingReportId = null;
+    isBesConfigEditEnabled = false;
     isCaptureStarted = false;
     localStorage.removeItem(CAPTURE_STARTED_STORAGE_KEY);
     localStorage.removeItem(ACCORDION_PROGRESS_STORAGE_KEY);
@@ -2853,6 +2894,7 @@ function downloadBlob(blob, fileName) {
 
 function loadReportIntoForm(report) {
     isCaptureStarted = true;
+    isBesConfigEditEnabled = false;
     localStorage.setItem(CAPTURE_STARTED_STORAGE_KEY, 'true');
     Object.entries(report).forEach(([key, value]) => {
         const field = document.querySelector(`[name="${key}"]`);
