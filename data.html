@@ -330,7 +330,7 @@
                     </div>
                 </div>
                 <div style="overflow-x: auto;">
-                    <table class="history-table">
+                    <table class="history-table" id="history-table">
                         <thead id="history-table-head">
                             <tr>
                                 <th>Fecha/Hora</th>
@@ -1015,7 +1015,10 @@
         // Cambia las columnas de la tabla segun el modo activo para no mezclar estructuras.
         function renderHistoryHead() {
             const thead = document.getElementById('history-table-head');
+            const table = document.getElementById('history-table');
             if (!thead) return;
+
+            table?.classList.toggle('technical-history-table', activeHistoryMode === 'technical');
 
             if (activeHistoryMode === 'technical') {
                 thead.innerHTML = `
@@ -1029,6 +1032,17 @@
                                     </svg>
                                 </span>
                                 <span>Fecha Medición</span>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="technical-history-head">
+                                <span class="technical-history-head-icon barrel">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M12 3v18"></path>
+                                        <path d="M7 8h7a3 3 0 010 6H7"></path>
+                                    </svg>
+                                </span>
+                                <span>Potencial</span>
                             </span>
                         </th>
                         <th>
@@ -1411,11 +1425,8 @@
 
             const formatTextCell = (value, fallback = '--') => formatMonitoringTextCell(value, fallback);
 
-            // DEBUG: mostrar muestra de registros en consola para verificar campos
-            try { console.debug('DEBUG renderTable sample', currentRecordData.slice(0,3)); } catch(e) {}
-
             if (currentRecordData.length === 0) {
-                const emptyColumns = activeHistoryMode === 'technical' ? 4 : 9;
+                const emptyColumns = activeHistoryMode === 'technical' ? 5 : 9;
                 tbody.innerHTML = `<tr><td colspan="${emptyColumns}" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay registros históricos</td></tr>`;
                 return;
             }

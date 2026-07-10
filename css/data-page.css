@@ -252,8 +252,8 @@
             background: transparent;
         }
 
-        .view-mode-report .history-table th:last-child,
-        .view-mode-report .history-table td:last-child,
+        .view-mode-report .history-table:not(.technical-history-table) th:last-child,
+        .view-mode-report .history-table:not(.technical-history-table) td:last-child,
         .view-mode-report .btn-action {
             display: none !important;
         }
@@ -354,8 +354,8 @@
                 word-break: break-word;
             }
 
-            .history-table th:last-child,
-            .history-table td:last-child,
+            .history-table:not(.technical-history-table) th:last-child,
+            .history-table:not(.technical-history-table) td:last-child,
             .btn-action {
                 display: none !important;
             }
