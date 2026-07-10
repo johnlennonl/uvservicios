@@ -234,6 +234,18 @@ export function validateFieldReport(payload, options = {}) {
         }
     });
 
+    const pd = getNumericValue(normalizedPayload.pd_psi);
+    const pdMax = getNumericValue(normalizedPayload.pd_max_psi);
+    if (pd !== null && pdMax !== null && pdMax >= 1000 && pd > 0 && pd / pdMax <= 0.2) {
+        warnings.push(`El PD (${pd}) esta muy por debajo del PD MAX (${pdMax}). Revisa si falta un cero; esto cambia Δ Presion y % Δ Presion.`);
+    }
+
+    const pip = getNumericValue(normalizedPayload.pip_psi);
+    const lowPipShutdown = getNumericValue(normalizedPayload.low_pip_shutdown_psi);
+    if (pip !== null && lowPipShutdown !== null && lowPipShutdown > 0 && pip > 0 && lowPipShutdown / pip > 2) {
+        warnings.push(`El PIP (${pip}) esta muy por debajo del Low PIP Shut Down (${lowPipShutdown}). Revisa si falta un cero; esto cambia PIP MIN / PIP y % PIP.`);
+    }
+
     const estatus = String(normalizedPayload.estatus || '').trim().toUpperCase();
     const frecuencia = getNumericValue(normalizedPayload.frecuencia);
 
