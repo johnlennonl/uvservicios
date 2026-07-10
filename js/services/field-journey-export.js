@@ -130,7 +130,7 @@ export const REPORT_COLUMNS = [
 ];
 
 const EXCEL_SECTION_GROUPS = [
-    { title: 'Jornada', fields: ['tecnico_1', 'tecnico_2', 'equipo_guardia', 'locacion_jornada', 'jornada', 'pozo', 'campo', 'fecha', 'hora'] },
+    { title: 'Jornada', fields: ['pozo', 'campo', 'fecha', 'hora', 'locacion_jornada', 'jornada'] },
     { title: 'Informacion general', fields: ['ef', 'estado', 'categoria', 'potencial', 'bruta', 'neta', 'ays_percentage', 'actividad', 'estatus'] },
     { title: 'Parametros operacionales', fields: ['frecuencia', 'modo_operacion', 'sentido_giro', 'i_motor', 'v_motor', 'out_vsd', 'i_vsd_a', 'i_vsd_b', 'i_vsd_c', 'prom_i_vsd', 'desv_fase_a', 'desv_fase_b', 'desv_fase_c', 'max_desviacion_vsd', 'desbalance_corriente_vsd', 'pip_psi', 'pd_psi', 'ti_f', 'tm_f', 'vx_g', 'vy_g', 'vz_g'] },
     { title: 'Sistema BES', fields: ['amp_nominal_motor', 'volt_nominal_motor', 'frec_max_hz', 'low_speed_hz', 'ul_a', 'ol_a', 'i_limit_a', 'tiempo_desaceleracion_seg', 'low_pip_shutdown_psi', 'max_high_temp_shutdown_f'] },
@@ -140,11 +140,22 @@ const EXCEL_SECTION_GROUPS = [
     { title: 'Tx bobina primaria', fields: ['ff_x1_x2_v', 'ff_x2_x3_v', 'ff_x3_x1_v', 'promedio_fase_fase', 'desv_ff_x1_x2', 'desv_ff_x2_x3', 'desv_ff_x3_x1', 'max_desviacion_ff', 'desbalance_fase_fase', 'ft_x1_tierra_v', 'ft_x2_tierra_v', 'ft_x3_tierra_v', 'promedio_fase_tierra', 'desv_ft_x1_tierra', 'desv_ft_x2_tierra', 'desv_ft_x3_tierra', 'max_desviacion_ft', 'desbalance_fase_tierra'] },
     { title: 'Tx bobina secundaria', fields: ['sec_ff_h1_h2_v', 'sec_ff_h2_h3_v', 'sec_ff_h3_h1_v', 'sec_desbalance_fase_fase', 'sec_ft_h1_tierra_v', 'sec_ft_h2_tierra_v', 'sec_ft_h3_tierra_v', 'sec_desbalance_fase_tierra'] },
     { title: 'Corrientes e indicadores', fields: ['corriente_x1_x2_amp', 'corriente_h1_h2_amp', 'corriente_h2_h3_amp', 'corriente_h3_h1_amp', 'desbalance_corriente_secundaria', 'relacion_a_con_a_nom', 'porcentaje_amp', 'relacion_v_mot_v_nom', 'porcentaje_volt', 'pd_max_psi', 'delta_presion_psi', 'porcentaje_delta_presion', 'relacion_tm_t_max', 'porcentaje_temp', 'relacion_pip_min_pip', 'porcentaje_pip'] },
+    { title: 'Tecnicos', fields: ['tecnico_1', 'tecnico_2'] },
     { title: 'Observaciones', fields: ['observaciones_pozo'] }
 ];
 
 const EXCEL_GROUP_COLORS = ['1D4ED8', '7C3AED', '0F766E', 'B45309', 'BE123C', '0F766E', '475569', '1D4ED8', '7C2D12', '7F1D1D'];
 const EXCEL_LOGO_PLACEMENT = { tl: { col: 0.1, row: 0.15 }, ext: { width: 118, height: 84 } };
+const COMPACT_EXCEL_COLUMN_WIDTHS = {
+    pozo: 14,
+    campo: 18,
+    fecha: 13,
+    hora: 10,
+    locacion_jornada: 24,
+    jornada: 13,
+    tecnico_1: 20,
+    tecnico_2: 20
+};
 const REPORT_COLUMN_MAP = new Map(REPORT_COLUMNS.map(([label, fieldName]) => [fieldName, { label, fieldName }]));
 const EXCEL_EXPORT_COLUMNS = EXCEL_SECTION_GROUPS.flatMap(group => (
     group.fields.map(fieldName => {
@@ -368,6 +379,11 @@ function normalizeRecordForExport(record = {}) {
     };
 }
 
+function summarizeRecordValues(records, fieldName) {
+    const values = [...new Set(records.map(record => String(record[fieldName] || '').trim()).filter(Boolean))];
+    return values.join(', ') || '--';
+}
+
 function buildExcelSummarySheet(worksheet, journey, records) {
     worksheet.headerFooter.oddFooter = '&LUV Servicios Campo&CReporte de acompanamiento BES&RGenerado &D &T';
     worksheet.mergeCells('C1:J1');
@@ -380,7 +396,8 @@ function buildExcelSummarySheet(worksheet, journey, records) {
     styleExcelTitleBlock(worksheet, ['C1', 'C2', 'C3']);
 
     const summaryRows = [
-        ['Equipo de guardia', journey.equipo_guardia || '--'],
+        ['Tecnico 1', summarizeRecordValues(records, 'tecnico_1')],
+        ['Tecnico 2', summarizeRecordValues(records, 'tecnico_2')],
         ['Locacion', journey.locacion_jornada || '--'],
         ['Fecha', journey.fecha || '--'],
         ['Jornada', journey.jornada || '--'],
@@ -991,13 +1008,14 @@ function formatExcelCellValue(value, fieldName) {
 }
 
 function calculateExcelColumnWidth(label, fieldName, records) {
+    if (COMPACT_EXCEL_COLUMN_WIDTHS[fieldName]) return COMPACT_EXCEL_COLUMN_WIDTHS[fieldName];
     const isLongTextField = fieldName === 'observaciones_pozo' || fieldName === 'diagnostico';
     const isObservationField = fieldName === 'observaciones_pozo';
-    const baseWidth = Math.max(label.length + 2, isObservationField ? 36 : (isLongTextField ? 24 : 14));
     const longestValue = records.reduce((max, record) => Math.max(max, String(formatExcelCellValue(record[fieldName], fieldName) || '').length), 0);
-    if (isObservationField) return Math.min(Math.max(baseWidth, Math.min(longestValue + 4, 52)), 72);
-    if (isLongTextField) return Math.min(Math.max(baseWidth, Math.min(longestValue + 2, 42)), 56);
-    return Math.min(Math.max(baseWidth, Math.min(longestValue + 2, 34)), 42);
+    if (isObservationField) return 64;
+    if (isLongTextField) return Math.min(Math.max(32, Math.min(longestValue + 2, 44)), 52);
+    const compactHeaderWidth = Math.min(label.length + 2, 18);
+    return Math.min(Math.max(compactHeaderWidth, Math.min(longestValue + 2, 18)), 24);
 }
 
 function styleExcelTitleBlock(worksheet, cellAddresses) {

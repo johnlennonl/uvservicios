@@ -12,6 +12,8 @@ import {
 
 const TEMPLATE_STORAGE_KEY = 'uv-consolidado-template-v1';
 const DASHBOARD_GENERAL_SHEET_NAME = 'DASHBOARD GENERAL';
+const BASE_HISTORICO_SHEET_NAME = 'Base Historico';
+const NUEVO_HISTORICO_SHEET_NAME = 'Nuevo Historico';
 const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const LOGO_PATH = 'img/uvservicioslogo.png';
 const EXCEL_LOGO_PATH = 'img/UV SERVICES - Logo vectorial sin fondo.png';
@@ -924,6 +926,11 @@ async function exportDashboardGeneralFromDatabase() {
         showLoadingModal('Exportando consolidado guardado', 'Leyendo filas desde Supabase para generar el Dashboard General.', `Origen: ${getExportSourceLabel(filters.source)} · Modo: ${getExportModeLabel(filters.mode)}.`);
         setStatus('Consultando filas guardadas del consolidado maestro...', 'neutral');
 
+        if (filters.source === 'completo') {
+            await exportDashboardGeneralSplitFromDatabase(filters);
+            return;
+        }
+
         const storedRows = await fetchConsolidatedDashboardRows(filters);
         if (!storedRows.length) {
             throw new Error('No hay filas guardadas que coincidan con los filtros seleccionados.');
@@ -955,6 +962,53 @@ async function exportDashboardGeneralFromDatabase() {
     } finally {
         setBusyState(false);
     }
+}
+
+async function exportDashboardGeneralSplitFromDatabase(filters) {
+    updateLoadingModal('Consultando base histórica y nuevo histórico...', 'Preparando hojas separadas para el exportable.');
+
+    const [baseRows, nuevoRows] = await Promise.all([
+        fetchConsolidatedDashboardRows({ ...filters, source: 'base' }),
+        fetchConsolidatedDashboardRows({ ...filters, source: 'operativo' })
+    ]);
+
+    if (!baseRows.length && !nuevoRows.length) {
+        throw new Error('No hay filas guardadas que coincidan con los filtros seleccionados.');
+    }
+
+    updateLoadingModal('Preparando hojas separadas...', `Base Historico: ${baseRows.length} filas · Nuevo Historico: ${nuevoRows.length} filas.`);
+
+    const baseColumns = buildExportColumnsFromStoredRows(baseRows, 'base');
+    const nuevoColumns = buildColumnsFromStoredRows(nuevoRows);
+    const baseExportRows = buildRowsFromStoredRows(baseRows, baseColumns);
+    const nuevoExportRows = buildRowsFromStoredRows(nuevoRows, nuevoColumns);
+    const generatedAt = new Date().toLocaleString('es-ES');
+
+    await exportDashboardSplitWorkbook({
+        sheets: [
+            {
+                name: BASE_HISTORICO_SHEET_NAME,
+                columns: baseColumns,
+                rows: baseExportRows,
+                sourceLabel: `Origen: base histórica · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${baseExportRows.length} · Generado: ${generatedAt}`,
+                emptyMessage: 'No hay filas de Base Historico para los filtros seleccionados.'
+            },
+            {
+                name: NUEVO_HISTORICO_SHEET_NAME,
+                columns: nuevoColumns,
+                rows: nuevoExportRows,
+                sourceLabel: `Origen: nuevo histórico Campo · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${nuevoExportRows.length} · Generado: ${generatedAt}`,
+                emptyMessage: 'No hay filas de Nuevo Historico para los filtros seleccionados.'
+            }
+        ],
+        filePrefix: 'UV_CONSOLIDADO_DB_HISTORICOS'
+    });
+
+    await refreshDatabaseSummary({ silent: true });
+    const totalRows = baseExportRows.length + nuevoExportRows.length;
+    setStatus(`Consolidado exportado en hojas separadas: Base Historico ${baseExportRows.length} filas, Nuevo Historico ${nuevoExportRows.length} filas.`, 'success');
+    closeLoadingModal();
+    showResultModal('success', 'Exportado en hojas separadas', `${totalRows} filas exportadas: Base Historico (${baseExportRows.length}) y Nuevo Historico (${nuevoExportRows.length}).`);
 }
 
 async function openFieldJourneyDeleteSelector() {
@@ -1171,24 +1225,62 @@ async function exportDashboardWorkbook({ columns, rows, sourceSheet, filePrefix,
     workbook.created = new Date();
     workbook.modified = new Date();
 
-    const worksheet = workbook.addWorksheet(DASHBOARD_GENERAL_SHEET_NAME, {
+    updateLoadingModal('Insertando logo y encabezado empresarial...', 'Preparando el diseño del archivo.');
+    await addDashboardWorksheet(workbook, {
+        name: DASHBOARD_GENERAL_SHEET_NAME,
+        columns,
+        rows,
+        sourceSheet,
+        sourceLabel,
+        emptyMessage
+    });
+
+    updateLoadingModal('Creando archivo descargable...', 'La descarga iniciará automáticamente.');
+    const buffer = await workbook.xlsx.writeBuffer();
+    const fileDate = new Date().toISOString().slice(0, 10);
+    downloadBlob(new Blob([buffer], { type: EXCEL_MIME_TYPE }), `${filePrefix}_${fileDate}.xlsx`);
+}
+
+async function exportDashboardSplitWorkbook({ sheets = [], filePrefix }) {
+    const workbook = new window.ExcelJS.Workbook();
+    workbook.creator = 'UV Servicios';
+    workbook.company = 'UV Servicios';
+    workbook.subject = 'Consolidado maestro historicos separados';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+
+    for (const sheet of sheets) {
+        updateLoadingModal(`Pintando ${sheet.name}...`, `${sheet.rows.length} filas · ${sheet.columns.length} columnas.`);
+        await addDashboardWorksheet(workbook, {
+            name: sheet.name,
+            columns: sheet.columns,
+            rows: sheet.rows,
+            sourceSheet: { name: sheet.name, columns: sheet.columns },
+            sourceLabel: sheet.sourceLabel,
+            emptyMessage: sheet.emptyMessage
+        });
+    }
+
+    updateLoadingModal('Creando archivo descargable...', 'La descarga iniciará automáticamente.');
+    const buffer = await workbook.xlsx.writeBuffer();
+    const fileDate = new Date().toISOString().slice(0, 10);
+    downloadBlob(new Blob([buffer], { type: EXCEL_MIME_TYPE }), `${filePrefix}_${fileDate}.xlsx`);
+}
+
+async function addDashboardWorksheet(workbook, { name, columns, rows, sourceSheet, sourceLabel, emptyMessage }) {
+    const worksheet = workbook.addWorksheet(name, {
         views: [{ state: 'frozen', ySplit: TABLE_HEADER_ROW_INDEX, xSplit: 4, topLeftCell: `E${TABLE_HEADER_ROW_INDEX + 1}`, activeCell: `E${TABLE_HEADER_ROW_INDEX + 1}` }]
     });
 
     const totalColumns = Math.max(columns.length, 12);
     const lastColumn = Math.min(totalColumns, 16384);
 
-    updateLoadingModal('Insertando logo y encabezado empresarial...', 'Preparando el diseño del archivo.');
     await addLogoToWorksheet(workbook, worksheet);
     buildWorkbookHeader(worksheet, lastColumn, sourceSheet, sourceLabel, rows.length, columns.length);
-    updateLoadingModal('Pintando tabla y aplicando filtros...', `${columns.length} columnas detectadas.`);
     buildDashboardTable(worksheet, columns, rows, emptyMessage);
     finishWorksheetLayout(worksheet, columns);
 
-    updateLoadingModal('Creando archivo descargable...', 'La descarga iniciará automáticamente.');
-    const buffer = await workbook.xlsx.writeBuffer();
-    const fileDate = new Date().toISOString().slice(0, 10);
-    downloadBlob(new Blob([buffer], { type: EXCEL_MIME_TYPE }), `${filePrefix}_${fileDate}.xlsx`);
+    return worksheet;
 }
 
 function buildWorkbookHeader(worksheet, lastColumn, sourceSheet, sourceLabel = '', rowCount = 0, columnCount = 0) {
