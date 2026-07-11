@@ -40,6 +40,18 @@ a[href="monitoring-prep.html"],
     display: none !important;
 }
 
+body.access-protected-nav:not(.access-nav-ready) a[href="dashboard-data.html"],
+body.access-protected-nav:not(.access-nav-ready) a[href="campo-admin.html"],
+body.access-protected-nav:not(.access-nav-ready) a[href="stats.html"],
+body.access-protected-nav:not(.access-nav-ready) a[href="notificacion.html"],
+body.access-protected-nav:not(.access-nav-ready) a[href="help.html"],
+body.access-protected-nav:not(.access-nav-ready) a[href="consolidado.html"],
+body.access-protected-nav:not(.access-nav-ready) a[href="field.html"],
+body.access-protected-nav:not(.access-nav-ready) a[href="jornada.html"],
+body.access-protected-nav:not(.access-nav-ready) a[href="jornada-history.html"] {
+    display: none !important;
+}
+
 .field-admin-alert-badge {
     display: inline-flex;
     align-items: center;

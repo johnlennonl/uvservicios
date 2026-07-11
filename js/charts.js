@@ -3,7 +3,7 @@
  * Resuelve filtros, consulta datos y dibuja indicadores y graficas.
  */
 
-import { logout, getAccessProfile, getSession } from './auth.js';
+import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } from './auth.js';
 import { getMonitoringData, getLatestDate, getLatestMonitoringRecords, getNeighborRecords, getPozoRecordDates, getPozosHistorySummary, getWellRibbonData } from './data-service.js';
 import { fetchConsolidatedDashboardRows } from './services/consolidado-service.js';
 import { hideFullLoader, showFullLoader } from './ui.js';
@@ -142,45 +142,9 @@ function getPozoSummary(pozoName) {
 }
 
 function applyDashboardAccessProfile(accessProfile) {
-    if (!accessProfile?.canViewManagement) {
-        document.querySelectorAll('a[href="stats.html"]').forEach(link => {
-            link.style.display = 'none';
-            link.setAttribute('aria-hidden', 'true');
-            link.tabIndex = -1;
-        });
-    }
+    applyNavigationAccessProfile(accessProfile);
 
     if (!accessProfile?.isReadOnly) return;
-
-    document.body.classList.add('access-readonly');
-
-    document.querySelectorAll('a[href="data.html"]').forEach(link => {
-        const label = link.querySelector('span');
-        if (label) {
-            label.textContent = 'Historial';
-            return;
-        }
-
-        const textNode = [...link.childNodes]
-            .filter(node => node.nodeType === Node.TEXT_NODE)
-            .find(node => node.textContent.trim());
-
-        if (textNode) {
-            textNode.textContent = ' Historial';
-        }
-    });
-
-    document.querySelectorAll('a[href="dashboard-data.html"]').forEach(link => {
-        link.style.display = 'none';
-        link.setAttribute('aria-hidden', 'true');
-        link.tabIndex = -1;
-    });
-
-    document.querySelectorAll('a[href="field.html"]').forEach(link => {
-        link.style.display = 'none';
-        link.setAttribute('aria-hidden', 'true');
-        link.tabIndex = -1;
-    });
 
     const heroCopy = document.querySelector('.page-hero-copy');
     if (heroCopy && !heroCopy.querySelector('.access-role-badge')) {

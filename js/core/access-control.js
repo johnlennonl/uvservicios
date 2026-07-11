@@ -64,3 +64,54 @@ export function getDefaultRouteForAccessProfile(accessProfile) {
 
     return 'dashboard.html';
 }
+
+export function applyNavigationAccessProfile(accessProfile, root = document) {
+    const hideLinks = hrefs => {
+        hrefs.forEach(href => {
+            root.querySelectorAll(`a[href="${href}"]`).forEach(link => {
+                link.style.display = 'none';
+                link.setAttribute('aria-hidden', 'true');
+                link.tabIndex = -1;
+            });
+        });
+    };
+
+    const renameDataLinks = () => {
+        root.querySelectorAll('a[href="data.html"]').forEach(link => {
+            const label = link.querySelector('span');
+            if (label) {
+                label.textContent = 'Historial';
+                return;
+            }
+
+            const textNode = [...link.childNodes]
+                .filter(node => node.nodeType === Node.TEXT_NODE)
+                .find(node => node.textContent.trim());
+
+            if (textNode) textNode.textContent = ' Historial';
+        });
+    };
+
+    if (!accessProfile?.canViewManagement) {
+        hideLinks(['dashboard-data.html', 'campo-admin.html', 'stats.html', 'consolidado.html', 'monitoring-prep.html']);
+    }
+
+    if (accessProfile?.isReadOnly) {
+        document.body.classList.add('access-readonly');
+        renameDataLinks();
+        hideLinks([
+            'dashboard-data.html',
+            'campo-admin.html',
+            'field.html',
+            'jornada.html',
+            'jornada-history.html',
+            'stats.html',
+            'notificacion.html',
+            'help.html',
+            'consolidado.html',
+            'monitoring-prep.html'
+        ]);
+    }
+
+    document.body.classList.add('access-nav-ready');
+}

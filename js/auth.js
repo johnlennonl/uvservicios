@@ -4,7 +4,7 @@
  */
 
 import { supabase } from './supabaseClient.js';
-import { getAccessProfile, getDefaultRouteForAccessProfile } from './core/access-control.js';
+import { applyNavigationAccessProfile, getAccessProfile, getDefaultRouteForAccessProfile } from './core/access-control.js';
 
 /**
  * Valida las credenciales contra Supabase.
@@ -63,4 +63,4 @@ export async function getSession() {
     return data.session;
 }
 
-export { getAccessProfile, getDefaultRouteForAccessProfile };
+export { applyNavigationAccessProfile, getAccessProfile, getDefaultRouteForAccessProfile };
