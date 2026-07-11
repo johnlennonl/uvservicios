@@ -3211,9 +3211,8 @@ function renderFieldPozoOptions(ignoreSearch = false) {
 
     menu.innerHTML = filteredPozos.map(pozo => {
         const isSelected = pozo === hiddenField.value;
-        const isAdded = Boolean(getDuplicatePozoReport(pozo));
         return `
-        <button type="button" class="pozo-selector-option ${isSelected ? 'active' : ''}" data-pozo="${escapeHtml(pozo)}" ${isAdded ? 'disabled' : ''}>
+        <button type="button" class="pozo-selector-option ${isSelected ? 'active' : ''}" data-pozo="${escapeHtml(pozo)}">
             <span class="pozo-status-dot"></span>
             <span class="pozo-option-name">${escapeHtml(pozo)}</span>
         </button>
@@ -3257,18 +3256,6 @@ function selectFieldPozo(pozoName) {
     const displayField = document.getElementById('field-pozo-display');
     if (!hiddenField || !displayField) return;
 
-    const duplicatedReport = getDuplicatePozoReport(normalizedPozo);
-    if (duplicatedReport) {
-        hiddenField.value = '';
-        displayField.value = '';
-        closeFieldPozoMenu({ commitSearch: false });
-        const message = `${normalizedPozo} ya fue agregado a esta carga. Usa Continuar para editarlo o selecciona otro pozo.`;
-        showAlert(message, 'error');
-        updateStatus(message, true);
-        syncCaptureGateState();
-        return;
-    }
-
     hiddenField.value = normalizedPozo;
     displayField.value = normalizedPozo;
     syncLocationFromPozo(normalizedPozo);
@@ -3303,15 +3290,6 @@ function commitTypedPozoSelection() {
     }
 
     if (availablePozos.length === 0) {
-        if (getDuplicatePozoReport(normalizedPozo)) {
-            hiddenField.value = '';
-            displayField.value = '';
-            const message = `${normalizedPozo} ya fue agregado a esta carga. Usa Continuar para editarlo o selecciona otro pozo.`;
-            showAlert(message, 'error');
-            updateStatus(message, true);
-            syncCaptureGateState();
-            return;
-        }
         hiddenField.value = normalizedPozo;
         displayField.value = normalizedPozo;
         syncLocationFromPozo(normalizedPozo);
@@ -3324,15 +3302,6 @@ function commitTypedPozoSelection() {
 
     const exactMatch = availablePozos.find(pozo => pozo === normalizedPozo)
         || availablePozos.find(pozo => normalizePozoIdentity(pozo) === normalizePozoIdentity(normalizedPozo));
-    if (exactMatch && getDuplicatePozoReport(exactMatch)) {
-        hiddenField.value = '';
-        displayField.value = '';
-        const message = `${exactMatch} ya fue agregado a esta carga. Usa Continuar para editarlo o selecciona otro pozo.`;
-        showAlert(message, 'error');
-        updateStatus(message, true);
-        syncCaptureGateState();
-        return;
-    }
 
     if (!exactMatch) {
         hiddenField.value = '';
