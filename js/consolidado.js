@@ -14,9 +14,9 @@ const TEMPLATE_STORAGE_KEY = 'uv-consolidado-template-v1';
 const DASHBOARD_GENERAL_SHEET_NAME = 'DASHBOARD GENERAL';
 const BASE_HISTORICO_SHEET_NAME = 'Base Historico';
 const NUEVO_HISTORICO_SHEET_NAME = 'Nuevo Historico';
-const NUEVO_HISTORICO_START_COLUMNS = ['POZO', 'CAMPO', 'ESTACION', 'LOCACION DE LA JORNADA', 'JORNADA'];
+const NUEVO_HISTORICO_START_COLUMNS = ['POZO', 'CAMPO', 'ESTACION', 'JORNADA'];
 const NUEVO_HISTORICO_END_COLUMNS = ['TECNICO 1', 'TÉCNICO 1', 'TECNICO 2', 'TÉCNICO 2', 'OBSERVACIONES DEL POZO', 'OBSERVACIONES'];
-const NUEVO_HISTORICO_EXCLUDED_COLUMNS = ['INGENIEROS / EQUIPO DE GUARDIA', 'EQUIPO DE GUARDIA'];
+const NUEVO_HISTORICO_EXCLUDED_COLUMNS = ['INGENIEROS / EQUIPO DE GUARDIA', 'EQUIPO DE GUARDIA', 'LOCACION DE LA JORNADA', 'LOCACIÓN DE LA JORNADA', 'LOCACION DE LA CAPTURA', 'LOCACIÓN DE LA CAPTURA'];
 const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const LOGO_PATH = 'img/uvservicioslogo.png';
 const EXCEL_LOGO_PATH = 'img/UV SERVICES - Logo vectorial sin fondo.png';
@@ -1571,7 +1571,6 @@ async function init() {
     bindEvents();
     activeTemplate = loadStoredTemplate();
     renderTemplate();
-    window.setTimeout(showExportMaintenanceNotice, 120);
     refreshDatabaseSummary({ silent: true });
 
     if (activeTemplate?.sheets?.length) {
