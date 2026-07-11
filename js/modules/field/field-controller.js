@@ -509,13 +509,13 @@ function bindStaticActions() {
     document.addEventListener('keydown', handlePreviewKeydown);
 }
 
-function preloadDefaults({ refreshTime = false } = {}) {
+function preloadDefaults({ refreshDate = false, refreshTime = false } = {}) {
     const dateInput = document.getElementById('field-fecha');
     const timeInput = document.getElementById('field-hora');
     const now = new Date();
 
-    if (dateInput && !dateInput.value) {
-        dateInput.value = now.toISOString().slice(0, 10);
+    if (dateInput && (refreshDate || !dateInput.value)) {
+        dateInput.value = formatLocalDateInputValue(now);
     }
 
     if (timeInput && (refreshTime || !timeInput.value)) {
@@ -523,6 +523,13 @@ function preloadDefaults({ refreshTime = false } = {}) {
     }
 
     syncJourneyFromTime();
+}
+
+function formatLocalDateInputValue(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function wireForm() {
@@ -904,6 +911,10 @@ function validateCaptureGate({ showMessage = false } = {}) {
 }
 
 function handleStartCapture() {
+    if (!currentEditingReportId) {
+        preloadDefaults({ refreshDate: true, refreshTime: true });
+    }
+
     if (!validateCaptureGate({ showMessage: true })) {
         syncCaptureGateState();
         return;
@@ -1041,9 +1052,7 @@ function clearForm() {
         equipo_guardia: document.querySelector('[name="equipo_guardia"]')?.value || '',
         tecnico_1: document.querySelector('[name="tecnico_1"]')?.value || '',
         tecnico_2: document.querySelector('[name="tecnico_2"]')?.value || '',
-        locacion_jornada: document.querySelector('[name="locacion_jornada"]')?.value || '',
-        fecha: document.querySelector('[name="fecha"]')?.value || '',
-        jornada: document.querySelector('[name="jornada"]')?.value || 'Diurna'
+        locacion_jornada: document.querySelector('[name="locacion_jornada"]')?.value || ''
     };
 
     form.reset();
@@ -1063,7 +1072,7 @@ function clearForm() {
         if (field) field.value = value;
     });
 
-    preloadDefaults({ refreshTime: true });
+    preloadDefaults({ refreshDate: true, refreshTime: true });
     syncPozoDisplayFromValue();
     closeFieldPozoMenu({ commitSearch: false });
     clearAccordionProgressControls();
