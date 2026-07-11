@@ -17,6 +17,94 @@ const NUEVO_HISTORICO_SHEET_NAME = 'Nuevo Historico';
 const NUEVO_HISTORICO_START_COLUMNS = ['POZO', 'CAMPO', 'ESTACION', 'JORNADA'];
 const NUEVO_HISTORICO_END_COLUMNS = ['TECNICO 1', 'TÉCNICO 1', 'TECNICO 2', 'TÉCNICO 2', 'OBSERVACIONES DEL POZO', 'OBSERVACIONES'];
 const NUEVO_HISTORICO_EXCLUDED_COLUMNS = ['INGENIEROS / EQUIPO DE GUARDIA', 'EQUIPO DE GUARDIA', 'LOCACION DE LA JORNADA', 'LOCACIÓN DE LA JORNADA', 'LOCACION DE LA CAPTURA', 'LOCACIÓN DE LA CAPTURA'];
+const FORCE_TEXT_COLUMN_IDENTITIES = new Set([
+    'POZO',
+    'CAMPO',
+    'ESTACION',
+    'JORNADA',
+    'MES',
+    'EF',
+    'ESTADO',
+    'ESTATUS',
+    'ACTIVIDAD',
+    'CATEGORIA',
+    'TECNICO1',
+    'TECNICO2',
+    'EQUIPODEGUARDIA',
+    'INGENIEROSEQUIPODEGUARDIA',
+    'OBSERVACIONES',
+    'OBSERVACIONESDELPOZO',
+    'DIAGNOSTICO',
+    'MARCA',
+    'MARCAVSD',
+    'MODELO',
+    'MODELOVSD',
+    'RT',
+    'CONDCHP',
+    'CONDICIONCHP',
+    'CONDICIONDELCABLEADO',
+    'CONDICIONDELACASETA',
+    'ESTADODELTX',
+    'ESTADODELVSD',
+    'ESTADODEPANELDESENSORCHOQUES',
+    'ESTADODELATERRAMIENTO',
+    'ESTADODELBIWCONECTOR',
+    'ESTADODEMANOMETROS',
+    'ESTADODELCABEZAL',
+    'ESTADODETOMAMUESTRAS',
+    'ESTADOCAJADEVENTEO',
+    'POSEESENSORDEFONDO',
+    'DESCARGADATASDELSENSOR',
+    'ECHOMETER',
+    'BAJADATOS',
+    'MODODEOPERACION',
+    'SENTIDODEGIRO'
+]);
+const NUMERIC_COLUMN_PATTERNS = [
+    /%/,
+    /POTENCIAL/,
+    /BRUTA/,
+    /NETA/,
+    /AYS/,
+    /FREC/,
+    /HZ/,
+    /PIP/,
+    /PD/,
+    /PRESION/,
+    /PSI/,
+    /THP/,
+    /CHP/,
+    /LF/,
+    /MOTOR/,
+    /VSD/,
+    /AMP/,
+    /CORRIENTE/,
+    /VOLT/,
+    /FASE/,
+    /TI\b/,
+    /TM\b/,
+    /TEMP/,
+    /VX/,
+    /VY/,
+    /VZ/,
+    /KVA/,
+    /TAP/,
+    /UL/,
+    /OL/,
+    /LIMIT/,
+    /DESACELERACION/,
+    /FOSA/,
+    /RESISTENCIA/,
+    /AISLAMIENTO/,
+    /OHM/,
+    /PROMEDIO/,
+    /DESV/,
+    /DESBALANCE/,
+    /RELACION/,
+    /DELTA/,
+    /NIVEL/,
+    /SUMERGENCIA/
+];
 const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const LOGO_PATH = 'img/uvservicioslogo.png';
 const EXCEL_LOGO_PATH = 'img/UV SERVICES - Logo vectorial sin fondo.png';
@@ -213,6 +301,90 @@ function normalizeColumnIdentity(value) {
         .replace(/\bVOLT\b/g, 'V')
         .replace(/\bF\b/g, 'F')
         .replace(/[^A-Z0-9%]+/g, '');
+}
+
+function shouldExportColumnAsNumber(headerName = '') {
+    const normalizedHeader = normalizeSheetName(headerName);
+    const identity = normalizeColumnIdentity(headerName);
+    if (!normalizedHeader || FORCE_TEXT_COLUMN_IDENTITIES.has(identity)) return false;
+    if (isDashboardDateColumn(headerName)) return false;
+    if (isDashboardTimeColumn(headerName)) return false;
+    return NUMERIC_COLUMN_PATTERNS.some(pattern => pattern.test(normalizedHeader));
+}
+
+function isDashboardDateColumn(headerName = '') {
+    return normalizeColumnIdentity(headerName) === 'FECHA';
+}
+
+function isDashboardTimeColumn(headerName = '') {
+    return normalizeColumnIdentity(headerName) === 'HORA';
+}
+
+function parseDashboardExcelDate(value) {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+    const textValue = String(value || '').trim();
+    let match = textValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+        const [, year, month, day] = match;
+        return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+
+    match = textValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (match) {
+        const [, day, month, year] = match;
+        return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+
+    return null;
+}
+
+function parseDashboardExcelTime(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (!match) return null;
+
+    const [, hourText, minuteText, secondText = '0'] = match;
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    const second = Number(secondText);
+    if (![hour, minute, second].every(Number.isFinite)) return null;
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) return null;
+
+    return (hour * 3600 + minute * 60 + second) / 86400;
+}
+
+function coerceDashboardExcelCellValue(value, headerName = '') {
+    if (value === null || value === undefined || value === '') return '';
+    if (isDashboardDateColumn(headerName)) {
+        return parseDashboardExcelDate(value) || value;
+    }
+
+    if (isDashboardTimeColumn(headerName)) {
+        const parsedTime = parseDashboardExcelTime(value);
+        return parsedTime === null ? value : parsedTime;
+    }
+
+    if (!shouldExportColumnAsNumber(headerName)) return value;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : '';
+
+    const textValue = String(value).trim();
+    if (!textValue || /^(--|N\/A|NA|NULL|SIN DATO|SIN DATOS)$/i.test(textValue)) return '';
+    if (!/^-?\d+(?:[.,]\d+)?\s*%?$/.test(textValue)) return value;
+
+    const numericValue = Number(textValue.replace('%', '').replace(',', '.').trim());
+    return Number.isFinite(numericValue) ? numericValue : value;
+}
+
+function getDashboardExcelNumberFormat(value) {
+    return Number.isInteger(value) ? '0' : '0.00';
+}
+
+function getDashboardExcelDateFormat() {
+    return 'dd/mm/yyyy';
+}
+
+function getDashboardExcelTimeFormat() {
+    return 'hh:mm';
 }
 
 function isDashboardGeneralSheet(sheetName) {
@@ -863,6 +1035,10 @@ function orderNuevoHistoricoColumns(columns = []) {
 }
 
 function buildExportColumnsFromStoredRows(rows = [], source = 'base') {
+    if (source === 'operativo') {
+        return orderNuevoHistoricoColumns(buildColumnsFromStoredRows(rows));
+    }
+
     const labels = [];
     const seen = new Set();
     const baseColumns = getBaseTemplateColumns();
@@ -1411,10 +1587,18 @@ function buildDashboardTable(worksheet, columns, rows, emptyMessage = '') {
         excelRow.height = 24;
         columns.forEach((column, columnIndex) => {
             const cell = excelRow.getCell(columnIndex + 1);
-            cell.value = row[columnIndex] ?? '';
+            const header = column.originalName || column.name;
+            cell.value = coerceDashboardExcelCellValue(row[columnIndex], header);
+            if (typeof cell.value === 'number' && isDashboardTimeColumn(header)) {
+                cell.numFmt = getDashboardExcelTimeFormat();
+            } else if (typeof cell.value === 'number') {
+                cell.numFmt = getDashboardExcelNumberFormat(cell.value);
+            } else if (cell.value instanceof Date) {
+                cell.numFmt = getDashboardExcelDateFormat();
+            }
             cell.font = { name: 'Calibri', size: 8, color: { argb: 'FF0F172A' } };
             cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${getBodyFillColor(column.originalName || column.name, rowIndex)}` } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${getBodyFillColor(header, rowIndex)}` } };
             cell.border = buildThinBorder('FFCBD5E1');
         });
     });
