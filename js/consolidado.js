@@ -14,6 +14,9 @@ const TEMPLATE_STORAGE_KEY = 'uv-consolidado-template-v1';
 const DASHBOARD_GENERAL_SHEET_NAME = 'DASHBOARD GENERAL';
 const BASE_HISTORICO_SHEET_NAME = 'Base Historico';
 const NUEVO_HISTORICO_SHEET_NAME = 'Nuevo Historico';
+const NUEVO_HISTORICO_START_COLUMNS = ['POZO', 'CAMPO', 'ESTACION', 'LOCACION DE LA JORNADA', 'JORNADA'];
+const NUEVO_HISTORICO_END_COLUMNS = ['TECNICO 1', 'TÉCNICO 1', 'TECNICO 2', 'TÉCNICO 2', 'OBSERVACIONES DEL POZO', 'OBSERVACIONES'];
+const NUEVO_HISTORICO_EXCLUDED_COLUMNS = ['INGENIEROS / EQUIPO DE GUARDIA', 'EQUIPO DE GUARDIA'];
 const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const LOGO_PATH = 'img/uvservicioslogo.png';
 const EXCEL_LOGO_PATH = 'img/UV SERVICES - Logo vectorial sin fondo.png';
@@ -827,6 +830,38 @@ function mapLabelsToColumns(labels = []) {
     }));
 }
 
+function orderNuevoHistoricoColumns(columns = []) {
+    const excluded = new Set(NUEVO_HISTORICO_EXCLUDED_COLUMNS.map(normalizeColumnIdentity));
+    const start = new Set(NUEVO_HISTORICO_START_COLUMNS.map(normalizeColumnIdentity));
+    const end = new Set(NUEVO_HISTORICO_END_COLUMNS.map(normalizeColumnIdentity));
+    const available = columns.filter(column => !excluded.has(normalizeColumnIdentity(column.originalName || column.name)));
+    const picked = new Set();
+
+    const pickMatching = preferredLabels => preferredLabels
+        .map(label => {
+            const identity = normalizeColumnIdentity(label);
+            const match = available.find(column => normalizeColumnIdentity(column.originalName || column.name) === identity && !picked.has(column));
+            if (match) picked.add(match);
+            return match || null;
+        })
+        .filter(Boolean);
+
+    const firstColumns = pickMatching(NUEVO_HISTORICO_START_COLUMNS);
+    const middleColumns = available.filter(column => {
+        if (picked.has(column)) return false;
+        const identity = normalizeColumnIdentity(column.originalName || column.name);
+        return !start.has(identity) && !end.has(identity);
+    });
+    const lastColumns = pickMatching(NUEVO_HISTORICO_END_COLUMNS);
+
+    return [...firstColumns, ...middleColumns, ...lastColumns].map((column, index) => ({
+        ...column,
+        key: `${getColumnLetter(index)}_${column.originalName || column.name}`,
+        letter: getColumnLetter(index),
+        index
+    }));
+}
+
 function buildExportColumnsFromStoredRows(rows = [], source = 'base') {
     const labels = [];
     const seen = new Set();
@@ -979,7 +1014,7 @@ async function exportDashboardGeneralSplitFromDatabase(filters) {
     updateLoadingModal('Preparando hojas separadas...', `Base Historico: ${baseRows.length} filas · Nuevo Historico: ${nuevoRows.length} filas.`);
 
     const baseColumns = buildExportColumnsFromStoredRows(baseRows, 'base');
-    const nuevoColumns = buildColumnsFromStoredRows(nuevoRows);
+    const nuevoColumns = orderNuevoHistoricoColumns(buildColumnsFromStoredRows(nuevoRows));
     const baseExportRows = buildRowsFromStoredRows(baseRows, baseColumns);
     const nuevoExportRows = buildRowsFromStoredRows(nuevoRows, nuevoColumns);
     const generatedAt = new Date().toLocaleString('es-ES');
