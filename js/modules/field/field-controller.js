@@ -900,17 +900,6 @@ function validateCaptureGate({ showMessage = false } = {}) {
         return false;
     }
 
-    const duplicatedReport = getDuplicatePozoReport(payload.pozo, currentEditingReportId);
-    if (duplicatedReport) {
-        const message = `${payload.pozo} ya fue agregado a esta carga. Edita el registro existente o selecciona otro pozo.`;
-        if (showMessage) {
-            showAlert(message, 'error');
-            updateStatus(message, true);
-            focusFieldById('field-pozo-display');
-        }
-        return false;
-    }
-
     return true;
 }
 
@@ -1119,16 +1108,6 @@ async function addCurrentReportToJourney() {
     }
 
     const payload = await resolveReportProductionMeasures(getFormPayload(), { writeToForm: true });
-    const duplicatedReport = getDuplicatePozoReport(payload.pozo);
-    if (duplicatedReport) {
-        const message = `${payload.pozo} ya fue agregado a esta carga. Usa Continuar para editarlo o selecciona otro pozo.`;
-        showAlert(message, 'error');
-        updateStatus(message, true);
-        focusFieldById('field-pozo-display');
-        syncCaptureGateState();
-        return;
-    }
-
     const validation = validateFieldReport(payload, { context: 'field' });
 
     const confirmed = await reviewFieldReportBeforeSave(payload, validation, {

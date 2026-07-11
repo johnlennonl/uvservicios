@@ -34,6 +34,12 @@ body {
     overflow-y: auto;
 }
 
+a[href="monitoring-prep.html"],
+.help-summary-card-prep,
+#preparador {
+    display: none !important;
+}
+
 .field-admin-alert-badge {
     display: inline-flex;
     align-items: center;

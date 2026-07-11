@@ -115,26 +115,6 @@ const ASSISTANT_KNOWLEDGE_ENTRIES = [
     },
     {
         type: 'module',
-        title: 'Preparador Excel',
-        sourceId: 'preparador',
-        keywords: 'preparador excel limpiar archivo columnas vista previa exportar importar estatus oc descartes',
-        summary: 'Sirve para limpiar archivos de monitoreo antes de importarlos, normalizando columnas y preparando una salida lista para Gestión.',
-        steps: [
-            'Sube el archivo original al Preparador Excel.',
-            'Revisa la vista previa y confirma que las columnas quedaron alineadas.',
-            'Exporta el resultado preparado.',
-            'Importa el archivo limpio desde Gestión.'
-        ],
-        quickChecks: [
-            'Úsalo cuando el Excel venga mezclado o sucio.',
-            'Reduce errores antes de importar.',
-            'Reconoce variantes reales de estatus operativo, incluyendo abreviaturas como OC.',
-            'Es el paso previo recomendado para cargas masivas.'
-        ],
-        action: { href: 'monitoring-prep.html', label: 'Abrir Preparador Excel' }
-    },
-    {
-        type: 'module',
         title: 'Notificaciones',
         sourceId: 'notificaciones',
         keywords: 'notificaciones actividad cambios importaciones mediciones bes monitoreo reciente trazabilidad',
@@ -738,13 +718,13 @@ function getAssistantDirectResponse(rawQuery) {
 
     if (includesAny(query, ['en que eres bueno', 'para que sirves', 'que puedes hacer', 'que sabes hacer', 'quien eres', 'que haces'])) {
         return {
-            text: `${greetingName}, soy ${ASSISTANT_LABEL} y te ayudo a ubicarte dentro de UV Servicios.\n\nPuedo ayudarte con esto:\n- Explicarte para que sirve cada modulo.\n- Decirte los pasos para importar, corregir, revisar o generar.\n- Guiarte entre Dashboard, Gestion, Data, Estadisticas, Preparador Excel y Notificaciones.\n- Orientarte en el flujo de Campo: Jornada, Captura y Envio e Historial de Jornada.\n- Llevarte al bloque o a la pantalla mas util segun tu duda.`
+            text: `${greetingName}, soy ${ASSISTANT_LABEL} y te ayudo a ubicarte dentro de UV Servicios.\n\nPuedo ayudarte con esto:\n- Explicarte para que sirve cada modulo.\n- Decirte los pasos para importar, corregir, revisar o generar.\n- Guiarte entre Dashboard, Gestion, Data, Estadisticas y Notificaciones.\n- Orientarte en el flujo de Campo: Jornada, Captura y Envio e Historial de Jornada.\n- Llevarte al bloque o a la pantalla mas util segun tu duda.`
         };
     }
 
     if (includesAny(query, ['que modulos conoces', 'que hay en la app', 'cada rincon', 'que tiene la app', 'que areas tiene'])) {
         return {
-            text: `${greetingName}, conozco estos rincones de la app:\n- Dashboard: analisis operativo y reporte tecnico.\n- Gestion: importacion, carga manual y correccion de datos.\n- Preparador Excel: limpieza previa antes de importar.\n- Data: historial por pozo y ticket diario por fecha.\n- Estadisticas: cobertura, actividad y seguimiento por rango.\n- Notificaciones: actividad reciente y trazabilidad visible.\n- Jornada: orientacion del turno para Campo.\n- Captura y Envio: registro y mensaje operativo listo para compartir.\n- Historial de Jornada: seguimiento de lo enviado por la cuadrilla.\n- Ayuda: guias, FAQs y rutas de trabajo.`
+            text: `${greetingName}, conozco estos rincones de la app:\n- Dashboard: analisis operativo y reporte tecnico.\n- Gestion: importacion, carga manual y correccion de datos.\n- Data: historial por pozo y ticket diario por fecha.\n- Estadisticas: cobertura, actividad y seguimiento por rango.\n- Notificaciones: actividad reciente y trazabilidad visible.\n- Jornada: orientacion del turno para Campo.\n- Captura y Envio: registro y mensaje operativo listo para compartir.\n- Historial de Jornada: seguimiento de lo enviado por la cuadrilla.\n- Ayuda: guias, FAQs y rutas de trabajo.`
         };
     }
 
@@ -838,10 +818,6 @@ function buildSectionContext(section) {
         return { id, label: 'Estadísticas', description: 'UVITO priorizará respuestas sobre cobertura, pozos monitoreados, drilldown y rango de fechas.' };
     }
 
-    if (id === 'preparador') {
-        return { id, label: 'Preparador Excel', description: 'UVITO priorizará respuestas sobre limpieza de archivos, vista previa y exportación lista para Gestión.' };
-    }
-
     if (section?.classList?.contains('help-section-faq')) {
         return { id: 'faq', label: 'Preguntas frecuentes', description: 'UVITO priorizará respuestas rápidas a dudas comunes y errores recurrentes.' };
     }
@@ -885,14 +861,6 @@ function inferAssistantContextFromPage() {
             id: 'gestion',
             label: 'Gestión',
             description: 'UVITO priorizará respuestas sobre importación, carga manual y corrección de registros.'
-        };
-    }
-
-    if (pageName === 'monitoring-prep.html') {
-        return {
-            id: 'preparador',
-            label: 'Preparador Excel',
-            description: 'UVITO priorizará respuestas sobre limpieza y preparación de archivos Excel.'
         };
     }
 
