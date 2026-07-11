@@ -1626,6 +1626,7 @@ function buildJourneyWellMessageBlock(report) {
     const measurementLines = [
         ['Hz', report.frecuencia, 'Hz'],
         ['Sentido', report.sentido_giro],
+        ['Modo de operación', report.modo_operacion],
         ['I VSD', formatSlashValues([report.i_vsd_a, report.i_vsd_b, report.i_vsd_c]), 'Amp'],
         ['V VSD', report.out_vsd, 'Volt'],
         ['I Mot', report.i_motor, 'Amp'],
