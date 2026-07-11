@@ -1307,6 +1307,37 @@ function normalizeReviewKey(payload = {}) {
     return [pozo, fecha, hora].join('|');
 }
 
+function isRecordDateInsideJourneyWindow(recordPayload = {}, journey = {}) {
+    const journeyDate = parseDateOnly(journey?.journey_date);
+    const recordDate = parseDateOnly(recordPayload.fecha);
+    if (!journeyDate || !recordDate) return true;
+
+    const diffDays = Math.round((recordDate.getTime() - journeyDate.getTime()) / 86400000);
+    if (diffDays === 0) return true;
+
+    const jornada = String(journey?.jornada || recordPayload.jornada || '').trim().toLowerCase();
+    if (!jornada.includes('nocturna')) return false;
+
+    const hour = getHourFromTime(recordPayload.hora);
+    if (diffDays === -1) return hour === null || hour >= 18;
+    if (diffDays === 1) return hour === null || hour < 6;
+    return false;
+}
+
+function parseDateOnly(value) {
+    const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const [, year, month, day] = match;
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+}
+
+function getHourFromTime(value) {
+    const match = String(value || '').trim().match(/^(\d{1,2}):\d{2}/);
+    if (!match) return null;
+    const hour = Number(match[1]);
+    return Number.isFinite(hour) ? hour : null;
+}
+
 function analyzeRecordForReview(recordPayload, records = [], journey = {}, currentRecordId = '') {
     const critical = [];
     const warnings = [];
@@ -1341,7 +1372,7 @@ function analyzeRecordForReview(recordPayload, records = [], journey = {}, curre
         warnings.push('La hora no tiene el formato esperado HH:MM o HH:MM:SS.');
     }
 
-    if (journey?.journey_date && recordPayload.fecha && String(recordPayload.fecha) !== String(journey.journey_date)) {
+    if (journey?.journey_date && recordPayload.fecha && !isRecordDateInsideJourneyWindow(recordPayload, journey)) {
         warnings.push('La fecha del pozo no coincide con la fecha principal de la jornada.');
     }
 
