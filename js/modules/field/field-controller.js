@@ -1605,7 +1605,17 @@ async function copyJourneyTextToClipboard(journeyMessage) {
 }
 
 function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader = DEFAULT_MESSAGE_HEADER) {
-    const sortedReports = [...reports].sort((left, right) => String(left.hora || '').localeCompare(String(right.hora || '')));
+    const sortedReports = reports
+        .map((report, index) => ({ report, index }))
+        .sort((left, right) => {
+            const leftDateTime = `${left.report.fecha || ''} ${left.report.hora || ''}`.trim();
+            const rightDateTime = `${right.report.fecha || ''} ${right.report.hora || ''}`.trim();
+            if (leftDateTime && rightDateTime && leftDateTime !== rightDateTime) {
+                return leftDateTime.localeCompare(rightDateTime);
+            }
+            return left.index - right.index;
+        })
+        .map(item => item.report);
     const firstReport = sortedReports[0] || {};
     const journey = firstReport.jornada || document.getElementById('field-jornada')?.value || 'Diurna';
     const technicians = formatTechnicianCrew(firstReport);
