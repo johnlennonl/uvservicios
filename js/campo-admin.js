@@ -1,5 +1,5 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
-import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo } from './services/field-journey-service.js';
+import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, deleteAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo } from './services/field-journey-service.js';
 import { exportFieldJourneyToExcel, openFieldJourneyPdf, exportHistoricalFieldReportsToExcel } from './services/field-journey-export.js';
 import { validateFieldReport } from './modules/field/field-validation.js';
 
@@ -1967,7 +1967,13 @@ function renderRecordModal() {
         renderRecordModal();
     });
 
-    elements.recordModalBody.querySelector('#campo-admin-record-form')?.addEventListener('submit', handleRecordFormSubmit);
+    const form = elements.recordModalBody.querySelector('#campo-admin-record-form');
+    if (form) {
+        form.addEventListener('submit', handleRecordFormSubmit);
+        form.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('input', () => attachRealTimeCalculations(form));
+        });
+    }
 }
 
 function buildUpdatedRecordPayload(form) {
@@ -2025,6 +2031,80 @@ async function handleRecordFormSubmit(event) {
             renderRecordModal();
         }
     }
+}
+
+async function confirmDeleteRecord(recordId) {
+    if (!window.Swal) {
+        if (!window.confirm('¿Eliminar este pozo de la jornada?')) return;
+    } else {
+        const result = await window.Swal.fire({
+            icon: 'warning',
+            title: 'Eliminar pozo',
+            text: 'Se eliminará este pozo de la revisión de la jornada. Si la jornada está publicada, también se eliminará de Data y Consolidado. Esta acción no se puede deshacer.',
+            showCancelButton: true,
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#b91c1c'
+        });
+        if (!result.isConfirmed) return;
+    }
+
+    try {
+        setActionButtonsBusy(true);
+        await deleteAdminFieldJourneyRecord(recordId);
+        await loadJourneys();
+        if (state.selectedJourneyId) {
+            await selectJourney(state.selectedJourneyId, { keepList: true });
+        }
+        await notify('Pozo eliminado correctamente.', 'success');
+    } catch (error) {
+        console.error('Admin Campo delete record error:', error);
+        await notify(error?.message || 'No se pudo eliminar el pozo.', 'error');
+    } finally {
+        setActionButtonsBusy(false);
+    }
+}
+
+function attachRealTimeCalculations(form) {
+    if (!form) return;
+    const a = parseFloat(form.querySelector('[name="i_vsd_a"]')?.value);
+    const b = parseFloat(form.querySelector('[name="i_vsd_b"]')?.value);
+    const c = parseFloat(form.querySelector('[name="i_vsd_c"]')?.value);
+
+    let prom = '';
+    let devA = '';
+    let devB = '';
+    let devC = '';
+    let maxDev = '';
+    let unbalance = '';
+
+    if (!isNaN(a) && !isNaN(b) && !isNaN(c) && (a > 0 || b > 0 || c > 0)) {
+        prom = (a + b + c) / 3;
+        devA = Math.abs(a - prom);
+        devB = Math.abs(b - prom);
+        devC = Math.abs(c - prom);
+        maxDev = Math.max(devA, devB, devC);
+        unbalance = prom > 0 ? (maxDev / prom) * 100 : 0;
+        
+        prom = Number.isInteger(prom) ? prom.toString() : prom.toFixed(1);
+        devA = Number.isInteger(devA) ? devA.toString() : devA.toFixed(1);
+        devB = Number.isInteger(devB) ? devB.toString() : devB.toFixed(1);
+        devC = Number.isInteger(devC) ? devC.toString() : devC.toFixed(1);
+        maxDev = Number.isInteger(maxDev) ? maxDev.toString() : maxDev.toFixed(1);
+        unbalance = Number.isInteger(unbalance) ? unbalance.toString() : unbalance.toFixed(2);
+    }
+
+    const setVal = (name, val) => {
+        const el = form.querySelector(`[name="${name}"]`);
+        if (el) el.value = val;
+    };
+
+    setVal('prom_i_vsd', prom);
+    setVal('desv_fase_a', devA);
+    setVal('desv_fase_b', devB);
+    setVal('desv_fase_c', devC);
+    setVal('max_desviacion_vsd', maxDev);
+    setVal('desbalance_corriente_vsd', unbalance);
 }
 
 async function showPublicationReadiness() {
@@ -2145,6 +2225,7 @@ async function renderDetail(detail) {
                         ${buildRecordDiagnosticBadge(record)}
                         <button type="button" class="campo-admin-inline-btn" data-record-open="${escapeHtml(record.id)}">Ver parametros</button>
                         <button type="button" class="campo-admin-inline-btn campo-admin-inline-btn-strong" data-record-edit="${escapeHtml(record.id)}">Editar</button>
+                        <button type="button" class="campo-admin-inline-btn" style="color:#b91c1c;border-color:rgba(185,28,28,0.2);background:rgba(185,28,28,0.05);" data-record-delete="${escapeHtml(record.id)}">Eliminar</button>
                     </div>
                 </article>
             `;
@@ -2324,6 +2405,10 @@ async function renderDetail(detail) {
 
     elements.detailShell.querySelectorAll('[data-record-edit]').forEach(button => {
         button.addEventListener('click', () => openRecordModal(button.dataset.recordEdit, 'edit'));
+    });
+
+    elements.detailShell.querySelectorAll('[data-record-delete]').forEach(button => {
+        button.addEventListener('click', () => confirmDeleteRecord(button.dataset.recordDelete));
     });
 
     elements.detailShell.querySelectorAll('[data-ticket-src]').forEach(button => {

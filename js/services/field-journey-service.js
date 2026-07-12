@@ -1171,7 +1171,92 @@ export async function updateAdminFieldJourneyRecord(recordId, report = {}, optio
 
         if (reviewError) throw reviewError;
 
+        const { data: journeyData } = await supabase
+            .from('field_journeys')
+            .select('status')
+            .eq('id', updatedRecord.journey_id)
+            .maybeSingle();
+
+        if (journeyData && ['published', 'approved'].includes(journeyData.status)) {
+            const inheritedRecords = await inheritWorkflowRecordsProductionMeasures([updatedRecord]);
+            const monitoringRecords = inheritedRecords.map(mapWorkflowRecordToMonitoringRecord);
+            await syncMonitoringRecords(monitoringRecords);
+            await upsertFieldJourneyIntoConsolidatedDashboard(inheritedRecords, updatedRecord.journey_id);
+        }
+
         return updatedRecord;
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
+export async function deleteAdminFieldJourneyRecord(recordId) {
+    const session = await ensureFieldWriteAccess();
+    await ensureFieldAdminReadAccess();
+
+    const normalizedRecordId = String(recordId || '').trim();
+    if (!normalizedRecordId) {
+        throw new Error('No se recibió un identificador válido para eliminar el pozo.');
+    }
+
+    try {
+        const { data: existingRecord, error: existingError } = await supabase
+            .from('field_journey_records')
+            .select('id, journey_id, pozo, report_date, report_time')
+            .eq('id', normalizedRecordId)
+            .maybeSingle();
+
+        if (existingError) throw existingError;
+        if (!existingRecord) {
+            throw new Error('El pozo solicitado ya no existe o ya fue eliminado.');
+        }
+
+        const { error: deleteError } = await supabase
+            .from('field_journey_records')
+            .delete()
+            .eq('id', normalizedRecordId);
+
+        if (deleteError) throw deleteError;
+
+        const { data: journeyData } = await supabase
+            .from('field_journeys')
+            .select('status')
+            .eq('id', existingRecord.journey_id)
+            .maybeSingle();
+
+        if (journeyData && ['published', 'approved'].includes(journeyData.status)) {
+            await supabase
+                .from(CONSOLIDATED_OPERATIONAL_TABLE)
+                .delete()
+                .eq('source_record_id', normalizedRecordId);
+            
+            await supabase
+                .from('monitoreo_pozos')
+                .delete()
+                .eq('pozo_name', String(existingRecord.pozo || '').trim().toUpperCase())
+                .eq('fecha', existingRecord.report_date)
+                .eq('hora', normalizeTimeValue(existingRecord.report_time));
+        }
+
+        const { error: reviewError } = await supabase
+            .from('field_journey_review_log')
+            .insert({
+                journey_id: existingRecord.journey_id,
+                action: 'commented',
+                comment: `Pozo ${existingRecord.pozo} eliminado de la jornada desde Admin Campo.`,
+                performed_by_user_id: session.user.id,
+                performed_by_email: session.user.email,
+                metadata: {
+                    record_id: normalizedRecordId,
+                    pozo: existingRecord.pozo,
+                    source: 'campo-admin',
+                    action: 'delete_record'
+                }
+            });
+
+        if (reviewError) console.warn('Could not save review log for record deletion', reviewError);
+
+        return { deleted: true, recordId: normalizedRecordId };
     } catch (error) {
         throw wrapFieldJourneyError(error);
     }
