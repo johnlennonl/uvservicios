@@ -1,4 +1,5 @@
 import { logout, getSession, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
+import { REPORT_COLUMNS, EXCEL_EXPORT_COLUMNS, EXCEL_GROUP_COLORS } from './services/field-journey-export.js';
 import {
     deleteAllFieldJourneyConsolidatedRows,
     deleteSelectedFieldJourneyConsolidatedRows,
@@ -15,7 +16,7 @@ const DASHBOARD_GENERAL_SHEET_NAME = 'DASHBOARD GENERAL';
 const BASE_HISTORICO_SHEET_NAME = 'Base Historico';
 const NUEVO_HISTORICO_SHEET_NAME = 'Nuevo Historico';
 const NUEVO_HISTORICO_START_COLUMNS = ['POZO', 'CAMPO', 'ESTACION', 'JORNADA'];
-const NUEVO_HISTORICO_END_COLUMNS = ['TECNICO 1', 'TÉCNICO 1', 'TECNICO 2', 'TÉCNICO 2', 'OBSERVACIONES DEL POZO', 'OBSERVACIONES'];
+const NUEVO_HISTORICO_END_COLUMNS = ['TECNICO 1', 'TÉCNICO 1', 'TECNICO 2', 'TÉCNICO 2', 'TEÉCNICO 2', 'OBSERVACIONES DEL POZO', 'OBSERVACIONES'];
 const NUEVO_HISTORICO_EXCLUDED_COLUMNS = ['INGENIEROS / EQUIPO DE GUARDIA', 'EQUIPO DE GUARDIA', 'LOCACION DE LA JORNADA', 'LOCACIÓN DE LA JORNADA', 'LOCACION DE LA CAPTURA', 'LOCACIÓN DE LA CAPTURA'];
 const FORCE_TEXT_COLUMN_IDENTITIES = new Set([
     'POZO',
@@ -488,11 +489,36 @@ function findHeaderRowIndex(rows = []) {
     return selectedIndex;
 }
 
-function buildUniqueColumns(headerRow = []) {
+function buildUniqueColumns(headerRow = [], groupRow = []) {
     const seen = new Map();
+    let currentGroup = '';
     return headerRow.reduce((columns, cell, columnIndex) => {
-        const baseName = normalizeCell(cell);
-        if (!baseName) return columns;
+        const rawBaseName = normalizeCell(cell);
+        
+        if (groupRow && groupRow[columnIndex]) {
+            const g = String(groupRow[columnIndex]).trim().toUpperCase();
+            if (g) currentGroup = g;
+        }
+
+        let baseName = rawBaseName;
+        if (!baseName) {
+            // Assign spacer column name
+            baseName = `COL_SPACER_${columnIndex}`;
+        }
+
+        // Resolve duplicate 'PROMEDIO CORRIENTE [AMP]' using group/index context
+        if (normalizeColumnIdentity(baseName) === 'PROMEDIOCORRIENTEA') {
+            if (currentGroup.includes('PRIMARIA') || currentGroup.includes('PRIMARIO') || (columnIndex >= 81 && columnIndex < 108)) {
+                baseName = 'PROMEDIO CORRIENTE PRIMARIO [AMP]';
+            } else if (currentGroup.includes('SECUNDARIA') || currentGroup.includes('SECUNDARIO') || (columnIndex >= 108 && columnIndex < 135)) {
+                baseName = 'PROMEDIO CORRIENTE SECUNDARIO [AMP]';
+            }
+        }
+
+        // Correct spelling inconsistencies for Técnico 2 (from 'TEÉCNICO 2' to 'TÉCNICO 2')
+        if (normalizeColumnIdentity(baseName) === 'TEECNICO2') {
+            baseName = 'TÉCNICO 2';
+        }
 
         const seenCount = seen.get(baseName) || 0;
         seen.set(baseName, seenCount + 1);
@@ -502,7 +528,8 @@ function buildUniqueColumns(headerRow = []) {
             letter: getColumnLetter(columnIndex),
             name: seenCount ? `${baseName} (${seenCount + 1})` : baseName,
             originalName: baseName,
-            index: columnIndex
+            index: columnIndex,
+            groupTitle: currentGroup || ''
         });
 
         return columns;
@@ -567,7 +594,8 @@ function parseWorkbookTemplate(file, workbook) {
         });
         const headerRowIndex = findHeaderRowIndex(rows);
         const headerRow = rows[headerRowIndex] || [];
-        const columns = buildUniqueColumns(headerRow);
+        const groupRow = headerRowIndex > 0 ? rows[headerRowIndex - 1] : [];
+        const columns = buildUniqueColumns(headerRow, groupRow);
 
         if (isDashboardGeneralSheet(sheetName)) {
             activeDashboardRows = normalizeDataRows(rows, headerRowIndex, columns);
@@ -827,7 +855,8 @@ function renderTemplate() {
     const canExportDashboardGeneral = hasTemplate && activeDashboardRows.length > 0;
     if (elements.exportStructureButton) elements.exportStructureButton.disabled = isBusy || !canExportDashboardGeneral;
     if (elements.saveDbButton) elements.saveDbButton.disabled = isBusy || !canExportDashboardGeneral;
-    if (elements.exportDbButton) elements.exportDbButton.disabled = isBusy || !consolidatedSummary?.total;
+    const hasDataToExport = (consolidatedSummary?.total > 0) || (consolidatedSummary?.fieldJourneyCount > 0);
+    if (elements.exportDbButton) elements.exportDbButton.disabled = isBusy || !hasDataToExport;
     if (elements.refreshDbButton) elements.refreshDbButton.disabled = isBusy;
     if (elements.selectFieldRowsButton) elements.selectFieldRowsButton.disabled = isBusy || !consolidatedSummary?.fieldJourneyCount;
     if (elements.deleteAllFieldButton) elements.deleteAllFieldButton.disabled = isBusy || !consolidatedSummary?.fieldJourneyCount;
@@ -1002,31 +1031,101 @@ function mapLabelsToColumns(labels = []) {
     }));
 }
 
-function orderNuevoHistoricoColumns(columns = []) {
-    const excluded = new Set(NUEVO_HISTORICO_EXCLUDED_COLUMNS.map(normalizeColumnIdentity));
-    const start = new Set(NUEVO_HISTORICO_START_COLUMNS.map(normalizeColumnIdentity));
-    const end = new Set(NUEVO_HISTORICO_END_COLUMNS.map(normalizeColumnIdentity));
-    const available = columns.filter(column => !excluded.has(normalizeColumnIdentity(column.originalName || column.name)));
-    const picked = new Set();
-
-    const pickMatching = preferredLabels => preferredLabels
-        .map(label => {
-            const identity = normalizeColumnIdentity(label);
-            const match = available.find(column => normalizeColumnIdentity(column.originalName || column.name) === identity && !picked.has(column));
-            if (match) picked.add(match);
-            return match || null;
-        })
-        .filter(Boolean);
-
-    const firstColumns = pickMatching(NUEVO_HISTORICO_START_COLUMNS);
-    const middleColumns = available.filter(column => {
-        if (picked.has(column)) return false;
-        const identity = normalizeColumnIdentity(column.originalName || column.name);
-        return !start.has(identity) && !end.has(identity);
+function attachGroupTitles(columns) {
+    const labelToGroup = new Map();
+    EXCEL_EXPORT_COLUMNS.forEach(c => {
+        labelToGroup.set(String(c.label).trim().toUpperCase(), c.groupTitle);
     });
-    const lastColumns = pickMatching(NUEVO_HISTORICO_END_COLUMNS);
 
-    return [...firstColumns, ...middleColumns, ...lastColumns].map((column, index) => ({
+    const identityToGroup = new Map();
+    EXCEL_EXPORT_COLUMNS.forEach(c => {
+        identityToGroup.set(normalizeColumnIdentity(c.label), c.groupTitle);
+    });
+
+    return columns.map(col => {
+        const name = String(col.originalName || col.name).trim().toUpperCase();
+        let groupTitle = labelToGroup.get(name);
+        if (groupTitle === undefined) {
+            const id = normalizeColumnIdentity(name);
+            groupTitle = identityToGroup.get(id) || '';
+        }
+        return { ...col, groupTitle };
+    });
+}
+
+function orderExportColumns(columns = [], strictFilter = false) {
+    const reportLabels = REPORT_COLUMNS.map(c => normalizeColumnIdentity(c[0]));
+    const excluded = new Set(NUEVO_HISTORICO_EXCLUDED_COLUMNS.map(normalizeColumnIdentity));
+    const available = columns.filter(column => !excluded.has(normalizeColumnIdentity(column.originalName || column.name)));
+    
+    let sorted = [...available].sort((a, b) => {
+        const nameA = String(a.originalName || a.name).trim().toUpperCase();
+        const nameB = String(b.originalName || b.name).trim().toUpperCase();
+        
+        let idxA = REPORT_COLUMNS.findIndex(c => c[0].trim().toUpperCase() === nameA);
+        let idxB = REPORT_COLUMNS.findIndex(c => c[0].trim().toUpperCase() === nameB);
+        
+        if (idxA === -1) {
+            const idA = normalizeColumnIdentity(nameA);
+            idxA = reportLabels.indexOf(idA);
+        }
+        if (idxB === -1) {
+            const idB = normalizeColumnIdentity(nameB);
+            idxB = reportLabels.indexOf(idB);
+        }
+        
+        if (idxA === -1) idxA = 9999;
+        if (idxB === -1) idxB = 9999;
+        
+        return idxA - idxB;
+    });
+
+    if (strictFilter) {
+        // En lugar de solo filtrar, inyectamos las columnas que falten de REPORT_COLUMNS
+        // para garantizar que la plantilla tenga TODAS las columnas, incluso si no hay datos.
+        const existingIds = new Set(sorted.map(c => normalizeColumnIdentity(c.originalName || c.name)));
+        
+        REPORT_COLUMNS.forEach(([label]) => {
+            const id = normalizeColumnIdentity(label);
+            if (!existingIds.has(id) && !excluded.has(id)) {
+                sorted.push({
+                    name: label,
+                    originalName: label
+                });
+            }
+        });
+
+        // Ahora filtramos estrictamente
+        sorted = sorted.filter(column => {
+            const id = normalizeColumnIdentity(column.originalName || column.name);
+            return reportLabels.includes(id);
+        });
+
+        // Y re-ordenamos porque acabamos de agregar columnas al final
+        sorted.sort((a, b) => {
+            const nameA = String(a.originalName || a.name).trim().toUpperCase();
+            const nameB = String(b.originalName || b.name).trim().toUpperCase();
+            
+            let idxA = REPORT_COLUMNS.findIndex(c => c[0].trim().toUpperCase() === nameA);
+            let idxB = REPORT_COLUMNS.findIndex(c => c[0].trim().toUpperCase() === nameB);
+            
+            if (idxA === -1) {
+                const idA = normalizeColumnIdentity(nameA);
+                idxA = reportLabels.indexOf(idA);
+            }
+            if (idxB === -1) {
+                const idB = normalizeColumnIdentity(nameB);
+                idxB = reportLabels.indexOf(idB);
+            }
+            
+            if (idxA === -1) idxA = 9999;
+            if (idxB === -1) idxB = 9999;
+            
+            return idxA - idxB;
+        });
+    }
+
+    return attachGroupTitles(sorted).map((column, index) => ({
         ...column,
         key: `${getColumnLetter(index)}_${column.originalName || column.name}`,
         letter: getColumnLetter(index),
@@ -1034,31 +1133,187 @@ function orderNuevoHistoricoColumns(columns = []) {
     }));
 }
 
+function injectRetroactiveCalculations(rows = []) {
+    const parseNum = val => {
+        const n = parseFloat(val);
+        return isNaN(n) ? NaN : n;
+    };
+    const isNum = val => typeof val === 'number' && !isNaN(val);
+    const avg = (...vals) => {
+        const nums = vals.filter(isNum);
+        return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : '';
+    };
+    const maxVal = (...vals) => {
+        const nums = vals.filter(isNum);
+        return nums.length ? Math.max(...nums) : '';
+    };
+    const calcDesv = (val, prom) => isNum(val) && isNum(prom) ? Math.abs(val - prom) : '';
+    const calcDesbalance = (maxD, prom) => isNum(maxD) && isNum(prom) && prom > 0 ? (maxD / prom) * 100 : '';
+
+    rows.forEach(row => {
+        if (!row.row_data) row.row_data = {};
+        const d = row.row_data;
+        
+        const getField = (labelPattern) => {
+            const normalizedPattern = normalizeColumnIdentity(labelPattern);
+            const key = Object.keys(d).find(k => normalizeColumnIdentity(k) === normalizedPattern);
+            return key ? parseNum(d[key]) : NaN;
+        };
+
+        const ia = getField('I VSD A [A]');
+        const ib = getField('I VSD B [A]');
+        const ic = getField('I VSD C [A]');
+        const promVSD = avg(ia, ib, ic);
+        const devA = calcDesv(ia, promVSD);
+        const devB = calcDesv(ib, promVSD);
+        const devC = calcDesv(ic, promVSD);
+        const maxDevVSD = maxVal(devA, devB, devC);
+        
+        if (isNum(promVSD) && !d['PROM I VSD [A]']) {
+            d['PROM I VSD [A]'] = promVSD.toFixed(1);
+            d['ABS IA PROM VSD'] = devA !== '' ? devA.toFixed(1) : '';
+            d['ABS IB PROM VSD'] = devB !== '' ? devB.toFixed(1) : '';
+            d['ABS IC PROM VSD'] = devC !== '' ? devC.toFixed(1) : '';
+            d['MAXIMO ABS I VSD'] = maxDevVSD !== '' ? maxDevVSD.toFixed(1) : '';
+            d['% Desbalance Corriente VSD [A]'] = calcDesbalance(maxDevVSD, promVSD) !== '' ? calcDesbalance(maxDevVSD, promVSD).toFixed(1) : '';
+        }
+
+        const pff12 = getField('Fase-Fase X1-X2 [Volt]');
+        const pff23 = getField('Fase-Fase X2-X3 [Volt]');
+        const pff31 = getField('Fase-Fase X3-X1 [Volt]');
+        const promPFF = avg(pff12, pff23, pff31);
+        const devPFF1 = calcDesv(pff12, promPFF);
+        const devPFF2 = calcDesv(pff23, promPFF);
+        const devPFF3 = calcDesv(pff31, promPFF);
+        const maxDevPFF = maxVal(devPFF1, devPFF2, devPFF3);
+        
+        if (isNum(promPFF) && !d['PROMEDIO F-F PRIMARIO']) {
+            d['PROMEDIO F-F PRIMARIO'] = promPFF.toFixed(1);
+            d['ABS X1-X2 PROM'] = devPFF1 !== '' ? devPFF1.toFixed(1) : '';
+            d['ABS X3-X2 PROM'] = devPFF2 !== '' ? devPFF2.toFixed(1) : '';
+            d['ABS X3-X1 PROM'] = devPFF3 !== '' ? devPFF3.toFixed(1) : '';
+            d['MAX ABS F-F PRIMARIO'] = maxDevPFF !== '' ? maxDevPFF.toFixed(1) : '';
+            d['% DESBALANCE FASE/FASE (VOLT)'] = calcDesbalance(maxDevPFF, promPFF) !== '' ? calcDesbalance(maxDevPFF, promPFF).toFixed(1) : '';
+        }
+
+        const pft1 = getField('Fase-Tierra X1-Tierra [Volt]');
+        const pft2 = getField('Fase-Tierra X2-Tierra [Volt]');
+        const pft3 = getField('Fase-Tierra X3-Tierra [Volt]');
+        const promPFT = avg(pft1, pft2, pft3);
+        const devPFT1 = calcDesv(pft1, promPFT);
+        const devPFT2 = calcDesv(pft2, promPFT);
+        const devPFT3 = calcDesv(pft3, promPFT);
+        const maxDevPFT = maxVal(devPFT1, devPFT2, devPFT3);
+        
+        if (isNum(promPFT) && !d['PROMEDIO FASE/TIERRA (VOLT)']) {
+            d['PROMEDIO FASE/TIERRA (VOLT)'] = promPFT.toFixed(1);
+            d['ABS X1-X2 FASE TIERRA PRIMARIO'] = devPFT1 !== '' ? devPFT1.toFixed(1) : '';
+            d['ABS X2-X3 FASE TIERRA PRIMARIO'] = devPFT2 !== '' ? devPFT2.toFixed(1) : '';
+            d['ABS X3-X1 FASE TIERRA PRIMARIO'] = devPFT3 !== '' ? devPFT3.toFixed(1) : '';
+            d['MAX ABS F-T PRIMARIO'] = maxDevPFT !== '' ? maxDevPFT.toFixed(1) : '';
+            d['% DESBALANCE FASE/TIERRA (VOLT)'] = calcDesbalance(maxDevPFT, promPFT) !== '' ? calcDesbalance(maxDevPFT, promPFT).toFixed(1) : '';
+        }
+
+        const sff12 = getField('Fase-Fase H1-H2 [Volt]');
+        const sff23 = getField('Fase-Fase H2-H3 [Volt]');
+        const sff31 = getField('Fase-Fase H3-H1 [Volt]');
+        const promSFF = avg(sff12, sff23, sff31);
+        const devSFF1 = calcDesv(sff12, promSFF);
+        const devSFF2 = calcDesv(sff23, promSFF);
+        const devSFF3 = calcDesv(sff31, promSFF);
+        const maxDevSFF = maxVal(devSFF1, devSFF2, devSFF3);
+        
+        if (isNum(promSFF) && !d['MAX ABS F-F PROMEDIO SECUNDARIO']) {
+            d['PROMEDIO FASE/FASE [VOLT]'] = promSFF.toFixed(1);
+            d['ABS F-F H1-H2 PROMEDIO'] = devSFF1 !== '' ? devSFF1.toFixed(1) : '';
+            d['ABS F-F H2-H3 PROMEDIO'] = devSFF2 !== '' ? devSFF2.toFixed(1) : '';
+            d['ABS F-F H3-H1 PROMEDIO'] = devSFF3 !== '' ? devSFF3.toFixed(1) : '';
+            d['MAX ABS F-F PROMEDIO SECUNDARIO'] = maxDevSFF !== '' ? maxDevSFF.toFixed(1) : '';
+            d['% DESBALANCE FASE/FASE [VOLT]'] = calcDesbalance(maxDevSFF, promSFF) !== '' ? calcDesbalance(maxDevSFF, promSFF).toFixed(1) : '';
+        }
+
+        const sft1 = getField('Fase-Tierra H1-Tierra [Volt]');
+        const sft2 = getField('Fase-Tierra H2-Tierra [Volt]');
+        const sft3 = getField('Fase-Tierra H3-Tierra [Volt]');
+        const promSFT = avg(sft1, sft2, sft3);
+        const devSFT1 = calcDesv(sft1, promSFT);
+        const devSFT2 = calcDesv(sft2, promSFT);
+        const devSFT3 = calcDesv(sft3, promSFT);
+        const maxDevSFT = maxVal(devSFT1, devSFT2, devSFT3);
+        
+        if (isNum(promSFT) && !d['MAX ABS F-T PROMEDIO SECUNDARIO']) {
+            d['PROMEDIO FASE-TIERRA [VOLT]'] = promSFT.toFixed(1);
+            d['ABS F-T H1-H2 PROMEDIO'] = devSFT1 !== '' ? devSFT1.toFixed(1) : '';
+            d['ABS F-T H2-H3 PROMEDIO'] = devSFT2 !== '' ? devSFT2.toFixed(1) : '';
+            d['ABS F-T H3-H1 PROMEDIO'] = devSFT3 !== '' ? devSFT3.toFixed(1) : '';
+            d['MAX ABS F-T PROMEDIO SECUNDARIO'] = maxDevSFT !== '' ? maxDevSFT.toFixed(1) : '';
+            d['% DESBALANCE FASE/TIERRA [VOLT]'] = calcDesbalance(maxDevSFT, promSFT) !== '' ? calcDesbalance(maxDevSFT, promSFT).toFixed(1) : '';
+        }
+
+        const px12 = getField('Corriente X1-X2 [Amp]');
+        const px23 = getField('Corriente X2-X3 [Amp]');
+        const px31 = getField('Corriente X3-X1 [Amp]');
+        const promPC = avg(px12, px23, px31);
+        const devPC1 = calcDesv(px12, promPC);
+        const devPC2 = calcDesv(px23, promPC);
+        const devPC3 = calcDesv(px31, promPC);
+        const maxDevPC = maxVal(devPC1, devPC2, devPC3);
+
+        if (isNum(promPC) && !d['PROMEDIO CORRIENTE PRIMARIO [AMP]']) {
+            d['PROMEDIO CORRIENTE PRIMARIO [AMP]'] = promPC.toFixed(1);
+            d['ABS CORRIETE X1-X2 PROMEDIO'] = devPC1 !== '' ? devPC1.toFixed(1) : '';
+            d['ABS CORRIETE X2-X3 PROMEDIO'] = devPC2 !== '' ? devPC2.toFixed(1) : '';
+            d['ABS CORRIETE X3-X1 PROMEDIO'] = devPC3 !== '' ? devPC3.toFixed(1) : '';
+            d['MAX ABS CORRIENTE PROMEDIO PRIMARIO'] = maxDevPC !== '' ? maxDevPC.toFixed(1) : '';
+            d['% DESBALANCE CORRIENTE (AMP)'] = calcDesbalance(maxDevPC, promPC) !== '' ? calcDesbalance(maxDevPC, promPC).toFixed(1) : '';
+        }
+
+        const sx12 = getField('Corriente H1-H2 [Amp]');
+        const sx23 = getField('Corriente H2-H3 [Amp]');
+        const sx31 = getField('Corriente H3-H1 [Amp]');
+        const promSC = avg(sx12, sx23, sx31);
+        const devSC1 = calcDesv(sx12, promSC);
+        const devSC2 = calcDesv(sx23, promSC);
+        const devSC3 = calcDesv(sx31, promSC);
+        const maxDevSC = maxVal(devSC1, devSC2, devSC3);
+
+        if (isNum(promSC) && !d['MAXIMO ABS CORRIENTE PROMEDIO SECUNDARIO']) {
+            d['PROMEDIO CORRIENTE SECUNDARIO [AMP]'] = promSC.toFixed(1);
+            d['ABS CORRIENTE H1-H2 PROMEDIO'] = devSC1 !== '' ? devSC1.toFixed(1) : '';
+            d['ABS CORRIENTE H2-H3 PROMEDIO'] = devSC2 !== '' ? devSC2.toFixed(1) : '';
+            d['ABS CORRIENTE H3-H1 PROMEDIO'] = devSC3 !== '' ? devSC3.toFixed(1) : '';
+            d['MAXIMO ABS CORRIENTE PROMEDIO SECUNDARIO'] = maxDevSC !== '' ? maxDevSC.toFixed(1) : '';
+            d['% DESBALANCE CORRIENTE [AMP]'] = calcDesbalance(maxDevSC, promSC) !== '' ? calcDesbalance(maxDevSC, promSC).toFixed(1) : '';
+        }
+    });
+}
+
 function buildExportColumnsFromStoredRows(rows = [], source = 'base') {
-    if (source === 'operativo') {
-        return orderNuevoHistoricoColumns(buildColumnsFromStoredRows(rows));
+    // Inyectar cálculos retroactivos (Promedios, ABS, Desbalances) a TODAS las filas,
+    // ya sean del Base Histórico, Nuevo Histórico o Dashboard General.
+    injectRetroactiveCalculations(rows);
+    
+    // Obtener las columnas únicas a partir de las filas
+    const columnsFromRows = buildColumnsFromStoredRows(rows);
+    
+    // Si estamos en Base Histórico, puede que queramos recuperar las columnas de la plantilla original
+    // para asegurarnos de que la estructura se mantiene, pero siempre las pasaremos por el filtro estricto.
+    if (source === 'base' || source === 'completo') {
+        const labels = [];
+        const seen = new Set();
+        const baseColumns = getBaseTemplateColumns();
+
+        baseColumns.forEach(column => addStoredColumnLabel(labels, seen, column.originalName || column.name));
+
+        // Agregar las columnas de las filas a las de la plantilla
+        columnsFromRows.forEach(column => addStoredColumnLabel(labels, seen, column.originalName || column.name));
+        
+        const mergedColumns = mapLabelsToColumns(labels);
+        return orderExportColumns(mergedColumns, true); // true = strict filter
     }
 
-    const labels = [];
-    const seen = new Set();
-    const baseColumns = getBaseTemplateColumns();
-
-    baseColumns.forEach(column => addStoredColumnLabel(labels, seen, column.originalName || column.name));
-
-    if ((source === 'base' || source === 'completo') && labels.length > 0) {
-        return mapLabelsToColumns(labels);
-    }
-
-    rows.forEach(row => {
-        const rowLabels = Array.isArray(row.column_labels) ? row.column_labels : [];
-        rowLabels.forEach(label => addStoredColumnLabel(labels, seen, label));
-    });
-
-    rows.forEach(row => {
-        Object.keys(row.row_data || {}).forEach(label => addStoredColumnLabel(labels, seen, label));
-    });
-
-    return mapLabelsToColumns(labels);
+    // Para Nuevo Histórico (operativo), solo ordenamos y filtramos de manera estricta
+    return orderExportColumns(columnsFromRows, true); // true = strict filter
 }
 
 function formatStoredDateForExcel(dateValue) {
@@ -1088,7 +1343,78 @@ function getStoredMonthName(dateValue) {
     ][monthIndex] || '';
 }
 
-function getStoredRowExportValue(storedRow = {}, label = '') {
+async function getLatestPumpDetailsMap() {
+    const map = new Map();
+    try {
+        const { data: profiles, error } = await supabase
+            .from('well_bes_profile')
+            .select('*');
+        if (!error && profiles) {
+            profiles.forEach(profile => {
+                const pozo = String(profile.pozo_name || '').trim().toUpperCase();
+                if (pozo) {
+                    map.set(pozo, {
+                        'FABRICANTE': profile.pump_manufacturer || '',
+                        'SUCCION (FT)': profile.suction_ft || '',
+                        'BOMBA ': profile.pump_model || '',
+                        'MULTIFASICA': profile.multiphase_pump || '',
+                        'SEPARADOR DE GAS': profile.gas_separator || '',
+                        'SELLOS': profile.seal_section || '',
+                        'MOTOR': profile.motor_manufacturer || profile.motor_model || '',
+                        'SENSOR': profile.sensor_model || '',
+                        'DRAIN VALVE': profile.drain_valve || '',
+                        isFromProfile: true
+                    });
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('Failed to load from well_bes_profile:', e);
+    }
+    try {
+        const { data: legacyRows, error } = await supabase
+            .from('consolidated_dashboard_general')
+            .select('pozo, report_date, row_data')
+            .eq('source_type', 'legacy_excel')
+            .order('report_date', { ascending: true });
+        if (!error && legacyRows) {
+            legacyRows.forEach(row => {
+                const pozo = String(row.pozo || '').trim().toUpperCase();
+                if (!pozo) return;
+                const rowData = row.row_data || {};
+                const hasPumpData = rowData['FABRICANTE'] || rowData['BOMBA '] || rowData['SUCCION (FT)'];
+                if (hasPumpData) {
+                    let existing = map.get(pozo);
+                    if (!existing) {
+                        existing = {
+                            'FABRICANTE': '', 'SUCCION (FT)': '', 'BOMBA ': '',
+                            'MULTIFASICA': '', 'SEPARADOR DE GAS': '', 'SELLOS': '',
+                            'MOTOR': '', 'SENSOR': '', 'DRAIN VALVE': '',
+                            isFromProfile: false
+                        };
+                        map.set(pozo, existing);
+                    }
+                    if (!existing.isFromProfile) {
+                        if (!existing['FABRICANTE']) existing['FABRICANTE'] = rowData['FABRICANTE'] || '';
+                        if (!existing['SUCCION (FT)']) existing['SUCCION (FT)'] = rowData['SUCCION (FT)'] || '';
+                        if (!existing['BOMBA ']) existing['BOMBA '] = rowData['BOMBA '] || '';
+                        if (!existing['MULTIFASICA']) existing['MULTIFASICA'] = rowData['MULTIFASICA'] || '';
+                        if (!existing['SEPARADOR DE GAS']) existing['SEPARADOR DE GAS'] = rowData['SEPARADOR DE GAS'] || '';
+                        if (!existing['SELLOS']) existing['SELLOS'] = rowData['SELLOS'] || '';
+                        if (!existing['MOTOR']) existing['MOTOR'] = rowData['MOTOR'] || '';
+                        if (!existing['SENSOR']) existing['SENSOR'] = rowData['SENSOR'] || '';
+                        if (!existing['DRAIN VALVE']) existing['DRAIN VALVE'] = rowData['DRAIN VALVE'] || '';
+                    }
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('Failed to load legacy excel pump specs:', e);
+    }
+    return map;
+}
+
+function getStoredRowExportValue(storedRow = {}, label = '', pumpMap = null) {
     const normalizedLabel = normalizeSheetName(label);
 
     if (normalizedLabel === 'FECHA' && storedRow.report_date) {
@@ -1104,15 +1430,48 @@ function getStoredRowExportValue(storedRow = {}, label = '') {
     }
 
     const rowData = storedRow.row_data || {};
-    if (rowData[label] !== undefined) return rowData[label];
+    let val = rowData[label];
+    if (val === undefined) {
+        const normalizedIdentity = normalizeColumnIdentity(label);
+        const aliases = {
+            'ESTADODEFOSA': ['ESTADODELAFOSA', 'ESTADODELAFOSA%', 'ESTADODEFOSA%', 'ESTADOFOSA', 'EDOFOSA', 'ESTADOFOSA%', 'EDOFOSA%'],
+            'OBSERVACIONES': ['OBSERVACIONESDELPOZO']
+        };
+        const possibleIdentities = [normalizedIdentity, ...(aliases[normalizedIdentity] || [])];
+        const matchingKey = Object.keys(rowData).find(key => {
+            const keyId = normalizeColumnIdentity(key);
+            return possibleIdentities.includes(keyId) || normalizeSheetName(key) === normalizedLabel;
+        });
+        val = matchingKey ? rowData[matchingKey] : '';
+    }
 
-    const normalizedIdentity = normalizeColumnIdentity(label);
-    const matchingKey = Object.keys(rowData).find(key => normalizeColumnIdentity(key) === normalizedIdentity || normalizeSheetName(key) === normalizedLabel);
-    return matchingKey ? rowData[matchingKey] : '';
+    // Dynamic pump details override/injection
+    if (pumpMap) {
+        const pumpCols = [
+            'FABRICANTE', 'SUCCION (FT)', 'BOMBA ', 'MULTIFASICA', 'SEPARADOR DE GAS', 'SELLOS', 'MOTOR', 'SENSOR', 'DRAIN VALVE'
+        ];
+        const trimmedLabel = String(label).trim().toUpperCase();
+        const matchedPumpCol = pumpCols.find(col => col.trim() === trimmedLabel || normalizeColumnIdentity(col) === normalizeColumnIdentity(label));
+        if (matchedPumpCol) {
+            const pozo = String(storedRow.pozo || '').trim().toUpperCase();
+            const pumpData = pumpMap.get(pozo);
+            if (pumpData) {
+                // If it is from the active Supabase profile, ALWAYS override retroactively
+                // Otherwise (from historical logs), only fill if empty/unset
+                if (pumpData.isFromProfile) {
+                    return pumpData[matchedPumpCol] || '';
+                } else if (!val || String(val).trim() === '--' || String(val).trim() === '') {
+                    return pumpData[matchedPumpCol] || '';
+                }
+            }
+        }
+    }
+
+    return val !== undefined ? val : '';
 }
 
-function buildRowsFromStoredRows(storedRows = [], columns = []) {
-    return storedRows.map(storedRow => columns.map(column => getStoredRowExportValue(storedRow, column.originalName)));
+function buildRowsFromStoredRows(storedRows = [], columns = [], pumpMap = null) {
+    return storedRows.map(storedRow => columns.map(column => getStoredRowExportValue(storedRow, column.originalName, pumpMap)));
 }
 
 async function exportDashboardGeneralFromDatabase() {
@@ -1149,7 +1508,8 @@ async function exportDashboardGeneralFromDatabase() {
 
         updateLoadingModal('Preparando columnas y filas...', `${storedRows.length} filas recuperadas desde Supabase.`);
         const columns = buildExportColumnsFromStoredRows(storedRows, filters.source);
-        const rows = buildRowsFromStoredRows(storedRows, columns);
+        const pumpMap = await getLatestPumpDetailsMap();
+        const rows = buildRowsFromStoredRows(storedRows, columns, pumpMap);
         const sourceSheet = { name: DASHBOARD_GENERAL_SHEET_NAME, columns };
 
         await exportDashboardWorkbook({
@@ -1190,9 +1550,10 @@ async function exportDashboardGeneralSplitFromDatabase(filters) {
     updateLoadingModal('Preparando hojas separadas...', `Base Historico: ${baseRows.length} filas · Nuevo Historico: ${nuevoRows.length} filas.`);
 
     const baseColumns = buildExportColumnsFromStoredRows(baseRows, 'base');
-    const nuevoColumns = orderNuevoHistoricoColumns(buildColumnsFromStoredRows(nuevoRows));
-    const baseExportRows = buildRowsFromStoredRows(baseRows, baseColumns);
-    const nuevoExportRows = buildRowsFromStoredRows(nuevoRows, nuevoColumns);
+    const nuevoColumns = buildExportColumnsFromStoredRows(nuevoRows, 'operativo');
+    const pumpMap = await getLatestPumpDetailsMap();
+    const baseExportRows = buildRowsFromStoredRows(baseRows, baseColumns, pumpMap);
+    const nuevoExportRows = buildRowsFromStoredRows(nuevoRows, nuevoColumns, pumpMap);
     const generatedAt = new Date().toLocaleString('es-ES');
 
     await exportDashboardSplitWorkbook({
@@ -1560,17 +1921,58 @@ function styleHeaderBadgeCell(cell, fillColor, fontColor) {
 }
 
 function buildDashboardTable(worksheet, columns, rows, emptyMessage = '') {
+    const groupRow = worksheet.getRow(TABLE_HEADER_ROW_INDEX - 1);
+    groupRow.height = 20;
+
     const headerRow = worksheet.getRow(TABLE_HEADER_ROW_INDEX);
     headerRow.height = 34;
 
+    let currentGroup = null;
+    let groupStartCol = null;
+    let groupColorIndex = 0;
+
     columns.forEach((column, columnIndex) => {
-        const cell = headerRow.getCell(columnIndex + 1);
+        const colNum = columnIndex + 1;
+        const cell = headerRow.getCell(colNum);
         cell.value = column.originalName || column.name;
         cell.font = { name: 'Calibri', size: 8, bold: true, color: { argb: 'FFFFFFFF' } };
         cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${getHeaderFillColor(cell.value, columnIndex)}` } };
         cell.border = buildThinBorder('FF1E293B');
+
+        const groupTitle = column.groupTitle;
+        if (groupTitle) {
+            if (groupTitle !== currentGroup) {
+                if (currentGroup && groupStartCol < colNum) {
+                    worksheet.mergeCells(TABLE_HEADER_ROW_INDEX - 1, groupStartCol, TABLE_HEADER_ROW_INDEX - 1, colNum - 1);
+                }
+                currentGroup = groupTitle;
+                groupStartCol = colNum;
+                
+                const groupColor = EXCEL_GROUP_COLORS[groupColorIndex % EXCEL_GROUP_COLORS.length];
+                groupColorIndex++;
+                
+                const groupCell = groupRow.getCell(colNum);
+                groupCell.value = groupTitle.toUpperCase();
+                groupCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                groupCell.alignment = { vertical: 'middle', horizontal: 'center' };
+                groupCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${groupColor}` } };
+                groupCell.border = buildThinBorder('FF1E293B');
+            } else {
+                const groupCell = groupRow.getCell(colNum);
+                groupCell.border = buildThinBorder('FF1E293B');
+            }
+        } else {
+            if (currentGroup && groupStartCol < colNum) {
+                 worksheet.mergeCells(TABLE_HEADER_ROW_INDEX - 1, groupStartCol, TABLE_HEADER_ROW_INDEX - 1, colNum - 1);
+            }
+            currentGroup = null;
+        }
     });
+
+    if (currentGroup && groupStartCol <= columns.length) {
+         worksheet.mergeCells(TABLE_HEADER_ROW_INDEX - 1, groupStartCol, TABLE_HEADER_ROW_INDEX - 1, columns.length);
+    }
 
     if (!rows.length) {
         const noteRow = worksheet.getRow(TABLE_HEADER_ROW_INDEX + 1);

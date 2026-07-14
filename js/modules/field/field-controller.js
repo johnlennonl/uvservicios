@@ -51,10 +51,10 @@ const REPORT_COLUMNS = [
     ['I VSD B [A]', 'i_vsd_b'],
     ['I VSD C [A]', 'i_vsd_c'],
     ['PROM I VSD [A]', 'prom_i_vsd'],
-    ['Desv. Fase A', 'desv_fase_a'],
-    ['Desv. Fase B', 'desv_fase_b'],
-    ['Desv. Fase C', 'desv_fase_c'],
-    ['Máx. Desviación', 'max_desviacion_vsd'],
+    ['ABS IA PROM VSD', 'desv_fase_a'],
+    ['ABS IB PROM VSD', 'desv_fase_b'],
+    ['ABS IC PROM VSD', 'desv_fase_c'],
+    ['MAXIMO ABS I VSD', 'max_desviacion_vsd'],
     ['% Desbalance Corriente VSD [A]', 'desbalance_corriente_vsd'],
     ['PIP [psi]', 'pip_psi'],
     ['PD [psi]', 'pd_psi'],
@@ -109,37 +109,60 @@ const REPORT_COLUMNS = [
     ['RESISTENCIA B-C [Ohm]', 'resistencia_bc_ohm'],
     ['RESISTENCIA C-A [Ohm]', 'resistencia_ca_ohm'],
     ['AISLAMIENTO FASE-TIERRA [MOhm]', 'aislamiento_fase_tierra_mohm'],
-    ['FASE-FASE X1-X2 [Volt]', 'ff_x1_x2_v'],
-    ['FASE-FASE X2-X3 [Volt]', 'ff_x2_x3_v'],
-    ['FASE-FASE X3-X1 [Volt]', 'ff_x3_x1_v'],
-    ['Promedio Fase-Fase', 'promedio_fase_fase'],
-    ['Desv. X1-X2', 'desv_ff_x1_x2'],
-    ['Desv. X2-X3', 'desv_ff_x2_x3'],
-    ['Desv. X3-X1', 'desv_ff_x3_x1'],
-    ['Máx. Desviación Fase-Fase', 'max_desviacion_ff'],
-    ['% Desbalance Fase-Fase', 'desbalance_fase_fase'],
-    ['FASE-TIERRA X1-Tierra [Volt]', 'ft_x1_tierra_v'],
-    ['FASE-TIERRA X2-Tierra [Volt]', 'ft_x2_tierra_v'],
-    ['FASE-TIERRA X3-Tierra [Volt]', 'ft_x3_tierra_v'],
-    ['Promedio Fase-Tierra', 'promedio_fase_tierra'],
-    ['Desv. X1-Tierra', 'desv_ft_x1_tierra'],
-    ['Desv. X2-Tierra', 'desv_ft_x2_tierra'],
-    ['Desv. X3-Tierra', 'desv_ft_x3_tierra'],
-    ['Máx. Desviación Fase-Tierra', 'max_desviacion_ft'],
-    ['% Desbalance Fase-Tierra', 'desbalance_fase_tierra'],
-    ['FASE-FASE H1-H2 [Volt]', 'sec_ff_h1_h2_v'],
-    ['FASE-FASE H2-H3 [Volt]', 'sec_ff_h2_h3_v'],
-    ['FASE-FASE H3-H1 [Volt]', 'sec_ff_h3_h1_v'],
-    ['% Desbalance Fase/Fase Secundaria [Volt]', 'sec_desbalance_fase_fase'],
-    ['FASE-TIERRA H1-Tierra [Volt]', 'sec_ft_h1_tierra_v'],
-    ['FASE-TIERRA H2-Tierra [Volt]', 'sec_ft_h2_tierra_v'],
-    ['FASE-TIERRA H3-Tierra [Volt]', 'sec_ft_h3_tierra_v'],
-    ['% Desbalance Fase/Tierra Secundaria [Volt]', 'sec_desbalance_fase_tierra'],
-    ['CORRIENTE X1-X2 [Amp]', 'corriente_x1_x2_amp'],
-    ['CORRIENTE H1-H2 [Amp]', 'corriente_h1_h2_amp'],
-    ['CORRIENTE H2-H3 [Amp]', 'corriente_h2_h3_amp'],
-    ['CORRIENTE H3-H1 [Amp]', 'corriente_h3_h1_amp'],
-    ['% Desbalance Corriente [Amp]', 'desbalance_corriente_secundaria'],
+    ['FASE-FASE X1-X2 [VOLT]', 'ff_x1_x2_v'],
+    ['FASE-FASE X2-X3 [VOLT]', 'ff_x2_x3_v'],
+    ['FASE-FASE X3-X1 [VOLT]', 'ff_x3_x1_v'],
+    ['PROMEDIO F-F PRIMARIO', 'promedio_fase_fase'],
+    ['ABS X1-X2 PROM', 'desv_ff_x1_x2'],
+    ['ABS X3-X2 PROM', 'desv_ff_x2_x3'],
+    ['ABS X3-X1 PROM', 'desv_ff_x3_x1'],
+    ['MAX ABS F-F PRIMARIO', 'max_desviacion_ff'],
+    ['% DESBALANCE FASE/FASE (VOLT)', 'desbalance_fase_fase'],
+    ['FASE-TIERRA X1-X2 [VOLT]', 'ft_x1_tierra_v'],
+    ['FASE-TIERRA X2-X3 [VOLT]', 'ft_x2_tierra_v'],
+    ['FASE-TIERRA X3-X1 [VOLT]', 'ft_x3_tierra_v'],
+    ['PROMEDIO FASE/TIERRA (VOLT)', 'promedio_fase_tierra'],
+    ['ABS X1-X2 FASE TIERRA PRIMARIO', 'desv_ft_x1_tierra'],
+    ['ABS X2-X3 FASE TIERRA PRIMARIO', 'desv_ft_x2_tierra'],
+    ['ABS X3-X1 FASE TIERRA PRIMARIO', 'desv_ft_x3_tierra'],
+    ['MAX ABS F-T PRIMARIO', 'max_desviacion_ft'],
+    ['% DESBALANCE FASE/TIERRA (VOLT)', 'desbalance_fase_tierra'],
+    ['CORRIENTE X1-X2 [AMP]', 'corriente_x1_x2_amp'],
+    ['CORRIENTE X2-X3 [AMP]', 'corriente_x2_x3_amp'],
+    ['CORRIENTE X3-X1 [AMP]', 'corriente_x3_x1_amp'],
+    ['PROMEDIO CORRIENTE PRIMARIO [AMP]', 'promedio_corriente_primaria'],
+    ['ABS CORRIETE X1-X2 PROMEDIO', 'desv_corriente_x1_x2'],
+    ['ABS CORRIETE X2-X3 PROMEDIO', 'desv_corriente_x2_x3'],
+    ['ABS CORRIETE X3-X1 PROMEDIO', 'desv_corriente_x3_x1'],
+    ['MAX ABS CORRIENTE PROMEDIO PRIMARIO', 'max_desviacion_corriente_primaria'],
+    ['% DESBALANCE CORRIENTE (AMP)', 'desbalance_corriente_primaria'],
+    ['FASE-FASE H1-H2 [VOLT]', 'sec_ff_h1_h2_v'],
+    ['FASE-FASE H2-H3 [VOLT]', 'sec_ff_h2_h3_v'],
+    ['FASE-FASE H3-H1 [VOLT]', 'sec_ff_h3_h1_v'],
+    ['PROMEDIO FASE/FASE [VOLT]', 'sec_promedio_fase_fase'],
+    ['ABS F-F H1-H2 PROMEDIO', 'sec_desv_ff_h1_h2'],
+    ['ABS F-F H2-H3 PROMEDIO', 'sec_desv_ff_h2_h3'],
+    ['ABS F-F H3-H1 PROMEDIO', 'sec_desv_ff_h3_h1'],
+    ['MAX ABS F-F PROMEDIO SECUNDARIO', 'sec_max_desviacion_ff'],
+    ['% DESBALANCE FASE/FASE [VOLT]', 'sec_desbalance_fase_fase'],
+    ['FASE-TIERRA H1-H2 [VOLT]', 'sec_ft_h1_tierra_v'],
+    ['FASE-TIERRA H2-H3 [VOLT]', 'sec_ft_h2_tierra_v'],
+    ['FASE-TIERRA H3-H1 [VOLT]', 'sec_ft_h3_tierra_v'],
+    ['PROMEDIO FASE-TIERRA [VOLT]', 'sec_promedio_fase_tierra'],
+    ['ABS F-T H1-H2 PROMEDIO', 'sec_desv_ft_h1_h2'],
+    ['ABS F-T H2-H3 PROMEDIO', 'sec_desv_ft_h2_h3'],
+    ['ABS F-T H3-H1 PROMEDIO', 'sec_desv_ft_h3_h1'],
+    ['MAX ABS F-T PROMEDIO SECUNDARIO', 'sec_max_desviacion_ft'],
+    ['% DESBALANCE FASE/TIERRA [VOLT]', 'sec_desbalance_fase_tierra'],
+    ['CORRIENTE H1-H2 [AMP]', 'corriente_h1_h2_amp'],
+    ['CORRIENTE H2-H3 [AMP]', 'corriente_h2_h3_amp'],
+    ['CORRIENTE H3-H1 [AMP]', 'corriente_h3_h1_amp'],
+    ['PROMEDIO CORRIENTE SECUNDARIO [AMP]', 'sec_promedio_corriente'],
+    ['ABS CORRIENTE H1-H2 PROMEDIO', 'sec_desv_corriente_h1_h2'],
+    ['ABS CORRIENTE H2-H3 PROMEDIO', 'sec_desv_corriente_h2_h3'],
+    ['ABS CORRIENTE H3-H1 PROMEDIO', 'sec_desv_corriente_h3_h1'],
+    ['MAXIMO ABS CORRIENTE PROMEDIO SECUNDARIO', 'sec_max_desviacion_corriente'],
+    ['% DESBALANCE CORRIENTE [AMP]', 'desbalance_corriente_secundaria'],
     ['RELACIÓN A. CON. / A. NOM', 'relacion_a_con_a_nom'],
     ['% AMP', 'porcentaje_amp'],
     ['RELACIÓN V. MOT / V. NOM', 'relacion_v_mot_v_nom'],
@@ -184,15 +207,23 @@ const EXCEL_SECTION_GROUPS = [
     },
     {
         title: 'Tx bobina primaria',
-        fields: ['ff_x1_x2_v', 'ff_x2_x3_v', 'ff_x3_x1_v', 'promedio_fase_fase', 'desv_ff_x1_x2', 'desv_ff_x2_x3', 'desv_ff_x3_x1', 'max_desviacion_ff', 'desbalance_fase_fase', 'ft_x1_tierra_v', 'ft_x2_tierra_v', 'ft_x3_tierra_v', 'promedio_fase_tierra', 'desv_ft_x1_tierra', 'desv_ft_x2_tierra', 'desv_ft_x3_tierra', 'max_desviacion_ft', 'desbalance_fase_tierra']
+        fields: [
+            'ff_x1_x2_v', 'ff_x2_x3_v', 'ff_x3_x1_v', 'promedio_fase_fase', 'desv_ff_x1_x2', 'desv_ff_x2_x3', 'desv_ff_x3_x1', 'max_desviacion_ff', 'desbalance_fase_fase',
+            'ft_x1_tierra_v', 'ft_x2_tierra_v', 'ft_x3_tierra_v', 'promedio_fase_tierra', 'desv_ft_x1_tierra', 'desv_ft_x2_tierra', 'desv_ft_x3_tierra', 'max_desviacion_ft', 'desbalance_fase_tierra',
+            'corriente_x1_x2_amp', 'corriente_x2_x3_amp', 'corriente_x3_x1_amp', 'promedio_corriente_primaria', 'desv_corriente_x1_x2', 'desv_corriente_x2_x3', 'desv_corriente_x3_x1', 'max_desviacion_corriente_primaria', 'desbalance_corriente_primaria'
+        ]
     },
     {
         title: 'Tx bobina secundaria',
-        fields: ['sec_ff_h1_h2_v', 'sec_ff_h2_h3_v', 'sec_ff_h3_h1_v', 'sec_desbalance_fase_fase', 'sec_ft_h1_tierra_v', 'sec_ft_h2_tierra_v', 'sec_ft_h3_tierra_v', 'sec_desbalance_fase_tierra']
+        fields: [
+            'sec_ff_h1_h2_v', 'sec_ff_h2_h3_v', 'sec_ff_h3_h1_v', 'sec_promedio_fase_fase', 'sec_desv_ff_h1_h2', 'sec_desv_ff_h2_h3', 'sec_desv_ff_h3_h1', 'sec_max_desviacion_ff', 'sec_desbalance_fase_fase',
+            'sec_ft_h1_tierra_v', 'sec_ft_h2_tierra_v', 'sec_ft_h3_tierra_v', 'sec_promedio_fase_tierra', 'sec_desv_ft_h1_h2', 'sec_desv_ft_h2_h3', 'sec_desv_ft_h3_h1', 'sec_max_desviacion_ft', 'sec_desbalance_fase_tierra',
+            'corriente_h1_h2_amp', 'corriente_h2_h3_amp', 'corriente_h3_h1_amp', 'sec_promedio_corriente', 'sec_desv_corriente_h1_h2', 'sec_desv_corriente_h2_h3', 'sec_desv_corriente_h3_h1', 'sec_max_desviacion_corriente', 'desbalance_corriente_secundaria'
+        ]
     },
     {
-        title: 'Corrientes e indicadores',
-        fields: ['corriente_x1_x2_amp', 'corriente_h1_h2_amp', 'corriente_h2_h3_amp', 'corriente_h3_h1_amp', 'desbalance_corriente_secundaria', 'relacion_a_con_a_nom', 'porcentaje_amp', 'relacion_v_mot_v_nom', 'porcentaje_volt', 'pd_max_psi', 'delta_presion_psi', 'porcentaje_delta_presion', 'relacion_tm_t_max', 'porcentaje_temp', 'relacion_pip_min_pip', 'porcentaje_pip']
+        title: 'Indicadores operacionales',
+        fields: ['relacion_a_con_a_nom', 'porcentaje_amp', 'relacion_v_mot_v_nom', 'porcentaje_volt', 'pd_max_psi', 'delta_presion_psi', 'porcentaje_delta_presion', 'relacion_tm_t_max', 'porcentaje_temp', 'relacion_pip_min_pip', 'porcentaje_pip']
     },
     {
         title: 'Observaciones',
@@ -245,10 +276,10 @@ const WELL_PREVIEW_SECTIONS = [
             ['I VSD B [A]', 'i_vsd_b'],
             ['I VSD C [A]', 'i_vsd_c'],
             ['Prom I VSD [A]', 'prom_i_vsd'],
-            ['Desv. Fase A', 'desv_fase_a'],
-            ['Desv. Fase B', 'desv_fase_b'],
-            ['Desv. Fase C', 'desv_fase_c'],
-            ['Max. Desviacion', 'max_desviacion_vsd'],
+            ['ABS IA PROM VSD', 'desv_fase_a'],
+            ['ABS IB PROM VSD', 'desv_fase_b'],
+            ['ABS IC PROM VSD', 'desv_fase_c'],
+            ['MAXIMO ABS I VSD', 'max_desviacion_vsd'],
             ['% Desbalance Corriente VSD', 'desbalance_corriente_vsd'],
             ['PIP [psi]', 'pip_psi'],
             ['PD [psi]', 'pd_psi'],
@@ -335,19 +366,42 @@ const WELL_PREVIEW_SECTIONS = [
             ['Desv. X3-Tierra', 'desv_ft_x3_tierra'],
             ['Max. Desviacion Fase-Tierra', 'max_desviacion_ft'],
             ['% Desbalance Fase-Tierra', 'desbalance_fase_tierra'],
+            ['Corriente X1-X2 [Amp]', 'corriente_x1_x2_amp'],
+            ['Corriente X2-X3 [Amp]', 'corriente_x2_x3_amp'],
+            ['Corriente X3-X1 [Amp]', 'corriente_x3_x1_amp'],
+            ['Promedio Corriente Primaria', 'promedio_corriente_primaria'],
+            ['Desv. Corriente X1-X2', 'desv_corriente_x1_x2'],
+            ['Desv. Corriente X2-X3', 'desv_corriente_x2_x3'],
+            ['Desv. Corriente X3-X1', 'desv_corriente_x3_x1'],
+            ['Max Desv. Corriente Primaria', 'max_desviacion_corriente_primaria'],
+            ['% Desbalance Corriente Primaria', 'desbalance_corriente_primaria'],
             ['Fase-Fase H1-H2 [Volt]', 'sec_ff_h1_h2_v'],
             ['Fase-Fase H2-H3 [Volt]', 'sec_ff_h2_h3_v'],
             ['Fase-Fase H3-H1 [Volt]', 'sec_ff_h3_h1_v'],
-            ['% Desbalance Fase/Fase Secundaria', 'sec_desbalance_fase_fase'],
+            ['Promedio Fase-Fase Secundaria', 'sec_promedio_fase_fase'],
+            ['Desv. H1-H2', 'sec_desv_ff_h1_h2'],
+            ['Desv. H2-H3', 'sec_desv_ff_h2_h3'],
+            ['Desv. H3-H1', 'sec_desv_ff_h3_h1'],
+            ['Max. Desv. Fase-Fase Sec', 'sec_max_desviacion_ff'],
+            ['% Desbalance Fase-Fase Sec', 'sec_desbalance_fase_fase'],
             ['Fase-Tierra H1-Tierra [Volt]', 'sec_ft_h1_tierra_v'],
             ['Fase-Tierra H2-Tierra [Volt]', 'sec_ft_h2_tierra_v'],
             ['Fase-Tierra H3-Tierra [Volt]', 'sec_ft_h3_tierra_v'],
-            ['% Desbalance Fase/Tierra Secundaria', 'sec_desbalance_fase_tierra'],
-            ['Corriente X1-X2 [Amp]', 'corriente_x1_x2_amp'],
+            ['Promedio Fase-Tierra Sec', 'sec_promedio_fase_tierra'],
+            ['Desv. H1-Tierra', 'sec_desv_ft_h1_h2'],
+            ['Desv. H2-Tierra', 'sec_desv_ft_h2_h3'],
+            ['Desv. H3-Tierra', 'sec_desv_ft_h3_h1'],
+            ['Max. Desv. Fase-Tierra Sec', 'sec_max_desviacion_ft'],
+            ['% Desbalance Fase-Tierra Sec', 'sec_desbalance_fase_tierra'],
             ['Corriente H1-H2 [Amp]', 'corriente_h1_h2_amp'],
             ['Corriente H2-H3 [Amp]', 'corriente_h2_h3_amp'],
             ['Corriente H3-H1 [Amp]', 'corriente_h3_h1_amp'],
-            ['% Desbalance Corriente', 'desbalance_corriente_secundaria']
+            ['Promedio Corriente Secundaria', 'sec_promedio_corriente'],
+            ['Desv. Corriente H1-H2', 'sec_desv_corriente_h1_h2'],
+            ['Desv. Corriente H2-H3', 'sec_desv_corriente_h2_h3'],
+            ['Desv. Corriente H3-H1', 'sec_desv_corriente_h3_h1'],
+            ['Max Desv. Corriente Secundaria', 'sec_max_desviacion_corriente'],
+            ['% Desbalance Corriente Secundaria', 'desbalance_corriente_secundaria']
         ]
     },
     {
@@ -2019,19 +2073,44 @@ function recalculateComputedFields() {
         }
     );
 
-    syncThreePhaseUnbalanceOnly(
+    syncThreePhaseMetrics(
         ['sec_ff_h1_h2_v', 'sec_ff_h2_h3_v', 'sec_ff_h3_h1_v'],
-        'sec_desbalance_fase_fase'
+        {
+            average: 'sec_promedio_fase_fase',
+            deviations: ['sec_desv_ff_h1_h2', 'sec_desv_ff_h2_h3', 'sec_desv_ff_h3_h1'],
+            maxDeviation: 'sec_max_desviacion_ff',
+            unbalance: 'sec_desbalance_fase_fase'
+        }
     );
 
-    syncThreePhaseUnbalanceOnly(
+    syncThreePhaseMetrics(
         ['sec_ft_h1_tierra_v', 'sec_ft_h2_tierra_v', 'sec_ft_h3_tierra_v'],
-        'sec_desbalance_fase_tierra'
+        {
+            average: 'sec_promedio_fase_tierra',
+            deviations: ['sec_desv_ft_h1_h2', 'sec_desv_ft_h2_h3', 'sec_desv_ft_h3_h1'],
+            maxDeviation: 'sec_max_desviacion_ft',
+            unbalance: 'sec_desbalance_fase_tierra'
+        }
     );
 
-    syncThreePhaseUnbalanceOnly(
+    syncThreePhaseMetrics(
+        ['corriente_x1_x2_amp', 'corriente_x2_x3_amp', 'corriente_x3_x1_amp'],
+        {
+            average: 'promedio_corriente_primaria',
+            deviations: ['desv_corriente_x1_x2', 'desv_corriente_x2_x3', 'desv_corriente_x3_x1'],
+            maxDeviation: 'max_desviacion_corriente_primaria',
+            unbalance: 'desbalance_corriente_primaria'
+        }
+    );
+
+    syncThreePhaseMetrics(
         ['corriente_h1_h2_amp', 'corriente_h2_h3_amp', 'corriente_h3_h1_amp'],
-        'desbalance_corriente_secundaria'
+        {
+            average: 'sec_promedio_corriente',
+            deviations: ['sec_desv_corriente_h1_h2', 'sec_desv_corriente_h2_h3', 'sec_desv_corriente_h3_h1'],
+            maxDeviation: 'sec_max_desviacion_corriente',
+            unbalance: 'desbalance_corriente_secundaria'
+        }
     );
 
     syncOperationalIndicators();
@@ -2705,13 +2784,16 @@ function buildExcelDetailSheet(worksheet, journey, records) {
 
         const startColumn = currentColumn;
         const endColumn = currentColumn + columnsForGroup.length - 1;
-        worksheet.mergeCells(groupRowIndex, startColumn, groupRowIndex, endColumn);
-        const groupCell = worksheet.getCell(groupRowIndex, startColumn);
-        groupCell.value = group.title;
-        groupCell.alignment = { vertical: 'middle', horizontal: 'center' };
-        groupCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-        groupCell.fill = solidFill(EXCEL_GROUP_COLORS[index % EXCEL_GROUP_COLORS.length]);
-        groupCell.border = borderedCell();
+        
+        if (group.title) {
+            worksheet.mergeCells(groupRowIndex, startColumn, groupRowIndex, endColumn);
+            const groupCell = worksheet.getCell(groupRowIndex, startColumn);
+            groupCell.value = group.title;
+            groupCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            groupCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+            groupCell.fill = solidFill(EXCEL_GROUP_COLORS[index % EXCEL_GROUP_COLORS.length]);
+            groupCell.border = borderedCell();
+        }
 
         columnsForGroup.forEach(({ label }, groupIndex) => {
             const headerCell = worksheet.getCell(headerRowIndex, currentColumn + groupIndex);

@@ -319,8 +319,9 @@
                         </details>
 
                         <details class="field-accordion">
-                            <summary>Transformador (Bobina Primaria)</summary>
+                            <summary>Tx Bobina Primaria</summary>
                             <div class="field-accordion-body field-form-grid">
+                                <h4 style="grid-column: 1 / -1; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: #4b5563; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; margin-top: 0.5rem; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Voltajes Fase-Fase (Primario)</h4>
                                 <label class="field-input-group"><span>FASE-FASE X1-X2 [Volt]</span><input type="number" step="0.01" name="ff_x1_x2_v"></label>
                                 <label class="field-input-group"><span>FASE-FASE X2-X3 [Volt]</span><input type="number" step="0.01" name="ff_x2_x3_v"></label>
                                 <label class="field-input-group"><span>FASE-FASE X3-X1 [Volt]</span><input type="number" step="0.01" name="ff_x3_x1_v"></label>
@@ -330,12 +331,8 @@
                                 <label class="field-input-group field-input-group-readonly"><span>Desv. X3-X1</span><input type="number" step="0.01" name="desv_ff_x3_x1" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="max_desviacion_ff" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>% Desbalance Fase-Fase</span><input type="number" step="0.01" name="desbalance_fase_fase" readonly></label>
-                            </div>
-                        </details>
 
-                        <details class="field-accordion">
-                            <summary>Transformador (Fase-Tierra)</summary>
-                            <div class="field-accordion-body field-form-grid">
+                                <h4 style="grid-column: 1 / -1; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: #4b5563; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Voltajes Fase-Tierra (Primario)</h4>
                                 <label class="field-input-group"><span>FASE-TIERRA X1-Tierra [Volt]</span><input type="number" step="0.01" name="ft_x1_tierra_v"></label>
                                 <label class="field-input-group"><span>FASE-TIERRA X2-Tierra [Volt]</span><input type="number" step="0.01" name="ft_x2_tierra_v"></label>
                                 <label class="field-input-group"><span>FASE-TIERRA X3-Tierra [Volt]</span><input type="number" step="0.01" name="ft_x3_tierra_v"></label>
@@ -345,31 +342,55 @@
                                 <label class="field-input-group field-input-group-readonly"><span>Desv. X3-Tierra</span><input type="number" step="0.01" name="desv_ft_x3_tierra" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="max_desviacion_ft" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>% Desbalance Fase-Tierra</span><input type="number" step="0.01" name="desbalance_fase_tierra" readonly></label>
+
+                                <h4 style="grid-column: 1 / -1; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: #4b5563; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Corrientes (Primario)</h4>
+                                <label class="field-input-group"><span>CORRIENTE X1-X2 [Amp]</span><input type="number" step="0.01" name="corriente_x1_x2_amp"></label>
+                                <label class="field-input-group"><span>CORRIENTE X2-X3 [Amp]</span><input type="number" step="0.01" name="corriente_x2_x3_amp"></label>
+                                <label class="field-input-group"><span>CORRIENTE X3-X1 [Amp]</span><input type="number" step="0.01" name="corriente_x3_x1_amp"></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Promedio Corriente</span><input type="number" step="0.01" name="promedio_corriente_primaria" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. X1-X2</span><input type="number" step="0.01" name="desv_corriente_x1_x2" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. X2-X3</span><input type="number" step="0.01" name="desv_corriente_x2_x3" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. X3-X1</span><input type="number" step="0.01" name="desv_corriente_x3_x1" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="max_desviacion_corriente_primaria" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% Desbalance Corriente</span><input type="number" step="0.01" name="desbalance_corriente_primaria" readonly></label>
                             </div>
                         </details>
 
                         <details class="field-accordion">
                             <summary>Tx Bobina Secundaria</summary>
                             <div class="field-accordion-body field-form-grid">
+                                <h4 style="grid-column: 1 / -1; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: #4b5563; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; margin-top: 0.5rem; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Voltajes Fase-Fase (Secundario)</h4>
                                 <label class="field-input-group"><span>FASE-FASE H1-H2 [Volt]</span><input type="number" step="0.01" name="sec_ff_h1_h2_v"></label>
                                 <label class="field-input-group"><span>FASE-FASE H2-H3 [Volt]</span><input type="number" step="0.01" name="sec_ff_h2_h3_v"></label>
                                 <label class="field-input-group"><span>FASE-FASE H3-H1 [Volt]</span><input type="number" step="0.01" name="sec_ff_h3_h1_v"></label>
-                                <label class="field-input-group field-input-group-readonly"><span>% DESBALANCE FASE/FASE [Volt]</span><input type="number" step="0.01" name="sec_desbalance_fase_fase" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Promedio Fase-Fase</span><input type="number" step="0.01" name="sec_promedio_fase_fase" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. H1-H2</span><input type="number" step="0.01" name="sec_desv_ff_h1_h2" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. H2-H3</span><input type="number" step="0.01" name="sec_desv_ff_h2_h3" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. H3-H1</span><input type="number" step="0.01" name="sec_desv_ff_h3_h1" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="sec_max_desviacion_ff" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% Desbalance Fase-Fase</span><input type="number" step="0.01" name="sec_desbalance_fase_fase" readonly></label>
+
+                                <h4 style="grid-column: 1 / -1; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: #4b5563; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Voltajes Fase-Tierra (Secundario)</h4>
                                 <label class="field-input-group"><span>FASE-TIERRA H1-Tierra [Volt]</span><input type="number" step="0.01" name="sec_ft_h1_tierra_v"></label>
                                 <label class="field-input-group"><span>FASE-TIERRA H2-Tierra [Volt]</span><input type="number" step="0.01" name="sec_ft_h2_tierra_v"></label>
                                 <label class="field-input-group"><span>FASE-TIERRA H3-Tierra [Volt]</span><input type="number" step="0.01" name="sec_ft_h3_tierra_v"></label>
-                                <label class="field-input-group field-input-group-readonly"><span>% DESBALANCE FASE/TIERRA [Volt]</span><input type="number" step="0.01" name="sec_desbalance_fase_tierra" readonly></label>
-                            </div>
-                        </details>
+                                <label class="field-input-group field-input-group-readonly"><span>Promedio Fase-Tierra</span><input type="number" step="0.01" name="sec_promedio_fase_tierra" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. H1-Tierra</span><input type="number" step="0.01" name="sec_desv_ft_h1_h2" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. H2-Tierra</span><input type="number" step="0.01" name="sec_desv_ft_h2_h3" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. H3-Tierra</span><input type="number" step="0.01" name="sec_desv_ft_h3_h1" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="sec_max_desviacion_ft" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% Desbalance Fase-Tierra</span><input type="number" step="0.01" name="sec_desbalance_fase_tierra" readonly></label>
 
-                        <details class="field-accordion">
-                            <summary>Corrientes</summary>
-                            <div class="field-accordion-body field-form-grid">
-                                <label class="field-input-group"><span>CORRIENTE X1-X2 [Amp]</span><input type="number" step="0.01" name="corriente_x1_x2_amp"></label>
+                                <h4 style="grid-column: 1 / -1; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: #4b5563; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; margin-top: 1.5rem; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Corrientes (Secundario)</h4>
                                 <label class="field-input-group"><span>CORRIENTE H1-H2 [Amp]</span><input type="number" step="0.01" name="corriente_h1_h2_amp"></label>
                                 <label class="field-input-group"><span>CORRIENTE H2-H3 [Amp]</span><input type="number" step="0.01" name="corriente_h2_h3_amp"></label>
                                 <label class="field-input-group"><span>CORRIENTE H3-H1 [Amp]</span><input type="number" step="0.01" name="corriente_h3_h1_amp"></label>
-                                <label class="field-input-group field-input-group-readonly"><span>% DESBALANCE CORRIENTE [Amp]</span><input type="number" step="0.01" name="desbalance_corriente_secundaria" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Promedio Corriente</span><input type="number" step="0.01" name="sec_promedio_corriente" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. H1-H2</span><input type="number" step="0.01" name="sec_desv_corriente_h1_h2" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. H2-H3</span><input type="number" step="0.01" name="sec_desv_corriente_h2_h3" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Desv. H3-H1</span><input type="number" step="0.01" name="sec_desv_corriente_h3_h1" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="sec_max_desviacion_corriente" readonly></label>
+                                <label class="field-input-group field-input-group-readonly"><span>% Desbalance Corriente</span><input type="number" step="0.01" name="desbalance_corriente_secundaria" readonly></label>
                             </div>
                         </details>
 
