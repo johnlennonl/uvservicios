@@ -1,4 +1,5 @@
 import { logout, getSession, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
+import { supabase } from './supabaseClient.js';
 import { REPORT_COLUMNS, EXCEL_EXPORT_COLUMNS, EXCEL_GROUP_COLORS } from './services/field-journey-export.js';
 import {
     deleteAllFieldJourneyConsolidatedRows,
@@ -1052,7 +1053,7 @@ function attachGroupTitles(columns) {
         return { ...col, groupTitle };
     });
 }
-function orderExportColumns(columns = [], strictFilter = false) {
+function orderExportColumns(columns = [], strictFilter = false, isClientVersion = false) {
     const getDedupeKey = (name) => {
         const raw = String(name).trim().toUpperCase()
             .normalize('NFD')
@@ -1181,7 +1182,30 @@ function orderExportColumns(columns = [], strictFilter = false) {
         sorted = filtered;
     }
 
-    return attachGroupTitles(sorted).map((column, index) => ({
+    let finalColumns = attachGroupTitles(sorted);
+
+    if (isClientVersion) {
+        finalColumns = finalColumns.filter(col => {
+            const group = String(col.groupTitle || '').trim().toUpperCase();
+            const name = String(col.originalName || col.name).trim().toUpperCase();
+            
+            const isPrimaryTx = group.includes('BOBINA PRIMARIA') || group.includes('TX BOBINA PRIMARIA');
+            const isSecondaryTx = group.includes('BOBINA SECUNDARIA') || group.includes('TX BOBINA SECUNDARIA');
+            const isVsdCurrent = name.includes('VSD') && (name.includes(' I ') || name.includes('IA') || name.includes('IB') || name.includes('IC'));
+            
+            if (isPrimaryTx || isSecondaryTx || isVsdCurrent) {
+                const hasProm = name.includes('PROM') || name.includes('AVERAGE') || name.includes('MEDIA');
+                const hasAbs = name.includes('ABS') || name.includes('DESV');
+                const hasMax = name.includes('MAX');
+                if (hasProm || hasAbs || hasMax) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
+
+    return finalColumns.map((column, index) => ({
         ...column,
         key: `${getColumnLetter(index)}_${column.originalName || column.name}`,
         letter: getColumnLetter(index),
@@ -1344,7 +1368,7 @@ function injectRetroactiveCalculations(rows = []) {
     });
 }
 
-function buildExportColumnsFromStoredRows(rows = [], source = 'base') {
+function buildExportColumnsFromStoredRows(rows = [], source = 'base', isClientVersion = false) {
     // Inyectar cálculos retroactivos (Promedios, ABS, Desbalances) a TODAS las filas,
     // ya sean del Base Histórico, Nuevo Histórico o Dashboard General.
     injectRetroactiveCalculations(rows);
@@ -1365,11 +1389,11 @@ function buildExportColumnsFromStoredRows(rows = [], source = 'base') {
         columnsFromRows.forEach(column => addStoredColumnLabel(labels, seen, column.originalName || column.name));
         
         const mergedColumns = mapLabelsToColumns(labels);
-        return orderExportColumns(mergedColumns, true); // true = strict filter
+        return orderExportColumns(mergedColumns, true, isClientVersion); // true = strict filter
     }
 
     // Para Nuevo Histórico (operativo), solo ordenamos y filtramos de manera estricta
-    return orderExportColumns(columnsFromRows, true); // true = strict filter
+    return orderExportColumns(columnsFromRows, true, isClientVersion); // true = strict filter
 }
 
 function formatStoredDateForExcel(dateValue) {
@@ -1501,7 +1525,7 @@ function getStoredRowExportValue(storedRow = {}, label = '', pumpMap = null) {
         val = matchingKey ? rowData[matchingKey] : '';
     }
 
-    // Dynamic pump details override/injection
+    // Inyección y autocompletado dinámico de datos de la bomba BES
     if (pumpMap) {
         const pumpCols = [
             'FABRICANTE', 'SUCCION (FT)', 'BOMBA ', 'MULTIFASICA', 'SEPARADOR DE GAS', 'SELLOS', 'MOTOR', 'SENSOR', 'DRAIN VALVE'
@@ -1512,13 +1536,13 @@ function getStoredRowExportValue(storedRow = {}, label = '', pumpMap = null) {
             const pozo = String(storedRow.pozo || '').trim().toUpperCase();
             const pumpData = pumpMap.get(pozo);
             if (pumpData) {
-                // If it is from the active Supabase profile, ALWAYS override retroactively
-                // Otherwise (from historical logs), only fill if empty/unset
-                if (pumpData.isFromProfile) {
-                    return pumpData[matchedPumpCol] || '';
-                } else if (!val || String(val).trim() === '--' || String(val).trim() === '') {
-                    return pumpData[matchedPumpCol] || '';
+                // Si la celda de la base de datos ya tiene un valor de bomba grabado (no vacío y no comodín '--'),
+                // respetamos y conservamos ese valor histórico para evitar sobreescrituras retroactivas indebidas.
+                if (val && String(val).trim() !== '' && String(val).trim() !== '--') {
+                    return val;
                 }
+                // Si la celda está vacía (reporte antiguo o sin bomba guardada), usamos la Ficha BES activa o la más cercana como autocompletado en caliente.
+                return pumpData[matchedPumpCol] || '';
             }
         }
     }
@@ -1548,12 +1572,41 @@ async function exportDashboardGeneralFromDatabase() {
             return;
         }
 
+        if (!hasSwal()) {
+            setStatus('Error: SweetAlert2 no está disponible.', 'error');
+            return;
+        }
+
+        const result = await window.Swal.fire({
+            icon: 'question',
+            title: 'Selecciona la versión del consolidado',
+            text: '¿Deseas descargar el consolidado completo para Ingeniería o la versión filtrada para Cliente?',
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: 'Consolidado Ingeniería',
+            denyButtonText: 'Consolidado Cliente',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0b1f3a',
+            denyButtonColor: '#1d4ed8',
+            cancelButtonColor: '#64748b',
+            customClass: {
+                popup: 'consolidado-swal-popup',
+                title: 'consolidado-swal-title'
+            }
+        });
+
+        if (result.isDismissed) {
+            return;
+        }
+
+        const isClientVersion = result.isDenied;
+
         setBusyState(true);
         showLoadingModal('Exportando consolidado guardado', 'Leyendo filas desde Supabase para generar el Dashboard General.', `Origen: ${getExportSourceLabel(filters.source)} · Modo: ${getExportModeLabel(filters.mode)}.`);
         setStatus('Consultando filas guardadas del consolidado maestro...', 'neutral');
 
         if (filters.source === 'completo') {
-            await exportDashboardGeneralSplitFromDatabase(filters);
+            await exportDashboardGeneralSplitFromDatabase(filters, isClientVersion);
             return;
         }
 
@@ -1563,7 +1616,7 @@ async function exportDashboardGeneralFromDatabase() {
         }
 
         updateLoadingModal('Preparando columnas y filas...', `${storedRows.length} filas recuperadas desde Supabase.`);
-        const columns = buildExportColumnsFromStoredRows(storedRows, filters.source);
+        const columns = buildExportColumnsFromStoredRows(storedRows, filters.source, isClientVersion);
         const pumpMap = await getLatestPumpDetailsMap();
         const rows = buildRowsFromStoredRows(storedRows, columns, pumpMap);
         const sourceSheet = { name: DASHBOARD_GENERAL_SHEET_NAME, columns };
@@ -1573,7 +1626,7 @@ async function exportDashboardGeneralFromDatabase() {
             rows,
             sourceSheet,
             filePrefix: 'UV_CONSOLIDADO_DB_DASHBOARD_GENERAL',
-            sourceLabel: `Origen: ${getExportSourceLabel(filters.source)} · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${rows.length} · Generado: ${new Date().toLocaleString('es-ES')}`,
+            sourceLabel: `Origen: ${getExportSourceLabel(filters.source)} · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${rows.length} · Generado: ${new Date().toLocaleString('es-ES')}${isClientVersion ? ' (Cliente)' : ''}`,
             emptyMessage: 'No hay filas guardadas en base de datos para exportar.'
         });
 
@@ -1591,7 +1644,7 @@ async function exportDashboardGeneralFromDatabase() {
     }
 }
 
-async function exportDashboardGeneralSplitFromDatabase(filters) {
+async function exportDashboardGeneralSplitFromDatabase(filters, isClientVersion = false) {
     updateLoadingModal('Consultando base histórica y nuevo histórico...', 'Preparando hojas separadas para el exportable.');
 
     const [baseRows, nuevoRows] = await Promise.all([
@@ -1605,8 +1658,8 @@ async function exportDashboardGeneralSplitFromDatabase(filters) {
 
     updateLoadingModal('Preparando hojas separadas...', `Base Historico: ${baseRows.length} filas · Nuevo Historico: ${nuevoRows.length} filas.`);
 
-    const baseColumns = buildExportColumnsFromStoredRows(baseRows, 'base');
-    const nuevoColumns = buildExportColumnsFromStoredRows(nuevoRows, 'operativo');
+    const baseColumns = buildExportColumnsFromStoredRows(baseRows, 'base', isClientVersion);
+    const nuevoColumns = buildExportColumnsFromStoredRows(nuevoRows, 'operativo', isClientVersion);
     const pumpMap = await getLatestPumpDetailsMap();
     const baseExportRows = buildRowsFromStoredRows(baseRows, baseColumns, pumpMap);
     const nuevoExportRows = buildRowsFromStoredRows(nuevoRows, nuevoColumns, pumpMap);
@@ -1615,18 +1668,18 @@ async function exportDashboardGeneralSplitFromDatabase(filters) {
     await exportDashboardSplitWorkbook({
         sheets: [
             {
-                name: BASE_HISTORICO_SHEET_NAME,
-                columns: baseColumns,
-                rows: baseExportRows,
-                sourceLabel: `Origen: base histórica · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${baseExportRows.length} · Generado: ${generatedAt}`,
-                emptyMessage: 'No hay filas de Base Historico para los filtros seleccionados.'
-            },
-            {
                 name: NUEVO_HISTORICO_SHEET_NAME,
                 columns: nuevoColumns,
                 rows: nuevoExportRows,
-                sourceLabel: `Origen: nuevo histórico Campo · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${nuevoExportRows.length} · Generado: ${generatedAt}`,
+                sourceLabel: `Origen: nuevo histórico Campo · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${nuevoExportRows.length} · Generado: ${generatedAt}${isClientVersion ? ' (Cliente)' : ''}`,
                 emptyMessage: 'No hay filas de Nuevo Historico para los filtros seleccionados.'
+            },
+            {
+                name: BASE_HISTORICO_SHEET_NAME,
+                columns: baseColumns,
+                rows: baseExportRows,
+                sourceLabel: `Origen: base histórica · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${baseExportRows.length} · Generado: ${generatedAt}${isClientVersion ? ' (Cliente)' : ''}`,
+                emptyMessage: 'No hay filas de Base Historico para los filtros seleccionados.'
             }
         ],
         filePrefix: 'UV_CONSOLIDADO_DB_HISTORICOS'
@@ -1634,9 +1687,9 @@ async function exportDashboardGeneralSplitFromDatabase(filters) {
 
     await refreshDatabaseSummary({ silent: true });
     const totalRows = baseExportRows.length + nuevoExportRows.length;
-    setStatus(`Consolidado exportado en hojas separadas: Base Historico ${baseExportRows.length} filas, Nuevo Historico ${nuevoExportRows.length} filas.`, 'success');
+    setStatus(`Consolidado exportado en hojas separadas: Nuevo Historico ${nuevoExportRows.length} filas, Base Historico ${baseExportRows.length} filas.`, 'success');
     closeLoadingModal();
-    showResultModal('success', 'Exportado en hojas separadas', `${totalRows} filas exportadas: Base Historico (${baseExportRows.length}) y Nuevo Historico (${nuevoExportRows.length}).`);
+    showResultModal('success', 'Exportado en hojas separadas', `${totalRows} filas exportadas: Nuevo Historico (${nuevoExportRows.length}) y Base Historico (${baseExportRows.length}).`);
 }
 
 async function openFieldJourneyDeleteSelector() {
@@ -1816,16 +1869,50 @@ async function exportDashboardGeneralWorkbook() {
     }
 
     try {
+        if (!hasSwal()) {
+            setStatus('Error: SweetAlert2 no está disponible.', 'error');
+            return;
+        }
+
+        const result = await window.Swal.fire({
+            icon: 'question',
+            title: 'Selecciona la versión del consolidado',
+            text: '¿Deseas descargar el consolidado completo para Ingeniería o la versión filtrada para Cliente?',
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: 'Consolidado Ingeniería',
+            denyButtonText: 'Consolidado Cliente',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0b1f3a',
+            denyButtonColor: '#1d4ed8',
+            cancelButtonColor: '#64748b',
+            customClass: {
+                popup: 'consolidado-swal-popup',
+                title: 'consolidado-swal-title'
+            }
+        });
+
+        if (result.isDismissed) {
+            return;
+        }
+
+        const isClientVersion = result.isDenied;
+
         setBusyState(true);
         showLoadingModal('Generando Excel', 'Armando el Dashboard General con logo, colores y columnas detectadas.', `${activeDashboardRows.length} filas en memoria.`);
         setStatus('Generando Dashboard General con logo, colores y estructura empresarial...', 'neutral');
-        const columns = dashboardSheet.columns || [];
+        
+        let columns = dashboardSheet.columns || [];
+        if (isClientVersion) {
+            columns = orderExportColumns(columns, true, true);
+        }
+
         await exportDashboardWorkbook({
             columns,
             rows: activeDashboardRows,
-            sourceSheet: dashboardSheet,
+            sourceSheet: { ...dashboardSheet, columns },
             filePrefix: 'UV_CONSOLIDADO_DASHBOARD_GENERAL',
-            sourceLabel: `Origen: ${activeTemplate?.fileName || '--'} · Hoja base: ${dashboardSheet?.name || '--'} · Generado: ${new Date().toLocaleString('es-ES')}`,
+            sourceLabel: `Origen: ${activeTemplate?.fileName || '--'} · Hoja base: ${dashboardSheet?.name || '--'} · Generado: ${new Date().toLocaleString('es-ES')}${isClientVersion ? ' (Cliente)' : ''}`,
             emptyMessage: 'Sin filas cargadas desde Dashboard General en esta sesión. Importa el Excel viejo y exporta sin recargar la página para incluir datos.'
         });
 
@@ -2208,12 +2295,46 @@ async function ensureAccess() {
     return true;
 }
 
+// Diagnóstico opcional de filas huérfanas en la consola del navegador.
+// Útil para identificar registros en consolidated_dashboard_operational que quedaron
+// huérfanos al borrar pozos o jornadas antes de implementar la limpieza automática en cascada.
+async function checkOrphanRowsDiagnostic() {
+    try {
+        const { data: opRows } = await supabase
+            .from('consolidated_dashboard_operational')
+            .select('id, source_record_id, pozo, report_date, report_time');
+        
+        const { data: journeyRecords } = await supabase
+            .from('field_journey_records')
+            .select('id');
+            
+        if (!opRows || !journeyRecords) return;
+        
+        const recordIds = new Set(journeyRecords.map(r => r.id));
+        const orphans = opRows.filter(row => !row.source_record_id || !recordIds.has(row.source_record_id));
+        if (orphans.length > 0) {
+            console.warn('--- FILAS HUÉRFANAS DETECTADAS EN CONSOLIDADO ---');
+            orphans.forEach((o, i) => {
+                console.warn(`${i + 1}. POZO: ${o.pozo} | FECHA: ${o.report_date} | HORA: ${o.report_time} | ID: ${o.id}`);
+            });
+            console.warn('------------------------------------------------');
+        } else {
+            console.log('Fichas de consolidado al día: 0 huérfanas encontradas.');
+        }
+    } catch (e) {
+        console.error('Error running orphan rows diagnostic:', e);
+    }
+}
+
 async function init() {
     if (!(await ensureAccess())) return;
     bindEvents();
     activeTemplate = loadStoredTemplate();
     renderTemplate();
     refreshDatabaseSummary({ silent: true });
+    
+    // Desactivado por defecto. Activar descomentando la línea de abajo para realizar diagnósticos de base de datos
+    // await checkOrphanRowsDiagnostic();
 
     if (activeTemplate?.sheets?.length) {
         setStatus(`Estructura activa cargada desde ${activeTemplate.fileName}. Importa nuevamente el Excel viejo para cargar las filas de Dashboard General y habilitar el exportador diseñado.`, 'success');

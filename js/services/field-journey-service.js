@@ -875,6 +875,12 @@ export async function deleteAdminFieldJourney(journeyId) {
     }
 
     try {
+        // Eliminar del consolidado operativo primero para evitar filas huérfanas
+        await supabase
+            .from(CONSOLIDATED_OPERATIONAL_TABLE)
+            .delete()
+            .eq('source_journey_id', normalizedJourneyId);
+
         const { error } = await supabase
             .from('field_journeys')
             .delete()
@@ -1218,25 +1224,18 @@ export async function deleteAdminFieldJourneyRecord(recordId) {
 
         if (deleteError) throw deleteError;
 
-        const { data: journeyData } = await supabase
-            .from('field_journeys')
-            .select('status')
-            .eq('id', existingRecord.journey_id)
-            .maybeSingle();
-
-        if (journeyData && ['published', 'approved'].includes(journeyData.status)) {
-            await supabase
-                .from(CONSOLIDATED_OPERATIONAL_TABLE)
-                .delete()
-                .eq('source_record_id', normalizedRecordId);
-            
-            await supabase
-                .from('monitoreo_pozos')
-                .delete()
-                .eq('pozo_name', String(existingRecord.pozo || '').trim().toUpperCase())
-                .eq('fecha', existingRecord.report_date)
-                .eq('hora', normalizeTimeValue(existingRecord.report_time));
-        }
+        // Eliminar siempre del consolidado operativo y de monitoreo_pozos para evitar filas huérfanas
+        await supabase
+            .from(CONSOLIDATED_OPERATIONAL_TABLE)
+            .delete()
+            .eq('source_record_id', normalizedRecordId);
+        
+        await supabase
+            .from('monitoreo_pozos')
+            .delete()
+            .eq('pozo_name', String(existingRecord.pozo || '').trim().toUpperCase())
+            .eq('fecha', existingRecord.report_date)
+            .eq('hora', normalizeTimeValue(existingRecord.report_time));
 
         const { error: reviewError } = await supabase
             .from('field_journey_review_log')
@@ -1407,12 +1406,26 @@ function getConsolidatedFieldValue(record = {}, payload = {}, fieldName = '') {
     return record[fieldName] ?? payload[fieldName] ?? '';
 }
 
-function buildConsolidatedFieldRowData(record = {}) {
+function buildConsolidatedFieldRowData(record = {}, profile = null) {
     const payload = record.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
-    return Object.fromEntries(REPORT_COLUMNS.map(([label, fieldName]) => [
-        label,
-        getConsolidatedFieldValue(record, payload, fieldName)
-    ]));
+    return Object.fromEntries(REPORT_COLUMNS.map(([label, fieldName]) => {
+        let value = '';
+        
+        if (profile && fieldName === 'fabricante') value = profile.pump_manufacturer || '';
+        else if (profile && fieldName === 'succion_ft') value = profile.suction_ft || '';
+        else if (profile && fieldName === 'bomba') value = profile.pump_model || '';
+        else if (profile && fieldName === 'multifasica') value = profile.multiphase_pump || '';
+        else if (profile && fieldName === 'separador_gas') value = profile.gas_separator || '';
+        else if (profile && fieldName === 'sellos') value = profile.seal_section || '';
+        else if (profile && fieldName === 'motor') value = profile.motor_manufacturer || profile.motor_model || '';
+        else if (profile && fieldName === 'sensor') value = profile.sensor_model || '';
+        else if (profile && fieldName === 'drainvalue') value = profile.drain_valve || '';
+        else {
+            value = getConsolidatedFieldValue(record, payload, fieldName);
+        }
+        
+        return [label, value];
+    }));
 }
 
 function buildConsolidatedFieldRowHashSeed({ rowData, journeyId, record, index }) {
@@ -1425,8 +1438,30 @@ function buildConsolidatedFieldRowHashSeed({ rowData, journeyId, record, index }
 }
 
 async function buildConsolidatedFieldRows(records = [], journeyId = '') {
+    const pozoNames = [...new Set((Array.isArray(records) ? records : []).map(r => String(r.pozo || '').trim().toUpperCase()).filter(Boolean))];
+    const besProfilesMap = new Map();
+    
+    if (pozoNames.length > 0) {
+        try {
+            const { data: profiles, error } = await supabase
+                .from('well_bes_profile')
+                .select('*')
+                .in('pozo_name', pozoNames);
+            if (!error && profiles) {
+                profiles.forEach(p => {
+                    besProfilesMap.set(String(p.pozo_name).trim().toUpperCase(), p);
+                });
+            }
+        } catch (e) {
+            console.warn('Error fetching well_bes_profile in buildConsolidatedFieldRows:', e);
+        }
+    }
+
     return Promise.all((Array.isArray(records) ? records : []).map(async (record, index) => {
-        const rowData = buildConsolidatedFieldRowData(record);
+        const pozo = String(record.pozo || '').trim().toUpperCase();
+        const profile = besProfilesMap.get(pozo) || null;
+        
+        const rowData = buildConsolidatedFieldRowData(record, profile);
         const rowHashSeed = buildConsolidatedFieldRowHashSeed({ rowData, journeyId, record, index });
 
         return {
