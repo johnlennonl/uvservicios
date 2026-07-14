@@ -1052,11 +1052,22 @@ function attachGroupTitles(columns) {
         return { ...col, groupTitle };
     });
 }
-
 function orderExportColumns(columns = [], strictFilter = false) {
-    const reportLabels = REPORT_COLUMNS.map(c => normalizeColumnIdentity(c[0]));
-    const excluded = new Set(NUEVO_HISTORICO_EXCLUDED_COLUMNS.map(normalizeColumnIdentity));
-    const available = columns.filter(column => !excluded.has(normalizeColumnIdentity(column.originalName || column.name)));
+    const getDedupeKey = (name) => {
+        const raw = String(name).trim().toUpperCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+        const key = raw
+            .replace(/\[/g, '_B_')
+            .replace(/\]/g, '_B_')
+            .replace(/\(/g, '_P_')
+            .replace(/\)/g, '_P_');
+        return key.replace(/[^A-Z0-9%_]+/g, '');
+    };
+
+    const reportLabels = REPORT_COLUMNS.map(c => getDedupeKey(c[0]));
+    const excluded = new Set(NUEVO_HISTORICO_EXCLUDED_COLUMNS.map(getDedupeKey));
+    const available = columns.filter(column => !excluded.has(getDedupeKey(column.originalName || column.name)));
     
     let sorted = [...available].sort((a, b) => {
         const nameA = String(a.originalName || a.name).trim().toUpperCase();
@@ -1066,11 +1077,11 @@ function orderExportColumns(columns = [], strictFilter = false) {
         let idxB = REPORT_COLUMNS.findIndex(c => c[0].trim().toUpperCase() === nameB);
         
         if (idxA === -1) {
-            const idA = normalizeColumnIdentity(nameA);
+            const idA = getDedupeKey(nameA);
             idxA = reportLabels.indexOf(idA);
         }
         if (idxB === -1) {
-            const idB = normalizeColumnIdentity(nameB);
+            const idB = getDedupeKey(nameB);
             idxB = reportLabels.indexOf(idB);
         }
         
@@ -1083,10 +1094,10 @@ function orderExportColumns(columns = [], strictFilter = false) {
     if (strictFilter) {
         // En lugar de solo filtrar, inyectamos las columnas que falten de REPORT_COLUMNS
         // para garantizar que la plantilla tenga TODAS las columnas, incluso si no hay datos.
-        const existingIds = new Set(sorted.map(c => normalizeColumnIdentity(c.originalName || c.name)));
+        const existingIds = new Set(sorted.map(c => getDedupeKey(c.originalName || c.name)));
         
         REPORT_COLUMNS.forEach(([label]) => {
-            const id = normalizeColumnIdentity(label);
+            const id = getDedupeKey(label);
             if (!existingIds.has(id) && !excluded.has(id)) {
                 sorted.push({
                     name: label,
@@ -1097,12 +1108,55 @@ function orderExportColumns(columns = [], strictFilter = false) {
 
         // Ahora filtramos estrictamente
         sorted = sorted.filter(column => {
-            const id = normalizeColumnIdentity(column.originalName || column.name);
+            const id = getDedupeKey(column.originalName || column.name);
             return reportLabels.includes(id);
         });
 
-        // Y re-ordenamos porque acabamos de agregar columnas al final
-        sorted.sort((a, b) => {
+        // De-duplicate columns by normalized identity, but only for fields that are unique in REPORT_COLUMNS
+        const reportLabelsMapped = REPORT_COLUMNS.map(c => ({
+            label: c[0],
+            id: getDedupeKey(c[0])
+        }));
+
+        const uniqueMap = new Map();
+        const idCounts = new Map();
+        reportLabelsMapped.forEach(item => {
+            idCounts.set(item.id, (idCounts.get(item.id) || 0) + 1);
+        });
+
+        let filtered = [];
+        const seenUnique = new Set();
+
+        sorted.forEach(col => {
+            const id = getDedupeKey(col.originalName || col.name);
+            const count = idCounts.get(id) || 0;
+            
+            if (count === 1) {
+                // This is a unique column in REPORT_COLUMNS, so we should de-duplicate it
+                if (seenUnique.has(id)) {
+                    // If we already saw a version of this unique column, we prefer the one 
+                    // that matches standard capitalization/label exactly
+                    const existing = uniqueMap.get(id);
+                    const currentName = String(col.originalName || col.name).trim().toUpperCase();
+                    const standardName = REPORT_COLUMNS.find(c => getDedupeKey(c[0]) === id)[0].trim().toUpperCase();
+                    if (currentName === standardName) {
+                        uniqueMap.set(id, col);
+                    }
+                } else {
+                    seenUnique.add(id);
+                    uniqueMap.set(id, col);
+                }
+            } else {
+                // Keep separate primary/secondary transformer columns
+                filtered.push(col);
+            }
+        });
+
+        const uniqueCols = Array.from(uniqueMap.values());
+        filtered = [...uniqueCols, ...filtered];
+
+        // Final sorting pass to ensure order matches REPORT_COLUMNS exactly
+        filtered.sort((a, b) => {
             const nameA = String(a.originalName || a.name).trim().toUpperCase();
             const nameB = String(b.originalName || b.name).trim().toUpperCase();
             
@@ -1110,11 +1164,11 @@ function orderExportColumns(columns = [], strictFilter = false) {
             let idxB = REPORT_COLUMNS.findIndex(c => c[0].trim().toUpperCase() === nameB);
             
             if (idxA === -1) {
-                const idA = normalizeColumnIdentity(nameA);
+                const idA = getDedupeKey(nameA);
                 idxA = reportLabels.indexOf(idA);
             }
             if (idxB === -1) {
-                const idB = normalizeColumnIdentity(nameB);
+                const idB = getDedupeKey(nameB);
                 idxB = reportLabels.indexOf(idB);
             }
             
@@ -1123,6 +1177,8 @@ function orderExportColumns(columns = [], strictFilter = false) {
             
             return idxA - idxB;
         });
+
+        sorted = filtered;
     }
 
     return attachGroupTitles(sorted).map((column, index) => ({
