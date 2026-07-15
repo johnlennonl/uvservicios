@@ -448,7 +448,8 @@ const state = {
     historicalAuditLoading: false,
     historicalAuditSearch: '',
     historicalAuditItems: [],
-    historicalAuditDeletingPozo: ''
+    historicalAuditDeletingPozo: '',
+    autoEditPozoName: null // NUEVO: para abrir el modal de edición automáticamente
 };
 
 const elements = {
@@ -1801,6 +1802,55 @@ function renderStats() {
 }
 
 function renderList() {
+    // Buscar si hay coincidencias individuales de pozo si se ingresó un término de búsqueda
+    let pozoMatches = [];
+    if (state.searchTerm) {
+        const searchKey = state.searchTerm.trim().toUpperCase();
+        state.journeys.forEach(journey => {
+            const matchingPozos = (journey.pozoNames || []).filter(name =>
+                String(name).trim().toUpperCase().includes(searchKey)
+            );
+            matchingPozos.forEach(pozoName => {
+                pozoMatches.push({
+                    pozo: pozoName,
+                    journey: journey
+                });
+            });
+        });
+        // Ordenar las coincidencias de pozo por fecha descendente
+        pozoMatches.sort((a, b) => b.journey.journey_date.localeCompare(a.journey.journey_date));
+    }
+
+    // Si se buscó un pozo y hay coincidencias, mostramos el listado a nivel de pozo individual
+    if (state.searchTerm && pozoMatches.length > 0) {
+        elements.list.innerHTML = pozoMatches.map(match => {
+            const isSelected = match.journey.id === state.selectedJourneyId;
+            return `
+                <button type="button" class="campo-admin-ticket${isSelected ? ' is-selected' : ''}" data-pozo-match-name="${escapeHtml(match.pozo)}" data-journey-id="${escapeHtml(match.journey.id)}">
+                    <div class="campo-admin-ticket-left">
+                        <h3>${escapeHtml(match.pozo)}</h3>
+                        <p>Jornada: ${escapeHtml(match.journey.locacion_jornada || 'Sin locación')} · ${escapeHtml(formatDate(match.journey.journey_date))}</p>
+                        <span class="campo-admin-ticket-engineer">${escapeHtml(match.journey.submitted_by_email || 'No disponible')}</span>
+                    </div>
+                    <div class="campo-admin-ticket-right">
+                        <span class="${buildStatusClass(match.journey.status)}">${escapeHtml(normalizeStatusLabel(match.journey.status))}</span>
+                        <span class="campo-admin-ticket-count">Editar pozo</span>
+                    </div>
+                </button>
+            `;
+        }).join('');
+
+        elements.list.querySelectorAll('[data-journey-id]').forEach(button => {
+            button.addEventListener('click', async () => {
+                const { journeyId, pozoMatchName } = button.dataset;
+                if (!journeyId) return;
+                state.autoEditPozoName = pozoMatchName;
+                await selectJourney(journeyId);
+            });
+        });
+        return;
+    }
+
     if (!state.journeys.length) {
         const emptyCopy = getCurrentFilterEmptyCopy();
         elements.list.innerHTML = `
@@ -1814,49 +1864,19 @@ function renderList() {
 
     elements.list.innerHTML = state.journeys.map(journey => {
         const isSelected = journey.id === state.selectedJourneyId;
-        const pozoTags = Array.isArray(journey.pozoNames) && journey.pozoNames.length > 0
-            ? journey.pozoNames.slice(0, 3).map(pozo => `<span class="campo-admin-tag">${escapeHtml(pozo)}</span>`).join('')
-            : '<span class="campo-admin-tag">Sin pozos</span>';
-        const mainPozo = Array.isArray(journey.pozoNames) && journey.pozoNames.length > 0
-            ? journey.pozoNames[0]
-            : 'Sin pozo principal';
         const technicians = getJourneyTechnicians(journey);
 
         return `
             <button type="button" class="campo-admin-ticket${isSelected ? ' is-selected' : ''}" data-journey-id="${escapeHtml(journey.id)}">
-                <div class="campo-admin-ticket-top">
+                <div class="campo-admin-ticket-left">
+                    <h3>${escapeHtml(journey.locacion_jornada || 'Sin locación')}</h3>
+                    <p>${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')} · ${escapeHtml(formatDate(journey.journey_date))}</p>
+                    <span class="campo-admin-ticket-engineer">Ing: ${escapeHtml(journey.submitted_by_email || 'No disponible')}</span>
+                </div>
+                <div class="campo-admin-ticket-right">
                     <span class="${buildStatusClass(journey.status)}">${escapeHtml(normalizeStatusLabel(journey.status))}</span>
-                    <span class="campo-admin-ticket-open-hint">Abrir detalle</span>
+                    <span class="campo-admin-ticket-count">${escapeHtml(String(journey.total_reports || 0))} pozo(s)</span>
                 </div>
-                <div class="campo-admin-ticket-head">
-                    <div class="campo-admin-ticket-main">
-                        <h3>${escapeHtml(journey.locacion_jornada || 'Sin locación')}</h3>
-                        <p>${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')}</p>
-                    </div>
-                    <div class="campo-admin-ticket-highlight">
-                        <span>Pozo principal</span>
-                        <strong>${escapeHtml(mainPozo)}</strong>
-                    </div>
-                </div>
-                <div class="campo-admin-ticket-summary-grid">
-                    <div class="campo-admin-ticket-summary-item">
-                        <span>Fecha</span>
-                        <strong>${escapeHtml(formatDate(journey.journey_date))}</strong>
-                    </div>
-                    <div class="campo-admin-ticket-summary-item">
-                        <span>Ventana</span>
-                        <strong>${escapeHtml(summarizeJourneyWindow(journey))}</strong>
-                    </div>
-                    <div class="campo-admin-ticket-summary-item">
-                        <span>Registros</span>
-                        <strong>${escapeHtml(String(journey.total_reports || 0))} pozo(s)</strong>
-                    </div>
-                    <div class="campo-admin-ticket-summary-item campo-admin-ticket-summary-item-wide">
-                        <span>Ingeniero</span>
-                        <strong>${escapeHtml(journey.submitted_by_email || 'Correo no disponible')}</strong>
-                    </div>
-                </div>
-                <div class="campo-admin-tags campo-admin-ticket-tags">${pozoTags}</div>
             </button>
         `;
     }).join('');
@@ -2509,6 +2529,16 @@ async function renderDetail(detail) {
             }
         });
     });
+
+    // Auto-editar pozo si venimos de la búsqueda directa de pozo
+    if (state.autoEditPozoName) {
+        const targetPozo = state.autoEditPozoName;
+        state.autoEditPozoName = null; // Limpiar inmediatamente
+        const recordToEdit = records.find(r => String(r.pozo).trim().toUpperCase() === targetPozo.toUpperCase());
+        if (recordToEdit) {
+            openRecordModal(recordToEdit.id, 'edit');
+        }
+    }
 }
 
 function setToolbarStatus(message) {
@@ -2518,15 +2548,21 @@ function setToolbarStatus(message) {
 function setLoading(isLoading) {
     state.loading = isLoading;
     elements.refreshButton.disabled = isLoading;
-    elements.searchInput.disabled = isLoading;
+    // No inhabilitar el input de búsqueda para evitar pérdida de foco al escribir
+    // elements.searchInput.disabled = isLoading;
     elements.filterGroup.querySelectorAll('[data-status-filter]').forEach(button => {
         button.disabled = isLoading;
     });
 }
 
 async function fetchJourneysForFilter(filterKey) {
+    // Si hay un término de búsqueda, consultamos en todos los estados para no limitar al usuario a la pestaña activa
+    const statuses = state.searchTerm
+        ? ['submitted', 'under_review', 'approved', 'published', 'rejected', 'archived']
+        : (STATUS_FILTERS[filterKey] || STATUS_FILTERS.pending);
+
     return getAdminFieldJourneys({
-        statuses: STATUS_FILTERS[filterKey] || STATUS_FILTERS.pending,
+        statuses: statuses,
         searchTerm: state.searchTerm,
         limit: 120
     });
