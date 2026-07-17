@@ -1126,11 +1126,21 @@ function syncDiagnosisCustomInputState() {
 
 function persistDraft() {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(getFormPayload()));
+    if (currentEditingReportId) {
+        localStorage.setItem('uv-field-draft-editing-id', currentEditingReportId);
+    } else {
+        localStorage.removeItem('uv-field-draft-editing-id');
+    }
 }
 
 function restoreDraft() {
     const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
     if (!raw) return;
+
+    const savedEditingId = localStorage.getItem('uv-field-draft-editing-id');
+    if (savedEditingId) {
+        currentEditingReportId = savedEditingId;
+    }
 
     try {
         const payload = JSON.parse(raw);
@@ -1150,6 +1160,7 @@ function restoreDraft() {
         syncPozoDisplayFromValue();
     } catch (error) {
         localStorage.removeItem(DRAFT_STORAGE_KEY);
+        localStorage.removeItem('uv-field-draft-editing-id');
     }
 }
 
@@ -1166,6 +1177,7 @@ function clearForm() {
 
     form.reset();
     currentEditingReportId = null;
+    localStorage.removeItem('uv-field-draft-editing-id');
     isBesConfigEditEnabled = false;
     isCaptureStarted = false;
     localStorage.removeItem(CAPTURE_STARTED_STORAGE_KEY);
@@ -3264,6 +3276,7 @@ function escapeHtml(value) {
 
 function resetJourneyWorkspace() {
     localStorage.removeItem(DRAFT_STORAGE_KEY);
+    localStorage.removeItem('uv-field-draft-editing-id');
     localStorage.removeItem(REPORTS_STORAGE_KEY);
     localStorage.removeItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
     localStorage.removeItem(CAPTURE_STARTED_STORAGE_KEY);

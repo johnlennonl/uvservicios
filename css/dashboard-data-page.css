@@ -211,7 +211,7 @@
             }
 
             .main-container {
-                padding: 20px 15px 176px 15px;
+                padding: 20px 15px 220px 15px !important;
             }
 
             .page-hero {
@@ -298,7 +298,7 @@
 
         @media (max-width: 640px) {
             .main-container {
-                padding: 16px 12px 92px 12px;
+                padding: 16px 12px 220px 12px !important;
             }
 
             .page-hero {
