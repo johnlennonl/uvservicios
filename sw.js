@@ -8,16 +8,19 @@ self.addEventListener('install', (event) => {
             return cache.addAll([
                 './',
                 './manifest.json',
-                './img/UV%20SERVICES%20-%20Logo%20vectorial%20sin%20fondo.png'
+                './img/pwa-icon-192.png',
+                './img/pwa-icon-512.png'
             ]);
         })
     );
 });
 
 self.addEventListener('fetch', (event) => {
+    // Network-first strategy
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
+        fetch(event.request).catch(() => {
+            // Fallback to cache if offline
+            return caches.match(event.request);
         })
     );
 });
