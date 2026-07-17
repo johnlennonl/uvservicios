@@ -445,7 +445,7 @@ const FIELD_REVIEW_SUMMARY_ITEMS = [
 ];
 
 const FIELD_JOURNEY_STATUS_LABELS = {
-    draft: 'Borrador',
+    draft: 'En curso',
     submitted: 'Pendiente de revisión',
     under_review: 'En revisión',
     approved: 'Aprobada',
@@ -1625,7 +1625,6 @@ function openJourneyMessageComposer(reports = []) {
     syncJourneyMessageComposerText();
     modal.hidden = false;
     document.body.classList.add('field-preview-open');
-    document.getElementById('field-message-composer-text')?.focus();
 }
 
 function closeJourneyMessageComposer() {
@@ -2027,7 +2026,7 @@ async function renderAdminPreview() {
         <article class="field-admin-ticket">
             <div class="field-admin-ticket-top">
                 <div>
-                    <span class="field-admin-ticket-kicker">${escapeHtml(normalizeJourneyStatusLabel(journey.status))}</span>
+                    <span class="field-admin-ticket-kicker" data-status="${escapeHtml(journey.status)}">${escapeHtml(normalizeJourneyStatusLabel(journey.status))}</span>
                     <h3>${escapeHtml(journey.locacion_jornada || 'Locación sin definir')}</h3>
                     <p>${escapeHtml(journey.equipo_guardia || '--')} | ${escapeHtml(journey.journey_date || '--')} | ${escapeHtml(journey.jornada || '--')}</p>
                 </div>

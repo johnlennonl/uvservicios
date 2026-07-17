@@ -57,10 +57,69 @@ body {
     letter-spacing: 0.04em;
 }
 
-.field-hero-panel {
+.field-hero-help {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.field-hero-help-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    font-size: 1.3rem;
+    color: var(--brand-300);
+    cursor: pointer;
+    transition: color 0.2s ease, transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.field-hero-help-btn:hover {
+    color: var(--brand-600);
+    transform: scale(1.1);
+}
+
+.field-hero-help-tooltip {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    padding: 12px 16px;
     display: grid;
-    gap: 12px;
-    min-width: 280px;
+    gap: 8px;
+    min-width: 220px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-5px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+}
+
+.field-hero-help-tooltip p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #475569;
+}
+
+.field-hero-help-tooltip strong {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.field-hero-help:hover .field-hero-help-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
 }
 
 .field-hero-stat {
@@ -1883,6 +1942,10 @@ body {
     letter-spacing: 0.06em;
 }
 
+.field-admin-ticket-kicker[data-status="draft"] {
+    color: #10b981; /* Green */
+}
+
 .field-admin-ticket h3 {
     margin: 0;
     color: #0f172a;
@@ -2600,8 +2663,8 @@ body.field-preview-open {
     .field-quick-actions,
     .field-journey-guide,
     .field-active-record-card {
-        margin-left: 0;
-        margin-right: 0;
+        margin-left: 16px;
+        margin-right: 16px;
     }
 }
 
@@ -2617,8 +2680,8 @@ body.field-preview-open {
 
     .field-journey-guide,
     .field-active-record-card {
-        margin-left: 0;
-        margin-right: 0;
+        margin-left: 16px;
+        margin-right: 16px;
     }
 
     .field-quick-actions {
@@ -2660,6 +2723,7 @@ body.field-preview-open {
     .field-input-group textarea {
         min-height: 48px;
         font-size: 16px;
+        max-width: 100%;
     }
 
     .field-input-group select {
