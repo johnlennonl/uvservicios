@@ -72,20 +72,66 @@
         </main>
     </div>
 
-    <nav class="mobile-bottom-nav" aria-label="Navegacion movil de campo">
-        <a href="jornada-history.html" class="mobile-nav-link active" aria-current="page">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span>Historial</span>
+            <!-- 📱 NEW MOBILE BOTTOM NAV -->
+    <nav class="mobile-bottom-nav" aria-label="Navegacion movil principal">
+        <a href="dashboard.html" class="mobile-nav-link" id="mob-nav-dashboard">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            <span>Inicio</span>
         </a>
-        <a href="field.html" class="mobile-nav-link">
+        <a href="dashboard-data.html" class="mobile-nav-link" id="mob-nav-gestion">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+            <span>Gestión</span>
+        </a>
+        <a href="campo-admin.html" class="mobile-nav-link" id="mob-nav-campo">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            <span>Captura</span>
+            <span>Campo</span>
         </a>
-        <button type="button" id="mobile-logout-btn" class="mobile-nav-action logout">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-            <span>Salir</span>
+        <button type="button" class="mobile-nav-link" onclick="document.getElementById('mobile-more-menu').classList.toggle('active')">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+            <span>Más</span>
         </button>
     </nav>
+
+    <!-- 📱 MOBILE MORE MENU (BOTTOM SHEET) -->
+    <div id="mobile-more-menu" class="mobile-more-menu">
+        <div class="mobile-more-menu-overlay" onclick="document.getElementById('mobile-more-menu').classList.remove('active')"></div>
+        <div class="mobile-more-menu-content">
+            <div class="mobile-more-menu-header">
+                <h3>Más Opciones</h3>
+                <button type="button" class="close-more-menu" onclick="document.getElementById('mobile-more-menu').classList.remove('active')">&times;</button>
+            </div>
+            <div class="mobile-more-menu-grid">
+                <a href="consolidado.html" class="more-menu-item" id="more-nav-consolidado">
+                    <div class="more-menu-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>
+                    <span>Consolidado</span>
+                </a>
+                <a href="data.html" class="more-menu-item" id="more-nav-data">
+                    <div class="more-menu-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg></div>
+                    <span>Data</span>
+                </a>
+                <a href="stats.html" class="more-menu-item" id="more-nav-stats">
+                    <div class="more-menu-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg></div>
+                    <span>Stats</span>
+                </a>
+                <a href="help.html" class="more-menu-item" id="more-nav-help">
+                    <div class="more-menu-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+                    <span>Ayuda</span>
+                </a>
+                <a href="notificacion.html" class="more-menu-item" id="more-nav-notificacion">
+                    <div class="more-menu-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" /></svg></div>
+                    <span>Avisos</span>
+                </a>
+                <a href="monitoring-prep.html" class="more-menu-item" id="more-nav-monitoring-prep">
+                    <div class="more-menu-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" /></svg></div>
+                    <span>Prep</span>
+                </a>
+                <button type="button" class="more-menu-item logout-btn logout" onclick="document.dispatchEvent(new Event('triggerLogout'))" id="mobile-logout-btn-more">
+                    <div class="more-menu-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></div>
+                    <span>Salir</span>
+                </button>
+            </div>
+        </div>
+    </div>
     <script type="module" src="js/modules/field/field-history-controller.js?v=20260425e"></script>
 
     <script>
@@ -95,5 +141,6 @@
             });
         }
     </script>
+<script src="js/pull-to-refresh.js"></script>
 </body>
 </html>

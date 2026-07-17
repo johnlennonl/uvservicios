@@ -549,3 +549,181 @@ body.access-protected-nav:not(.access-nav-ready) a[href="jornada-history.html"] 
 .help-onboarding-modal {
     z-index: 5000 !important;
 }
+
+/* ━━━ MOBILE MORE MENU (BOTTOM SHEET) ━━━ */
+.mobile-more-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    visibility: hidden;
+    pointer-events: none;
+    transition: visibility 0.3s;
+}
+
+.mobile-more-menu.active {
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.mobile-more-menu-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.mobile-more-menu.active .mobile-more-menu-overlay {
+    opacity: 1;
+}
+
+.mobile-more-menu-content {
+    position: relative;
+    background: #FFFFFF;
+    width: 100%;
+    border-radius: 24px 24px 0 0;
+    padding: 24px 20px 40px;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.1);
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    z-index: 3001;
+}
+
+.mobile-more-menu.active .mobile-more-menu-content {
+    transform: translateY(0);
+}
+
+.mobile-more-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.mobile-more-menu-header h3 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--primary-dark);
+    margin: 0;
+}
+
+.close-more-menu {
+    background: #F1F5F9;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748B;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.mobile-more-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px 12px;
+}
+
+.more-menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: #475569;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.more-menu-item.active {
+    color: var(--brand-600);
+}
+
+.more-menu-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: #F8FAFC;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    transition: all 0.2s;
+}
+
+.more-menu-item.active .more-menu-icon {
+    background: var(--brand-soft);
+    color: var(--brand-600);
+}
+
+.more-menu-icon svg {
+    width: 26px;
+    height: 26px;
+}
+
+.more-menu-item span {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.more-menu-item.logout-btn {
+    color: #DC2626;
+}
+
+.more-menu-item.logout-btn .more-menu-icon {
+    background: #FEF2F2;
+    color: #DC2626;
+}
+
+@media (max-width: 380px) {
+    .mobile-more-menu-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ━━━ PULL TO REFRESH CUSTOM UI ━━━ */
+.ptr-element {
+    position: fixed;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 44px;
+    height: 44px;
+    background: #FFFFFF;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    color: #94A3B8;
+    pointer-events: none;
+}
+.ptr-element svg {
+    width: 24px;
+    height: 24px;
+}
+body.ptr-refreshing .ptr-element svg {
+    animation: ptr-spin 1s linear infinite;
+    color: var(--brand-600, #1D4ED8);
+}
+@keyframes ptr-spin {
+    100% { transform: rotate(360deg); }
+}
