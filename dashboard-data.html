@@ -103,16 +103,16 @@
             <div class="management-layout">
                 <div class="top-row">
                     <!-- Bloque de carga operativa manual -->
-                    <section class="form-card manual-entry-card">
-                        <header class="manual-entry-header"
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <details class="form-card manual-entry-card" open>
+                        <summary class="manual-entry-header"
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; cursor: pointer;">
                             <h2 id="form-title"
                                 style="font-size: 1.1rem; font-weight: 700; color: var(--primary-dark);">Entrada de
                                 Parámetros</h2>
                             <button id="cancel-edit" class="manual-cancel-btn"
                                 style="display: none;">Cancelar
                                 Edición</button>
-                        </header>
+                        </summary>
 
                         <section class="manual-import-panel" aria-labelledby="manual-import-title">
                             <div class="manual-import-copy">
@@ -265,17 +265,17 @@
                             </div>
                         </form>
                         </div>
-                    </section>
+                    </details>
 
                 </div>
 
-                <section class="form-card technical-entry-card">
-                    <header class="technical-entry-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap;">
+                <details class="form-card technical-entry-card">
+                    <summary class="technical-entry-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; cursor: pointer;">
                         <div>
                             <h2 style="font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); margin: 0;">Producción Técnica</h2>
                             <p style="margin: 6px 0 0 0; font-size: 0.82rem; color: #64748B;">Sección independiente del registro diario para actualizar datos mensuales o técnicos del pozo.</p>
                         </div>
-                    </header>
+                    </summary>
 
                     <section class="technical-import-panel" aria-labelledby="technical-import-title">
                         <div class="upload-mini-zone integrated-upload-zone technical-upload-zone" id="tech-drop-zone">
@@ -382,15 +382,15 @@
                         </div>
                     </form>
                     </div>
-                </section>
+                </details>
 
-                <section class="form-card well-management-card">
-                    <header class="well-management-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap;">
+                <details class="form-card well-management-card">
+                    <summary class="well-management-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; cursor: pointer;">
                         <div>
                             <h2 style="font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); margin: 0;">Gestión de Pozos</h2>
                             <p style="margin: 6px 0 0 0; font-size: 0.82rem; color: #64748B;">Configura la ficha fija BES por pozo para que aparezca en Dashboard, Data, Notificaciones y UVITO.</p>
                         </div>
-                    </header>
+                    </summary>
 
                     <section class="manual-flow-note well-management-note" aria-label="Instrucciones de gestión de pozos">
                         <div class="manual-flow-note-copy">
@@ -560,7 +560,7 @@
                             </div>
                         </form>
                     </div>
-                </section>
+                </details>
 
                 <!-- Historial reciente resumido -->
             <section class="form-card" style="margin-top: 10px;">

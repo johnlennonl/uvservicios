@@ -948,7 +948,6 @@ function clearDashboard() {
     latestStatusSnapshot = [];
     latestStatusRecordSnapshot = null;
     statusDonutMode = 'latest';
-    updateStatusDonutToggleControl();
 
     const tbody = document.getElementById('obs-body');
     if (tbody) tbody.innerHTML = '<tr><td style="padding: 20px; text-align: center; color: var(--text-muted);">No hay registros</td></tr>';
@@ -1086,21 +1085,9 @@ function getLatestStatusLabel(record = null) {
     return '--';
 }
 
-function updateStatusDonutToggleControl() {
-    const toggleButton = document.getElementById('status-donut-toggle');
-    if (!toggleButton) return;
-
-    const hasHistory = latestStatusSnapshot.length > 0;
-    toggleButton.disabled = !hasHistory;
-    toggleButton.textContent = statusDonutMode === 'history'
-        ? 'Ver ultimo RUN/OFF'
-        : 'Ver historial RUN/OFF';
-}
-
 function initializeStatusDonutInteractions() {
     const donutContainer = document.getElementById('donut-status');
-    const toggleButton = document.getElementById('status-donut-toggle');
-    if (!donutContainer && !toggleButton) return;
+    if (!donutContainer) return;
 
     const handleToggle = () => {
         if (!latestStatusSnapshot.length) return;
@@ -1108,9 +1095,7 @@ function initializeStatusDonutInteractions() {
         renderStatusDonut(latestStatusSnapshot, latestStatusRecordSnapshot);
     };
 
-    donutContainer?.addEventListener('click', handleToggle);
-    toggleButton?.addEventListener('click', handleToggle);
-    updateStatusDonutToggleControl();
+    donutContainer.addEventListener('click', handleToggle);
 }
 
 /**
@@ -1174,6 +1159,15 @@ function renderStatusDonut(data, latestRecord = null) {
                         size: '78%',
                         labels: {
                             show: true,
+                            name: {
+                                offsetY: -10,
+                            },
+                            value: {
+                                fontSize: '46px',
+                                fontWeight: 900,
+                                color: effectiveMode === 'dark' ? '#F8FAFC' : '#0F172A',
+                                offsetY: 12,
+                            },
                             total: {
                                 show: true,
                                 label: 'Ultimo registro',
@@ -1188,7 +1182,6 @@ function renderStatusDonut(data, latestRecord = null) {
             legend: { show: false }
         };
 
-    updateStatusDonutToggleControl();
     renderOrUpdate('donut-status', options);
 }
 

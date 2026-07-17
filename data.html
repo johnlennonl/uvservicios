@@ -351,6 +351,9 @@
                 </div>
             </section>
 
+            <!-- Contenedor para el reporte detallado (solo impresion) -->
+            <div id="print-detailed-cards-container" class="print-only" style="display: none;"></div>
+
             <section class="history-card daily-ticket-card" id="daily-ticket-container" style="display: none;">
                 <div class="daily-ticket-header">
                     <div>
@@ -405,6 +408,22 @@
                 <span>EXPORTAR REPORTE</span>
             </button>
         </main>
+    </div>
+
+    <!-- Modal Detalles Completos -->
+    <div id="full-data-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
+        <div style="background: #fff; width: 100%; max-width: 900px; max-height: 90vh; border-radius: 20px; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #E2E8F0; background: #F8FAFC;">
+                <div>
+                    <h2 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: #0F172A;" id="modal-full-data-title">Detalles del Registro</h2>
+                    <p style="margin: 4px 0 0; font-size: 0.85rem; color: #64748B;" id="modal-full-data-subtitle">--</p>
+                </div>
+                <button onclick="document.getElementById('full-data-modal').style.display='none'" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748B;">&times;</button>
+            </div>
+            <div style="padding: 24px; overflow-y: auto; background: #fff;" id="modal-full-data-content">
+                <!-- Se rellena por JS -->
+            </div>
+        </div>
     </div>
 
     <nav class="mobile-bottom-nav" aria-label="Navegacion movil principal">
@@ -471,6 +490,7 @@
     <script type="module">
         import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } from './js/auth.js';
         import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord, getWellBESProfile } from './js/data-service.js';
+        import { supabase } from './js/supabaseClient.js';
 
         let activePozo = null;
         let currentRecordData = [];
@@ -840,7 +860,13 @@
                     <td><span style="color:#2563EB;">T: ${formatMonitoringTextCell(record.presion_thp)}</span> / <span style="color:#06B6D4;">C: ${formatMonitoringTextCell(record.presion_chp)}</span> <br> <span style="color:#F59E0B;">LF: ${formatMonitoringTextCell(record.presion_lf ?? record.lf, '--')}</span></td>
                     <td style="font-family: monospace;">${formatMonitoringTextCell(record.vsd_a)} / ${formatMonitoringTextCell(record.vsd_b, '0')} / ${formatMonitoringTextCell(record.vsd_c, '0')}</td>
                     <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}; font-weight: 800;">${formatMonitoringTextCell(record.estatus)}</span></td>
-                    <td style="text-align: right;">
+                    <td style="text-align: right; white-space: nowrap;">
+                        <button class="btn-action btn-view" onclick="openFullDataModal('${escapeHtml(recordId)}')" style="background: #E0E7FF; color: #4338CA;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; vertical-align:text-bottom; margin-right:4px;">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg> Ver
+                        </button>
                         ${includeActions && currentAccessProfile.canEditData ? `<button class="btn-action btn-edit" data-id="${escapeHtml(recordId)}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
                         <button class="btn-action btn-delete" data-id="${escapeHtml(recordId)}">Borrar</button>` : ''}
                     </td>
@@ -1531,7 +1557,7 @@
         }
 
         // Alterna entre vista web normal y vista preparada para reporte.
-        document.getElementById('main-view-toggle').addEventListener('click', () => {
+        document.getElementById('main-view-toggle').addEventListener('click', async () => {
             if (activeDataView === 'daily-ticket' && !document.getElementById('ticket-date')?.value) {
                 Swal.fire({ icon: 'info', title: 'Fecha requerida', text: 'Selecciona una fecha antes de exportar el ticket diario.' });
                 return;
@@ -1549,17 +1575,173 @@
 
             const isStandard = !document.body.classList.contains('view-mode-report');
             if (isStandard) {
+                if (activeDataView === 'history') {
+                    // Mostrar loader porque puede tardar descargando datos
+                    Swal.fire({
+                        title: 'Preparando reporte detallado...',
+                        text: 'Descargando parámetros extendidos para cada registro.',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    try {
+                        const printContainer = document.getElementById('print-detailed-cards-container');
+                        printContainer.innerHTML = '';
+                        
+                        const excludeKeys = ['id', 'ID', 'created_at', 'updated_at', 'deleted_at', 'user_id', 'is_historical', 'synced_at', 'pozo_id', 'row_data', 'raw_payload'];
+                        const formatVal = (v) => (v !== null && v !== undefined && v !== '') ? v : '--';
+
+                        // Agrupar por fechas para facilitar busqueda y no colapsar la db (aunque aqui buscaremos todo lo del pozo)
+                        // Para optimizar, traemos todos los del pozo de field_journey y consolidated
+                        const [ {data: fieldData}, {data: excelData} ] = await Promise.all([
+                            supabase.from('field_journey_records').select('report_date, report_time, raw_payload').eq('pozo', activePozo),
+                            supabase.from('consolidated_dashboard_operational').select('report_date, report_time, row_data').eq('pozo', activePozo)
+                        ]);
+
+                        let cardsHtml = '<div style="display: flex; flex-direction: column; gap: 40px;">';
+
+                        currentRecordData.forEach(record => {
+                            let extraData = {};
+                            
+                            // Match en field_journey_records
+                            if (fieldData) {
+                                const fMatch = fieldData.find(f => f.report_date === record.fecha && f.report_time === record.hora);
+                                if (fMatch) extraData = { ...fMatch.raw_payload };
+                            }
+                            // Si no, Match en excel
+                            if (Object.keys(extraData).length === 0 && excelData) {
+                                const eMatch = excelData.find(e => e.report_date === record.fecha && e.report_time === record.hora) 
+                                            || excelData.find(e => e.report_date === record.fecha); // fallback
+                                if (eMatch) extraData = { ...eMatch.row_data };
+                            }
+
+                            const mergedData = { ...extraData, ...record };
+                            
+                            cardsHtml += `
+                                <div class="print-detailed-card" style="page-break-inside: avoid; border: 1px solid #E2E8F0; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                                    <h3 style="margin-top: 0; color: #1E293B; border-bottom: 2px solid #3B82F6; padding-bottom: 10px; margin-bottom: 15px;">
+                                        Registro: ${formatVal(record.fecha)} ${formatVal(record.hora)}
+                                    </h3>
+                                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                            `;
+
+                            for (const [key, value] of Object.entries(mergedData)) {
+                                if (excludeKeys.includes(key)) continue;
+                                if (value === null || value === '' || value === undefined) continue;
+                                
+                                let cleanKey = key.replace(/_/g, ' ').toUpperCase();
+                                cardsHtml += `
+                                    <div style="background: #F8FAFC; padding: 8px; border-radius: 6px; border: 1px solid #F1F5F9;">
+                                        <span style="display:block; font-size: 0.65rem; font-weight: 800; color: #64748B; margin-bottom: 2px;">${cleanKey}</span>
+                                        <strong style="color: #0F172A; font-size: 0.85rem; word-break: break-word;">${value}</strong>
+                                    </div>
+                                `;
+                            }
+
+                            cardsHtml += `</div></div>`;
+                        });
+                        
+                        cardsHtml += '</div>';
+                        printContainer.innerHTML = cardsHtml;
+                        Swal.close();
+                    } catch (error) {
+                        console.error('Error preparando reporte detallado:', error);
+                        Swal.fire({ icon: 'error', title: 'Error', text: 'Hubo un error armando el reporte detallado. Se imprimirá el resumen estándar.' });
+                    }
+                }
+
                 updateReportExportHeader();
                 document.body.classList.add('view-mode-report');
+                if (activeDataView === 'history') document.body.classList.add('view-mode-report-history');
+
                 document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER A LA WEB';
 
                 // Abre automaticamente el dialogo de impresion o guardado en PDF.
                 setTimeout(printDataReport, 500);
             } else {
                 document.body.classList.remove('view-mode-report');
+                document.body.classList.remove('view-mode-report-history');
                 document.getElementById('main-view-toggle').querySelector('span').textContent = 'EXPORTAR REPORTE';
+                document.getElementById('print-detailed-cards-container').innerHTML = ''; // Limpiar RAM
             }
         });
+
+        // Abre el modal con todos los parametros del registro
+        window.openFullDataModal = async function(recordId) {
+            const record = currentRecordData.find(r => (r.id || r.ID) == recordId);
+            if (!record) return;
+
+            const formatVal = (v) => (v !== null && v !== undefined && v !== '') ? v : '--';
+            const pozo = record.pozo_name || record.pozo;
+
+            document.getElementById('modal-full-data-subtitle').textContent = `Pozo: ${formatVal(pozo)} | Fecha: ${formatVal(record.fecha)} ${formatVal(record.hora)}`;
+
+            const excludeKeys = ['id', 'ID', 'created_at', 'updated_at', 'deleted_at', 'user_id', 'is_historical', 'synced_at', 'pozo_id', 'row_data', 'raw_payload'];
+            
+            const renderData = (dataObj) => {
+                let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">';
+                for (const [key, value] of Object.entries(dataObj)) {
+                    if (excludeKeys.includes(key)) continue;
+                    if (value === null || value === '' || value === undefined) continue;
+                    
+                    let cleanKey = key.replace(/_/g, ' ').toUpperCase();
+                    html += `
+                        <div style="background: #F8FAFC; padding: 12px; border-radius: 10px; border: 1px solid #E2E8F0;">
+                            <span style="display:block; font-size: 0.65rem; font-weight: 800; color: #64748B; margin-bottom: 4px;">${cleanKey}</span>
+                            <strong style="color: #0F172A; font-size: 0.9rem; word-break: break-word;">${value}</strong>
+                        </div>
+                    `;
+                }
+                html += '</div>';
+                return html;
+            };
+
+            // Mostrar primero lo basico mientras carga
+            document.getElementById('modal-full-data-content').innerHTML = renderData(record) + '<p id="modal-loading-extra" style="margin-top:20px; font-size:0.8rem; color:#64748B; text-align:center;">Buscando parámetros extendidos del histórico...</p>';
+            document.getElementById('full-data-modal').style.display = 'flex';
+
+            try {
+                let extraData = {};
+                
+                // 1. Intentar buscar en App de Campo (raw_payload)
+                const { data: fieldData } = await supabase
+                    .from('field_journey_records')
+                    .select('raw_payload')
+                    .eq('pozo', pozo)
+                    .eq('report_date', record.fecha)
+                    .eq('report_time', record.hora)
+                    .limit(1);
+
+                if (fieldData && fieldData.length > 0) {
+                    extraData = fieldData[0].raw_payload || {};
+                } else {
+                    // 2. Intentar buscar en Excel Historico (row_data)
+                    const { data: excelData } = await supabase
+                        .from('consolidated_dashboard_operational')
+                        .select('row_data, report_time')
+                        .eq('pozo', pozo)
+                        .eq('report_date', record.fecha);
+                        
+                    if (excelData && excelData.length > 0) {
+                        const exactMatch = excelData.find(r => r.report_time === record.hora) || excelData[0];
+                        extraData = exactMatch.row_data || {};
+                    }
+                }
+
+                if (Object.keys(extraData).length > 0) {
+                    // Combinar datos extra (Excel/App) con los basicos (Tabla)
+                    const mergedData = { ...extraData, ...record };
+                    document.getElementById('modal-full-data-content').innerHTML = renderData(mergedData);
+                } else {
+                    const loadingMsg = document.getElementById('modal-loading-extra');
+                    if(loadingMsg) loadingMsg.style.display = 'none';
+                }
+            } catch (err) {
+                console.error("Error fetching extended data:", err);
+                const loadingMsg = document.getElementById('modal-loading-extra');
+                if(loadingMsg) loadingMsg.style.display = 'none';
+            }
+        };
     </script>
     <script type="module" src="js/field-admin-alert.js"></script>
 </body>

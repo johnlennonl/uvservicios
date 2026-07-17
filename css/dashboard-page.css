@@ -997,43 +997,6 @@ body {
     cursor: pointer;
 }
 
-.status-donut-actions {
-    margin-top: -4px;
-    margin-bottom: 10px;
-    display: flex;
-    justify-content: center;
-}
-
-.status-donut-toggle {
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: linear-gradient(180deg, #FFFFFF, #F8FAFC);
-    color: var(--text-body);
-    border-radius: 999px;
-    padding: 8px 14px;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.status-donut-toggle:hover {
-    border-color: rgba(37, 99, 235, 0.28);
-    color: #1D4ED8;
-    transform: translateY(-1px);
-}
-
-.dark-room .status-donut-toggle {
-    background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
-    border-color: rgba(71, 85, 105, 0.85);
-    color: #E2E8F0;
-}
-
-.dark-room .status-donut-toggle:hover {
-    border-color: rgba(59, 130, 246, 0.35);
-    color: #93C5FD;
-}
-
 .rotation-badge {
     margin-top: 10px;
     display: inline-flex;

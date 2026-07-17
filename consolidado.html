@@ -4,11 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>UV Servicios | Consolidado</title>
-    <meta name="description" content="Seccion independiente para registrar el consolidado historico UV, importar el Excel operativo viejo y preparar exportaciones con la estructura oficial.">
+    <meta name="description"
+        content="Seccion independiente para registrar el consolidado historico UV, importar el Excel operativo viejo y preparar exportaciones con la estructura oficial.">
     <link rel="icon" type="image/png" href="img/uvservicioslogo.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard-page.css">
     <link rel="stylesheet" href="css/consolidado-page.css">
@@ -20,30 +23,35 @@
 <body>
     <div class="dashboard-layout">
         <aside class="sidebar">
-            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180"
+                height="180">
             <nav>
                 <a href="dashboard.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
                     </svg>
                     Dashboard
                 </a>
                 <a href="dashboard-data.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                     </svg>
                     Gestión
                 </a>
                 <a href="monitoring-prep.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
                     </svg>
                     Preparador Excel
                 </a>
                 <a href="data.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
                     </svg>
                     Data
                 </a>
@@ -52,7 +60,8 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 6h6"></path>
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 10h6"></path>
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 14h3"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
                     </svg>
                     Campo
                 </a>
@@ -71,7 +80,8 @@
                 </a>
                 <a href="notificacion.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" />
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 17a3 3 0 006 0" />
                     </svg>
                     Notificaciones
@@ -80,14 +90,16 @@
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.09 9a3 3 0 115.82 1c0 2-3 3-3 3" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 17h.01" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
                     </svg>
                     Ayuda
                 </a>
             </nav>
             <button id="logout-btn" class="nav-link">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
                 Salir
             </button>
@@ -95,25 +107,35 @@
         <main class="main-container consolidado-main">
             <header class="page-hero">
                 <div class="page-hero-copy">
-                    <span class="consolidado-kicker" style="background: rgba(37, 99, 235, 0.1); color: #1D4ED8; font-weight: 800; padding: 6px 12px; border-radius: 999px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; display: inline-flex;">Histórico Operacional</span>
-                    <h1 style="margin-top: 10px; font-size: 1.6rem; font-weight: 800; color: var(--text-title); margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
+                    <span class="consolidado-kicker"
+                        style="background: rgba(37, 99, 235, 0.1); color: #1D4ED8; font-weight: 800; padding: 6px 12px; border-radius: 999px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; display: inline-flex;">Histórico
+                        Operacional</span>
+                    <h1
+                        style="margin-top: 10px; font-size: 1.6rem; font-weight: 800; color: var(--text-title); margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
                         Consolidado Maestro UV
-                        <button type="button" id="consolidado-help-trigger" class="consolidado-help-trigger" aria-label="Ayuda" title="Ver guía de ayuda">
-                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" style="width: 20px; height: 20px;">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <button type="button" id="consolidado-help-trigger" class="consolidado-help-trigger"
+                            aria-label="Ayuda" title="Ver guía de ayuda">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"
+                                style="width: 20px; height: 20px;">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </button>
                     </h1>
-                    <p style="color: var(--text-muted); font-size: 0.9rem; margin: 5px 0 0 0;">Generación, exportación y mantenimiento del histórico consolidado de operaciones.</p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin: 5px 0 0 0;">Generación, exportación y
+                        mantenimiento del histórico consolidado de operaciones.</p>
                 </div>
             </header>
 
-            <section id="consolidado-header-stats" class="consolidado-header-stats-grid" aria-label="Estadísticas del Consolidado">
+            <section id="consolidado-header-stats" class="consolidado-header-stats-grid"
+                aria-label="Estadísticas del Consolidado">
                 <!-- Stat 1: Total Registros -->
                 <div class="consolidado-stat-card">
-                    <span class="consolidado-stat-card-icon" style="color: #2563eb; background: rgba(37, 99, 235, 0.08);">
+                    <span class="consolidado-stat-card-icon"
+                        style="color: #2563eb; background: rgba(37, 99, 235, 0.08);">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                     </span>
                     <div>
@@ -123,9 +145,11 @@
                 </div>
                 <!-- Stat 2: Base Histórica -->
                 <div class="consolidado-stat-card">
-                    <span class="consolidado-stat-card-icon" style="color: #4b5563; background: rgba(75, 85, 99, 0.08);">
+                    <span class="consolidado-stat-card-icon"
+                        style="color: #4b5563; background: rgba(75, 85, 99, 0.08);">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                         </svg>
                     </span>
                     <div>
@@ -135,9 +159,11 @@
                 </div>
                 <!-- Stat 3: Nuevas de Campo -->
                 <div class="consolidado-stat-card">
-                    <span class="consolidado-stat-card-icon" style="color: #10b981; background: rgba(16, 185, 129, 0.08);">
+                    <span class="consolidado-stat-card-icon"
+                        style="color: #10b981; background: rgba(16, 185, 129, 0.08);">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </span>
                     <div>
@@ -147,16 +173,21 @@
                 </div>
                 <!-- Stat 4: Pozos Activos -->
                 <div class="consolidado-stat-card">
-                    <span class="consolidado-stat-card-icon" style="color: #d97706; background: rgba(217, 119, 6, 0.08);">
-                        <svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="stat-pumpjack-svg">
+                    <span class="consolidado-stat-card-icon"
+                        style="color: #d97706; background: rgba(217, 119, 6, 0.08);">
+                        <svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" class="stat-pumpjack-svg">
                             <!-- Base estructural -->
-                            <path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                            <path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="currentColor"
+                                stroke-width="2.2" stroke-linecap="round" />
 
                             <!-- Mecanismo trasero -->
                             <g>
-                                <circle cx="12" cy="38" r="6" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2,2" opacity="0.4" />
+                                <circle cx="12" cy="38" r="6" fill="none" stroke="currentColor" stroke-width="1"
+                                    stroke-dasharray="2,2" opacity="0.4" />
                                 <g>
-                                    <rect x="10" y="32" width="4" height="12" rx="2" fill="currentColor" stroke="none" />
+                                    <rect x="10" y="32" width="4" height="12" rx="2" fill="currentColor"
+                                        stroke="none" />
                                     <circle cx="12" cy="38" r="1.5" fill="#fffbeb" stroke="none" />
                                 </g>
                             </g>
@@ -166,18 +197,21 @@
                                 <!-- Viga principal -->
                                 <path d="M8 16 L52 16 L52 20 L8 20 Z" fill="currentColor" stroke="none" />
                                 <!-- Cabezal -->
-                                <path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z" fill="currentColor" stroke="none" />
+                                <path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z"
+                                    fill="currentColor" stroke="none" />
                                 <!-- Varilla -->
-                                <line x1="62" y1="34" x2="62" y2="46" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1.5,1.5" />
+                                <line x1="62" y1="34" x2="62" y2="46" stroke="currentColor" stroke-width="1.5"
+                                    stroke-dasharray="1.5,1.5" />
                                 <!-- Biela -->
-                                <line x1="12" y1="20" x2="12" y2="34" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                                <line x1="12" y1="20" x2="12" y2="34" stroke="currentColor" stroke-width="2.2"
+                                    stroke-linecap="round" />
                                 <!-- Pivote central -->
                                 <circle cx="32" cy="18" r="2.8" fill="#fffbeb" stroke="currentColor" stroke-width="1" />
                             </g>
                         </svg>
                     </span>
                     <div>
-                        <span>Pozos Activos</span>
+                        <span>Pozos Registrados</span>
                         <strong id="stat-pozos-count">--</strong>
                     </div>
                 </div>
@@ -188,37 +222,45 @@
                     <div class="consolidado-card-head">
                         <div>
                             <h2>Exportar consolidado</h2>
-                            <p>Genera y descarga el Dashboard General por histórico completo, pozo o rango de fechas.</p>
+                            <p>Genera y descarga el Dashboard General por histórico completo, pozo o rango de fechas.
+                            </p>
                         </div>
                     </div>
                     <div class="consolidado-export-panel">
                         <!-- Quick actions section -->
-                        <span class="consolidado-filter-grid-title" style="color: #64748b; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; display: block;">Acciones Rápidas</span>
+                        <span class="consolidado-filter-grid-title"
+                            style="color: #64748b; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; display: block;">Acciones
+                            Rápidas</span>
                         <div class="consolidado-quick-actions-bar">
                             <button type="button" id="consolidado-quick-new" class="consolidado-quick-btn">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                 </svg>
                                 <span>Todo lo Nuevo</span>
                                 <small>Solo datos de Campo</small>
                             </button>
                             <button type="button" id="consolidado-quick-week" class="consolidado-quick-btn">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 <span>Últimos 7 Días</span>
-                                <small>Base + Campo reciente</small>
+                                <small> Campo reciente</small>
                             </button>
                             <button type="button" id="consolidado-quick-all" class="consolidado-quick-btn">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                                 <span>Histórico Maestro</span>
                                 <small>Base + Campo completo</small>
                             </button>
                         </div>
 
-                        <span class="consolidado-filter-grid-title" style="color: #64748b; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 8px; margin-bottom: 8px; display: block;">Exportación Personalizada</span>
+                        <span class="consolidado-filter-grid-title"
+                            style="color: #64748b; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 8px; margin-bottom: 8px; display: block;">Exportación
+                            Personalizada</span>
 
                         <div class="consolidado-export-options" role="group" aria-label="Origen del consolidado">
                             <label class="consolidado-export-option">
@@ -264,7 +306,8 @@
                                 <input id="consolidado-end-date" type="date">
                             </label>
                         </div>
-                        <button type="button" id="consolidado-export-db-btn" class="consolidado-export-primary" disabled>Exportar consolidado</button>
+                        <button type="button" id="consolidado-export-db-btn" class="consolidado-export-primary"
+                            disabled>Exportar consolidado</button>
                     </div>
                 </article>
 
@@ -275,29 +318,41 @@
                             <p>Estructura de referencia cargada para formatear los reportes exportables.</p>
                         </div>
                         <div class="consolidado-config">
-                            <button type="button" id="consolidado-config-btn" class="consolidado-config-btn" aria-label="Abrir configuración" aria-expanded="false">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <button type="button" id="consolidado-config-btn" class="consolidado-config-btn"
+                                aria-label="Abrir configuración" aria-expanded="false">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                                    aria-hidden="true">
                                     <circle cx="12" cy="12" r="3"></circle>
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.38 1.05V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.05-.38H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.9l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .38-1.05V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.22.38.58.66 1 .78.18.05.37.08.55.08H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.38 1.05V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.05-.38H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.9l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .38-1.05V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.22.38.58.66 1 .78.18.05.37.08.55.08H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z">
+                                    </path>
                                 </svg>
                             </button>
                             <div id="consolidado-config-menu" class="consolidado-config-menu" hidden>
-                                <button type="button" id="consolidado-open-import-btn">Importar / reemplazar Excel base</button>
-                                <button type="button" id="consolidado-save-db-btn" disabled>Guardar Excel importado en base de datos</button>
-                                <button type="button" id="consolidado-sync-technical-btn">Sincronizar datos técnicos y ficha BES</button>
-                                <button type="button" id="consolidado-export-structure-btn" disabled>Exportar archivo recién importado</button>
+                                <button type="button" id="consolidado-open-import-btn">Importar / reemplazar Excel
+                                    base</button>
+                                <button type="button" id="consolidado-save-db-btn" disabled>Guardar Excel importado en
+                                    base de datos</button>
+                                <button type="button" id="consolidado-sync-technical-btn">Sincronizar datos técnicos y
+                                    ficha BES</button>
+                                <button type="button" id="consolidado-export-structure-btn" disabled>Exportar archivo
+                                    recién importado</button>
                                 <button type="button" id="consolidado-refresh-db-btn">Actualizar conteo</button>
-                                <button type="button" id="consolidado-select-field-rows-btn" class="is-danger" disabled>Seleccionar Campo Admin</button>
+                                <button type="button" id="consolidado-select-field-rows-btn" class="is-danger"
+                                    disabled>Seleccionar Campo Admin</button>
                             </div>
                         </div>
                     </div>
                     <input id="consolidado-file-input" type="file" accept=".xlsx,.xls" hidden>
                     <div id="consolidado-template-summary" class="consolidado-template-summary"></div>
-                    
+
                     <details class="consolidado-maintenance-panel">
                         <summary>Importar o reemplazar Excel base</summary>
-                        <div id="consolidado-drop-zone" class="consolidado-drop-zone" role="button" tabindex="0" aria-label="Importar Excel consolidado viejo">
-                            <div class="integrated-upload-icon"><img src="https://cdn-icons-png.flaticon.com/512/17018/17018393.png" alt="Icono de carga de archivo" width="50" height="50" aria-hidden="true"></div>
+                        <div id="consolidado-drop-zone" class="consolidado-drop-zone" role="button" tabindex="0"
+                            aria-label="Importar Excel consolidado viejo">
+                            <div class="integrated-upload-icon"><img
+                                    src="https://cdn-icons-png.flaticon.com/512/17018/17018393.png"
+                                    alt="Icono de carga de archivo" width="50" height="50" aria-hidden="true"></div>
                             <div class="consolidado-drop-copy">
                                 <h3>Arrastra el consolidado o haz click para seleccionarlo</h3>
                                 <p>La lectura detecta cada hoja y el encabezado para construir el catálogo base.</p>
@@ -315,9 +370,11 @@
                         </div>
                     </details>
 
-                    <div id="consolidado-status" class="consolidado-status" style="margin-top: 16px;">Aún no hay estructura importada. Este paso solo prepara el catálogo; no altera Campo ni Data.</div>
-                    
-                    <div id="consolidado-db-summary" class="consolidado-db-summary" aria-live="polite" style="margin-top: 16px;">
+                    <div id="consolidado-status" class="consolidado-status" style="margin-top: 16px;">Aún no hay
+                        estructura importada. Este paso solo prepara el catálogo; no altera Campo ni Data.</div>
+
+                    <div id="consolidado-db-summary" class="consolidado-db-summary" aria-live="polite"
+                        style="margin-top: 16px;">
                         <div><span>Guardado</span><strong>--</strong></div>
                         <div><span>Base histórica</span><strong>--</strong></div>
                         <div><span>Nuevo Campo</span><strong>--</strong></div>
@@ -330,19 +387,22 @@
     <nav class="mobile-bottom-nav" aria-label="Navegacion movil principal">
         <a href="dashboard.html" class="mobile-nav-link">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
             </svg>
             <span>Inicio</span>
         </a>
         <a href="dashboard-data.html" class="mobile-nav-link">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
             </svg>
             <span>Gestión</span>
         </a>
         <a href="data.html" class="mobile-nav-link">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
             </svg>
             <span>Data</span>
         </a>
@@ -351,7 +411,8 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 6h6"></path>
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 10h6"></path>
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 14h3"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
             </svg>
             <span>Campo</span>
         </a>
@@ -364,7 +425,8 @@
         </a>
         <button type="button" id="mobile-logout-btn" class="mobile-nav-action logout">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
             <span>Salir</span>
         </button>

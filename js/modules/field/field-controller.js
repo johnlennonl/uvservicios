@@ -541,6 +541,7 @@ function bindStaticActions() {
     document.getElementById('field-new-pozo-btn')?.addEventListener('click', startNewPozoCapture);
     document.getElementById('field-resume-edit-btn')?.addEventListener('click', resumeEditingCurrentPozo);
     document.getElementById('field-submit-journey-btn')?.addEventListener('click', submitJourneyForAdminPreview);
+    document.getElementById('field-exit-journey-btn')?.addEventListener('click', exitJourneyAndClearState);
     document.getElementById('field-copy-journey-message-btn')?.addEventListener('click', copyJourneyMessageToClipboard);
     document.getElementById('field-back-to-capture-btn')?.addEventListener('click', scrollBackToCapture);
     document.getElementById('field-admin-filter-start')?.addEventListener('change', renderAdminPreview);
@@ -1083,8 +1084,17 @@ function syncCaptureGateState() {
 
 function getFormPayload() {
     const form = document.getElementById('field-report-form');
-    const formData = new FormData(form);
-    const payload = Object.fromEntries(formData.entries());
+    const payload = {};
+    Array.from(form.elements).forEach(el => {
+        if (el.name) {
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                if (el.checked) payload[el.name] = el.value;
+            } else {
+                payload[el.name] = el.value;
+            }
+        }
+    });
+
     payload.tecnico_1 = String(payload.tecnico_1 || '').trim();
     payload.tecnico_2 = String(payload.tecnico_2 || '').trim();
     payload.equipo_guardia = [payload.tecnico_1, payload.tecnico_2].filter(Boolean).join(', ');
@@ -1535,6 +1545,26 @@ function syncQuickActionButtons(reports = getJourneyReports()) {
 function updateEditingContext(reports = getJourneyReports()) {
     const banner = document.getElementById('field-editing-context');
     const captureCard = document.querySelector('.field-form-card');
+    
+    const draftJourneyId = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
+    const isEditingSubmitted = Boolean(draftJourneyId);
+    const submitBtn = document.getElementById('field-submit-journey-btn');
+    const exitBtn = document.getElementById('field-exit-journey-btn');
+
+    if (submitBtn) {
+        const span = submitBtn.querySelector('span');
+        if (span) {
+            span.innerHTML = isEditingSubmitted 
+                ? '<i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Actualizar y enviar a revisión'
+                : '<i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Enviar captura';
+        }
+        submitBtn.title = isEditingSubmitted ? 'Actualizar captura en revisión' : 'Enviar captura a revisión';
+    }
+
+    if (exitBtn) {
+        exitBtn.hidden = !isEditingSubmitted;
+    }
+
     if (!banner) return;
 
     banner.classList.remove('is-editing', 'is-building');
@@ -1557,7 +1587,6 @@ function updateEditingContext(reports = getJourneyReports()) {
         return;
     }
 
-    const draftJourneyId = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
     if (draftJourneyId || reports.length > 0) {
         banner.hidden = false;
         banner.classList.add('is-building');
@@ -3245,11 +3274,6 @@ function resetJourneyWorkspace() {
     isCaptureStarted = false;
     isJourneyStarted = false;
 
-    const form = document.getElementById('field-report-form');
-    if (form) {
-        form.reset();
-    }
-
     preloadDefaults();
     recalculateComputedFields();
     renderJourneyReports();
@@ -3260,6 +3284,32 @@ function resetJourneyWorkspace() {
     clearAccordionProgressControls();
     syncJourneyStartGate();
     syncCaptureGateState();
+}
+
+async function exitJourneyAndClearState() {
+    const isEditingSubmitted = Boolean(currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY));
+    if (!isEditingSubmitted) return;
+
+    if (!window.Swal) {
+        resetJourneyWorkspace();
+        return;
+    }
+
+    const { isConfirmed } = await window.Swal.fire({
+        title: '¿Salir de la jornada?',
+        text: 'Cualquier modificación que hayas hecho se perderá. La jornada seguirá en su estado anterior en la base de datos.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e11d48',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sí, salir y descartar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (isConfirmed) {
+        resetJourneyWorkspace();
+        updateStatus('Edición cancelada. Espacio de trabajo limpio.', 'info');
+    }
 }
 
 async function hydratePozoOptions() {

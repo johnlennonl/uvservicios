@@ -604,7 +604,7 @@
 
         .selected-pozo-profile-card {
             display: grid;
-            grid-template-columns: minmax(320px, 0.75fr) minmax(620px, 1.25fr);
+            grid-template-columns: minmax(280px, 0.5fr) minmax(620px, 1.5fr);
             gap: 18px;
             align-items: center;
             padding: 18px;
@@ -612,6 +612,30 @@
             border: 1px solid #E2E8F0;
             background: linear-gradient(135deg, #FFFFFF, #F8FAFC);
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .selected-pozo-profile-card::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            background-image: url('../img/UV-SERVICES-Logo-vectorial-sin-fondo.webp');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .selected-pozo-profile-card > * {
+            position: relative;
+            z-index: 1;
         }
 
         .selected-pozo-profile-copy {
@@ -657,8 +681,8 @@
 
         .selected-pozo-profile-copy h2 {
             margin: 0;
-            font-size: 1.1rem;
-            font-weight: 800;
+            font-size: 1.45rem;
+            font-weight: 900;
             color: #0F172A;
         }
 
@@ -1465,8 +1489,19 @@
             vertical-align: middle;
         }
 
+        .history-table tr:nth-child(even) {
+            background-color: rgba(241, 245, 249, 0.4);
+        }
+
         .history-table tr:hover {
-            background: #F8FAFC;
+            background: #EFF6FF;
+            box-shadow: inset 4px 0 0 #3B82F6;
+        }
+
+        .history-table td:first-child {
+            font-weight: 800;
+            color: #0F172A;
+            background-color: rgba(248, 250, 252, 0.7);
         }
 
         .btn-action {
@@ -2359,6 +2394,26 @@
             .ticket-status-pill {
                 padding: 3px 6px !important;
                 min-width: 0 !important;
+            }
+
+            body.view-mode-report-history .history-table,
+            body.view-mode-report-history .history-table thead,
+            body.view-mode-report-history .history-table tbody {
+                display: none !important;
+            }
+            body.view-mode-report-history .history-card {
+                box-shadow: none !important;
+                border: none !important;
+                background: transparent !important;
+            }
+            .history-card {
+                max-height: none !important;
+                overflow: visible !important;
+                overflow-y: visible !important;
+                overflow-x: visible !important;
+            }
+            #print-detailed-cards-container {
+                display: block !important;
             }
         }
             .technical-detail-icon svg {
