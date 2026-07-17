@@ -7,9 +7,8 @@ self.addEventListener('install', (event) => {
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll([
                 './',
-                './field.html',
                 './manifest.json',
-                './img/uvservicioslogo.png'
+                './img/UV%20SERVICES%20-%20Logo%20vectorial%20sin%20fondo.png'
             ]);
         })
     );
