@@ -381,12 +381,30 @@
   border: 1px solid #e2e8f0;
   border-radius: 24px;
   box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+  position: relative;
+  overflow: hidden;
 }
 
 .stats-kpi-card {
-  position: relative;
-  overflow: hidden;
   padding: 20px 22px;
+}
+
+.stats-kpi-card::after,
+.stats-card::after {
+  content: '';
+  position: absolute;
+  bottom: -15px;
+  right: -15px;
+  width: 140px;
+  height: 140px;
+  background-image: url('../img/UV-SERVICES-Logo-vectorial-sin-fondo.webp');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.035;
+  pointer-events: none;
+  transform: rotate(-12deg);
+  z-index: 0;
 }
 
 .stats-kpi-card::before {

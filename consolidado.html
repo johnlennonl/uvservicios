@@ -92,64 +92,95 @@
                 Salir
             </button>
         </aside>
-
         <main class="main-container consolidado-main">
-            <section class="consolidado-hero" aria-label="Centro de consolidado historico">
-                <div class="consolidado-hero-copy">
-                    <div>
-                        <span class="consolidado-kicker">Historico operacional</span>
-                        <h1>Consolidado maestro UV</h1>
-                        <p class="consolidado-hero-lead">Registra el Excel viejo como estructura oficial, detecta sus hojas y columnas, y prepara el camino para que los monitoreos nuevos de Campo alimenten el mismo consolidado exportable.</p>
-                    </div>
-                    <div class="consolidado-meta">
-                        <span class="consolidado-badge is-primary">Excel consolidado</span>
-                        <span class="consolidado-badge">Parámetros heredados</span>
-                        <span class="consolidado-badge">Nuevo formato Campo</span>
-                    </div>
-                    <div class="consolidado-highlight-grid" aria-label="Capacidades del consolidado">
-                        <article class="consolidado-highlight">
-                            <span>Registro base</span>
-                            <strong>Importa el consolidado viejo sin tocar la bandeja de Campo</strong>
-                            <p>La plataforma lee la estructura actual para conservar nombres de hojas, columnas y orden operativo.</p>
-                        </article>
-                        <article class="consolidado-highlight">
-                            <span>Continuidad</span>
-                            <strong>Los monitoreos nuevos podrán sumarse al mismo formato</strong>
-                            <p>El objetivo es que cada jornada publicada agregue filas al histórico sin volver al llenado manual.</p>
-                        </article>
-                        <article class="consolidado-highlight">
-                            <span>Control</span>
-                            <strong>Exporta pruebas antes de conectar datos productivos</strong>
-                            <p>Primero validamos la estructura. Luego conectamos fuentes, filtros y cortes recientes sin romper módulos existentes.</p>
-                        </article>
-                    </div>
-                    <div class="consolidado-reminder">
-                        <span class="consolidado-reminder-icon" aria-hidden="true">
-                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 17h.01"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86 1.82 18a2 2 0 0 0 1.72 3h16.92a2 2 0 0 0 1.72-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path>
+            <header class="page-hero">
+                <div class="page-hero-copy">
+                    <span class="consolidado-kicker" style="background: rgba(37, 99, 235, 0.1); color: #1D4ED8; font-weight: 800; padding: 6px 12px; border-radius: 999px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; display: inline-flex;">Histórico Operacional</span>
+                    <h1 style="margin-top: 10px; font-size: 1.6rem; font-weight: 800; color: var(--text-title); margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
+                        Consolidado Maestro UV
+                        <button type="button" id="consolidado-help-trigger" class="consolidado-help-trigger" aria-label="Ayuda" title="Ver guía de ayuda">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" style="width: 20px; height: 20px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                        </span>
-                        <div>
-                            <strong>Zona segura de transición</strong>
-                            <p>Esta sección no cambia la importación actual ni publica datos. Solo registra y valida la estructura del consolidado para avanzar sin romper el flujo existente.</p>
-                        </div>
+                        </button>
+                    </h1>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin: 5px 0 0 0;">Generación, exportación y mantenimiento del histórico consolidado de operaciones.</p>
+                </div>
+            </header>
+
+            <section id="consolidado-header-stats" class="consolidado-header-stats-grid" aria-label="Estadísticas del Consolidado">
+                <!-- Stat 1: Total Registros -->
+                <div class="consolidado-stat-card">
+                    <span class="consolidado-stat-card-icon" style="color: #2563eb; background: rgba(37, 99, 235, 0.08);">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </span>
+                    <div>
+                        <span>Total Registros</span>
+                        <strong id="stat-total-records">--</strong>
                     </div>
                 </div>
-                <aside class="consolidado-hero-side" aria-label="Flujo recomendado de consolidado">
-                    <div class="consolidado-side-card">
-                        <span class="consolidado-side-label">Flujo recomendado</span>
-                        <strong>Importa, revisa y genera una prueba antes de automatizar el histórico.</strong>
-                        <p>Este frente queda separado de Dashboard y de Campo Admin para trabajar el consolidado maestro con calma.</p>
-                        <ul class="consolidado-checklist">
-                            <li>Importa el Excel viejo para tomar hojas y nombres de columnas reales.</li>
-                            <li>Valida que los parámetros detectados coincidan con el archivo que usan actualmente.</li>
-                            <li>Genera el Dashboard General diseñado antes de conectar monitoreos reales.</li>
-                        </ul>
+                <!-- Stat 2: Base Histórica -->
+                <div class="consolidado-stat-card">
+                    <span class="consolidado-stat-card-icon" style="color: #4b5563; background: rgba(75, 85, 99, 0.08);">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                        </svg>
+                    </span>
+                    <div>
+                        <span>Base Histórica</span>
+                        <strong id="stat-base-records">--</strong>
                     </div>
-                    <p class="consolidado-footnote">Siguiente etapa: mapear cada columna contra Campo, monitoreo, BES y producción para exportar histórico completo, filtrado o corte reciente.</p>
-                </aside>
+                </div>
+                <!-- Stat 3: Nuevas de Campo -->
+                <div class="consolidado-stat-card">
+                    <span class="consolidado-stat-card-icon" style="color: #10b981; background: rgba(16, 185, 129, 0.08);">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </span>
+                    <div>
+                        <span>Nuevas de Campo</span>
+                        <strong id="stat-field-records">--</strong>
+                    </div>
+                </div>
+                <!-- Stat 4: Pozos Activos -->
+                <div class="consolidado-stat-card">
+                    <span class="consolidado-stat-card-icon" style="color: #d97706; background: rgba(217, 119, 6, 0.08);">
+                        <svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="stat-pumpjack-svg">
+                            <!-- Base estructural -->
+                            <path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+
+                            <!-- Mecanismo trasero -->
+                            <g>
+                                <circle cx="12" cy="38" r="6" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2,2" opacity="0.4" />
+                                <g>
+                                    <rect x="10" y="32" width="4" height="12" rx="2" fill="currentColor" stroke="none" />
+                                    <circle cx="12" cy="38" r="1.5" fill="#fffbeb" stroke="none" />
+                                </g>
+                            </g>
+
+                            <!-- Viga móvil -->
+                            <g>
+                                <!-- Viga principal -->
+                                <path d="M8 16 L52 16 L52 20 L8 20 Z" fill="currentColor" stroke="none" />
+                                <!-- Cabezal -->
+                                <path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z" fill="currentColor" stroke="none" />
+                                <!-- Varilla -->
+                                <line x1="62" y1="34" x2="62" y2="46" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1.5,1.5" />
+                                <!-- Biela -->
+                                <line x1="12" y1="20" x2="12" y2="34" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                                <!-- Pivote central -->
+                                <circle cx="32" cy="18" r="2.8" fill="#fffbeb" stroke="currentColor" stroke-width="1" />
+                            </g>
+                        </svg>
+                    </span>
+                    <div>
+                        <span>Pozos Activos</span>
+                        <strong id="stat-pozos-count">--</strong>
+                    </div>
+                </div>
             </section>
 
             <section class="consolidado-workbench" aria-label="Exportador de consolidado maestro">
@@ -157,29 +188,38 @@
                     <div class="consolidado-card-head">
                         <div>
                             <h2>Exportar consolidado</h2>
-                            <p>Obtén el Dashboard General guardado en la plataforma por histórico completo, pozo o rango de fechas.</p>
-                        </div>
-                        <div class="consolidado-config">
-                            <button type="button" id="consolidado-config-btn" class="consolidado-config-btn" aria-label="Abrir configuración" aria-expanded="false">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.38 1.05V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.05-.38H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.9l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .38-1.05V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.22.38.58.66 1 .78.18.05.37.08.55.08H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"></path>
-                                </svg>
-                            </button>
-                            <div id="consolidado-config-menu" class="consolidado-config-menu" hidden>
-                                <button type="button" id="consolidado-open-import-btn">Importar / reemplazar Excel base</button>
-                                <button type="button" id="consolidado-save-db-btn" disabled>Guardar Excel importado en base de datos</button>
-                                <button type="button" id="consolidado-sync-technical-btn">Sincronizar datos técnicos y ficha BES</button>
-                                <button type="button" id="consolidado-export-structure-btn" disabled>Exportar archivo recién importado</button>
-                                <button type="button" id="consolidado-refresh-db-btn">Actualizar conteo</button>
-                                <button type="button" id="consolidado-select-field-rows-btn" class="is-danger" disabled>Seleccionar Campo Admin</button>
-                                <button type="button" id="consolidado-delete-all-field-btn" class="is-danger" disabled>Limpiar Campo Admin</button>
-                                <button type="button" id="consolidado-clear-template-btn" disabled>Limpiar estructura local</button>
-                            </div>
+                            <p>Genera y descarga el Dashboard General por histórico completo, pozo o rango de fechas.</p>
                         </div>
                     </div>
-                    <input id="consolidado-file-input" type="file" accept=".xlsx,.xls" hidden>
                     <div class="consolidado-export-panel">
+                        <!-- Quick actions section -->
+                        <span class="consolidado-filter-grid-title" style="color: #64748b; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; display: block;">Acciones Rápidas</span>
+                        <div class="consolidado-quick-actions-bar">
+                            <button type="button" id="consolidado-quick-new" class="consolidado-quick-btn">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span>Todo lo Nuevo</span>
+                                <small>Solo datos de Campo</small>
+                            </button>
+                            <button type="button" id="consolidado-quick-week" class="consolidado-quick-btn">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span>Últimos 7 Días</span>
+                                <small>Base + Campo reciente</small>
+                            </button>
+                            <button type="button" id="consolidado-quick-all" class="consolidado-quick-btn">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span>Histórico Maestro</span>
+                                <small>Base + Campo completo</small>
+                            </button>
+                        </div>
+
+                        <span class="consolidado-filter-grid-title" style="color: #64748b; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 8px; margin-bottom: 8px; display: block;">Exportación Personalizada</span>
+
                         <div class="consolidado-export-options" role="group" aria-label="Origen del consolidado">
                             <label class="consolidado-export-option">
                                 <input type="radio" name="consolidado-export-source" value="base" checked>
@@ -226,50 +266,62 @@
                         </div>
                         <button type="button" id="consolidado-export-db-btn" class="consolidado-export-primary" disabled>Exportar consolidado</button>
                     </div>
+                </article>
+
+                <article class="consolidado-card">
+                    <div class="consolidado-card-head">
+                        <div>
+                            <h2>Estructura del Excel Base</h2>
+                            <p>Estructura de referencia cargada para formatear los reportes exportables.</p>
+                        </div>
+                        <div class="consolidado-config">
+                            <button type="button" id="consolidado-config-btn" class="consolidado-config-btn" aria-label="Abrir configuración" aria-expanded="false">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.38 1.05V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.05-.38H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.9l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .38-1.05V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.22.38.58.66 1 .78.18.05.37.08.55.08H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"></path>
+                                </svg>
+                            </button>
+                            <div id="consolidado-config-menu" class="consolidado-config-menu" hidden>
+                                <button type="button" id="consolidado-open-import-btn">Importar / reemplazar Excel base</button>
+                                <button type="button" id="consolidado-save-db-btn" disabled>Guardar Excel importado en base de datos</button>
+                                <button type="button" id="consolidado-sync-technical-btn">Sincronizar datos técnicos y ficha BES</button>
+                                <button type="button" id="consolidado-export-structure-btn" disabled>Exportar archivo recién importado</button>
+                                <button type="button" id="consolidado-refresh-db-btn">Actualizar conteo</button>
+                                <button type="button" id="consolidado-select-field-rows-btn" class="is-danger" disabled>Seleccionar Campo Admin</button>
+                            </div>
+                        </div>
+                    </div>
+                    <input id="consolidado-file-input" type="file" accept=".xlsx,.xls" hidden>
+                    <div id="consolidado-template-summary" class="consolidado-template-summary"></div>
+                    
                     <details class="consolidado-maintenance-panel">
-                        <summary>Importar o revisar archivo base</summary>
+                        <summary>Importar o reemplazar Excel base</summary>
                         <div id="consolidado-drop-zone" class="consolidado-drop-zone" role="button" tabindex="0" aria-label="Importar Excel consolidado viejo">
                             <div class="integrated-upload-icon"><img src="https://cdn-icons-png.flaticon.com/512/17018/17018393.png" alt="Icono de carga de archivo" width="50" height="50" aria-hidden="true"></div>
                             <div class="consolidado-drop-copy">
                                 <h3>Arrastra el consolidado o haz click para seleccionarlo</h3>
-                                <p>La lectura detecta cada hoja y el encabezado más probable para construir el catálogo base del consolidado maestro.</p>
+                                <p>La lectura detecta cada hoja y el encabezado para construir el catálogo base.</p>
                                 <span>Formatos permitidos: XLSX y XLS.</span>
                             </div>
                         </div>
                     </details>
-                    <div id="consolidado-status" class="consolidado-status">Aún no hay estructura importada. Este paso solo prepara el catálogo; no altera Campo ni Data.</div>
-                    <div id="consolidado-db-summary" class="consolidado-db-summary" aria-live="polite">
-                        <div><span>Guardado</span><strong>--</strong></div>
-                        <div><span>Excel viejo</span><strong>--</strong></div>
-                        <div><span>Campo Admin</span><strong>--</strong></div>
-                    </div>
-                </article>
 
-                <article class="consolidado-card consolidado-template-card">
-                    <div class="consolidado-card-head">
-                        <div class="consolidado-template-title">
-                            <span class="consolidado-template-title-icon" aria-hidden="true">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 13h8M8 17h5"></path>
-                                </svg>
-                            </span>
-                            <div>
-                            <h2>Archivo base</h2>
-                            <p>La estructura del Excel queda disponible solo para mantenimiento; no hace falta verla para exportar el consolidado guardado.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="consolidado-template-summary" class="consolidado-template-summary"></div>
-                    <details class="consolidado-structure-details">
+                    <details class="consolidado-structure-details" style="margin-top: 12px;">
                         <summary>Ver hojas y columnas detectadas</summary>
                         <div id="consolidado-sheet-list" class="consolidado-sheet-list"></div>
-                        <div class="consolidado-column-panel">
+                        <div class="consolidado-column-panel" style="margin-top: 14px;">
                             <h3 id="consolidado-column-title">Columnas detectadas</h3>
                             <div id="consolidado-column-list" class="consolidado-column-list"></div>
                         </div>
                     </details>
+
+                    <div id="consolidado-status" class="consolidado-status" style="margin-top: 16px;">Aún no hay estructura importada. Este paso solo prepara el catálogo; no altera Campo ni Data.</div>
+                    
+                    <div id="consolidado-db-summary" class="consolidado-db-summary" aria-live="polite" style="margin-top: 16px;">
+                        <div><span>Guardado</span><strong>--</strong></div>
+                        <div><span>Base histórica</span><strong>--</strong></div>
+                        <div><span>Nuevo Campo</span><strong>--</strong></div>
+                    </div>
                 </article>
             </section>
         </main>

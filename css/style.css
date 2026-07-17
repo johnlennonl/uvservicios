@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
 :root {
     --primary-blue: #1E3A8A;
     --primary-dark: #0F172A;
@@ -16,6 +18,7 @@
     --border-color: #E2E8F0;
     --radius-md: 12px;
     --font-main: 'Inter', -apple-system, sans-serif;
+    --font-title: 'Outfit', var(--font-main);
 }
 
 /* 🔄 RESET & BASE */
@@ -32,6 +35,10 @@ body {
     min-height: 100vh;
     overflow-x: hidden;
     overflow-y: auto;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-title);
 }
 
 a[href="monitoring-prep.html"],
@@ -521,4 +528,24 @@ body.access-protected-nav:not(.access-nav-ready) a[href="jornada-history.html"] 
         flex: 1;
         padding: 40px 20px;
     }
+}
+
+/* ━━━ MOBILE BOTTOM NAV CLEARANCE ━━━
+   The .mobile-bottom-nav is position:fixed, ~88px tall, at bottom:12px.
+   Every page's <main> uses .main-container, so one rule covers all pages. */
+@media (max-width: 1024px) {
+    .main-container {
+        padding-bottom: 120px !important;
+    }
+}
+
+/* ━━━ MODAL ABOVE MOBILE NAV ━━━
+   .mobile-bottom-nav uses z-index:2100.  All full-screen modals were at
+   z-index:1200, so the nav rendered ON TOP of them, blocking buttons like
+   "Guardar Cambios".  This single rule lifts every modal above the nav. */
+.campo-admin-modal,
+.field-report-preview-modal,
+.prep-processing-modal,
+.help-onboarding-modal {
+    z-index: 5000 !important;
 }

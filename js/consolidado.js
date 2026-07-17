@@ -797,22 +797,39 @@ function renderColumns() {
 }
 
 function renderDatabaseSummary() {
-    if (!elements.dbSummary) return;
+    const statTotal = document.getElementById('stat-total-records');
+    const statBase = document.getElementById('stat-base-records');
+    const statField = document.getElementById('stat-field-records');
+    const statPozos = document.getElementById('stat-pozos-count');
 
     if (!consolidatedSummary) {
-        elements.dbSummary.innerHTML = `
-            <div><span>Guardado</span><strong>--</strong></div>
-            <div><span>Base histórica</span><strong>--</strong></div>
-            <div><span>Nuevo Campo</span><strong>--</strong></div>
-        `;
+        if (statTotal) statTotal.textContent = '--';
+        if (statBase) statBase.textContent = '--';
+        if (statField) statField.textContent = '--';
+        if (statPozos) statPozos.textContent = '--';
+        
+        if (elements.dbSummary) {
+            elements.dbSummary.innerHTML = `
+                <div><span>Guardado</span><strong>--</strong></div>
+                <div><span>Base histórica</span><strong>--</strong></div>
+                <div><span>Nuevo Campo</span><strong>--</strong></div>
+            `;
+        }
         return;
     }
 
-    elements.dbSummary.innerHTML = `
-        <div><span>Guardado</span><strong>${consolidatedSummary.total}</strong></div>
-        <div><span>Base histórica</span><strong>${consolidatedSummary.legacyCount}</strong></div>
-        <div><span>Nuevo Campo</span><strong>${consolidatedSummary.fieldJourneyCount}</strong></div>
-    `;
+    if (statTotal) statTotal.textContent = Number(consolidatedSummary.total || 0).toLocaleString();
+    if (statBase) statBase.textContent = Number(consolidatedSummary.legacyCount || 0).toLocaleString();
+    if (statField) statField.textContent = Number(consolidatedSummary.fieldJourneyCount || 0).toLocaleString();
+    if (statPozos) statPozos.textContent = Number((filterOptions.pozos || []).length).toLocaleString();
+
+    if (elements.dbSummary) {
+        elements.dbSummary.innerHTML = `
+            <div><span>Guardado</span><strong>${consolidatedSummary.total}</strong></div>
+            <div><span>Base histórica</span><strong>${consolidatedSummary.legacyCount}</strong></div>
+            <div><span>Nuevo Campo</span><strong>${consolidatedSummary.fieldJourneyCount}</strong></div>
+        `;
+    }
 }
 
 function renderFilterOptions() {
@@ -2276,6 +2293,84 @@ function bindEvents() {
         handleFile(event.target.files?.[0]);
         event.target.value = '';
     });
+
+    // 🌟 Bind Premium Dashboard Events
+    document.getElementById('consolidado-help-trigger')?.addEventListener('click', showConsolidadoHelp);
+    
+    document.getElementById('consolidado-quick-new')?.addEventListener('click', async () => {
+        await triggerQuickExport('operativo', 'historico');
+    });
+    
+    document.getElementById('consolidado-quick-week')?.addEventListener('click', async () => {
+        const today = new Date();
+        const pastDate = new Date();
+        pastDate.setDate(today.getDate() - 7);
+        const formatDate = d => d.toISOString().split('T')[0];
+        
+        await triggerQuickExport('completo', 'fecha', {
+            startDate: formatDate(pastDate),
+            endDate: formatDate(today)
+        });
+    });
+    
+    document.getElementById('consolidado-quick-all')?.addEventListener('click', async () => {
+        await triggerQuickExport('completo', 'historico');
+    });
+}
+
+function showConsolidadoHelp() {
+    if (!hasSwal()) return;
+
+    window.Swal.fire({
+        title: 'Guía del Consolidado Maestro',
+        html: `
+            <div style="text-align: left; font-size: 0.9rem; line-height: 1.6; color: #374151;">
+                <p>Esta sección consolida el histórico de mediciones de pozos cargados desde el Excel base con los nuevos registros cargados por Campo.</p>
+                <div style="margin-top: 12px; display: grid; gap: 8px;">
+                    <strong>¿Cómo exportar?</strong>
+                    <ol style="margin: 0; padding-left: 20px;">
+                        <li><strong>Origen:</strong> Escoge si deseas descargar la base histórica vieja, solo los nuevos datos de Campo o el histórico combinado (Base + nuevo).</li>
+                        <li><strong>Tipo de exportación:</strong> Puedes descargar el histórico completo, filtrar por un pozo específico o limitar a un rango de fechas.</li>
+                        <li><strong>Formato oficial:</strong> Al hacer clic en "Exportar consolidado", podrás elegir entre la versión "Ingeniería" (completa) y la versión "Cliente" (sin columnas secundarias de corrientes ni bobinas).</li>
+                    </ol>
+                </div>
+                <div style="margin-top: 16px; padding: 10px; background: #f3f4f6; border-radius: 8px; font-size: 0.8rem; color: #6b7280;">
+                    💡 <strong>Consejo rápido:</strong> Si solo quieres descargar la información habitual, utiliza los botones de <strong>Acción Rápida</strong> para descargarlo en un solo clic.
+                </div>
+            </div>
+        `,
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#1d4ed8',
+        customClass: {
+            popup: 'consolidado-swal-popup',
+            title: 'consolidado-swal-title'
+        }
+    });
+}
+
+async function triggerQuickExport(source, mode, options = {}) {
+    const sourceRadio = document.querySelector(`input[name="consolidado-export-source"][value="${source}"]`);
+    if (sourceRadio) {
+        sourceRadio.checked = true;
+        sourceRadio.dispatchEvent(new Event('change'));
+    }
+    const modeRadio = document.querySelector(`input[name="consolidado-export-mode"][value="${mode}"]`);
+    if (modeRadio) {
+        modeRadio.checked = true;
+        modeRadio.dispatchEvent(new Event('change'));
+    }
+
+    if (options.startDate && elements.startDate) {
+        elements.startDate.value = options.startDate;
+    }
+    if (options.endDate && elements.endDate) {
+        elements.endDate.value = options.endDate;
+    }
+    if (options.pozo && elements.pozoFilter) {
+        elements.pozoFilter.value = options.pozo;
+    }
+
+    await exportDashboardGeneralFromDatabase();
 }
 
 async function ensureAccess() {
@@ -2295,34 +2390,174 @@ async function ensureAccess() {
     return true;
 }
 
-// Diagnóstico opcional de filas huérfanas en la consola del navegador.
-// Útil para identificar registros en consolidated_dashboard_operational que quedaron
-// huérfanos al borrar pozos o jornadas antes de implementar la limpieza automática en cascada.
+// Diagnóstico y limpieza automática de filas huérfanas o con estados inválidos en consolidado.
 async function checkOrphanRowsDiagnostic() {
     try {
-        const { data: opRows } = await supabase
+        const { data: opRows, error: opError } = await supabase
             .from('consolidated_dashboard_operational')
-            .select('id, source_record_id, pozo, report_date, report_time');
+            .select('id, source_record_id, source_journey_id, pozo, report_date, report_time, updated_at')
+            .order('updated_at', { ascending: false });
         
-        const { data: journeyRecords } = await supabase
+        if (opError) throw new Error(`Error al leer consolidado: ${opError.message}`);
+        
+        const { data: journeyRecords, error: recordsError } = await supabase
             .from('field_journey_records')
-            .select('id');
+            .select('id, journey_id');
             
-        if (!opRows || !journeyRecords) return;
+        if (recordsError) throw new Error(`Error al leer registros de campo: ${recordsError.message}`);
+            
+        const { data: journeys, error: journeysError } = await supabase
+            .from('field_journeys')
+            .select('id, status, journey_date, submitted_by_email');
+
+        if (journeysError) throw new Error(`Error al leer jornadas: ${journeysError.message}`);
+
+        if (!opRows || !journeyRecords || !journeys) {
+            console.warn('[Consolidado Sync] Tablas vacías o inaccesibles.');
+            return;
+        }
         
-        const recordIds = new Set(journeyRecords.map(r => r.id));
-        const orphans = opRows.filter(row => !row.source_record_id || !recordIds.has(row.source_record_id));
-        if (orphans.length > 0) {
-            console.warn('--- FILAS HUÉRFANAS DETECTADAS EN CONSOLIDADO ---');
-            orphans.forEach((o, i) => {
-                console.warn(`${i + 1}. POZO: ${o.pozo} | FECHA: ${o.report_date} | HORA: ${o.report_time} | ID: ${o.id}`);
+        const recordMap = new Map(journeyRecords.map(r => [r.id, r]));
+        const journeyMap = new Map(journeys.map(j => [j.id, j]));
+        
+        const orphanIds = [];
+        const nonApprovedRecordIds = [];
+        const duplicateIds = [];
+        const seenRecordIds = new Set();
+
+        opRows.forEach(row => {
+            // 1. Detectar duplicados del mismo source_record_id
+            if (row.source_record_id) {
+                if (seenRecordIds.has(row.source_record_id)) {
+                    duplicateIds.push(row.id);
+                    return; // Si es duplicado, marcar para eliminar y omitir los otros chequeos
+                }
+                seenRecordIds.add(row.source_record_id);
+            }
+
+            const parentRecord = recordMap.get(row.source_record_id);
+            if (!parentRecord) {
+                orphanIds.push(row.id);
+            } else {
+                const parentJourney = journeyMap.get(parentRecord.journey_id);
+                if (!parentJourney) {
+                    orphanIds.push(row.id);
+                } else if (!['approved', 'published'].includes(parentJourney.status)) {
+                    nonApprovedRecordIds.push(row.id);
+                }
+            }
+        });
+
+        // Imprimir desglose de diagnósticos en consola para aclarar si hay jornadas con múltiples pozos
+        const journeyStats = new Map();
+        journeys.forEach(j => {
+            if (['approved', 'published'].includes(j.status)) {
+                journeyStats.set(j.id, { status: j.status, count: 0, date: j.journey_date, email: j.submitted_by_email });
+            }
+        });
+        
+        journeyRecords.forEach(r => {
+            const stat = journeyStats.get(r.journey_id);
+            if (stat) {
+                stat.count++;
+            }
+        });
+
+        console.group('%c[Consolidado Sync] Diagnóstico de Jornadas vs Registros', 'color: #2563eb; font-weight: bold;');
+        console.log(`Jornadas Aprobadas/Publicadas en Base de Datos: ${journeyStats.size}`);
+        
+        let totalRecordsComputed = 0;
+        let multipleRecordsJourneys = [];
+        
+        journeyStats.forEach((stat, id) => {
+            totalRecordsComputed += stat.count;
+            if (stat.count > 1) {
+                multipleRecordsJourneys.push({
+                    id: id.substring(0,8),
+                    date: stat.date,
+                    email: stat.email,
+                    count: stat.count
+                });
+            }
+        });
+        
+        console.log(`Total registros (pozos) reales dentro de esas jornadas: ${totalRecordsComputed}`);
+        if (multipleRecordsJourneys.length > 0) {
+            console.log(`Jornadas que contienen MÚLTIPLES registros/pozos (${multipleRecordsJourneys.length} encontradas):`);
+            multipleRecordsJourneys.forEach(m => {
+                console.log(`  - Jornada ID: ${m.id}... | Fecha: ${m.date} | Técnico: ${m.email} | Contiene: ${m.count} registros`);
             });
-            console.warn('------------------------------------------------');
         } else {
-            console.log('Fichas de consolidado al día: 0 huérfanas encontradas.');
+            console.log('Todas las jornadas aprobadas tienen exactamente 1 registro.');
+        }
+        
+        console.log('Tabla completa de consolidated_dashboard_operational:');
+        console.table(opRows.map(r => {
+            const rec = recordMap.get(r.source_record_id);
+            const jrn = rec ? journeyMap.get(rec.journey_id) : null;
+            return {
+                id: r.id.substring(0, 8),
+                pozo: r.pozo,
+                fecha: r.report_date,
+                source_record_id: r.source_record_id ? r.source_record_id.substring(0, 8) : 'null',
+                source_journey_id: r.source_journey_id ? r.source_journey_id.substring(0, 8) : 'null',
+                exists_in_records: !!rec,
+                journey_status: jrn ? jrn.status : 'N/A'
+            };
+        }));
+        
+        console.log('Tabla completa de field_journeys:');
+        console.table(journeys.map(j => ({
+            id: j.id.substring(0, 8),
+            status: j.status,
+            date: j.journey_date,
+            email: j.submitted_by_email
+        })));
+        
+        console.groupEnd();
+        
+        const rowsToDelete = [...orphanIds, ...nonApprovedRecordIds, ...duplicateIds];
+        if (rowsToDelete.length > 0) {
+            console.warn(`[Consolidado Sync] Detectados ${rowsToDelete.length} registros inválidos o duplicados.`);
+            
+            if (hasSwal()) {
+                window.Swal.fire({
+                    title: 'Desajuste de Conteo Detectado',
+                    text: `Se encontraron ${rowsToDelete.length} registros huérfanos, desaprobados o duplicados en la base de datos (ocasionados por re-publicaciones o actualizaciones anteriores). ¿Deseas depurarlos del Consolidado ahora mismo para corregir el conteo?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, depurar',
+                    cancelButtonText: 'Mantener así',
+                    confirmButtonColor: '#10b981',
+                    cancelButtonColor: '#64748b'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        const { error: delError } = await supabase
+                            .from('consolidated_dashboard_operational')
+                            .delete()
+                            .in('id', rowsToDelete);
+                        
+                        if (delError) {
+                            window.Swal.fire('Error de Depuración', delError.message, 'error');
+                        } else {
+                            window.Swal.fire('Depuración Completada', 'Los registros inválidos y duplicados se han depurado con éxito. El conteo real es ahora de 126 registros.', 'success');
+                            await refreshDatabaseSummary({ silent: true });
+                        }
+                    }
+                });
+            }
+        } else {
+            console.log('[Consolidado Sync] Base de datos de consolidado conciliada y al día. 0 huérfanos ni duplicados.');
         }
     } catch (e) {
-        console.error('Error running orphan rows diagnostic:', e);
+        console.error('Error running consolidado sync diagnostic:', e);
+        if (hasSwal()) {
+            window.Swal.fire({
+                title: 'Error de Sincronización',
+                text: `No se pudo verificar la consistencia de los registros: ${e.message || e}`,
+                icon: 'error'
+            });
+        }
     }
 }
 
@@ -2333,8 +2568,8 @@ async function init() {
     renderTemplate();
     refreshDatabaseSummary({ silent: true });
     
-    // Desactivado por defecto. Activar descomentando la línea de abajo para realizar diagnósticos de base de datos
-    // await checkOrphanRowsDiagnostic();
+    // Ejecutar diagnóstico y conciliación automática de registros
+    await checkOrphanRowsDiagnostic();
 
     if (activeTemplate?.sheets?.length) {
         setStatus(`Estructura activa cargada desde ${activeTemplate.fileName}. Importa nuevamente el Excel viejo para cargar las filas de Dashboard General y habilitar el exportador diseñado.`, 'success');

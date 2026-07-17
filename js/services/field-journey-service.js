@@ -1022,9 +1022,11 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
     normalizedReports = await inheritReportsProductionMeasures(normalizedReports);
 
     const requestedJourneyId = normalizeUuid(options.journeyId);
+    let wasAlreadyPublishedOrApproved = false;
+    let originalStatus = 'submitted';
 
     try {
-        if (requestedJourneyId && !accessProfile.canViewManagement) {
+        if (requestedJourneyId) {
             const { data: existingJourney, error: existingJourneyError } = await supabase
                 .from('field_journeys')
                 .select('id, status, reviewed_at, published_at')
@@ -1033,12 +1035,22 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
 
             if (existingJourneyError) throw existingJourneyError;
 
-            if (existingJourney && !canOwnerEditJourneyStatus(existingJourney.status)) {
-                throw new Error('Esta jornada ya fue tomada por Admin Campo y no puede reenviarse desde Campo en su estado actual. Crea una jornada nueva o pide que la regresen a rechazado para volver a editarla.');
+            if (existingJourney) {
+                if (!accessProfile.canViewManagement && !canOwnerEditJourneyStatus(existingJourney.status)) {
+                    throw new Error('Esta jornada ya fue tomada por Admin Campo y no puede reenviarse desde Campo en su estado actual. Crea una jornada nueva o pide que la regresen a rechazado para volver a editarla.');
+                }
+                if (['published', 'approved'].includes(existingJourney.status)) {
+                    wasAlreadyPublishedOrApproved = true;
+                    originalStatus = existingJourney.status;
+                }
             }
         }
 
         const journeyRow = buildWorkflowJourneyRow(normalizedReports, session, requestedJourneyId);
+        if (wasAlreadyPublishedOrApproved) {
+            journeyRow.status = originalStatus;
+        }
+
         const { data: journey, error: journeyError } = await supabase
             .from('field_journeys')
             .upsert(journeyRow, { onConflict: 'id' })
@@ -1065,6 +1077,13 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
             .insert(recordRows);
 
         if (recordsError) throw recordsError;
+
+        if (wasAlreadyPublishedOrApproved) {
+            const inheritedRecords = await inheritWorkflowRecordsProductionMeasures(recordRows);
+            const monitoringRecords = inheritedRecords.map(mapWorkflowRecordToMonitoringRecord);
+            await syncMonitoringRecords(monitoringRecords);
+            await upsertFieldJourneyIntoConsolidatedDashboard(inheritedRecords, journeyId);
+        }
 
         if (accessProfile.canViewManagement) {
             const { error: logError } = await supabase
@@ -1486,6 +1505,20 @@ async function buildConsolidatedFieldRows(records = [], journeyId = '') {
 async function upsertFieldJourneyIntoConsolidatedDashboard(records = [], journeyId = '') {
     const rows = await buildConsolidatedFieldRows(records, journeyId);
     if (!rows.length) return { saved: 0, error: null };
+
+    // Evitar registros duplicados en el consolidado al re-publicar o actualizar:
+    // Eliminamos cualquier fila previa que coincida con los source_record_id de esta tanda
+    const recordIds = rows.map(r => r.source_record_id).filter(Boolean);
+    if (recordIds.length > 0) {
+        try {
+            await supabase
+                .from(CONSOLIDATED_OPERATIONAL_TABLE)
+                .delete()
+                .in('source_record_id', recordIds);
+        } catch (e) {
+            console.warn('Error deleting existing records in upsertFieldJourneyIntoConsolidatedDashboard:', e);
+        }
+    }
 
     const { error } = await supabase
         .from(CONSOLIDATED_OPERATIONAL_TABLE)

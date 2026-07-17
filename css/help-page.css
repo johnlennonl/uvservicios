@@ -1525,10 +1525,7 @@ body.help-modal-open {
     }
 
     .help-assistant-dock {
-        right: 12px;
-        bottom: 90px;
-        left: 12px;
-        align-items: stretch;
+        display: none !important;
     }
 
     .help-assistant-panel {

@@ -178,11 +178,28 @@
             </header>
 
             <!-- Filtros principales del dashboard -->
-            <section class="filter-section">
+            <section class="filter-section premium-filter-toolbar">
                 <div class="filter-item" id="single-pozo-container">
                     <label>Pozo</label>
                     <input type="hidden" id="filter-pozo">
-                    <div class="pozo-selector-input-wrap dashboard-pozo-selector">
+                    <div class="pozo-selector-input-wrap dashboard-pozo-selector premium-pozo-selector">
+                        <span class="input-icon-prefix">
+                            <svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                                <g>
+                                    <circle cx="12" cy="38" r="6" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2,2" opacity="0.4" />
+                                    <rect x="10" y="32" width="4" height="12" rx="2" fill="currentColor" stroke="none" />
+                                    <circle cx="12" cy="38" r="1.5" fill="var(--bg-card, #fff)" stroke="none" />
+                                </g>
+                                <g>
+                                    <path d="M8 16 L52 16 L52 20 L8 20 Z" fill="currentColor" stroke="none" />
+                                    <path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z" fill="currentColor" stroke="none" />
+                                    <line x1="62" y1="34" x2="62" y2="46" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1.5,1.5" />
+                                    <line x1="12" y1="20" x2="12" y2="34" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                                    <circle cx="32" cy="18" r="2.8" fill="var(--bg-card, #fff)" stroke="currentColor" stroke-width="1" />
+                                </g>
+                            </svg>
+                        </span>
                         <input type="text" id="filter-pozo-display" placeholder="Busca o selecciona un pozo" autocomplete="off">
                         <button type="button" id="filter-pozo-toggle" class="pozo-selector-toggle" aria-label="Abrir lista de pozos" title="Abrir lista de pozos">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -197,31 +214,38 @@
 
                 <div class="filter-item historical-record-item" id="historical-record-container">
                     <label>Registro Histórico · Fecha / Hora</label>
-                    <div class="historical-record-picker">
-                        <button id="btn-prev-day" class="btn-secondary historical-nav-btn" type="button" title="Registro anterior" aria-label="Registro anterior">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <div class="segmented-timeline-control">
+                        <button id="btn-prev-day" class="timeline-segment-btn segment-nav-btn" type="button" title="Registro anterior" aria-label="Registro anterior">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <path d="M15 18l-6-6 6-6" />
                             </svg>
                         </button>
-                        <input type="text" id="historical-record-input" placeholder="Selecciona un pozo" readonly>
-                        <button id="btn-pick-historical-date" class="btn-secondary historical-date-btn" type="button" title="Buscar por fecha" aria-label="Buscar por fecha">
+                        
+                        <div class="timeline-segment-input-wrap">
+                            <span class="input-icon-prefix">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+                            </span>
+                            <input type="text" id="historical-record-input" placeholder="Selecciona un pozo" readonly>
+                            <span class="input-icon-suffix">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
+                            </span>
+                        </div>
+
+                        <button id="btn-pick-historical-date" class="timeline-segment-btn segment-date-btn" type="button" title="Buscar por fecha" aria-label="Buscar por fecha">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M8 2v4" />
-                                <path d="M16 2v4" />
                                 <rect x="3" y="4" width="18" height="18" rx="2" />
-                                <path d="M3 10h18" />
-                                <path d="M8 14h.01" />
-                                <path d="M12 14h.01" />
-                                <path d="M16 14h.01" />
+                                <path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" />
                             </svg>
                         </button>
+                        
                         <input type="date" id="filter-start" hidden>
                         <input type="date" id="filter-end" hidden>
                         <input type="time" id="filter-time" hidden>
                         <input type="date" id="historical-date-jump" hidden>
                         <div class="historical-record-menu" id="historical-record-menu"></div>
-                        <button id="btn-next-day" class="btn-secondary historical-nav-btn" type="button" title="Registro siguiente" aria-label="Registro siguiente">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        
+                        <button id="btn-next-day" class="timeline-segment-btn segment-nav-btn" type="button" title="Registro siguiente" aria-label="Registro siguiente">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <path d="M9 18l6-6-6-6" />
                             </svg>
                         </button>
@@ -229,7 +253,12 @@
                 </div>
 
                 <div class="filter-actions">
-                    <button id="apply-filters" class="btn-text-action btn-primary-action" type="button" title="Refrescar panel" aria-label="Refrescar panel">REFRESCAR</button>
+                    <button id="apply-filters" class="btn-text-action btn-primary-action premium-refresh-btn" type="button" title="Refrescar panel" aria-label="Refrescar panel">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-spin-icon">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67" />
+                        </svg>
+                        <span>REFRESCAR</span>
+                    </button>
                 </div>
             </section>
 
@@ -379,7 +408,7 @@
             <!-- Rejilla principal de indicadores y tendencias -->
             <div class="brutal-grid" id="brutal-grid" style="display: none;">
                 <!-- Indicadores rapidos -->
-                <div class="elite-card col-1">
+                <div class="elite-card col-1 gauge-card">
                     <div class="card-header-industrial">
                         <h3>Frecuencia</h3>
                     </div>
@@ -389,7 +418,7 @@
                         <span>Max: 60</span>
                     </div>
                 </div>
-                <div class="elite-card col-1">
+                <div class="elite-card col-1 gauge-card">
                     <div class="card-header-industrial">
                         <h3>Presión PIP</h3>
                     </div>
@@ -399,7 +428,7 @@
                         <span>Max: 5000</span>
                     </div>
                 </div>
-                <div class="elite-card col-1">
+                <div class="elite-card col-1 gauge-card">
                     <div class="card-header-industrial">
                         <h3>Temp. TM</h3>
                     </div>

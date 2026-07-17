@@ -992,21 +992,24 @@ function getGaugeLayout(id, valueLabel = '') {
     const container = document.getElementById(id);
     const parentWidth = container?.parentElement?.clientWidth || container?.clientWidth || 260;
     const safeWidth = Math.max(parentWidth, 220);
-    const chartHeight = Math.max(190, Math.min(250, Math.round(safeWidth * 0.7)));
-    const baseValueFontSize = Math.max(24, Math.min(38, Math.round(safeWidth * 0.105)));
+    
+    // Increased height for gauges to match the taller card layout
+    const chartHeight = Math.max(200, Math.min(230, Math.round(safeWidth * 0.65)));
+    const baseValueFontSize = Math.max(24, Math.min(32, Math.round(safeWidth * 0.09)));
     const labelLength = String(valueLabel).trim().length;
     const lengthScale = labelLength > 8
         ? Math.max(0.64, 1 - ((labelLength - 8) * 0.065))
         : 1;
-    const valueFontSize = Math.max(21, Math.round(baseValueFontSize * lengthScale));
-    const offsetY = Math.max(6, Math.min(16, Math.round(chartHeight * 0.055)));
-    const hollowSize = Math.max(57, Math.min(68, Math.round(safeWidth * 0.215)));
+    const valueFontSize = Math.max(20, Math.round(baseValueFontSize * lengthScale));
+    const offsetY = Math.max(6, Math.min(10, Math.round(chartHeight * 0.03)));
+    // Hollow area (62%) to make the gauge dial thicker and more prominent
+    const hollowSize = '62%';
 
     return {
         chartHeight,
         valueFontSize: `${valueFontSize}px`,
         offsetY,
-        hollowSize: `${hollowSize}%`
+        hollowSize: `${hollowSize}`
     };
 }
 
@@ -1034,16 +1037,18 @@ function createEliteGauge(id, value, min, max, unit, color) {
             type: 'radialBar', 
             height: gaugeLayout.chartHeight,
             sparkline: { enabled: true },
+            fontFamily: 'Outfit, Inter, sans-serif'
         },
         theme: { mode: effectiveMode },
         plotOptions: {
             radialBar: {
-                startAngle: -115,
-                endAngle: 115,
+                offsetY: -8,
+                startAngle: -110,
+                endAngle: 110,
                 hollow: { size: gaugeLayout.hollowSize, background: 'transparent' },
                 track: { 
                     background: effectiveMode === 'dark' ? '#1E293B' : '#E2E8F0', 
-                    strokeWidth: '100%', 
+                    strokeWidth: '95%', 
                     dropShadow: { enabled: true, top: 0, left: 0, blur: 3, opacity: 0.1 } 
                 },
                 dataLabels: {
@@ -1051,7 +1056,7 @@ function createEliteGauge(id, value, min, max, unit, color) {
                     value: {
                         offsetY: gaugeLayout.offsetY,
                         fontSize: gaugeLayout.valueFontSize,
-                        fontFamily: 'Inter, sans-serif',
+                        fontFamily: 'Outfit, Inter, sans-serif',
                         fontWeight: '900',
                         color: effectiveMode === 'dark' ? '#F8FAFC' : '#1E293B',
                         formatter: () => valueLabel
@@ -1128,7 +1133,7 @@ function renderStatusDonut(data, latestRecord = null) {
         ? {
             series: [runCount, offCount],
             labels: ['RUN', 'OFF'],
-            chart: { type: 'donut', height: chartHeight },
+            chart: { type: 'donut', height: chartHeight, fontFamily: 'Outfit, Inter, sans-serif' },
             theme: { mode: effectiveMode },
             colors: ['#10B981', '#F43F5E'],
             dataLabels: { enabled: false },
@@ -1159,7 +1164,7 @@ function renderStatusDonut(data, latestRecord = null) {
         : {
             series: [1],
             labels: [latestStatusLabel],
-            chart: { type: 'donut', height: chartHeight },
+            chart: { type: 'donut', height: chartHeight, fontFamily: 'Outfit, Inter, sans-serif' },
             theme: { mode: effectiveMode },
             colors: [latestStatusLabel === 'OFF' ? '#F43F5E' : latestStatusLabel === 'RUN' ? '#10B981' : '#94A3B8'],
             dataLabels: { enabled: false },
@@ -1260,6 +1265,7 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             zoom: { enabled: true },
             animations: { enabled: true, easing: 'easeinout', speed: 800 },
             background: 'transparent',
+            fontFamily: 'Outfit, Inter, sans-serif'
         },
         theme: { mode: effectiveMode },
         stroke: { curve: latestRecordsOnly ? 'straight' : 'smooth', width: 4, connectNulls: true },

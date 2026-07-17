@@ -251,7 +251,9 @@
 
 .consolidado-workbench {
     display: grid;
-    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 860px;
+    margin: 0 auto;
     gap: 18px;
     align-items: start;
 }
@@ -1201,3 +1203,189 @@
         max-width: 170px;
     }
 }
+
+/* 🌟 Premium Dashboard Custom Styles */
+.consolidado-help-trigger {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: #64748b;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease, transform 0.2s ease;
+    vertical-align: middle;
+}
+
+.consolidado-help-trigger:hover {
+    color: #1d4ed8;
+    transform: scale(1.08);
+}
+
+.consolidado-header-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.consolidado-stat-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 16px 20px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background: #ffffff;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.02);
+}
+
+.consolidado-stat-card-icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    flex-shrink: 0;
+}
+
+.consolidado-stat-card-icon svg {
+    width: 22px !important;
+    height: 22px !important;
+    display: block !important;
+    margin: 0 !important;
+}
+
+.consolidado-stat-card span {
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: block;
+}
+
+.consolidado-stat-card strong {
+    color: #0f172a;
+    font-size: 1.3rem;
+    font-weight: 800;
+    margin-top: 2px;
+    display: block;
+}
+
+@media (max-width: 1024px) {
+    .consolidado-header-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.consolidado-quick-actions-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.consolidado-quick-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 10px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    gap: 4px;
+}
+
+.consolidado-quick-btn:hover {
+    border-color: rgba(37, 99, 235, 0.35);
+    background: #f0f6ff;
+    color: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.05);
+}
+
+.consolidado-quick-btn svg {
+    width: 20px;
+    height: 20px;
+    color: #1d4ed8;
+}
+
+.consolidado-quick-btn span {
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.consolidado-quick-btn small {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.consolidado-workbench {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+    max-width: 100%;
+}
+
+@media (min-width: 1200px) {
+    .consolidado-workbench {
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+        gap: 18px;
+    }
+}
+
+/* 📱 High-Fidelity Responsive Adjustments for Mobile & Tablets */
+@media (max-width: 650px) {
+    .consolidado-header-stats-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 10px;
+    }
+
+    .consolidado-quick-actions-bar {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px;
+    }
+    
+    .consolidado-summary-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px;
+    }
+    
+    .consolidado-db-summary {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px;
+    }
+
+    .consolidado-export-options {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px;
+    }
+
+    .consolidado-filter-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px;
+    }
+
+    .consolidado-summary-item {
+        min-height: auto;
+    }
+}
+
+.consolidado-stat-card-icon svg.stat-pumpjack-svg {
+    width: 32px !important;
+    height: 32px !important;
+}
+
+
+

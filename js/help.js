@@ -1377,6 +1377,15 @@ function bindHelpOnboardingModal() {
 }
 
 function bindHelpAssistant() {
+    const pageName = String(window.location.pathname || '').split('/').pop().toLowerCase();
+    if (pageName !== 'help.html') {
+        const dock = document.getElementById('help-assistant-dock');
+        if (dock) {
+            dock.style.setProperty('display', 'none', 'important');
+        }
+        return;
+    }
+
     const launcher = document.getElementById('help-assistant-launcher');
     const panel = document.getElementById('help-assistant-panel');
     const closeButton = document.getElementById('help-assistant-close');

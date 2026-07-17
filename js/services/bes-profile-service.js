@@ -32,7 +32,13 @@ const BES_PROFILE_TEXT_FIELDS = [
     'sensor_model',
     'cable_type',
     'drain_valve',
-    'profile_notes'
+    'profile_notes',
+    'vsd_kva',
+    'marca_vsd',
+    'modelo_vsd',
+    'tx_kva',
+    'tap_v',
+    'rt'
 ];
 
 function normalizeOptionalText(value) {

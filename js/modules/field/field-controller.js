@@ -14,6 +14,7 @@ const JOURNEY_STARTED_STORAGE_KEY = 'uv-field-journey-started';
 
 const GENERAL_READONLY_FIELD_NAMES = ['campo', 'ef', 'estado', 'categoria', 'potencial', 'bruta', 'neta', 'ays_percentage'];
 const BES_CONFIG_FIELD_NAMES = ['amp_nominal_motor', 'volt_nominal_motor', 'frec_max_hz', 'low_speed_hz', 'ul_a', 'ol_a', 'i_limit_a', 'tiempo_desaceleracion_seg', 'low_pip_shutdown_psi', 'max_high_temp_shutdown_f'];
+const SURFACE_FIXED_FIELD_NAMES = ['vsd_kva', 'marca_vsd', 'modelo_vsd', 'tx_kva', 'tap_v', 'rt'];
 
 const DEFAULT_MESSAGE_HEADER = {
     empresaMixta: 'PQQ',
@@ -467,6 +468,7 @@ let isAutosavingJourneyDraft = false;
 let pendingAutosaveJourneyDraft = false;
 let isJourneyStarted = false;
 let isBesConfigEditEnabled = false;
+let isSurfaceFixedEditEnabled = false;
 
 const FIELD_PRODUCTION_MEASURE_MAP = {
     campo: 'campo_name',
@@ -485,7 +487,13 @@ const FIELD_PRODUCTION_MEASURE_MAP = {
     i_limit_a: 'i_limit_a',
     tiempo_desaceleracion_seg: 'tiempo_desaceleracion_seg',
     low_pip_shutdown_psi: 'low_pip_shutdown_psi',
-    max_high_temp_shutdown_f: 'max_high_temp_shutdown_f'
+    max_high_temp_shutdown_f: 'max_high_temp_shutdown_f',
+    vsd_kva: 'vsd_kva',
+    marca_vsd: 'marca_vsd',
+    modelo_vsd: 'modelo_vsd',
+    tx_kva: 'tx_kva',
+    tap_v: 'tap_v',
+    rt: 'rt'
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -625,6 +633,7 @@ function wireForm() {
     document.getElementById('field-pozo-toggle')?.addEventListener('click', handlePozoToggleClick);
     document.getElementById('field-jornada')?.addEventListener('change', enforceLockedJourneySelection);
     document.getElementById('field-bes-config-edit-btn')?.addEventListener('click', toggleBesConfigEditMode);
+    document.getElementById('field-surface-fixed-edit-btn')?.addEventListener('click', toggleSurfaceFixedEditMode);
     syncReadonlyPrefilledFields();
 
     document.querySelectorAll('.field-accordion').forEach(details => {
@@ -859,6 +868,14 @@ function toggleBesConfigEditMode(event) {
     persistDraft();
 }
 
+function toggleSurfaceFixedEditMode(event) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    isSurfaceFixedEditEnabled = !isSurfaceFixedEditEnabled;
+    syncReadonlyPrefilledFields();
+    persistDraft();
+}
+
 function setNamedFieldsReadonly(fieldNames, readonly) {
     fieldNames.forEach(fieldName => {
         const field = document.querySelector(`[name="${fieldName}"]`);
@@ -871,15 +888,41 @@ function setNamedFieldsReadonly(fieldNames, readonly) {
 function syncReadonlyPrefilledFields() {
     setNamedFieldsReadonly(GENERAL_READONLY_FIELD_NAMES, true);
     setNamedFieldsReadonly(BES_CONFIG_FIELD_NAMES, !isBesConfigEditEnabled);
+    setNamedFieldsReadonly(SURFACE_FIXED_FIELD_NAMES, !isSurfaceFixedEditEnabled);
 
+    // Sync motor config button
     const button = document.getElementById('field-bes-config-edit-btn');
-    if (!button) return;
+    if (button) {
+        const section = button.closest('.field-accordion');
+        const locked = Boolean(section?.classList.contains('is-locked'));
+        button.disabled = locked;
+        button.textContent = isBesConfigEditEnabled ? 'Bloquear configuración' : 'Editar configuración';
+        button.classList.toggle('is-editing', isBesConfigEditEnabled);
+    }
 
-    const section = button.closest('.field-accordion');
-    const locked = Boolean(section?.classList.contains('is-locked'));
-    button.disabled = locked;
-    button.textContent = isBesConfigEditEnabled ? 'Bloquear configuración' : 'Editar configuración';
-    button.classList.toggle('is-editing', isBesConfigEditEnabled);
+    // Sync surface fixed config button
+    const surfaceButton = document.getElementById('field-surface-fixed-edit-btn');
+    if (surfaceButton) {
+        const section = surfaceButton.closest('.field-accordion');
+        const locked = Boolean(section?.classList.contains('is-locked'));
+        surfaceButton.disabled = locked;
+        surfaceButton.textContent = isSurfaceFixedEditEnabled ? 'Bloquear VSD / Tx' : 'Modificar VSD / Tx';
+        surfaceButton.classList.toggle('is-editing', isSurfaceFixedEditEnabled);
+    }
+}
+
+function syncInputsBasedOnStatus() {
+    const statusSelect = document.querySelector('[name="estatus"]');
+    if (!statusSelect) return;
+    const isOff = statusSelect.value === 'OFF';
+
+    const giroSelect = document.querySelector('[name="sentido_giro"]');
+    if (giroSelect) {
+        giroSelect.disabled = isOff;
+        if (isOff) {
+            giroSelect.value = '';
+        }
+    }
 }
 
 function resetAccordionProgressControls() {
@@ -1034,6 +1077,8 @@ function syncCaptureGateState() {
         addButton.disabled = !captureReady;
         addButton.title = captureReady ? '' : 'Completa cabecera, pozo y presiona Empezar captura.';
     }
+
+    syncInputsBasedOnStatus();
 }
 
 function getFormPayload() {

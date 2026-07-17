@@ -466,6 +466,9 @@ const elements = {
     listCount: document.getElementById('campo-admin-list-count'),
     list: document.getElementById('campo-admin-list'),
     detailShell: document.getElementById('campo-admin-detail-shell'),
+    sidebarIncidentsPanel: document.getElementById('campo-admin-sidebar-incidents-panel'),
+    sidebarIncidentsCount: document.getElementById('campo-admin-sidebar-incidents-count'),
+    sidebarIncidentsList: document.getElementById('campo-admin-sidebar-incidents-list'),
     recordModal: document.getElementById('campo-admin-record-modal'),
     recordModalBody: document.getElementById('campo-admin-record-modal-body'),
     incidentModal: document.getElementById('campo-admin-incident-modal'),
@@ -1910,6 +1913,56 @@ function openRecordModal(recordId, mode = 'view') {
     renderRecordModal();
 }
 
+function checkUnsavedChangesAndConfirm(onConfirm) {
+    if (state.recordPanelMode !== 'edit') {
+        onConfirm();
+        return;
+    }
+
+    const form = document.getElementById('campo-admin-record-form');
+    if (!form) {
+        onConfirm();
+        return;
+    }
+
+    const original = getEditableRecord(getSelectedRecord());
+    const formData = new FormData(form);
+    let changed = false;
+
+    for (const fieldName of EDITOR_FIELD_NAMES) {
+        const currentVal = String(formData.get(fieldName) ?? '').trim();
+        const originalVal = String(original[fieldName] ?? '').trim();
+        if (currentVal !== originalVal) {
+            changed = true;
+            break;
+        }
+    }
+
+    if (changed) {
+        if (window.Swal) {
+            window.Swal.fire({
+                icon: 'warning',
+                title: 'Cambios sin guardar',
+                text: 'Tienes modificaciones pendientes en este pozo. ¿Deseas descartar los cambios?',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, descartar',
+                cancelButtonText: 'Seguir editando',
+                confirmButtonColor: '#b91c1c'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    onConfirm();
+                }
+            });
+        } else {
+            if (confirm('Tienes cambios sin guardar. ¿Deseas descartarlos?')) {
+                onConfirm();
+            }
+        }
+    } else {
+        onConfirm();
+    }
+}
+
 function buildReviewIssueList(issues = []) {
     if (!issues.length) return '<li>Sin observaciones.</li>';
     return issues.map(issue => `<li>${escapeHtml(issue)}</li>`).join('');
@@ -2020,7 +2073,9 @@ function renderRecordModal() {
     `;
 
     elements.recordModalBody.querySelectorAll('[data-record-modal-close]').forEach(button => {
-        button.addEventListener('click', closeRecordModal);
+        button.addEventListener('click', () => {
+            checkUnsavedChangesAndConfirm(closeRecordModal);
+        });
     });
 
     elements.recordModalBody.querySelector('[data-record-mode="edit"]')?.addEventListener('click', () => {
@@ -2029,8 +2084,10 @@ function renderRecordModal() {
     });
 
     elements.recordModalBody.querySelector('[data-record-mode="view"]')?.addEventListener('click', () => {
-        state.recordPanelMode = 'view';
-        renderRecordModal();
+        checkUnsavedChangesAndConfirm(() => {
+            state.recordPanelMode = 'view';
+            renderRecordModal();
+        });
     });
 
     const form = elements.recordModalBody.querySelector('#campo-admin-record-form');
@@ -2270,6 +2327,9 @@ function renderEmptyDetail(message = 'Selecciona una jornada para ver su detalle
             <p>${escapeHtml(message)}</p>
         </div>
     `;
+    if (elements.sidebarIncidentsPanel) {
+        elements.sidebarIncidentsPanel.hidden = true;
+    }
 }
 
 async function renderDetail(detail) {
@@ -2375,44 +2435,62 @@ async function renderDetail(detail) {
                         <span class="campo-admin-tag campo-admin-tag-soft">Recibida ${escapeHtml(formatDateTime(journey.created_at))}</span>
                     </div>
                     <h2>${escapeHtml(journey.locacion_jornada || 'Jornada sin locación')}</h2>
-                    <p class="campo-admin-detail-copy">${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')} · ${escapeHtml(formatDate(journey.journey_date))}</p>
                 </div>
             </div>
-            <div class="campo-admin-detail-meta">
-                ${buildTechnicianTags(technicians)}
-                <span class="campo-admin-tag">Responsable: ${escapeHtml(journey.submitted_by_email || 'No disponible')}</span>
-                <span class="campo-admin-tag">Ventana: ${escapeHtml(summarizeJourneyWindow(journey))}</span>
-                <span class="campo-admin-tag">${escapeHtml(String(journey.total_reports || 0))} pozo(s)</span>
+            <div class="campo-admin-detail-metadata-grid-v2">
+                <div class="metadata-card-v2">
+                    <span class="metadata-card-label-v2">Equipo de Guardia</span>
+                    <strong class="metadata-card-value-v2">${escapeHtml(technicians.equipoGuardia || 'Sin personal asignado')}</strong>
+                </div>
+                <div class="metadata-card-v2">
+                    <span class="metadata-card-label-v2">Turno y Fecha</span>
+                    <strong class="metadata-card-value-v2">${escapeHtml(journey.jornada || 'No especificada')} · ${escapeHtml(formatDate(journey.journey_date))}</strong>
+                </div>
+                <div class="metadata-card-v2">
+                    <span class="metadata-card-label-v2">Responsable de Envío</span>
+                    <strong class="metadata-card-value-v2">${escapeHtml(journey.submitted_by_email || 'No disponible')}</strong>
+                </div>
+                <div class="metadata-card-v2">
+                    <span class="metadata-card-label-v2">Ventana y Pozos</span>
+                    <strong class="metadata-card-value-v2">${escapeHtml(summarizeJourneyWindow(journey))} · ${escapeHtml(String(journey.total_reports || 0))} pozo(s)</strong>
+                </div>
             </div>
-            <div class="campo-admin-detail-drawers">
-                <details class="campo-admin-drawer">
-                    <summary class="campo-admin-drawer-summary">
-                        <span class="campo-admin-drawer-label">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M7 12h10"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 17h4"></path>
+            <div class="campo-admin-actions-section">
+                <h3 class="campo-admin-actions-title">Acciones de la Jornada</h3>
+                <div class="campo-admin-actions-grid-v2">
+                    <button type="button" class="campo-admin-action-card-btn-v2" data-detail-action="review-publication">
+                        <div class="action-card-icon-v2 cloud-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"/>
                             </svg>
-                            Acciones
-                        </span>
-                        <span class="campo-admin-drawer-summary-side">
-                            <span class="campo-admin-count-badge">4</span>
-                            <span class="campo-admin-drawer-arrow" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"></path>
-                                </svg>
-                            </span>
-                        </span>
-                    </summary>
-                    <div class="campo-admin-drawer-content">
-                        <div class="campo-admin-detail-actions">
-                            <button type="button" class="campo-admin-action-btn" data-detail-action="review-publication">Preparar subida</button>
-                            <button type="button" class="campo-admin-action-btn" data-detail-action="excel">Excel consolidado</button>
-                            <button type="button" class="campo-admin-action-btn campo-admin-action-btn-secondary" data-detail-action="pdf">PDF consolidado</button>
-                            <button type="button" class="campo-admin-action-btn campo-admin-action-btn-danger" data-detail-action="delete">Eliminar jornada</button>
                         </div>
-                    </div>
-                </details>
+                        <div class="action-card-label-v2">Preparar subida</div>
+                    </button>
+                    <button type="button" class="campo-admin-action-card-btn-v2" data-detail-action="excel">
+                        <div class="action-card-icon-v2 excel-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                        </div>
+                        <div class="action-card-label-v2">Excel consolidado</div>
+                    </button>
+                    <button type="button" class="campo-admin-action-card-btn-v2" data-detail-action="pdf">
+                        <div class="action-card-icon-v2 pdf-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5-3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                        </div>
+                        <div class="action-card-label-v2">PDF consolidado</div>
+                    </button>
+                    <button type="button" class="campo-admin-action-card-btn-v2 action-danger-v2" data-detail-action="delete">
+                        <div class="action-card-icon-v2 delete-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.34 9m-4.72 0l-.34-9m11.13-2.87c.048-.655-.38-1.228-1.025-1.228h-.064M18.75 7.5a2.25 2.25 0 00-2.25-2.25h-9a2.25 2.25 0 00-2.25 2.25m12 0V18a2.25 2.25 0 01-2.25 2.25h-9A2.25 2.25 0 015.75 18V7.5m12.456-2.87a48.574 48.574 0 00-3.456-.135m-9.3 0c1.139-.082 2.29-.135 3.456-.135m0 0V4.5a2.25 2.25 0 00-2.25-2.25h-3a2.25 2.25 0 00-2.25 2.25v.38m9 0V4.5M10.5 8.25h.008v.008H10.5V8.25z" />
+                            </svg>
+                        </div>
+                        <div class="action-card-label-v2">Eliminar jornada</div>
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -2446,31 +2524,6 @@ async function renderDetail(detail) {
             </div>
         </section>
 
-        <details class="campo-admin-panel campo-admin-drawer-panel" open>
-            <summary class="campo-admin-drawer-summary">
-                <span class="campo-admin-drawer-label">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 14h5"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"></path>
-                    </svg>
-                    Incidencias reportadas
-                </span>
-                <span class="campo-admin-drawer-summary-side">
-                    <span class="campo-admin-count-badge">${escapeHtml(String(mergedTickets.length))} ticket(s)</span>
-                    <span class="campo-admin-drawer-arrow" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"></path>
-                        </svg>
-                    </span>
-                </span>
-            </summary>
-            <div class="campo-admin-drawer-content campo-admin-drawer-content-panel">
-                <p class="campo-admin-drawer-copy">Incidencias generadas desde Campo para esta jornada.</p>
-                <div class="campo-admin-incident-list">${ticketsMarkup}</div>
-            </div>
-        </details>
-
         <details class="campo-admin-panel campo-admin-drawer-panel">
             <summary class="campo-admin-drawer-summary">
                 <span class="campo-admin-drawer-label">
@@ -2496,6 +2549,30 @@ async function renderDetail(detail) {
         </details>
     `;
 
+    // Por el momento no hay archivos .JRN adjuntos en las jornadas (listo para futura integración)
+    const mockFilesCount = 0;
+    const filesMarkup = `
+        <div class="campo-admin-empty-small">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 28px; height: 28px; color: #94a3b8; margin: 0 auto 8px; display: block;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5-3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <strong>Sin archivos .JRN recibidos</strong>
+            <p style="font-size: 0.78rem; color: #64748b; margin: 2px 0 0;">Esta jornada no adjuntó descargas de ecómetro o registros de datos.</p>
+        </div>
+    `;
+
+    // Renderizar incidencias e informes en el sidebar izquierdo
+    if (elements.sidebarIncidentsPanel && elements.sidebarIncidentsList && elements.sidebarIncidentsCount) {
+        elements.sidebarIncidentsPanel.hidden = false;
+        elements.sidebarIncidentsCount.textContent = String(mergedTickets.length);
+        elements.sidebarIncidentsList.innerHTML = ticketsMarkup;
+
+        const filesCountEl = document.getElementById('campo-admin-sidebar-files-count');
+        const filesListEl = document.getElementById('campo-admin-sidebar-files-list');
+        if (filesCountEl) filesCountEl.textContent = String(mockFilesCount);
+        if (filesListEl) filesListEl.innerHTML = filesMarkup;
+    }
+
     elements.detailShell.querySelectorAll('[data-detail-action]').forEach(button => {
         button.addEventListener('click', () => handleDetailAction(button.dataset.detailAction));
     });
@@ -2512,7 +2589,7 @@ async function renderDetail(detail) {
         button.addEventListener('click', () => confirmDeleteRecord(button.dataset.recordDelete));
     });
 
-    elements.detailShell.querySelectorAll('[data-ticket-src]').forEach(button => {
+    document.querySelectorAll('[data-ticket-src]').forEach(button => {
         button.addEventListener('click', () => {
             const src = button.getAttribute('data-ticket-src');
             if (!src) return;
@@ -2520,7 +2597,7 @@ async function renderDetail(detail) {
         });
     });
 
-    elements.detailShell.querySelectorAll('[data-incident-open]').forEach(button => {
+    document.querySelectorAll('[data-incident-open]').forEach(button => {
         button.addEventListener('click', () => openIncidentModal(button.getAttribute('data-incident-open')));
         button.addEventListener('keydown', event => {
             if (event.key === 'Enter' || event.key === ' ') {
@@ -2771,7 +2848,7 @@ async function bootstrap() {
     elements.filterGroup?.addEventListener('click', handleFilterClick);
     elements.recordModal?.addEventListener('click', event => {
         if (event.target === elements.recordModal) {
-            closeRecordModal();
+            checkUnsavedChangesAndConfirm(closeRecordModal);
         }
     });
     elements.incidentModal?.addEventListener('click', event => {
@@ -2787,6 +2864,29 @@ async function bootstrap() {
     elements.historicalAuditModal?.addEventListener('click', event => {
         if (event.target === elements.historicalAuditModal) {
             closeHistoricalAuditModal();
+        }
+    });
+
+    document.addEventListener('click', event => {
+        const tabBtn = event.target.closest('.sidebar-tab-btn');
+        if (!tabBtn) return;
+
+        const parent = tabBtn.closest('#campo-admin-sidebar-incidents-panel');
+        if (!parent) return;
+
+        parent.querySelectorAll('.sidebar-tab-btn').forEach(btn => btn.classList.remove('active'));
+        tabBtn.classList.add('active');
+
+        const tab = tabBtn.dataset.tab;
+        const incidentsContent = document.getElementById('sidebar-incidents-content');
+        const filesContent = document.getElementById('sidebar-files-content');
+
+        if (tab === 'incidents') {
+            if (incidentsContent) incidentsContent.style.display = 'block';
+            if (filesContent) filesContent.style.display = 'none';
+        } else if (tab === 'files') {
+            if (incidentsContent) incidentsContent.style.display = 'none';
+            if (filesContent) filesContent.style.display = 'block';
         }
     });
 

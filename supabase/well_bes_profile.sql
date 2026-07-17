@@ -59,6 +59,12 @@ create table if not exists public.well_bes_profile (
     drain_valve text,
     installed_at date,
     profile_notes text,
+    vsd_kva text,
+    marca_vsd text,
+    modelo_vsd text,
+    tx_kva text,
+    tap_v text,
+    rt text,
     updated_at timestamptz not null default now()
 );
 
@@ -89,7 +95,13 @@ alter table public.well_bes_profile
     add column if not exists cable_type text,
     add column if not exists drain_valve text,
     add column if not exists installed_at date,
-    add column if not exists profile_notes text;
+    add column if not exists profile_notes text,
+    add column if not exists vsd_kva text,
+    add column if not exists marca_vsd text,
+    add column if not exists modelo_vsd text,
+    add column if not exists tx_kva text,
+    add column if not exists tap_v text,
+    add column if not exists rt text;
 
 create index if not exists well_bes_profile_pozo_idx
     on public.well_bes_profile (pozo_name);
