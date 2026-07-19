@@ -52,6 +52,10 @@ function ensureFieldAdminToastStyles() {
             animation: field-toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
+        .field-admin-toast-container {
+            z-index: 9999 !important;
+        }
+
         @keyframes field-toast-slide-in {
             from {
                 transform: translateY(-12px) scale(0.96);
@@ -251,6 +255,7 @@ function showNewJourneyToast(journeysOrCount) {
         timer: 30000,
         timerProgressBar: false,
         customClass: {
+            container: 'field-admin-toast-container',
             popup: 'field-admin-toast'
         },
         didOpen: (toast) => {
@@ -258,8 +263,11 @@ function showNewJourneyToast(journeysOrCount) {
             toast.addEventListener('mouseleave', window.Swal.resumeTimer);
             toast.style.cursor = 'pointer';
             toast.addEventListener('click', (e) => {
-                if (e.target.closest('.swal2-close')) return;
-                window.Swal.close();
+                if (e.target.closest('.swal2-close')) {
+                    window.Swal.close();
+                    return;
+                }
+                window.location.href = 'campo-admin.html';
             });
         }
     });
