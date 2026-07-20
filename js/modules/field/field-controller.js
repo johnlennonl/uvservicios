@@ -3421,13 +3421,14 @@ async function reviewFieldReportBeforeSave(payload, validation, options = {}) {
         html: buildFieldReviewModalHtml(payload, validation),
         width: 960,
         showCancelButton: true,
-        showConfirmButton: !hasBlockers,
-        confirmButtonText: warnings.length > 0 ? 'Guardar con alertas' : (isEditing ? 'Actualizar registro' : 'Agregar registro'),
+        showConfirmButton: true,
+        confirmButtonText: hasBlockers ? 'Guardar omitiendo bloqueos' : (warnings.length > 0 ? 'Guardar con alertas' : (isEditing ? 'Actualizar registro' : 'Agregar registro')),
+        confirmButtonColor: hasBlockers ? '#d97706' : '#2563eb',
         cancelButtonText: hasBlockers ? 'Corregir ahora' : 'Volver a editar',
         focusConfirm: false
     });
 
-    if (hasBlockers && !result.isConfirmed) {
+    if (!result.isConfirmed && hasBlockers) {
         const targetFieldId = resolveReviewFocusField(blockers, payload);
         focusFieldById(targetFieldId);
     }

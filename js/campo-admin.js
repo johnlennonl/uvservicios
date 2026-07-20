@@ -1766,7 +1766,7 @@ async function confirmPublicationPreview(preview, reviewSummary) {
     ];
 
     if (!reviewSummary.canPrepareUpload) {
-        lines.push('Hay bloqueos críticos en la jornada. Corrige esos pozos antes de subir al dashboard.');
+        lines.push('Hay bloqueos o faltantes en la jornada. ¿Deseas subir omitiendo estas advertencias?');
     }
 
     if (!window.Swal) {
@@ -1776,21 +1776,21 @@ async function confirmPublicationPreview(preview, reviewSummary) {
     const modalHtml = buildPublicationPreviewHtml(preview, reviewSummary, state.currentDetail?.records || []);
     const result = await window.Swal.fire({
         icon: reviewSummary.canPrepareUpload ? 'info' : 'warning',
-        title: reviewSummary.canPrepareUpload ? 'Preparar subida operativa' : 'Subida bloqueada',
+        title: reviewSummary.canPrepareUpload ? 'Preparar subida operativa' : 'Subida con bloqueos / advertencias',
         html: modalHtml,
         width: 'min(1180px, calc(100vw - 32px))',
         customClass: {
             popup: 'campo-admin-upload-modal',
             htmlContainer: 'campo-admin-upload-modal-html'
         },
-        showCancelButton: reviewSummary.canPrepareUpload,
+        showCancelButton: true,
         showConfirmButton: true,
-        confirmButtonText: reviewSummary.canPrepareUpload ? 'Confirmar subida' : 'Cerrar',
-        cancelButtonText: reviewSummary.canPrepareUpload ? 'Cancelar' : 'Cerrar',
-        confirmButtonColor: '#0f766e'
+        confirmButtonText: reviewSummary.canPrepareUpload ? 'Confirmar subida' : 'Subir omitiendo bloqueos',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: reviewSummary.canPrepareUpload ? '#0f766e' : '#d97706'
     });
 
-    return reviewSummary.canPrepareUpload ? result.isConfirmed : false;
+    return result.isConfirmed;
 }
 
 function renderStats() {

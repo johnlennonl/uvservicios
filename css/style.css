@@ -550,6 +550,12 @@ body.access-protected-nav:not(.access-nav-ready) a[href="jornada-history.html"] 
     z-index: 5000 !important;
 }
 
+/* Forzar que las alertas SweetAlert2 se muestren SIEMPRE por encima de cualquier modal */
+div.swal2-container,
+.swal2-container {
+    z-index: 9999999 !important;
+}
+
 /* ━━━ MOBILE MORE MENU (BOTTOM SHEET) ━━━ */
 .mobile-more-menu {
     position: fixed;

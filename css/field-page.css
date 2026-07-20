@@ -3404,4 +3404,10 @@ body.field-preview-open {
     margin-left: 2px;
 }
 
+/* Forzar a SweetAlert2 a posicionarse por encima de cualquier modal en pantalla */
+div.swal2-container,
+.swal2-container {
+    z-index: 9999999 !important;
+}
+
 
