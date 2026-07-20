@@ -1899,16 +1899,111 @@ body {
     margin-bottom: 16px;
 }
 
+.field-preview-badge-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
 .field-admin-preview-badge {
     display: inline-flex;
-    padding: 7px 12px;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
     border-radius: 999px;
-    background: var(--brand-soft);
-    color: var(--brand-600);
-    font-size: 0.78rem;
+    background: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+    font-size: 0.76rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
+    border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.field-preview-count-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 0.8rem;
+    font-weight: 700;
+    border: 1px solid #e2e8f0;
+}
+
+.field-admin-preview-filters {
+    display: grid;
+    grid-template-columns: 145px 145px 1fr auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 18px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #f8fafc;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.field-admin-preview-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field-admin-preview-filters label span {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.field-admin-preview-filters input[type="date"],
+.field-admin-preview-filters input[type="search"] {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 0.88rem;
+    color: #0f172a;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.field-admin-preview-filters input[type="date"]:focus,
+.field-admin-preview-filters input[type="search"]:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    outline: none;
+}
+
+.field-filter-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 16px;
+    border-radius: 10px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.field-filter-clear-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #0f172a;
 }
 
 .field-admin-preview-headline strong {
@@ -3114,8 +3209,18 @@ body.field-preview-open {
     }
 
     .field-admin-preview-filters {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
         padding: 12px;
+    }
+
+    .field-admin-search-group {
+        grid-column: 1 / -1;
+    }
+
+    .field-filter-clear-btn {
+        grid-column: 1 / -1;
+        width: 100%;
     }
 
     .field-admin-ticket {
@@ -3252,3 +3357,51 @@ body.field-preview-open {
     height: 20px;
     margin-right: 10px;
 }
+
+.field-req-mark {
+    color: #dc2626;
+    font-weight: 800;
+    font-style: normal;
+    margin-left: 2px;
+}
+
+.field-input-group.field-input-invalid input,
+.field-input-group.field-input-invalid select,
+.field-input-group.field-input-invalid textarea {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.field-input-group.field-input-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Animación de rotación para botón Actualizar */
+.mobile-nav-action svg.is-spinning {
+    animation: rotateRefreshIcon 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes rotateRefreshIcon {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+    50% {
+        transform: rotate(180deg) scale(1.25);
+    }
+    100% {
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+#mobile-wells-badge {
+    font-weight: 800;
+    color: #2563eb;
+    background: rgba(37, 99, 235, 0.14);
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-left: 2px;
+}
+
+

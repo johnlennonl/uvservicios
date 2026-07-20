@@ -148,6 +148,8 @@ const RECORD_EDITOR_SECTIONS = [
             ['ABS IC PROM VSD', 'desv_fase_c'],
             ['MAXIMO ABS I VSD', 'max_desviacion_vsd'],
             ['% Desbalance Corriente VSD', 'desbalance_corriente_vsd'],
+            ['Posee sensor de fondo', 'posee_sensor_fondo'],
+            ['Descarga datas del sensor', 'descarga_datas_sensor'],
             ['PIP [psi]', 'pip_psi'],
             ['PD [psi]', 'pd_psi'],
             ['Ti [F]', 'ti_f'],
@@ -198,10 +200,8 @@ const RECORD_EDITOR_SECTIONS = [
         ]
     },
     {
-        title: 'Sensor y presiones',
+        title: 'Presiones de superficie',
         fields: [
-            ['Posee sensor de fondo', 'posee_sensor_fondo'],
-            ['Descarga datas del sensor', 'descarga_datas_sensor'],
             ['Echometer', 'echometer'],
             ['THP [psi]', 'thp_psi'],
             ['CHP [psi]', 'chp_psi'],

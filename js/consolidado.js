@@ -2463,62 +2463,8 @@ async function checkOrphanRowsDiagnostic() {
             }
         });
 
-        console.group('%c[Consolidado Sync] Diagnóstico de Jornadas vs Registros', 'color: #2563eb; font-weight: bold;');
-        console.log(`Jornadas Aprobadas/Publicadas en Base de Datos: ${journeyStats.size}`);
-        
-        let totalRecordsComputed = 0;
-        let multipleRecordsJourneys = [];
-        
-        journeyStats.forEach((stat, id) => {
-            totalRecordsComputed += stat.count;
-            if (stat.count > 1) {
-                multipleRecordsJourneys.push({
-                    id: id.substring(0,8),
-                    date: stat.date,
-                    email: stat.email,
-                    count: stat.count
-                });
-            }
-        });
-        
-        console.log(`Total registros (pozos) reales dentro de esas jornadas: ${totalRecordsComputed}`);
-        if (multipleRecordsJourneys.length > 0) {
-            console.log(`Jornadas que contienen MÚLTIPLES registros/pozos (${multipleRecordsJourneys.length} encontradas):`);
-            multipleRecordsJourneys.forEach(m => {
-                console.log(`  - Jornada ID: ${m.id}... | Fecha: ${m.date} | Técnico: ${m.email} | Contiene: ${m.count} registros`);
-            });
-        } else {
-            console.log('Todas las jornadas aprobadas tienen exactamente 1 registro.');
-        }
-        
-        console.log('Tabla completa de consolidated_dashboard_operational:');
-        console.table(opRows.map(r => {
-            const rec = recordMap.get(r.source_record_id);
-            const jrn = rec ? journeyMap.get(rec.journey_id) : null;
-            return {
-                id: r.id.substring(0, 8),
-                pozo: r.pozo,
-                fecha: r.report_date,
-                source_record_id: r.source_record_id ? r.source_record_id.substring(0, 8) : 'null',
-                source_journey_id: r.source_journey_id ? r.source_journey_id.substring(0, 8) : 'null',
-                exists_in_records: !!rec,
-                journey_status: jrn ? jrn.status : 'N/A'
-            };
-        }));
-        
-        console.log('Tabla completa de field_journeys:');
-        console.table(journeys.map(j => ({
-            id: j.id.substring(0, 8),
-            status: j.status,
-            date: j.journey_date,
-            email: j.submitted_by_email
-        })));
-        
-        console.groupEnd();
-        
         const rowsToDelete = [...orphanIds, ...nonApprovedRecordIds, ...duplicateIds];
         if (rowsToDelete.length > 0) {
-            console.warn(`[Consolidado Sync] Detectados ${rowsToDelete.length} registros inválidos o duplicados.`);
             
             if (hasSwal()) {
                 window.Swal.fire({

@@ -33,6 +33,12 @@
                     </svg>
                     Captura y Envío
                 </a>
+                <a href="#field-admin-preview-panel" id="nav-history-link" class="nav-link field-nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Historial
+                </a>
             </nav>
             <button id="logout-btn" class="nav-link">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -215,7 +221,7 @@
                                 <label class="field-input-group field-input-group-readonly"><span>% AyS</span><input type="number" step="0.01" name="ays_percentage" readonly></label>
                                 <label class="field-input-group"><span>Actividad</span><input type="text" name="actividad"></label>
                                 <label class="field-input-group"><span>Estatus</span><select name="estatus"><option value="RUN">RUN</option><option value="OFF">OFF</option></select></label>
-                                <label class="field-input-group"><span>Frec</span><input type="number" step="0.01" name="frecuencia"></label>
+                                <label class="field-input-group" data-op-req-group="true"><span>Frec <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="frecuencia"></label>
                                 <label class="field-input-group"><span>Modo de operación</span><select name="modo_operacion"><option value="FRECUENCIA">FRECUENCIA</option><option value="CORRIENTE">CORRIENTE</option></select></label>
                                 <label class="field-input-group"><span>Sentido de giro</span><select name="sentido_giro"><option value="FWD">FWD</option><option value="REV">REV</option></select></label>
                             </div>
@@ -224,22 +230,24 @@
                         <details class="field-accordion" open>
                             <summary>Parámetros Operacionales</summary>
                             <div class="field-accordion-body field-form-grid">
-                                <label class="field-input-group"><span>I Motor [A]</span><input type="number" step="0.01" name="i_motor"></label>
-                                <label class="field-input-group"><span>V Motor [V]</span><input type="number" step="0.01" name="v_motor"></label>
-                                <label class="field-input-group"><span>Out VSD [V]</span><input type="number" step="0.01" name="out_vsd"></label>
-                                <label class="field-input-group"><span>I VSD A [A]</span><input type="number" step="0.01" name="i_vsd_a"></label>
-                                <label class="field-input-group"><span>I VSD B [A]</span><input type="number" step="0.01" name="i_vsd_b"></label>
-                                <label class="field-input-group"><span>I VSD C [A]</span><input type="number" step="0.01" name="i_vsd_c"></label>
+                                <label class="field-input-group" data-op-req-group="true"><span>I Motor [A] <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="i_motor"></label>
+                                <label class="field-input-group" data-op-req-group="true"><span>V Motor [V] <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="v_motor"></label>
+                                <label class="field-input-group" data-op-req-group="true"><span>Out VSD [V] <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="out_vsd"></label>
+                                <label class="field-input-group" data-op-req-group="true"><span>I VSD A [A] <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="i_vsd_a"></label>
+                                <label class="field-input-group" data-op-req-group="true"><span>I VSD B [A] <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="i_vsd_b"></label>
+                                <label class="field-input-group" data-op-req-group="true"><span>I VSD C [A] <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="i_vsd_c"></label>
                                 <label class="field-input-group field-input-group-readonly"><span>PROM I VSD [A]</span><input type="number" step="0.01" name="prom_i_vsd" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>Desv. Fase A</span><input type="number" step="0.01" name="desv_fase_a" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>Desv. Fase B</span><input type="number" step="0.01" name="desv_fase_b" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>Desv. Fase C</span><input type="number" step="0.01" name="desv_fase_c" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="max_desviacion_vsd" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>% Desbalance Corriente VSD [A]</span><input type="number" step="0.01" name="desbalance_corriente_vsd" readonly></label>
-                                <label class="field-input-group"><span>PIP [psi]</span><input type="number" step="0.01" name="pip_psi"></label>
+                                <label class="field-input-group" data-op-req-group="true"><span>POSEE SENSOR DE FONDO? <em class="field-req-mark">*</em></span><select name="posee_sensor_fondo" id="field-posee-sensor-fondo"><option value="SI" selected>SI</option><option value="NO">NO</option></select></label>
+                                <label class="field-input-group"><span>DESCARGA DATAS DEL SENSOR</span><select name="descarga_datas_sensor"><option value="SI" selected>SI</option><option value="NO">NO</option></select></label>
+                                <label class="field-input-group" data-sensor-req-group="true"><span>PIP [psi] <em class="field-req-mark" hidden>*</em></span><input type="number" step="0.01" name="pip_psi"></label>
                                 <label class="field-input-group"><span>PD [psi]</span><input type="number" step="0.01" name="pd_psi"></label>
-                                <label class="field-input-group"><span>Ti [°F]</span><input type="number" step="0.01" name="ti_f"></label>
-                                <label class="field-input-group"><span>Tm [°F]</span><input type="number" step="0.01" name="tm_f"></label>
+                                <label class="field-input-group" data-sensor-req-group="true"><span>Ti [°F] <em class="field-req-mark" hidden>*</em></span><input type="number" step="0.01" name="ti_f"></label>
+                                <label class="field-input-group" data-sensor-req-group="true"><span>Tm [°F] <em class="field-req-mark" hidden>*</em></span><input type="number" step="0.01" name="tm_f"></label>
                                 <label class="field-input-group"><span>Vx [G]</span><input type="number" step="0.01" name="vx_g"></label>
                                 <label class="field-input-group"><span>Vy [G]</span><input type="number" step="0.01" name="vy_g"></label>
                                 <label class="field-input-group"><span>Vz [G]</span><input type="number" step="0.01" name="vz_g"></label>
@@ -273,46 +281,44 @@
                                 <button type="button" id="field-surface-fixed-edit-btn" class="field-config-edit-btn">Modificar VSD / Tx</button>
                             </div>
                             <div class="field-accordion-body field-form-grid">
-                                <label class="field-input-group"><span>BAJA DATOS?</span><select name="baja_datos"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>BAJA DATOS? <em class="field-req-mark">*</em></span><select name="baja_datos"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
                                 <label class="field-input-group field-input-group-readonly"><span>VSD [KVA]</span><input type="text" name="vsd_kva" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>MARCA VSD</span><input type="text" name="marca_vsd" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>MODELO VSD</span><input type="text" name="modelo_vsd" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>Tx (KVA)</span><input type="text" name="tx_kva" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>TAP [V]</span><input type="text" name="tap_v" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>R.T</span><input type="text" name="rt" readonly></label>
-                                <label class="field-input-group"><span>ESTADO DEL TX</span><select name="estado_tx"><option value=""></option><option value="OK">OK</option><option value="DEFECTUOSO">DEFECTUOSO</option><option value="PRESENTA FUGA">PRESENTA FUGA</option><option value="ALTA TEMPERATURA">ALTA TEMPERATURA</option></select></label>
-                                <label class="field-input-group"><span>ESTADO DEL VSD</span><select name="estado_vsd"><option value=""></option><option value="OK">OK</option><option value="DEFECTUOSO">DEFECTUOSO</option></select></label>
-                                <label class="field-input-group"><span>ESTADO DEL PANEL DEL SENSOR</span><select name="estado_panel_sensor_choques"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option><option value="SIN PANEL">SIN PANEL</option></select></label>
-                                <label class="field-input-group"><span>ESTADO DEL ATERRAMIENTO</span><select name="estado_aterramiento"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
-                                <label class="field-input-group"><span>CONDICIÓN DEL CABLEADO</span><select name="condicion_cableado"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
-                                <label class="field-input-group"><span>CONDICIÓN DE LA CASETA</span><select name="condicion_caseta"><option value=""></option><option value="ABIERTA">ABIERTA</option><option value="CERRADA">CERRADA</option></select></label>
-                                <label class="field-input-group"><span>TEMPERATURA DE LA CASETA</span><input type="number" step="0.01" name="temperatura_caseta"></label>
-                                <label class="field-input-group">
-                                    <span>ESTADO DE FOSA</span>
+                                <label class="field-input-group" data-surface-req="true"><span>ESTADO DEL TX <em class="field-req-mark">*</em></span><select name="estado_tx"><option value=""></option><option value="OK">OK</option><option value="DEFECTUOSO">DEFECTUOSO</option><option value="PRESENTA FUGA">PRESENTA FUGA</option><option value="ALTA TEMPERATURA">ALTA TEMPERATURA</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>ESTADO DEL VSD <em class="field-req-mark">*</em></span><select name="estado_vsd"><option value=""></option><option value="OK">OK</option><option value="DEFECTUOSO">DEFECTUOSO</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>ESTADO DEL PANEL DEL SENSOR <em class="field-req-mark">*</em></span><select name="estado_panel_sensor_choques"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option><option value="SIN PANEL">SIN PANEL</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>ESTADO DEL ATERRAMIENTO <em class="field-req-mark">*</em></span><select name="estado_aterramiento"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>CONDICIÓN DEL CABLEADO <em class="field-req-mark">*</em></span><select name="condicion_cableado"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>CONDICIÓN DE LA CASETA <em class="field-req-mark">*</em></span><select name="condicion_caseta"><option value=""></option><option value="ABIERTA">ABIERTA</option><option value="CERRADA">CERRADA</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>TEMPERATURA DE LA CASETA <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="temperatura_caseta"></label>
+                                <label class="field-input-group" data-surface-req="true">
+                                    <span>ESTADO DE FOSA <em class="field-req-mark">*</em></span>
                                     <div class="field-input-suffix-shell">
                                         <input type="number" step="0.1" name="estado_fosa_porcentaje">
                                         <span class="field-input-suffix">%</span>
                                     </div>
                                 </label>
-                                <label class="field-input-group"><span>ESTADO DEL BIW/CONECTOR</span><select name="estado_biw_conector"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
-                                <label class="field-input-group"><span>ESTADO DE MANÓMETROS</span><select name="estado_manometros"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
-                                <label class="field-input-group"><span>ESTADO DEL CABEZAL</span><select name="estado_cabezal"><option value=""></option><option value="BUENO LIMPIO">BUENO LIMPIO</option><option value="BUENO CON DERRAME">BUENO CON DERRAME</option><option value="MALO FUGANDO">MALO FUGANDO</option></select></label>
-                                <label class="field-input-group"><span>ESTADO DEL TOMAMUESTRAS</span><select name="estado_tomamuestras"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
-                                <label class="field-input-group"><span>ESTADO DE LA CAJA DE VENTEO</span><select name="estado_caja_venteo"><option value=""></option><option value="BUENA">BUENA</option><option value="MALA">MALA</option></select></label>
-                            </div>
+                                <label class="field-input-group" data-surface-req="true"><span>ESTADO DEL BIW/CONECTOR <em class="field-req-mark">*</em></span><select name="estado_biw_conector"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>ESTADO DE MANÓMETROS <em class="field-req-mark">*</em></span><select name="estado_manometros"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>ESTADO DEL CABEZAL <em class="field-req-mark">*</em></span><select name="estado_cabezal"><option value=""></option><option value="BUENO LIMPIO">BUENO LIMPIO</option><option value="BUENO CON DERRAME">BUENO CON DERRAME</option><option value="MALO FUGANDO">MALO FUGANDO</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>ESTADO DEL TOMAMUESTRAS <em class="field-req-mark">*</em></span><select name="estado_tomamuestras"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>ESTADO DE LA CAJA DE VENTEO <em class="field-req-mark">*</em></span><select name="estado_caja_venteo"><option value=""></option><option value="BUENA">BUENA</option><option value="MALA">MALA</option></select></label>
+                             </div>
                         </details>
 
                         <details class="field-accordion">
-                            <summary>Sensor y Presiones</summary>
+                            <summary>Presiones de Superficie</summary>
                             <div class="field-accordion-body field-form-grid">
-                                <label class="field-input-group"><span>POSEE SENSOR DE FONDO?</span><select name="posee_sensor_fondo"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
-                                <label class="field-input-group"><span>DESCARGA DATAS DEL SENSOR</span><select name="descarga_datas_sensor"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
-                                <label class="field-input-group"><span>THP [psi]</span><input type="number" step="0.01" name="thp_psi"></label>
-                                <label class="field-input-group"><span>CHP [psi]</span><input type="number" step="0.01" name="chp_psi"></label>
-                                <label class="field-input-group"><span>LF [psi]</span><input type="number" step="0.01" name="lf_psi"></label>
+                                <label class="field-input-group" data-presion-req="true"><span>THP [psi] <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="thp_psi"></label>
+                                <label class="field-input-group" data-presion-req="true"><span>CHP [psi] <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="chp_psi"></label>
+                                <label class="field-input-group" data-presion-req="true"><span>LF [psi] <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="lf_psi"></label>
                                 <label class="field-input-group"><span>CONDICIÓN CHP</span><select name="cond_chp"><option value=""></option><option value="A LA LÍNEA">A LA LÍNEA</option><option value="AL AIRE">AL AIRE</option></select></label>
-                                <label class="field-input-group"><span>ECHOMETER?</span><select name="echometer"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
-                                <label class="field-input-group field-input-group-full"><span>DIAGNÓSTICO</span><select name="diagnostico" id="field-diagnostico"><option value=""></option><option value="SIN FALLA">SIN FALLA</option><option value="FALLA ELÉCTRICA">FALLA ELÉCTRICA</option><option value="DESBALANCEADO EQUIPO DE FONDO">DESBALANCEADO EQUIPO DE FONDO</option><option value="DESBALANCEADO EQUIPO DE FONDO E IDO A TIERRA">DESBALANCEADO EQUIPO DE FONDO E IDO A TIERRA</option><option value="BALANCEADO">BALANCEADO</option><option value="BALANCEADO E IDO A TIERRA">BALANCEADO E IDO A TIERRA</option><option value="SOBRECORRIENTE">SOBRECORRIENTE</option><option value="BAJA CARGA">BAJA CARGA</option><option value="OTRO">OTRO / ESCRIBIR DIAGNÓSTICO</option></select><input type="text" id="field-diagnostico-custom" placeholder="Escribe el diagnóstico" hidden></label>
+                                <label class="field-input-group" data-presion-req="true"><span>ECHOMETER? <em class="field-req-mark">*</em></span><select name="echometer"><option value="SI">SI</option><option value="NO" selected>NO</option></select></label>
+                                <label class="field-input-group field-input-group-full" data-presion-req="true"><span>DIAGNÓSTICO <em class="field-req-mark">*</em></span><select name="diagnostico" id="field-diagnostico"><option value=""></option><option value="SIN FALLA">SIN FALLA</option><option value="FALLA ELÉCTRICA">FALLA ELÉCTRICA</option><option value="DESBALANCEADO EQUIPO DE FONDO">DESBALANCEADO EQUIPO DE FONDO</option><option value="DESBALANCEADO EQUIPO DE FONDO E IDO A TIERRA">DESBALANCEADO EQUIPO DE FONDO E IDO A TIERRA</option><option value="BALANCEADO">BALANCEADO</option><option value="BALANCEADO E IDO A TIERRA">BALANCEADO E IDO A TIERRA</option><option value="SOBRECORRIENTE">SOBRECORRIENTE</option><option value="BAJA CARGA">BAJA CARGA</option><option value="OTRO">OTRO / ESCRIBIR DIAGNÓSTICO</option></select><input type="text" id="field-diagnostico-custom" placeholder="Escribe el diagnóstico" hidden></label>
                             </div>
                         </details>
 
@@ -409,7 +415,7 @@
                                 <label class="field-input-group field-input-group-readonly"><span>% AMP</span><input type="number" step="0.01" name="porcentaje_amp" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>RELACIÓN V. MOT / V. NOM</span><input type="number" step="0.01" name="relacion_v_mot_v_nom" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>% VOLT</span><input type="number" step="0.01" name="porcentaje_volt" readonly></label>
-                                <label class="field-input-group"><span>PD MAX [psi]</span><input type="number" step="0.01" name="pd_max_psi"></label>
+                                <label class="field-input-group"><span>PD MAX [psi]</span><input type="number" step="0.01" name="pd_max_psi" value="5000"></label>
                                 <label class="field-input-group field-input-group-readonly"><span>Δ PRESIÓN [psi]</span><input type="number" step="0.01" name="delta_presion_psi" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>% Δ PRESIÓN</span><input type="number" step="0.01" name="porcentaje_delta_presion" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>Tm / T MAX PERMISIBLE</span><input type="number" step="0.01" name="relacion_tm_t_max" readonly></label>
@@ -422,7 +428,7 @@
                         <details class="field-accordion" open>
                             <summary>Observaciones</summary>
                             <div class="field-accordion-body field-form-grid">
-                                <label class="field-input-group field-input-group-full"><span>OBSERVACIONES</span><textarea name="observaciones_pozo" rows="4" placeholder="Condiciones generales observadas en el pozo"></textarea></label>
+                                <label class="field-input-group field-input-group-full" data-op-req-group="true"><span>OBSERVACIONES <em class="field-req-mark">*</em></span><textarea name="observaciones_pozo" rows="4" placeholder="Condiciones generales observadas en el pozo"></textarea></label>
                             </div>
                         </details>
 
@@ -520,36 +526,36 @@
                 </aside>
             </section>
 
-            <section class="field-card field-admin-preview-panel">
+            <section id="field-admin-preview-panel" class="field-card field-admin-preview-panel">
                 <div class="field-card-header">
                     <div>
+                        <div class="field-preview-badge-row">
+                            <span class="field-admin-preview-badge"><i class="fa-solid fa-cloud-arrow-up"></i> Supabase</span>
+                            <strong id="field-admin-preview-count" class="field-preview-count-tag"><i class="fa-solid fa-clock-rotate-left"></i> 0 cargas enviadas</strong>
+                        </div>
                         <h2>Bandeja de cargas enviadas</h2>
-                        <p>Consulta las jornadas enviadas al workflow real, filtra por fecha y recupera una carga cuando necesites corregirla.</p>
+                        <p>Consulta el historial de jornadas enviadas, filtra por rango de fechas o busca pozos específicos para consultar o recuperar una carga.</p>
                     </div>
                 </div>
 
                 <div class="field-admin-preview-shell">
-                    <div class="field-admin-preview-headline">
-                        <span class="field-admin-preview-badge">Supabase</span>
-                        <div class="field-admin-preview-toolbar">
-                            <strong id="field-admin-preview-count">0 cargas pendientes</strong>
-                            <button type="button" id="field-back-to-capture-btn" class="btn-secondary field-back-btn">Volver a captura</button>
-                        </div>
-                    </div>
                     <div class="field-admin-preview-filters" aria-label="Filtros de cargas enviadas">
                         <label class="field-input-group">
-                            <span>Desde</span>
+                            <span><i class="fa-regular fa-calendar"></i> Desde</span>
                             <input type="date" id="field-admin-filter-start">
                         </label>
                         <label class="field-input-group">
-                            <span>Hasta</span>
+                            <span><i class="fa-regular fa-calendar-check"></i> Hasta</span>
                             <input type="date" id="field-admin-filter-end">
                         </label>
-                        <label class="field-input-group field-input-group-full">
-                            <span>Buscar</span>
-                            <input type="search" id="field-admin-filter-search" placeholder="Pozo, locación, turno o técnico">
+                        <label class="field-input-group field-admin-search-group">
+                            <span><i class="fa-solid fa-magnifying-glass"></i> Buscar</span>
+                            <input type="search" id="field-admin-filter-search" placeholder="Buscar por pozo, locación, turno o técnico...">
                         </label>
-                        <button type="button" id="field-admin-filter-clear" class="btn-secondary field-back-btn">Limpiar filtros</button>
+                        <button type="button" id="field-admin-filter-clear" class="field-filter-clear-btn" title="Limpiar todos los filtros">
+                            <i class="fa-solid fa-filter-circle-xmark"></i>
+                            <span>Limpiar filtros</span>
+                        </button>
                     </div>
                     <div id="field-admin-preview-list" class="field-admin-preview-list">
                         <div class="field-admin-preview-empty">Todavía no has enviado ninguna carga a revisión.</div>
@@ -693,7 +699,15 @@
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             <span>Captura</span>
         </a>
-        <button type="button" id="mobile-refresh-btn" class="mobile-nav-action" onclick="window.location.reload(true)">
+        <button type="button" id="mobile-summary-btn" class="mobile-nav-action">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+            <span>Avance (<strong id="mobile-wells-badge">0</strong>)</span>
+        </button>
+        <button type="button" id="mobile-history-btn" class="mobile-nav-action">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>Historial</span>
+        </button>
+        <button type="button" id="mobile-refresh-btn" class="mobile-nav-action">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             <span>Actualizar</span>
         </button>

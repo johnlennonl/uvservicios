@@ -2,7 +2,7 @@ import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile }
 import { getUniquePozos } from '../../services/monitoring-service.js';
 import { autosaveFieldJourneyDraft, submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney, getFieldSubmittedJourneys, getFieldSubmittedJourneyDetail, getLatestFieldJourneyDraft } from '../../services/field-journey-service.js';
 import { getWellRibbonData } from '../../services/technical-measurements-service.js';
-import { validateFieldJourneyForSubmission, validateFieldReport } from './field-validation.js';
+import { validateFieldJourneyForSubmission, validateFieldReport, validateSectionParameters } from './field-validation.js';
 
 const DRAFT_STORAGE_KEY = 'uv-field-capture-draft';
 const REPORTS_STORAGE_KEY = 'uv-field-capture-reports';
@@ -188,7 +188,7 @@ const EXCEL_SECTION_GROUPS = [
     },
     {
         title: 'Parametros operacionales',
-        fields: ['frecuencia', 'modo_operacion', 'sentido_giro', 'i_motor', 'v_motor', 'out_vsd', 'i_vsd_a', 'i_vsd_b', 'i_vsd_c', 'prom_i_vsd', 'desv_fase_a', 'desv_fase_b', 'desv_fase_c', 'max_desviacion_vsd', 'desbalance_corriente_vsd', 'pip_psi', 'pd_psi', 'ti_f', 'tm_f', 'vx_g', 'vy_g', 'vz_g']
+        fields: ['frecuencia', 'modo_operacion', 'sentido_giro', 'i_motor', 'v_motor', 'out_vsd', 'i_vsd_a', 'i_vsd_b', 'i_vsd_c', 'prom_i_vsd', 'desv_fase_a', 'desv_fase_b', 'desv_fase_c', 'max_desviacion_vsd', 'desbalance_corriente_vsd', 'posee_sensor_fondo', 'descarga_datas_sensor', 'pip_psi', 'pd_psi', 'ti_f', 'tm_f', 'vx_g', 'vy_g', 'vz_g']
     },
     {
         title: 'Sistema BES',
@@ -199,8 +199,8 @@ const EXCEL_SECTION_GROUPS = [
         fields: ['baja_datos', 'vsd_kva', 'marca_vsd', 'modelo_vsd', 'tx_kva', 'tap_v', 'rt', 'estado_tx', 'estado_vsd', 'estado_panel_sensor_choques', 'estado_aterramiento', 'condicion_cableado', 'condicion_caseta', 'temperatura_caseta', 'estado_fosa_porcentaje', 'estado_biw_conector', 'estado_manometros', 'estado_cabezal', 'estado_tomamuestras', 'estado_caja_venteo']
     },
     {
-        title: 'Sensor y presiones',
-        fields: ['posee_sensor_fondo', 'descarga_datas_sensor', 'thp_psi', 'chp_psi', 'lf_psi', 'cond_chp', 'echometer', 'nivel_fluido_ft', 'sumergencia_ft', 'pip_echometer_psi', 'diagnostico']
+        title: 'Presiones de superficie',
+        fields: ['thp_psi', 'chp_psi', 'lf_psi', 'cond_chp', 'echometer', 'nivel_fluido_ft', 'sumergencia_ft', 'pip_echometer_psi', 'diagnostico']
     },
     {
         title: 'Prueba electrica',
@@ -282,6 +282,8 @@ const WELL_PREVIEW_SECTIONS = [
             ['ABS IC PROM VSD', 'desv_fase_c'],
             ['MAXIMO ABS I VSD', 'max_desviacion_vsd'],
             ['% Desbalance Corriente VSD', 'desbalance_corriente_vsd'],
+            ['Posee sensor de fondo', 'posee_sensor_fondo'],
+            ['Descarga datas del sensor', 'descarga_datas_sensor'],
             ['PIP [psi]', 'pip_psi'],
             ['PD [psi]', 'pd_psi'],
             ['Ti [°F]', 'ti_f'],
@@ -327,10 +329,8 @@ const WELL_PREVIEW_SECTIONS = [
         ]
     },
     {
-        title: 'Sensor y presiones',
+        title: 'Presiones de superficie',
         items: [
-            ['Posee sensor de fondo', 'posee_sensor_fondo'],
-            ['Descarga datas del sensor', 'descarga_datas_sensor'],
             ['THP [psi]', 'thp_psi'],
             ['CHP [psi]', 'chp_psi'],
             ['LF [psi]', 'lf_psi'],
@@ -534,6 +534,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 function bindStaticActions() {
     document.getElementById('logout-btn')?.addEventListener('click', logout);
     document.getElementById('mobile-logout-btn')?.addEventListener('click', logout);
+
+    document.getElementById('mobile-refresh-btn')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        const svg = this.querySelector('svg');
+        if (svg) svg.classList.add('is-spinning');
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 400);
+    });
+
+    const scrollToHistory = () => {
+        const historyPanel = document.querySelector('.field-admin-preview-panel');
+        if (historyPanel) {
+            historyPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
+    document.getElementById('nav-history-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        scrollToHistory();
+    });
+
+    document.getElementById('mobile-history-btn')?.addEventListener('click', () => {
+        scrollToHistory();
+    });
+
+    document.getElementById('mobile-summary-btn')?.addEventListener('click', () => {
+        const summaryPanel = document.querySelector('.field-summary-panel');
+        if (summaryPanel) {
+            summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+
     document.getElementById('field-clear-form-btn')?.addEventListener('click', clearForm);
     document.getElementById('field-start-journey-btn')?.addEventListener('click', startFieldJourney);
     document.getElementById('field-add-report-btn')?.addEventListener('click', addCurrentReportToJourney);
@@ -636,6 +669,27 @@ function wireForm() {
     document.getElementById('field-bes-config-edit-btn')?.addEventListener('click', toggleBesConfigEditMode);
     document.getElementById('field-surface-fixed-edit-btn')?.addEventListener('click', toggleSurfaceFixedEditMode);
     syncReadonlyPrefilledFields();
+
+    document.querySelector('[name="posee_sensor_fondo"]')?.addEventListener('change', () => {
+        syncSensorFondoRequirements();
+        persistDraft();
+    });
+
+    document.querySelector('[name="estatus"]')?.addEventListener('change', () => {
+        syncSensorFondoRequirements();
+        syncInputsBasedOnStatus();
+        persistDraft();
+    });
+
+    document.querySelector('[name="chp_psi"]')?.addEventListener('input', () => {
+        syncChpAutoCondition();
+    });
+
+    document.querySelector('[name="chp_psi"]')?.addEventListener('change', () => {
+        syncChpAutoCondition();
+    });
+
+    syncSensorFondoRequirements();
 
     document.querySelectorAll('.field-accordion').forEach(details => {
         details.querySelector('summary')?.addEventListener('click', handleLockedAccordionClick);
@@ -742,6 +796,30 @@ function initializeAccordionProgressControls() {
 function markAccordionSectionLoaded(section, loaded) {
     if (!section || section.classList.contains('is-locked')) return;
 
+    if (loaded) {
+        const sectionIndex = Number(section.dataset.sectionIndex ?? getParameterSections().indexOf(section));
+        const payload = getFormPayload();
+        const missing = validateSectionParameters(sectionIndex, payload);
+
+        if (missing.length > 0) {
+            highlightInvalidSectionFields(section, missing);
+            const message = `Para cargar esta sección debes completar: ${missing.join(', ')}.`;
+            updateStatus(message, true);
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Faltan parámetros requeridos',
+                    text: message,
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#2563eb'
+                });
+            }
+            return;
+        } else {
+            clearSectionInvalidHighlights(section);
+        }
+    }
+
     section.classList.toggle('is-loaded', loaded);
     section.open = !loaded;
 
@@ -761,6 +839,39 @@ function markAccordionSectionLoaded(section, loaded) {
     } else {
         openOnlyAccordionSection(section);
     }
+}
+
+function highlightInvalidSectionFields(section, missingNames = []) {
+    clearSectionInvalidHighlights(section);
+    section.querySelectorAll('.field-input-group').forEach(group => {
+        const star = group.querySelector('.field-req-mark');
+        if (star && !star.hidden) {
+            const input = group.querySelector('input, select, textarea');
+            if (input && !input.disabled && !input.readOnly) {
+                const val = String(input.value || '').trim();
+                if (!val) {
+                    group.classList.add('field-input-invalid');
+                    return;
+                }
+            }
+        }
+
+        const labelText = String(group.querySelector('span')?.textContent || '').trim().toLowerCase();
+        const hasMissing = missingNames.some(name => {
+            const cleanName = name.replace(/\[.*?\]/g, '').replace(/\*/g, '').trim().toLowerCase();
+            const cleanLabel = labelText.replace(/\[.*?\]/g, '').replace(/\*/g, '').trim().toLowerCase();
+            return cleanLabel.includes(cleanName) || cleanName.includes(cleanLabel);
+        });
+        if (hasMissing) {
+            group.classList.add('field-input-invalid');
+        }
+    });
+}
+
+function clearSectionInvalidHighlights(section) {
+    section.querySelectorAll('.field-input-group.field-input-invalid').forEach(group => {
+        group.classList.remove('field-input-invalid');
+    });
 }
 
 function openOnlyAccordionSection(targetSection) {
@@ -922,7 +1033,114 @@ function syncInputsBasedOnStatus() {
         giroSelect.disabled = isOff;
         if (isOff) {
             giroSelect.value = '';
+        } else if (!giroSelect.value) {
+            giroSelect.value = 'FWD';
         }
+    }
+
+    const modoSelect = document.querySelector('[name="modo_operacion"]');
+    if (modoSelect) {
+        modoSelect.disabled = isOff;
+        if (isOff) {
+            modoSelect.value = '';
+        } else if (!modoSelect.value) {
+            modoSelect.value = 'FRECUENCIA';
+        }
+    }
+
+    const reqGroups = document.querySelectorAll('[data-op-req-group="true"], [data-surface-req="true"], [data-presion-req="true"]');
+    reqGroups.forEach(group => {
+        const star = group.querySelector('.field-req-mark');
+        const isDiagnostico = group.querySelector('[name="diagnostico"]');
+        const isObservaciones = group.querySelector('[name="observaciones_pozo"]');
+        if (star) {
+            if (isDiagnostico || isObservaciones) {
+                star.hidden = false;
+            } else {
+                star.hidden = isOff;
+            }
+        }
+    });
+
+    syncSensorFondoRequirements();
+}
+
+function syncSensorFondoRequirements() {
+    const poseeSensorSelect = document.querySelector('[name="posee_sensor_fondo"]');
+    const estatusSelect = document.querySelector('[name="estatus"]');
+    if (!poseeSensorSelect) return;
+
+    const poseeSensor = poseeSensorSelect.value === 'SI';
+    const isNoSensor = poseeSensorSelect.value === 'NO';
+    const isOff = estatusSelect?.value === 'OFF';
+
+    const descargaDataSelect = document.querySelector('[name="descarga_datas_sensor"]');
+    if (descargaDataSelect) {
+        const group = descargaDataSelect.closest('.field-input-group');
+        if (isNoSensor) {
+            descargaDataSelect.value = 'NO';
+            descargaDataSelect.disabled = true;
+            group?.classList.add('field-input-disabled');
+        } else {
+            if (!descargaDataSelect.value) {
+                descargaDataSelect.value = 'SI';
+            }
+            descargaDataSelect.disabled = false;
+            group?.classList.remove('field-input-disabled');
+        }
+    }
+
+    const sensorReqGroups = document.querySelectorAll('[data-sensor-req-group="true"]');
+    sensorReqGroups.forEach(group => {
+        const star = group.querySelector('.field-req-mark');
+        if (star) {
+            star.hidden = !poseeSensor || isOff;
+        }
+
+        const input = group.querySelector('input');
+        if (input) {
+            if (isNoSensor) {
+                input.value = '';
+                input.disabled = true;
+                group.classList.add('field-input-disabled');
+            } else {
+                input.disabled = false;
+                group.classList.remove('field-input-disabled');
+            }
+        }
+    });
+
+    const fondoExtraNames = ['vx_g', 'vy_g', 'vz_g'];
+    fondoExtraNames.forEach(fieldName => {
+        const field = document.querySelector(`[name="${fieldName}"]`);
+        if (field) {
+            if (isNoSensor) {
+                field.value = '';
+                field.disabled = true;
+                field.closest('.field-input-group')?.classList.add('field-input-disabled');
+            } else {
+                field.disabled = false;
+                field.closest('.field-input-group')?.classList.remove('field-input-disabled');
+            }
+        }
+    });
+}
+
+function syncChpAutoCondition() {
+    const chpField = document.querySelector('[name="chp_psi"]');
+    const condChpSelect = document.querySelector('[name="cond_chp"]');
+    if (!chpField || !condChpSelect) return;
+
+    const rawValue = String(chpField.value || '').trim();
+    if (!rawValue) return;
+
+    const numericValue = Number(rawValue);
+    if (!Number.isFinite(numericValue)) return;
+
+    if (numericValue === 0) {
+        condChpSelect.value = 'AL AIRE';
+    } else if (numericValue > 0 && !condChpSelect.value) {
+        condChpSelect.value = 'A LA LÍNEA';
     }
 }
 
@@ -1412,6 +1630,10 @@ function renderJourneyReports() {
     const currentJourneyTicketKey = getCurrentJourneyTicketKey();
     const currentJourneyTicketCount = getLocalTicketCountForJourney(currentJourneyTicketKey);
     count.innerHTML = `${reports.length} ${reports.length === 1 ? 'pozo' : 'pozos'}${currentJourneyTicketCount > 0 ? ` <span class="field-journey-ticket-badge">${escapeHtml(String(currentJourneyTicketCount))} ticket${currentJourneyTicketCount === 1 ? '' : 's'}</span>` : ''}`;
+    const mobileBadge = document.getElementById('mobile-wells-badge');
+    if (mobileBadge) {
+        mobileBadge.textContent = String(reports.length);
+    }
     syncJourneyFieldLocks(reports);
     updateEditingContext(reports);
 
@@ -1798,7 +2020,8 @@ function buildJourneyWellMessageBlock(report) {
         ['Vz', report.vz_g, 'G'],
         ['THP', report.thp_psi, 'psi'],
         ['CHP', report.chp_psi, 'psi'],
-        ['LF', report.lf_psi, 'psi']
+        ['LF', report.lf_psi, 'psi'],
+        ['Cond. CHP', report.cond_chp]
     ];
 
     measurementLines.forEach(([label, value, unit]) => {
@@ -2056,7 +2279,7 @@ async function renderAdminPreview() {
     if (requestId !== fieldAdminPreviewRequestId) return;
 
     const journeys = fieldSubmittedJourneys;
-    count.textContent = `${journeys.length} ${journeys.length === 1 ? 'carga pendiente' : 'cargas pendientes'}`;
+    count.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> ${journeys.length} ${journeys.length === 1 ? 'carga enviada' : 'cargas enviadas'}`;
 
     if (journeys.length === 0) {
         list.innerHTML = '<div class="field-admin-preview-empty">No hay cargas enviadas con esos filtros.</div>';
@@ -2223,7 +2446,15 @@ function syncOperationalIndicators() {
     syncRatioAndPercent('tm_f', 'max_high_temp_shutdown_f', 'relacion_tm_t_max', 'porcentaje_temp');
     syncRatioAndPercent('low_pip_shutdown_psi', 'pip_psi', 'relacion_pip_min_pip', 'porcentaje_pip');
 
-    const pdMax = getNumericFieldValue('pd_max_psi');
+    let pdMax = getNumericFieldValue('pd_max_psi');
+    if (pdMax === null) {
+        const pdMaxInput = document.querySelector('[name="pd_max_psi"]');
+        if (pdMaxInput && !pdMaxInput.value) {
+            pdMaxInput.value = '5000';
+            pdMax = 5000;
+        }
+    }
+
     const pd = getNumericFieldValue('pd_psi');
     if (pdMax === null || pd === null) {
         setFieldValue('delta_presion_psi', '');
