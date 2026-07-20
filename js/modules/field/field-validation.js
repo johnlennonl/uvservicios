@@ -323,7 +323,6 @@ export function validateFieldReport(payload, options = {}) {
             if (isPanelBueno) {
                 const missingFondo = [];
                 if (!hasValue(normalizedPayload.pip_psi)) missingFondo.push('PIP');
-                if (!hasValue(normalizedPayload.ti_f)) missingFondo.push('TI');
                 if (!hasValue(normalizedPayload.tm_f)) missingFondo.push('TM');
 
                 if (missingFondo.length > 0) {
@@ -431,7 +430,6 @@ export function validateSectionParameters(sectionIndex, payload = {}) {
 
             if (poseeSensor && isPanelBueno) {
                 if (!hasValue(payload.pip_psi)) missing.push('PIP [psi]');
-                if (!hasValue(payload.ti_f)) missing.push('Ti [°F]');
                 if (!hasValue(payload.tm_f)) missing.push('Tm [°F]');
             }
         }
