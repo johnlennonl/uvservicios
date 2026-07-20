@@ -475,6 +475,22 @@ function drawMetaColumn(pdf, originX, originY, valueMaxWidth, rows) {
     });
 }
 
+async function loadLogoForExcel() {
+    const logoPath = 'img/UV-SERVICES-Logo-vectorial-sin-fondo.webp';
+
+    try {
+        const response = await fetch(logoPath);
+        if (!response.ok) {
+            return null;
+        }
+
+        const blob = await response.blob();
+        return await imageElementToDataUrl(blob);
+    } catch (error) {
+        return null;
+    }
+}
+
 async function loadLogoForPdf() {
     const logoPath = 'img/uvservicioslogo.png';
 

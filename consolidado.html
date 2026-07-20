@@ -23,9 +23,17 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        try {
+            const rawUser = localStorage.getItem('sb-ktfiglhhsqinvqvqynhg-auth-token');
+            if (rawUser && (rawUser.includes('cliente_view') || rawUser.includes('Ingeniero@uvservicios.com'))) {
+                document.documentElement.classList.add('is-readonly');
+            }
+        } catch(e) {}
+    </script>
 </head>
 
-<body>
+<body class="access-protected-nav">
     <div class="dashboard-layout">
         <aside class="sidebar">
             <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180"
@@ -331,7 +339,7 @@
                     </div>
                 </article>
 
-                <article class="consolidado-card">
+                <article class="consolidado-card management-only-card">
                     <div class="consolidado-card-head">
                         <div>
                             <h2>Estructura del Excel Base</h2>

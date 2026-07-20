@@ -188,7 +188,7 @@ const EXCEL_SECTION_GROUPS = [
     },
     {
         title: 'Parametros operacionales',
-        fields: ['frecuencia', 'modo_operacion', 'sentido_giro', 'i_motor', 'v_motor', 'out_vsd', 'i_vsd_a', 'i_vsd_b', 'i_vsd_c', 'prom_i_vsd', 'desv_fase_a', 'desv_fase_b', 'desv_fase_c', 'max_desviacion_vsd', 'desbalance_corriente_vsd', 'posee_sensor_fondo', 'descarga_datas_sensor', 'pip_psi', 'pd_psi', 'ti_f', 'tm_f', 'vx_g', 'vy_g', 'vz_g']
+        fields: ['frecuencia', 'modo_operacion', 'sentido_giro', 'i_motor', 'v_motor', 'out_vsd', 'i_vsd_a', 'i_vsd_b', 'i_vsd_c', 'prom_i_vsd', 'desv_fase_a', 'desv_fase_b', 'desv_fase_c', 'max_desviacion_vsd', 'desbalance_corriente_vsd', 'posee_sensor_fondo', 'estado_panel_sensor_choques', 'descarga_datas_sensor', 'pip_psi', 'pd_psi', 'ti_f', 'tm_f', 'vx_g', 'vy_g', 'vz_g']
     },
     {
         title: 'Sistema BES',
@@ -196,7 +196,7 @@ const EXCEL_SECTION_GROUPS = [
     },
     {
         title: 'Superficie',
-        fields: ['baja_datos', 'vsd_kva', 'marca_vsd', 'modelo_vsd', 'tx_kva', 'tap_v', 'rt', 'estado_tx', 'estado_vsd', 'estado_panel_sensor_choques', 'estado_aterramiento', 'condicion_cableado', 'condicion_caseta', 'temperatura_caseta', 'estado_fosa_porcentaje', 'estado_biw_conector', 'estado_manometros', 'estado_cabezal', 'estado_tomamuestras', 'estado_caja_venteo']
+        fields: ['baja_datos', 'vsd_kva', 'marca_vsd', 'modelo_vsd', 'tx_kva', 'tap_v', 'rt', 'estado_tx', 'estado_vsd', 'estado_aterramiento', 'condicion_cableado', 'condicion_caseta', 'temperatura_caseta', 'estado_fosa_porcentaje', 'estado_biw_conector', 'estado_manometros', 'estado_cabezal', 'estado_tomamuestras', 'estado_caja_venteo']
     },
     {
         title: 'Presiones de superficie',
@@ -675,6 +675,11 @@ function wireForm() {
         persistDraft();
     });
 
+    document.querySelector('[name="estado_panel_sensor_choques"]')?.addEventListener('change', () => {
+        syncSensorFondoRequirements();
+        persistDraft();
+    });
+
     document.querySelector('[name="estatus"]')?.addEventListener('change', () => {
         syncSensorFondoRequirements();
         syncInputsBasedOnStatus();
@@ -1067,6 +1072,7 @@ function syncInputsBasedOnStatus() {
 
 function syncSensorFondoRequirements() {
     const poseeSensorSelect = document.querySelector('[name="posee_sensor_fondo"]');
+    const panelSensorSelect = document.querySelector('[name="estado_panel_sensor_choques"]');
     const estatusSelect = document.querySelector('[name="estatus"]');
     if (!poseeSensorSelect) return;
 
@@ -1074,13 +1080,32 @@ function syncSensorFondoRequirements() {
     const isNoSensor = poseeSensorSelect.value === 'NO';
     const isOff = estatusSelect?.value === 'OFF';
 
+    if (panelSensorSelect) {
+        const panelGroup = panelSensorSelect.closest('.field-input-group');
+        if (isNoSensor) {
+            panelSensorSelect.value = 'SIN PANEL';
+            panelSensorSelect.disabled = true;
+            panelGroup?.classList.add('field-input-disabled');
+        } else {
+            panelSensorSelect.disabled = false;
+            panelGroup?.classList.remove('field-input-disabled');
+        }
+    }
+
+    const isPanelBueno = panelSensorSelect?.value === 'BUENO';
+    const currentNoData = isNoSensor || panelSensorSelect?.value === 'SIN PANEL' || panelSensorSelect?.value === 'MALO';
+
     const descargaDataSelect = document.querySelector('[name="descarga_datas_sensor"]');
     if (descargaDataSelect) {
         const group = descargaDataSelect.closest('.field-input-group');
-        if (isNoSensor) {
+        if (currentNoData) {
             descargaDataSelect.value = 'NO';
-            descargaDataSelect.disabled = true;
-            group?.classList.add('field-input-disabled');
+            descargaDataSelect.disabled = isNoSensor || panelSensorSelect?.value === 'SIN PANEL';
+            if (isNoSensor || panelSensorSelect?.value === 'SIN PANEL') {
+                group?.classList.add('field-input-disabled');
+            } else {
+                group?.classList.remove('field-input-disabled');
+            }
         } else {
             if (!descargaDataSelect.value) {
                 descargaDataSelect.value = 'SI';
@@ -1094,7 +1119,7 @@ function syncSensorFondoRequirements() {
     sensorReqGroups.forEach(group => {
         const star = group.querySelector('.field-req-mark');
         if (star) {
-            star.hidden = !poseeSensor || isOff;
+            star.hidden = !poseeSensor || !isPanelBueno || isOff;
         }
 
         const input = group.querySelector('input');
@@ -3286,7 +3311,7 @@ function sanitizeFileNameSegment(value) {
 }
 
 async function loadLogoForExcel() {
-    const logoPath = 'img/uvservicioslogo.png';
+    const logoPath = 'img/UV-SERVICES-Logo-vectorial-sin-fondo.webp';
 
     try {
         const response = await fetch(logoPath);

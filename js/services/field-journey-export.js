@@ -747,7 +747,7 @@ function sanitizeFileNameSegment(value) {
 
 async function loadLogoForExcel() {
     try {
-        const response = await fetch('img/uvservicioslogo.png');
+        const response = await fetch('img/UV-SERVICES-Logo-vectorial-sin-fondo.webp');
         if (!response.ok) return null;
         const blob = await response.blob();
         return await imageBlobToDataUrl(blob);

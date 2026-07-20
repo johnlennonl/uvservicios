@@ -2,6 +2,20 @@
     padding-bottom: 110px;
 }
 
+body.access-readonly .management-only-card,
+html.is-readonly .management-only-card,
+body.access-readonly #consolidado-config-btn,
+html.is-readonly #consolidado-config-btn {
+    display: none !important;
+}
+
+body.access-readonly .consolidado-workbench,
+html.is-readonly .consolidado-workbench {
+    grid-template-columns: minmax(0, 1fr) !important;
+    max-width: 880px !important;
+    margin: 0 auto !important;
+}
+
 .consolidado-hero {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);

@@ -114,8 +114,8 @@ async function ensureConsolidadoManagementAccess() {
         throw new Error('Debes iniciar sesión para guardar el consolidado.');
     }
 
-    if (!accessProfile?.canViewManagement) {
-        throw new Error('Tu usuario no tiene permisos para guardar el consolidado maestro.');
+    if (!accessProfile?.canModifyConsolidadoBase) {
+        throw new Error('Tu usuario no tiene permisos para modificar la base del consolidado maestro.');
     }
 
     return session;
@@ -123,9 +123,14 @@ async function ensureConsolidadoManagementAccess() {
 
 async function ensureConsolidadoReadAccess() {
     const session = await getSession();
+    const accessProfile = getAccessProfile(session);
 
     if (!session?.user) {
         throw new Error('Debes iniciar sesión para consultar el consolidado.');
+    }
+
+    if (!accessProfile?.canViewConsolidado) {
+        throw new Error('Tu usuario no tiene permisos para consultar el consolidado.');
     }
 
     return session;

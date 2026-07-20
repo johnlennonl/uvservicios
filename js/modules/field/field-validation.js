@@ -317,13 +317,18 @@ export function validateFieldReport(payload, options = {}) {
         if (!hasValue(normalizedPayload.posee_sensor_fondo)) {
             blockers.push('Indica si el pozo POSEE SENSOR DE FONDO? (SI / NO).');
         } else if (poseeSensor) {
-            const missingFondo = [];
-            if (!hasValue(normalizedPayload.pip_psi)) missingFondo.push('PIP');
-            if (!hasValue(normalizedPayload.ti_f)) missingFondo.push('TI');
-            if (!hasValue(normalizedPayload.tm_f)) missingFondo.push('TM');
+            const estadoPanel = String(normalizedPayload.estado_panel_sensor_choques || '').trim().toUpperCase();
+            const isPanelBueno = estadoPanel === 'BUENO';
 
-            if (missingFondo.length > 0) {
-                blockers.push(`Al indicar que POSEE SENSOR DE FONDO, los siguientes parámetros de fondo son obligatorios: ${missingFondo.join(', ')}.`);
+            if (isPanelBueno) {
+                const missingFondo = [];
+                if (!hasValue(normalizedPayload.pip_psi)) missingFondo.push('PIP');
+                if (!hasValue(normalizedPayload.ti_f)) missingFondo.push('TI');
+                if (!hasValue(normalizedPayload.tm_f)) missingFondo.push('TM');
+
+                if (missingFondo.length > 0) {
+                    blockers.push(`Al indicar que POSEE SENSOR DE FONDO y el panel está en estado BUENO, los siguientes parámetros de fondo son obligatorios: ${missingFondo.join(', ')}.`);
+                }
             }
         }
 
@@ -421,7 +426,10 @@ export function validateSectionParameters(sectionIndex, payload = {}) {
             if (!hasValue(payload.i_vsd_c)) missing.push('I VSD C [A]');
             if (!hasValue(payload.posee_sensor_fondo)) missing.push('POSEE SENSOR DE FONDO?');
 
-            if (poseeSensor) {
+            const estadoPanel = String(payload.estado_panel_sensor_choques || '').trim().toUpperCase();
+            const isPanelBueno = estadoPanel === 'BUENO';
+
+            if (poseeSensor && isPanelBueno) {
                 if (!hasValue(payload.pip_psi)) missing.push('PIP [psi]');
                 if (!hasValue(payload.ti_f)) missing.push('Ti [°F]');
                 if (!hasValue(payload.tm_f)) missing.push('Tm [°F]');
@@ -432,7 +440,6 @@ export function validateSectionParameters(sectionIndex, payload = {}) {
             if (!hasValue(payload.baja_datos)) missing.push('BAJA DATOS?');
             if (!hasValue(payload.estado_tx)) missing.push('ESTADO DEL TX');
             if (!hasValue(payload.estado_vsd)) missing.push('ESTADO DEL VSD');
-            if (!hasValue(payload.estado_panel_sensor_choques)) missing.push('PANEL DEL SENSOR');
             if (!hasValue(payload.estado_aterramiento)) missing.push('ATERRAMIENTO');
             if (!hasValue(payload.condicion_cableado)) missing.push('CONDICIÓN DEL CABLEADO');
             if (!hasValue(payload.condicion_caseta)) missing.push('CONDICIÓN DE LA CASETA');

@@ -1,4 +1,4 @@
-import { logout, getSession, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
+import { logout, getSession, getAccessProfile, getDefaultRouteForAccessProfile, applyNavigationAccessProfile } from './auth.js';
 import { supabase } from './supabaseClient.js';
 import { REPORT_COLUMNS, EXCEL_EXPORT_COLUMNS, EXCEL_GROUP_COLORS } from './services/field-journey-export.js';
 import {
@@ -108,8 +108,8 @@ const NUMERIC_COLUMN_PATTERNS = [
     /SUMERGENCIA/
 ];
 const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const LOGO_PATH = 'img/uvservicioslogo.png';
-const EXCEL_LOGO_PATH = 'img/UV SERVICES - Logo vectorial sin fondo.png';
+const LOGO_PATH = 'img/UV-SERVICES-Logo-vectorial-sin-fondo.webp';
+const EXCEL_LOGO_PATH = 'img/UV-SERVICES-Logo-vectorial-sin-fondo.webp';
 const TABLE_HEADER_ROW_INDEX = 7;
 
 const elements = {
@@ -164,8 +164,8 @@ function showLoadingModal(title, message, detail = '') {
             </div>
         `,
         imageUrl: LOGO_PATH,
-        imageWidth: 74,
-        imageHeight: 74,
+        imageWidth: 160,
+        imageHeight: 160,
         imageAlt: 'UV Servicios',
         allowOutsideClick: false,
         allowEscapeKey: false,
@@ -1589,34 +1589,42 @@ async function exportDashboardGeneralFromDatabase() {
             return;
         }
 
-        if (!hasSwal()) {
-            setStatus('Error: SweetAlert2 no está disponible.', 'error');
-            return;
-        }
+        let isClientVersion = false;
+        const session = await getSession();
+        const accessProfile = getAccessProfile(session);
 
-        const result = await window.Swal.fire({
-            icon: 'question',
-            title: 'Selecciona la versión del consolidado',
-            text: '¿Deseas descargar el consolidado completo para Ingeniería o la versión filtrada para Cliente?',
-            showDenyButton: true,
-            showCancelButton: true,
-            confirmButtonText: 'Consolidado Ingeniería',
-            denyButtonText: 'Consolidado Cliente',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#0b1f3a',
-            denyButtonColor: '#1d4ed8',
-            cancelButtonColor: '#64748b',
-            customClass: {
-                popup: 'consolidado-swal-popup',
-                title: 'consolidado-swal-title'
+        if (accessProfile?.isReadOnly || !accessProfile?.canModifyConsolidadoBase) {
+            isClientVersion = true;
+        } else {
+            if (!hasSwal()) {
+                setStatus('Error: SweetAlert2 no está disponible.', 'error');
+                return;
             }
-        });
 
-        if (result.isDismissed) {
-            return;
+            const result = await window.Swal.fire({
+                icon: 'question',
+                title: 'Selecciona la versión del consolidado',
+                text: '¿Deseas descargar el consolidado completo para Ingeniería o la versión filtrada para Cliente?',
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'Consolidado Ingeniería',
+                denyButtonText: 'Consolidado Cliente',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0b1f3a',
+                denyButtonColor: '#1d4ed8',
+                cancelButtonColor: '#64748b',
+                customClass: {
+                    popup: 'consolidado-swal-popup',
+                    title: 'consolidado-swal-title'
+                }
+            });
+
+            if (result.isDismissed) {
+                return;
+            }
+
+            isClientVersion = result.isDenied;
         }
-
-        const isClientVersion = result.isDenied;
 
         setBusyState(true);
         showLoadingModal('Exportando consolidado guardado', 'Leyendo filas desde Supabase para generar el Dashboard General.', `Origen: ${getExportSourceLabel(filters.source)} · Modo: ${getExportModeLabel(filters.mode)}.`);
@@ -1886,34 +1894,42 @@ async function exportDashboardGeneralWorkbook() {
     }
 
     try {
-        if (!hasSwal()) {
-            setStatus('Error: SweetAlert2 no está disponible.', 'error');
-            return;
-        }
+        let isClientVersion = false;
+        const session = await getSession();
+        const accessProfile = getAccessProfile(session);
 
-        const result = await window.Swal.fire({
-            icon: 'question',
-            title: 'Selecciona la versión del consolidado',
-            text: '¿Deseas descargar el consolidado completo para Ingeniería o la versión filtrada para Cliente?',
-            showDenyButton: true,
-            showCancelButton: true,
-            confirmButtonText: 'Consolidado Ingeniería',
-            denyButtonText: 'Consolidado Cliente',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#0b1f3a',
-            denyButtonColor: '#1d4ed8',
-            cancelButtonColor: '#64748b',
-            customClass: {
-                popup: 'consolidado-swal-popup',
-                title: 'consolidado-swal-title'
+        if (accessProfile?.isReadOnly || !accessProfile?.canModifyConsolidadoBase) {
+            isClientVersion = true;
+        } else {
+            if (!hasSwal()) {
+                setStatus('Error: SweetAlert2 no está disponible.', 'error');
+                return;
             }
-        });
 
-        if (result.isDismissed) {
-            return;
+            const result = await window.Swal.fire({
+                icon: 'question',
+                title: 'Selecciona la versión del consolidado',
+                text: '¿Deseas descargar el consolidado completo para Ingeniería o la versión filtrada para Cliente?',
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'Consolidado Ingeniería',
+                denyButtonText: 'Consolidado Cliente',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0b1f3a',
+                denyButtonColor: '#1d4ed8',
+                cancelButtonColor: '#64748b',
+                customClass: {
+                    popup: 'consolidado-swal-popup',
+                    title: 'consolidado-swal-title'
+                }
+            });
+
+            if (result.isDismissed) {
+                return;
+            }
+
+            isClientVersion = result.isDenied;
         }
-
-        const isClientVersion = result.isDenied;
 
         setBusyState(true);
         showLoadingModal('Generando Excel', 'Armando el Dashboard General con logo, colores y columnas detectadas.', `${activeDashboardRows.length} filas en memoria.`);
@@ -2382,11 +2398,12 @@ async function ensureAccess() {
         return false;
     }
 
-    if (!accessProfile?.canViewManagement) {
+    if (!accessProfile?.canViewConsolidado) {
         window.location.href = getDefaultRouteForAccessProfile(accessProfile);
         return false;
     }
 
+    applyNavigationAccessProfile(accessProfile);
     return true;
 }
 
@@ -2426,24 +2443,23 @@ async function checkOrphanRowsDiagnostic() {
         const seenRecordIds = new Set();
 
         opRows.forEach(row => {
-            // 1. Detectar duplicados del mismo source_record_id
             if (row.source_record_id) {
                 if (seenRecordIds.has(row.source_record_id)) {
                     duplicateIds.push(row.id);
-                    return; // Si es duplicado, marcar para eliminar y omitir los otros chequeos
+                    return;
                 }
                 seenRecordIds.add(row.source_record_id);
-            }
 
-            const parentRecord = recordMap.get(row.source_record_id);
-            if (!parentRecord) {
-                orphanIds.push(row.id);
-            } else {
-                const parentJourney = journeyMap.get(parentRecord.journey_id);
-                if (!parentJourney) {
+                const parentRecord = recordMap.get(row.source_record_id);
+                if (!parentRecord) {
                     orphanIds.push(row.id);
-                } else if (!['approved', 'published'].includes(parentJourney.status)) {
-                    nonApprovedRecordIds.push(row.id);
+                } else {
+                    const parentJourney = journeyMap.get(parentRecord.journey_id);
+                    if (!parentJourney) {
+                        orphanIds.push(row.id);
+                    } else if (!['approved', 'published'].includes(String(parentJourney.status || '').toLowerCase())) {
+                        nonApprovedRecordIds.push(row.id);
+                    }
                 }
             }
         });
@@ -2463,47 +2479,14 @@ async function checkOrphanRowsDiagnostic() {
             }
         });
 
-        const rowsToDelete = [...orphanIds, ...nonApprovedRecordIds, ...duplicateIds];
+        const rowsToDelete = [...duplicateIds];
         if (rowsToDelete.length > 0) {
-            
-            if (hasSwal()) {
-                window.Swal.fire({
-                    title: 'Desajuste de Conteo Detectado',
-                    text: `Se encontraron ${rowsToDelete.length} registros huérfanos, desaprobados o duplicados en la base de datos (ocasionados por re-publicaciones o actualizaciones anteriores). ¿Deseas depurarlos del Consolidado ahora mismo para corregir el conteo?`,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Sí, depurar',
-                    cancelButtonText: 'Mantener así',
-                    confirmButtonColor: '#10b981',
-                    cancelButtonColor: '#64748b'
-                }).then(async (result) => {
-                    if (result.isConfirmed) {
-                        const { error: delError } = await supabase
-                            .from('consolidated_dashboard_operational')
-                            .delete()
-                            .in('id', rowsToDelete);
-                        
-                        if (delError) {
-                            window.Swal.fire('Error de Depuración', delError.message, 'error');
-                        } else {
-                            window.Swal.fire('Depuración Completada', 'Los registros inválidos y duplicados se han depurado con éxito. El conteo real es ahora de 126 registros.', 'success');
-                            await refreshDatabaseSummary({ silent: true });
-                        }
-                    }
-                });
-            }
+            console.log(`[Consolidado Sync] Detectados ${rowsToDelete.length} duplicados reales.`);
         } else {
             console.log('[Consolidado Sync] Base de datos de consolidado conciliada y al día. 0 huérfanos ni duplicados.');
         }
     } catch (e) {
         console.error('Error running consolidado sync diagnostic:', e);
-        if (hasSwal()) {
-            window.Swal.fire({
-                title: 'Error de Sincronización',
-                text: `No se pudo verificar la consistencia de los registros: ${e.message || e}`,
-                icon: 'error'
-            });
-        }
     }
 }
 
@@ -2513,11 +2496,24 @@ async function init() {
     activeTemplate = loadStoredTemplate();
     renderTemplate();
     refreshDatabaseSummary({ silent: true });
-    
-    // Ejecutar diagnóstico y conciliación automática de registros
-    await checkOrphanRowsDiagnostic();
 
-    if (activeTemplate?.sheets?.length) {
+    const session = await getSession();
+    const accessProfile = getAccessProfile(session);
+
+    if (accessProfile?.isReadOnly || !accessProfile?.canModifyConsolidadoBase) {
+        // Ocultar tarjeta de Estructura de Excel Base y menú de configuración para usuarios de visualización
+        document.querySelectorAll('.consolidado-card').forEach(card => {
+            if (card.textContent.includes('Estructura del Excel Base') || card.textContent.includes('Estructura de referencia')) {
+                card.style.display = 'none';
+            }
+        });
+        const configBtn = document.getElementById('consolidado-config-btn');
+        if (configBtn) configBtn.style.display = 'none';
+    } else {
+        await checkOrphanRowsDiagnostic();
+    }
+
+    if (activeTemplate?.sheets?.length && accessProfile?.canModifyConsolidadoBase) {
         setStatus(`Estructura activa cargada desde ${activeTemplate.fileName}. Importa nuevamente el Excel viejo para cargar las filas de Dashboard General y habilitar el exportador diseñado.`, 'success');
     }
 }

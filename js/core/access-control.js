@@ -42,24 +42,22 @@ export function getAccessProfile(sessionOrUser) {
         role,
         isReadOnly,
         isFieldOperator,
-        canViewDashboard: !isReadOnly,
+        canViewDashboard: true,
+        canViewConsolidado: true,
+        canModifyConsolidadoBase: isAdmin || isSupervisor,
         canViewManagement: isAdmin || isSupervisor,
         canEditData: isAdmin || isSupervisor,
         canCreateFieldReports: isAdmin || isSupervisor || isFieldOperator,
         canViewFieldModule: isAdmin || isSupervisor || isFieldOperator,
-        canViewFieldHistory: isAdmin || isSupervisor || isFieldOperator,
+        canViewFieldHistory: true,
         canViewJourneyModule: isAdmin || isSupervisor || isFieldOperator,
-        canViewJourneyHistory: isAdmin || isSupervisor || isFieldOperator
+        canViewJourneyHistory: true
     };
 }
 
 export function getDefaultRouteForAccessProfile(accessProfile) {
     if (accessProfile?.isFieldOperator) {
         return 'field.html';
-    }
-
-    if (accessProfile?.isReadOnly) {
-        return 'dashboard.html';
     }
 
     return 'dashboard.html';
@@ -93,11 +91,13 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
     };
 
     if (!accessProfile?.canViewManagement) {
-        hideLinks(['dashboard-data.html', 'campo-admin.html', 'stats.html', 'consolidado.html', 'monitoring-prep.html']);
+        hideLinks(['dashboard-data.html', 'campo-admin.html', 'stats.html', 'monitoring-prep.html']);
     }
 
     if (accessProfile?.isReadOnly) {
         document.body.classList.add('access-readonly');
+        document.documentElement.classList.add('is-readonly');
+        try { sessionStorage.setItem('access-readonly', 'true'); } catch(e) {}
         renameDataLinks();
         hideLinks([
             'dashboard-data.html',
@@ -108,9 +108,10 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
             'stats.html',
             'notificacion.html',
             'help.html',
-            'consolidado.html',
             'monitoring-prep.html'
         ]);
+    } else {
+        try { sessionStorage.setItem('access-readonly', 'false'); } catch(e) {}
     }
 
     document.body.classList.add('access-nav-ready');
