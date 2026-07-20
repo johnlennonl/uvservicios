@@ -2682,6 +2682,21 @@ async function openReportPreview(journeyId, mode = 'journey') {
     if (mode === 'well') {
         title.textContent = `Vista por pozo · ${journey.locacion_jornada || 'Carga'}`;
         body.innerHTML = buildWellPreviewMarkup(journey);
+
+        const wellSelect = body.querySelector('#field-preview-well-select');
+        if (wellSelect) {
+            wellSelect.addEventListener('change', () => {
+                const selectedVal = wellSelect.value;
+                const wellCards = body.querySelectorAll('[data-well-card-id]');
+                wellCards.forEach(card => {
+                    if (selectedVal === 'all' || card.dataset.wellCardId === selectedVal) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        }
     } else {
         title.textContent = `Vista carga · ${journey.locacion_jornada || 'Carga'}`;
         body.innerHTML = buildJourneyPreviewMarkup(journey);
@@ -2767,7 +2782,8 @@ function buildJourneyPreviewMarkup(journey) {
 }
 
 function buildWellPreviewMarkup(journey) {
-    if (!Array.isArray(journey.records) || journey.records.length === 0) {
+    const records = Array.isArray(journey.records) ? journey.records : [];
+    if (records.length === 0) {
         return `
             <div class="field-report-empty-state">
                 <h3>Sin pozos para mostrar</h3>
@@ -2776,8 +2792,21 @@ function buildWellPreviewMarkup(journey) {
         `;
     }
 
-    const cards = (journey.records || []).map(record => `
-        <article class="field-report-well-card">
+    const selectorMarkup = `
+        <div class="field-well-selector-bar" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-list-check" style="color: #2563eb; font-size: 1.1rem;"></i>
+                <strong style="color: #0f172a; font-size: 0.95rem;">Seleccionar Pozo a Consultar:</strong>
+            </div>
+            <select id="field-preview-well-select" style="padding: 8px 14px; border-radius: 8px; border: 1.5px solid #94a3b8; font-weight: 700; color: #0f172a; background: white; font-size: 0.92rem; min-width: 240px; outline: none; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <option value="all">Ver todos los pozos (${records.length})</option>
+                ${records.map((r, i) => `<option value="${escapeHtml(String(r.id || i))}">Pozo ${escapeHtml(String(r.pozo || '').toUpperCase())} (${escapeHtml(r.hora || '--')})</option>`).join('')}
+            </select>
+        </div>
+    `;
+
+    const cards = records.map((record, index) => `
+        <article class="field-report-well-card" data-well-card-id="${escapeHtml(String(record.id || index))}">
             <div class="field-report-well-header">
                 <div>
                     <span class="field-report-well-kicker">Vista estilo PDF</span>
@@ -2798,7 +2827,7 @@ function buildWellPreviewMarkup(journey) {
         </article>
     `).join('');
 
-    return `<div class="field-report-well-stack">${cards}</div>`;
+    return `${selectorMarkup}<div class="field-report-well-stack">${cards}</div>`;
 }
 
 function buildWellSectionMarkup(section, record) {
