@@ -51,7 +51,8 @@ export function getAccessProfile(sessionOrUser) {
         canViewFieldModule: isAdmin || isSupervisor || isFieldOperator,
         canViewFieldHistory: true,
         canViewJourneyModule: isAdmin || isSupervisor || isFieldOperator,
-        canViewJourneyHistory: true
+        canViewJourneyHistory: true,
+        canViewStats: true
     };
 }
 
@@ -91,7 +92,7 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
     };
 
     if (!accessProfile?.canViewManagement) {
-        hideLinks(['dashboard-data.html', 'campo-admin.html', 'stats.html', 'monitoring-prep.html']);
+        hideLinks(['dashboard-data.html', 'campo-admin.html', 'monitoring-prep.html']);
     }
 
     if (accessProfile?.isReadOnly) {
@@ -105,7 +106,6 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
             'field.html',
             'jornada.html',
             'jornada-history.html',
-            'stats.html',
             'notificacion.html',
             'help.html',
             'monitoring-prep.html'

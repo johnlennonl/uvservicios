@@ -14,7 +14,7 @@ function getRoleLabel(profile) {
 }
 
 function applyNotificationAccessProfile(accessProfile) {
-    if (!accessProfile?.canViewManagement) {
+    if (!accessProfile?.canViewStats && !accessProfile?.canViewManagement) {
         document.querySelectorAll('a[href="stats.html"]').forEach(link => {
             link.style.display = 'none';
             link.setAttribute('aria-hidden', 'true');

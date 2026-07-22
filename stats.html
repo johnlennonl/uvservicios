@@ -121,55 +121,85 @@
 
             <header class="page-hero">
                 <div class="page-hero-copy">
+                    <div class="client-portal-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span>Portal de Inteligencia y Estadísticas de Cliente &middot; UV Servicios</span>
+                    </div>
                     <h1>Estadísticas de Monitoreo</h1>
-                    <p style="color: #64748B;">Filtra por rango de fechas para ver a qué pozos se les hizo monitoreo, cuáles tienen más visitas y cómo se distribuye la actividad diaria.</p>
+                    <p style="color: #64748B;">Filtra por rango de fechas para analizar la actividad de pozos, tendencias, cobertura operativa y exportar reportes gerenciales.</p>
                 </div>
             </header>
 
             <section class="content-section" style="padding: 18px 0;">
                 <div class="stats-header">
+                    <div style="margin-bottom: 12px;">
+                        <h1 style="font-size: 1.45rem; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.02em;">Monitoreo & Bitácora de Campo</h1>
+                        <p style="font-size: 0.9rem; color: #64748b; margin: 4px 0 0 0;">Seguimiento operativo de pozos BES, parámetros de superficie/fondo y novedades de la guardia.</p>
+                    </div>
+
                     <div class="stats-filter-panel">
-                    <form id="stats-filter-form" class="filter-section">
-                        <div class="filter-item stats-filter-item-date">
-                            <label>
-                                <span>Fecha inicio</span>
-                                <input type="date" id="stats-start" name="start" required>
-                            </label>
-                        </div>
-                        <div class="filter-item stats-filter-item-date">
-                            <label>
-                                <span>Fecha fin</span>
-                                <input type="date" id="stats-end" name="end" required>
-                            </label>
-                        </div>
-                        <div class="filter-item">
-                            <label>
-                                <span>Pozos (opcional)</span>
-                            </label>
-                            <div id="stats-wells-container" class="multi-select" data-placeholder="Selecciona pozo(s)...">
-                                <div class="ms-chips" id="ms-chips"></div>
-                                <input type="text" id="ms-input" class="ms-input" placeholder="Selecciona pozo(s)..." autocomplete="off">
-                                <div class="ms-dropdown" id="ms-dropdown" hidden></div>
+                        <form id="stats-filter-form">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; align-items: end;">
+                                <div>
+                                    <label style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Fecha Inicio</span>
+                                        <input type="date" id="stats-start" name="start" required style="width:100%; padding:10px 12px; border-radius:12px; border:1.5px solid #cbd5e1; font-weight:600; background:#fff; font-size:0.88rem;">
+                                    </label>
+                                </div>
+                                <div>
+                                    <label style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Fecha Fin</span>
+                                        <input type="date" id="stats-end" name="end" required style="width:100%; padding:10px 12px; border-radius:12px; border:1.5px solid #cbd5e1; font-weight:600; background:#fff; font-size:0.88rem;">
+                                    </label>
+                                </div>
+                                <div>
+                                    <label style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Pozo(s)</span>
+                                        <div id="stats-wells-container" class="multi-select" data-placeholder="Todos los pozos...">
+                                            <div class="ms-chips" id="ms-chips"></div>
+                                            <input type="text" id="ms-input" class="ms-input" placeholder="Todos los pozos..." autocomplete="off">
+                                            <div class="ms-dropdown" id="ms-dropdown" hidden></div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div>
+                                    <label style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Estatus Pozo</span>
+                                        <select id="stats-status-filter" style="width:100%; padding:10px 12px; border-radius:12px; border:1.5px solid #cbd5e1; font-weight:600; background:#fff; font-size:0.88rem; height:46px;">
+                                            <option value="ALL">Todos los estatus</option>
+                                            <option value="RUN">Solo RUN (Operando)</option>
+                                            <option value="OFF">Solo OFF (Parados)</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div style="grid-column: span 2;">
+                                    <label style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Buscar Comentario / Novedad</span>
+                                        <input type="text" id="stats-search-text" placeholder="Ej: VSD, variador, fosa, apagado, choque..." autocomplete="off" style="width:100%; padding:10px 14px; border-radius:12px; border:1.5px solid #cbd5e1; font-size:0.88rem; height:46px; background:#fff;">
+                                    </label>
+                                </div>
                             </div>
-                        </div>
-                        <div class="filter-item stats-filter-item-action">
-                            <button id="btn-generate-stats" class="stats-generate-btn" type="submit">
-                                <span>Generar</span>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                    <path d="M5 12h14"></path>
-                                    <path d="M13 6l6 6-6 6"></path>
-                                </svg>
-                            </button>
-                            <button id="btn-export-stats-report" class="stats-report-btn is-disabled" type="button" aria-disabled="true">
-                                <span>Reporte ejecutivo</span>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                    <path d="M12 3v12"></path>
-                                    <path d="m7 10 5 5 5-5"></path>
-                                    <path d="M5 21h14"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </form>
+
+                            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0;">
+                                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                    <button id="btn-generate-stats" class="stats-generate-btn" type="submit" style="height:44px;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                        <span>Consultar Monitoreos</span>
+                                    </button>
+                                    <button id="btn-export-stats-report" class="stats-report-btn is-disabled" type="button" aria-disabled="true" style="height:44px;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
+                                        <span>Exportar Reporte</span>
+                                    </button>
+                                </div>
+                                <div class="stats-preset-row" style="margin:0;">
+                                    <span class="stats-preset-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Rangos rápidos:</span>
+                                    <button type="button" class="stats-preset-pill" data-preset="today">Hoy</button>
+                                    <button type="button" class="stats-preset-pill" data-preset="7days">7 días</button>
+                                    <button type="button" class="stats-preset-pill" data-preset="30days">30 días</button>
+                                    <button type="button" class="stats-preset-pill" data-preset="month">Este mes</button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
 
@@ -214,108 +244,98 @@
                             </article>
                         </div>
                     </div>
-                    <div class="stats-report-insights">
-                        <article class="stats-report-callout">
-                            <span class="stats-report-callout-label">Lectura ejecutiva</span>
-                            <strong id="stats-report-executive-headline">Pendiente por generar</strong>
-                            <p id="stats-report-executive-copy">Genera estadísticas para construir el resumen ejecutivo del rango.</p>
-                        </article>
-                        <article class="stats-report-callout is-warning">
-                            <span class="stats-report-callout-label">Atención operativa</span>
-                            <strong id="stats-report-alert-headline">Sin análisis</strong>
-                            <p id="stats-report-alert-copy">Aquí aparecerán observaciones clave sobre cobertura, pozos OFF y atrasos relevantes.</p>
-                        </article>
-                    </div>
-                    <div class="stats-report-narrative">
-                        <div>
-                            <h3>Hallazgos clave</h3>
-                            <ul id="stats-report-highlights">
-                                <li>Genera un rango para preparar el resumen ejecutivo.</li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h3>Recomendación</h3>
-                            <p id="stats-report-recommendation">Usa filtros por pozo o rango para emitir un reporte más enfocado y útil para revisión gerencial.</p>
-                        </div>
-                    </div>
                 </section>
 
-                <div id="kpis" class="stats-kpi-row"></div>
+                <!-- Resumen Operativo KPIs -->
+                <div id="kpis" class="stats-kpi-row" style="margin-top: 20px;"></div>
                 <pre id="stats-debug" style="display:none; white-space:pre-wrap; background:#fff; border:1px solid #eee; padding:12px; margin-top:12px; border-radius:8px; max-height:220px; overflow:auto;"></pre>
 
-                <div class="stats-grid">
-                    <div class="stats-card top-wells-card">
-                        <h3>Top Pozos por Monitoreos</h3>
-                        <p class="stats-card-subtitle">Ranking de los pozos con mayor frecuencia de monitoreo dentro del rango seleccionado.</p>
-                        <div id="top-wells"></div>
-                    </div>
-                    <div class="stats-card">
-                        <h3>Monitoreos por Día</h3>
-                        <p class="stats-card-subtitle">Distribución diaria de la actividad para detectar picos o caídas de seguimiento operativo.</p>
-                        <div id="visits-chart" class="chart-frame"></div>
-                        <div id="chart-insights" class="chart-insights-panel">
-                            <div class="empty-panel compact">
-                                <strong>Genera un rango para ver insights</strong>
-                                <span>Aquí aparecerán el día más activo, el promedio diario y la última actividad registrada.</span>
-                            </div>
-                        </div>
-                        <div id="off-wells-panel" class="off-wells-panel">
-                            <div class="empty-panel compact">
-                                <strong>Genera un rango para ver pozos en OFF</strong>
-                                <span>Aquí verás los pozos cuyo último estatus del rango quedó en OFF.</span>
-                            </div>
+                <!-- Tabla Principal de Registros de Monitoreo -->
+                <div class="stats-card" style="margin-top: 22px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+                        <div>
+                            <h3 class="stats-section-heading" style="margin:0; font-size: 1.15rem; font-weight: 800; color: #0f172a;">
+                                <span class="stats-title-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                                        <path d="M12 3c4.5 0 8 1.7 8 4s-3.5 4-8 4-8-1.7-8-4 3.5-4 8-4Z"></path>
+                                        <path d="M4 7v5c0 2.3 3.5 4 8 4s8-1.7 8-4V7"></path>
+                                        <path d="M4 12v5c0 2.3 3.5 4 8 4s8-1.7 8-4v-5"></path>
+                                    </svg>
+                                </span>
+                                <span>Bitácora de Monitoreos de Pozos</span>
+                            </h3>
+                            <p class="stats-card-subtitle" style="margin:4px 0 0 0;">Ficha operativa por pozo con presiones (CHP, LF, THP, PIP), frecuencia y observaciones de la guardia.</p>
                         </div>
                     </div>
-                </div>
-
-                <div class="stats-admin-grid">
-                    <div class="stats-card">
-                        <h3>Cobertura del Rango</h3>
-                        <p class="stats-card-subtitle">Qué parte de los pozos consultados sí recibió monitoreo y cuántos pozos quedaron sin actividad.</p>
-                        <div id="coverage-panel">
-                            <div class="empty-panel compact">
-                                <strong>Genera un rango para medir cobertura</strong>
-                                <span>Aquí verás monitoreados, no monitoreados y el porcentaje cubierto.</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="stats-card">
-                        <h3>Alertas de Seguimiento</h3>
-                        <p class="stats-card-subtitle">Ranking de atraso y pozos que no recibieron visita dentro del período seleccionado.</p>
-                        <div id="alerts-panel">
-                            <div class="empty-panel compact">
-                                <strong>Genera un rango para ver alertas</strong>
-                                <span>Aquí aparecerán los pozos pendientes y los más atrasados.</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stats-card stats-drilldown-card" style="margin-top:22px;">
-                    <h3>Detalle de Monitoreos</h3>
-                    <p class="stats-card-subtitle">Haz clic en una tarjeta, una barra del gráfico o un pozo para abrir el detalle de los monitoreos que construyen ese bloque.</p>
-                    <div id="drilldown-panel">
-                        <div class="empty-panel compact">
-                            <strong>Selecciona un bloque para investigar</strong>
-                            <span>Aquí aparecerá el detalle operativo de los monitoreos asociados al KPI, día o pozo que elijas.</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stats-card" style="margin-top:22px;">
-                    <h3 class="stats-section-heading">
-                        <span class="stats-title-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
-                                <path d="M12 3c4.5 0 8 1.7 8 4s-3.5 4-8 4-8-1.7-8-4 3.5-4 8-4Z"></path>
-                                <path d="M4 7v5c0 2.3 3.5 4 8 4s8-1.7 8-4V7"></path>
-                                <path d="M4 12v5c0 2.3 3.5 4 8 4s8-1.7 8-4v-5"></path>
-                            </svg>
-                        </span>
-                        <span>Pozos Monitoreados en el Rango</span>
-                    </h3>
-                    <p class="stats-card-subtitle">Resumen consolidado por pozo con cantidad de monitoreos y última actividad registrada.</p>
                     <div id="time-table"></div>
                 </div>
+
+                <!-- Detalle del Monitoreo Seleccionado -->
+                <div class="stats-card stats-drilldown-card" style="margin-top:22px;" id="drilldown-card-wrap">
+                    <h3>Ficha Operativa Extendida</h3>
+                    <p class="stats-card-subtitle">Haz clic en cualquier registro de la bitácora para inspeccionar todos sus parámetros eléctricos y de producción.</p>
+                    <div id="drilldown-panel">
+                        <div class="empty-panel compact">
+                            <strong>Selecciona un monitoreo</strong>
+                            <span>Haz clic en una fila para ver el detalle de I VSD, V VSD, Corriente Motor, Voltaje Motor y Diagnóstico.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos de Análisis Ejecutivo y Operativo -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 22px;">
+                    <!-- Gráfico 1: Disponibilidad Operativa de Flota (Dona RUN vs OFF) -->
+                    <div class="stats-card">
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <div>
+                                <h3 style="margin:0; font-size:1.1rem; font-weight:800; color:#0f172a;">Disponibilidad de Flota (Runtime)</h3>
+                                <p class="stats-card-subtitle" style="margin:4px 0 0 0;">Proporción de pozos en producción (RUN) vs parados (OFF).</p>
+                            </div>
+                        </div>
+                        <div id="fleet-availability-chart" style="min-height: 250px; margin-top: 10px;"></div>
+                    </div>
+
+                    <!-- Gráfico 2: Correlación Frecuencia (Hz) vs Presión -->
+                    <div class="stats-card">
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <div>
+                                <h3 style="margin:0; font-size:1.1rem; font-weight:800; color:#0f172a;">Correlación Frecuencia (Hz) vs Presión</h3>
+                                <p class="stats-card-subtitle" style="margin:4px 0 0 0;">Relación entre frecuencia del VSD (Hz) y presiones del pozo.</p>
+                            </div>
+                        </div>
+                        <div id="correlation-chart" style="min-height: 250px; margin-top: 10px;"></div>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Inspección de Parámetro Individual -->
+                <div class="stats-card" style="margin-top: 22px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">Curva de Tendencia por Parámetro</h3>
+                            <p class="stats-card-subtitle" style="margin:4px 0 0 0;">Análisis temporal de la variable seleccionada dentro del rango de monitoreo.</p>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label for="stats-param-select" style="font-size:0.85rem; font-weight:700; color:#475569;">Ver parámetro:</label>
+                            <select id="stats-param-select" style="padding:8px 14px; border-radius:10px; border:1.5px solid #cbd5e1; font-weight:700; color:#1d4ed8; background:#f8fafc; cursor:pointer;">
+                                <option value="FREC">Frecuencia [Hz]</option>
+                                <option value="CHP">Presión CHP [psi]</option>
+                                <option value="THP">Presión THP [psi]</option>
+                                <option value="LF">Presión LF [psi]</option>
+                                <option value="PIP">PIP [psi]</option>
+                                <option value="I_MOTOR">Corriente Motor [A]</option>
+                                <option value="FLUID_LEVEL">Nivel de fluido [ft]</option>
+                                <option value="TM">Temperatura TM [°F]</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="visits-chart" class="chart-frame"></div>
+                    <div id="chart-insights" class="chart-insights-panel" style="margin-top:12px;"></div>
+                </div>
+
+                <div id="coverage-panel" hidden></div>
+                <div id="alerts-panel" hidden></div>
+                <div id="top-wells" hidden></div>
+                <div id="off-wells-panel" hidden></div>
             </section>
         
     <div style="height: 140px; width: 100%; display: block;" aria-hidden="true" class="mobile-nav-spacer"></div>
@@ -443,14 +463,44 @@
             </section>
         </div>
 
-        <div class="stats-construction-modal" id="stats-construction-modal" hidden aria-hidden="true">
-            <div class="stats-construction-dialog" role="dialog" aria-modal="true" aria-labelledby="stats-construction-title">
-                <button type="button" class="stats-construction-close" id="stats-construction-close" aria-label="Cerrar aviso">×</button>
-                <span class="stats-construction-kicker">Próximamente</span>
-                <h2 id="stats-construction-title">Sección en construcción</h2>
-                <p>El reporte ejecutivo de Estadísticas está en preparación. La idea es entregar un documento más robusto, con narrativa gerencial, gráficos curados y salida lista para compartir.</p>
-                <p>Mientras terminamos esa sección, puedes seguir usando los filtros, KPIs, cobertura, alertas y drilldown para hacer análisis operativo desde esta vista.</p>
-                <button type="button" class="stats-construction-action" id="stats-construction-accept">Entendido</button>
+        <div class="stats-export-modal" id="stats-export-modal" hidden aria-hidden="true">
+            <div class="stats-export-dialog" role="dialog" aria-modal="true" aria-labelledby="stats-export-title">
+                <button type="button" class="stats-export-close" id="stats-export-close" aria-label="Cerrar modal">&times;</button>
+                <div class="stats-export-header">
+                    <span class="stats-export-kicker">Portal de Cliente &middot; UV Servicios</span>
+                    <h2 id="stats-export-title">Centro de Exportación de Reportes</h2>
+                    <p id="stats-export-subtitle">Genera el informe oficial para gerencia con los datos y filtros actualmente seleccionados.</p>
+                </div>
+                <div class="stats-export-grid">
+                    <button type="button" class="stats-export-card" id="btn-export-pdf-action">
+                        <div class="stats-export-icon pdf">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </div>
+                        <div class="stats-export-info">
+                            <strong>Reporte PDF Ejecutivo (Imprimible)</strong>
+                            <span>Genera un informe visual listo para presentación gerencial con membrete de UV Servicios.</span>
+                        </div>
+                    </button>
+                    <button type="button" class="stats-export-card" id="btn-export-csv-action">
+                        <div class="stats-export-icon excel">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2a1 1 0 0 0 0-2H8v4"/><path d="M14 11v4h2"/></svg>
+                        </div>
+                        <div class="stats-export-info">
+                            <strong>Exportar a Excel / CSV (.csv)</strong>
+                            <span>Descarga el dataset completo de los monitoreos filtrados para hojas de cálculo.</span>
+                        </div>
+                    </button>
+                    <button type="button" class="stats-export-card" id="btn-export-text-action">
+                        <div class="stats-export-icon copy">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        </div>
+                        <div class="stats-export-info">
+                            <strong>Copiar Resumen para WhatsApp / Correo</strong>
+                            <span>Copia al portapapeles un resumen formateado con KPIs y hallazgos clave.</span>
+                        </div>
+                    </button>
+                </div>
+                <div id="stats-export-toast" class="stats-export-toast" hidden></div>
             </div>
         </div>
     </div>
@@ -518,7 +568,7 @@
 
     <script type="module">
     import { getMonitoringData } from './js/services/monitoring-service.js';
-    import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './js/auth.js';
+    import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile, applyNavigationAccessProfile } from './js/auth.js';
     import { getUniquePozos } from './js/services/monitoring-service.js';
 
     const STATS_STORAGE_KEY = 'uv-stats-monitoring-state';
@@ -800,23 +850,28 @@
                 ? `La cobertura visible fue de ${coveragePercent.toFixed(1)}%, por lo que hay una brecha de monitoreo que debe explicarse en la revisión.`
                 : 'El rango no refleja pozos OFF ni una brecha fuerte de cobertura. El comportamiento general luce estable con la data visible.';
 
-        document.getElementById('stats-report-title').textContent = title;
-        document.getElementById('stats-report-summary').textContent = summary;
-        document.getElementById('stats-report-scope').textContent = scopeLabel;
-        document.getElementById('stats-report-range').textContent = `${formatDateLabel(snapshot.start)} al ${formatDateLabel(snapshot.end)}`;
-        document.getElementById('stats-report-count').textContent = `${snapshot.totalVisits || 0}`;
-        document.getElementById('stats-report-coverage').textContent = `${coveragePercent.toFixed(1)}%`;
-        document.getElementById('stats-report-top-well').textContent = snapshot.topWellName || '--';
-        document.getElementById('stats-report-busiest-day').textContent = snapshot.busiestDay?.date ? formatDateLabel(snapshot.busiestDay.date) : '--';
-        document.getElementById('stats-report-generated').textContent = formatReportDateTime(new Date().toISOString());
-        document.getElementById('stats-report-executive-headline').textContent = executiveHeadline;
-        document.getElementById('stats-report-executive-copy').textContent = executiveCopy;
-        document.getElementById('stats-report-alert-headline').textContent = alertHeadline;
-        document.getElementById('stats-report-alert-copy').textContent = alertCopy;
-        document.getElementById('stats-report-highlights').innerHTML = buildStatsReportHighlights(snapshot)
-            .map(item => `<li>${item}</li>`)
-            .join('');
-        document.getElementById('stats-report-recommendation').textContent = buildStatsReportRecommendation(snapshot);
+        const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+        setTxt('stats-report-title', title);
+        setTxt('stats-report-summary', summary);
+        setTxt('stats-report-scope', scopeLabel);
+        setTxt('stats-report-range', `${formatDateLabel(snapshot.start)} al ${formatDateLabel(snapshot.end)}`);
+        setTxt('stats-report-count', `${snapshot.totalVisits || 0}`);
+        setTxt('stats-report-coverage', `${coveragePercent.toFixed(1)}%`);
+        setTxt('stats-report-top-well', snapshot.topWellName || '--');
+        setTxt('stats-report-busiest-day', snapshot.busiestDay?.date ? formatDateLabel(snapshot.busiestDay.date) : '--');
+        setTxt('stats-report-generated', formatReportDateTime(new Date().toISOString()));
+        setTxt('stats-report-executive-headline', executiveHeadline);
+        setTxt('stats-report-executive-copy', executiveCopy);
+        setTxt('stats-report-alert-headline', alertHeadline);
+        setTxt('stats-report-alert-copy', alertCopy);
+        
+        const highlightsEl = document.getElementById('stats-report-highlights');
+        if (highlightsEl) {
+            highlightsEl.innerHTML = buildStatsReportHighlights(snapshot)
+                .map(item => `<li>${item}</li>`)
+                .join('');
+        }
+        setTxt('stats-report-recommendation', buildStatsReportRecommendation(snapshot));
     }
 
     function setStatsReportMode(enabled) {
@@ -1098,7 +1153,8 @@
         const session = await getSession();
         if (!session) { window.location.href = 'index.html'; return; }
         const accessProfile = getAccessProfile(session);
-        if (!accessProfile.canViewManagement) {
+        applyNavigationAccessProfile(accessProfile);
+        if (!accessProfile.canViewStats && !accessProfile.canViewManagement) {
             window.location.href = getDefaultRouteForAccessProfile(accessProfile);
             return;
         }
@@ -1397,222 +1453,304 @@
 
         function renderStatsSnapshot(snapshot) {
             currentSnapshot = snapshot;
-            const coverage = snapshot.coverage || { monitoredCount: 0, scopeWellCount: 0, coveragePercent: 0, unmonitoredCount: 0 };
-            const variation = snapshot.variation || formatVariation(0, 0);
-            const coveragePercent = Number(coverage.coveragePercent || 0);
-            const coverageStatus = coveragePercent >= 80
-                ? { label: 'Cobertura alta', tone: 'high' }
-                : coveragePercent >= 50
-                    ? { label: 'Cobertura media', tone: 'medium' }
-                    : { label: 'Cobertura baja', tone: 'low' };
+            const exportBtn = document.getElementById('btn-export-stats-report');
+            if (exportBtn) {
+                exportBtn.classList.remove('is-disabled');
+                exportBtn.removeAttribute('aria-disabled');
+            }
 
-            document.getElementById('coverage-panel').innerHTML = `
-                <div class="coverage-panel-content">
-                    <div class="coverage-progress-card">
-                        <div class="coverage-progress-head">
-                            <strong>${coverage.monitoredCount} de ${coverage.scopeWellCount || 0} pozos cubiertos</strong>
-                            <span>${coveragePercent.toFixed(1)}% de cobertura</span>
-                        </div>
-                        <div class="coverage-progress-bar"><div class="coverage-progress-fill" style="width:${Math.min(100, coveragePercent)}%"></div></div>
-                        <p class="coverage-progress-note">${coverage.unmonitoredCount === 0 ? 'Todos los pozos consultados recibieron al menos un monitoreo.' : `${coverage.unmonitoredCount} pozos quedaron sin actividad en el rango.`}</p>
-                    </div>
-                    <div class="coverage-mini-grid">
-                        <article class="coverage-mini-card success">
-                            <span class="coverage-mini-label">Monitoreados</span>
-                            <strong class="coverage-mini-value">${coverage.monitoredCount}</strong>
-                            <span class="coverage-mini-meta">Pozos con al menos una visita.</span>
-                        </article>
-                        <article class="coverage-mini-card warning">
-                            <span class="coverage-mini-label">Sin monitoreo</span>
-                            <strong class="coverage-mini-value">${coverage.unmonitoredCount}</strong>
-                            <span class="coverage-mini-meta">Pendientes dentro de los pozos filtrados.</span>
-                        </article>
-                    </div>
-                    <div class="coverage-insights-block">
-                        <div class="coverage-donut-card">
-                            <div class="coverage-donut" style="--coverage-value:${coveragePercent.toFixed(1)};">
-                                <div class="coverage-donut-inner">
-                                    <strong>${coveragePercent.toFixed(1)}%</strong>
-                                    <span>${coverageStatus.label}</span>
-                                </div>
-                            </div>
-                            <div class="coverage-donut-legend">
-                                <span><i class="is-covered"></i>Monitoreados</span>
-                                <span><i class="is-missing"></i>Sin monitoreo</span>
-                            </div>
-                        </div>
-                        <div class="coverage-insights-list">
-                            <article class="coverage-insight-item ${coverageStatus.tone}">
-                                <strong>${coverageStatus.label}</strong>
-                                <span>${coveragePercent >= 50 ? 'Más de la mitad de los pozos filtrados recibió seguimiento.' : 'Menos de la mitad de los pozos filtrados tuvo monitoreo.'}</span>
-                            </article>
-                            <article class="coverage-insight-item">
-                                <strong>Lectura rápida</strong>
-                                <span>${coverage.unmonitoredCount === 0 ? 'No hay pozos pendientes dentro del rango consultado.' : `${coverage.unmonitoredCount} pozos requieren revisión para cerrar la brecha de cobertura.`}</span>
-                            </article>
-                        </div>
-                    </div>
-                </div>
-            `;
+            const rows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
+            const searchTerm = String(document.getElementById('stats-search-text')?.value || '').trim().toLowerCase();
+            const statusFilter = document.getElementById('stats-status-filter')?.value || 'ALL';
 
-            document.getElementById('alerts-panel').innerHTML = `
-                <div class="alerts-panel-content">
-                    <div class="alerts-summary-strip ${coverage.unmonitoredCount > 0 ? 'has-pending' : 'is-clear'}">
-                        <strong>${coverage.unmonitoredCount > 0 ? `${coverage.unmonitoredCount} pozos sin monitoreo en el rango` : 'Sin pozos pendientes en el rango'}</strong>
-                        <span>${coverage.unmonitoredCount > 0 ? 'El listado inferior muestra los casos más críticos o sin historial visible.' : 'Todos los pozos filtrados registraron actividad en el período.'}</span>
-                    </div>
-                    <div class="stale-wells-list">
-                        ${(snapshot.staleWells || []).map(item => `
-                            <article class="stale-well-item ${item.monitoredInRange ? 'is-active' : 'is-stale'} drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="well" data-drilldown-well="${encodeURIComponent(item.pozo)}">
-                                <div class="stale-well-copy">
-                                    <strong>${item.pozo}</strong>
-                                    <span>${item.latestDate ? `Última visita: ${formatDateLabel(item.latestDate)} · ${formatHourLabel(item.latestHour)}` : 'Sin historial previo visible'}</span>
-                                </div>
-                                <div class="stale-well-metric">
-                                    <span class="stale-well-days">${item.daysWithoutVisit ?? '--'} días</span>
-                                    <span class="stale-well-state">${item.monitoredInRange ? 'Con actividad en el rango' : 'Sin monitoreo en el rango'}</span>
-                                </div>
-                            </article>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
+            let filteredRows = rows.filter(r => {
+                if (statusFilter !== 'ALL' && String(r.estatus || '').toUpperCase() !== statusFilter) return false;
+                if (searchTerm) {
+                    const textContent = `${r.pozo_name || r.pozo || ''} ${r.observaciones_pozo || ''} ${r.diagnostico || ''} ${r.actividad || ''}`.toLowerCase();
+                    if (!textContent.includes(searchTerm)) return false;
+                }
+                return true;
+            });
 
-            if (!snapshot.hasRows) {
+            const uniqueWellsCount = new Set(filteredRows.map(r => r.pozo_name || r.pozo)).size;
+            const runCount = filteredRows.filter(r => String(r.estatus || '').toUpperCase() === 'RUN').length;
+            const offCount = filteredRows.filter(r => String(r.estatus || '').toUpperCase() === 'OFF').length;
+            const coveragePercent = snapshot.coverage?.coveragePercent ? Number(snapshot.coverage.coveragePercent).toFixed(1) : '100.0';
+
+            if (filteredRows.length === 0) {
                 document.getElementById('kpis').innerHTML = `
                     <div class="stats-kpi-card"><strong>Total monitoreos</strong><div class="kpi-value">0</div></div>
                     <div class="stats-kpi-card"><strong>Pozos monitoreados</strong><div class="kpi-value">0</div></div>
-                    <div class="stats-kpi-card"><strong>Días con actividad</strong><div class="kpi-value">0</div></div>
-                    <div class="stats-kpi-card"><strong>Promedio diario</strong><div class="kpi-value">0.0</div></div>
-                    <div class="stats-kpi-card stats-kpi-card-${variation.tone}"><strong>Variación vs anterior</strong><div class="kpi-value stats-kpi-text">${variation.label}</div><span class="stats-kpi-meta">${variation.meta}</span></div>
-                    <div class="stats-kpi-card"><strong>Pozo líder</strong><div class="kpi-value stats-kpi-text">--</div></div>
-                    <div class="stats-kpi-card"><strong>Última actividad</strong><div class="kpi-value stats-kpi-text">--</div></div>
+                    <div class="stats-kpi-card"><strong>Pozos RUN</strong><div class="kpi-value">0</div></div>
+                    <div class="stats-kpi-card"><strong>Pozos OFF</strong><div class="kpi-value">0</div></div>
+                    <div class="stats-kpi-card"><strong>Cobertura</strong><div class="kpi-value">0%</div></div>
                 `;
-                document.getElementById('top-wells').innerHTML = '<div class="empty-panel"><strong>Sin monitoreos en este rango</strong><span>Ajusta las fechas o el filtro de pozos para consultar otra ventana.</span></div>';
                 resetVisitsChart();
-                document.getElementById('chart-insights').innerHTML = '<div class="empty-panel compact"><strong>Sin insights disponibles</strong><span>No hubo actividad en el rango seleccionado.</span></div>';
-                document.getElementById('off-wells-panel').innerHTML = '<div class="empty-panel compact"><strong>Sin pozos en OFF</strong><span>No hubo registros operativos en el rango seleccionado.</span></div>';
-                document.getElementById('time-table').innerHTML = '<div class="empty-panel"><strong>No hay pozos monitoreados</strong><span>Cuando existan registros en el rango, aquí verás el consolidado por pozo.</span></div>';
+                renderFleetAvailabilityChart(0, 0);
+                renderCorrelationChart([]);
+                document.getElementById('chart-insights').innerHTML = '<div class="empty-panel compact"><strong>Sin datos para los filtros aplicados</strong><span>Intenta cambiando las fechas, el estatus o la palabra de búsqueda.</span></div>';
+                document.getElementById('time-table').innerHTML = '<div class="empty-panel"><strong>No hay monitoreos que coincidan con la búsqueda</strong><span>Ajusta los filtros para visualizar registros.</span></div>';
                 renderDrilldownPanel(snapshot, null);
                 return;
             }
 
             document.getElementById('kpis').innerHTML = `
-                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-total"><strong>Total monitoreos</strong><div class="kpi-value">${snapshot.totalVisits}</div></div>
-                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-unique-wells"><strong>Pozos monitoreados</strong><div class="kpi-value">${snapshot.uniqueWells}</div></div>
-                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-active-days"><strong>Días con actividad</strong><div class="kpi-value">${snapshot.activeDays}</div></div>
-                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-average"><strong>Promedio diario</strong><div class="kpi-value">${snapshot.averagePerDay}</div></div>
-                <div class="stats-kpi-card stats-kpi-card-${variation.tone} drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-variation"><strong>Variación vs anterior</strong><div class="kpi-value stats-kpi-text">${variation.label}</div><span class="stats-kpi-meta">${variation.meta}</span></div>
-                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-top-well"><strong>Pozo líder</strong><div class="kpi-value stats-kpi-text">${snapshot.topWellName}</div></div>
-                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-latest"><strong>Última actividad</strong><div class="kpi-value stats-kpi-text">${formatDateTimeLabel(snapshot.latestRecord?.fecha, snapshot.latestRecord?.hora)}</div></div>
+                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-total"><strong>Total monitoreos</strong><div class="kpi-value">${filteredRows.length}</div></div>
+                <div class="stats-kpi-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-unique-wells"><strong>Pozos monitoreados</strong><div class="kpi-value">${uniqueWellsCount}</div></div>
+                <div class="stats-kpi-card" style="border-left: 4px solid #16a34a;"><strong>Pozos en RUN</strong><div class="kpi-value" style="color:#15803d">${runCount}</div></div>
+                <div class="stats-kpi-card" style="border-left: 4px solid #dc2626;"><strong>Pozos en OFF</strong><div class="kpi-value" style="color:#b91c1c">${offCount}</div></div>
+                <div class="stats-kpi-card"><strong>Cobertura</strong><div class="kpi-value">${coveragePercent}%</div></div>
             `;
 
-            document.getElementById('top-wells').innerHTML = `
-                <div class="top-wells-list">
-                    ${(snapshot.topWells || []).map(item => `
-                        <article class="top-well-item drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="well" data-drilldown-well="${encodeURIComponent(item.wellName)}">
-                            <div class="top-well-row">
-                                <div class="top-well-meta">
-                                    <span class="top-well-rank">${item.rank}</span>
-                                    <div class="top-well-copy">
-                                        <span class="top-well-name">${item.wellName}</span>
-                                        <span class="top-well-note">Pozo con actividad registrada en el rango consultado.</span>
-                                    </div>
-                                </div>
-                                <span class="top-well-count">${item.count} monitoreos</span>
-                            </div>
-                            <div class="top-well-bar"><div class="top-well-bar-fill" style="width: ${item.percentage}%"></div></div>
-                        </article>
-                    `).join('')}
-                </div>
-            `;
+            renderFleetAvailabilityChart(runCount, offCount);
+            renderCorrelationChart(filteredRows);
+            renderParameterChart(filteredRows);
+            renderExecutiveMonitoringTable(filteredRows, searchTerm);
+            renderDrilldownPanel(snapshot, currentDrilldown);
+        }
 
-            resetVisitsChart();
-            visitsChart = new ApexCharts(document.getElementById('visits-chart'), {
+        let fleetAvailabilityChart = null;
+        let correlationChart = null;
+
+        function renderFleetAvailabilityChart(runCount = 0, offCount = 0) {
+            const el = document.getElementById('fleet-availability-chart');
+            if (!el) return;
+            if (fleetAvailabilityChart) {
+                try { fleetAvailabilityChart.destroy(); } catch (e) {}
+                fleetAvailabilityChart = null;
+            }
+
+            if (!runCount && !offCount) {
+                el.innerHTML = '<div class="empty-panel compact"><strong>Sin datos de disponibilidad</strong></div>';
+                return;
+            }
+
+            const total = runCount + offCount;
+            const runtimePercent = total > 0 ? ((runCount / total) * 100).toFixed(1) : '0';
+
+            const options = {
+                series: [runCount, offCount],
+                labels: ['RUN (Operando)', 'OFF (Parado)'],
                 chart: {
-                    type: 'bar',
-                    height: 260,
-                    fontFamily: 'Outfit, Inter, sans-serif',
-                    events: {
-                        dataPointSelection: (_event, _chartContext, config) => {
-                            const date = snapshot.days?.[config?.dataPointIndex];
-                            if (!date) return;
-                            currentDrilldown = { kind: 'date', date };
-                            renderDrilldownPanel(snapshot, currentDrilldown);
+                    type: 'donut',
+                    height: 250,
+                    fontFamily: 'Inter, sans-serif'
+                },
+                colors: ['#16a34a', '#dc2626'],
+                legend: { position: 'bottom', fontSize: '13px', fontWeight: 600 },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            size: '68%',
+                            labels: {
+                                show: true,
+                                total: {
+                                    show: true,
+                                    label: 'Runtime (RUN)',
+                                    formatter: () => `${runtimePercent}%`
+                                }
+                            }
                         }
                     }
                 },
-                series: [{ name: 'Monitoreos', data: snapshot.dailySeries || [] }],
-                xaxis: { categories: snapshot.days || [] },
-                plotOptions: { bar: { horizontal: false, columnWidth: '65%' } },
-                legend: { position: 'top' }
+                dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(1)}%` }
+            };
+
+            fleetAvailabilityChart = new ApexCharts(el, options);
+            fleetAvailabilityChart.render();
+        }
+
+        function renderCorrelationChart(rows = []) {
+            const el = document.getElementById('correlation-chart');
+            if (!el) return;
+            if (correlationChart) {
+                try { correlationChart.destroy(); } catch (e) {}
+                correlationChart = null;
+            }
+
+            if (!rows.length) {
+                el.innerHTML = '<div class="empty-panel compact"><strong>Sin datos para correlación</strong></div>';
+                return;
+            }
+
+            const dateMap = new Map();
+            rows.forEach(r => {
+                const dateKey = r.fecha || 'Sin fecha';
+                const frec = Number(r.frecuencia) || null;
+                const pres = Number(r.pip ?? r.pip_psi) || Number(r.presion_thp ?? r.thp_psi ?? r.thp) || Number(r.presion_chp ?? r.chp_psi) || null;
+                if (!dateMap.has(dateKey)) dateMap.set(dateKey, { frecs: [], pres: [] });
+                if (frec) dateMap.get(dateKey).frecs.push(frec);
+                if (pres) dateMap.get(dateKey).pres.push(pres);
+            });
+
+            const categories = Array.from(dateMap.keys()).sort();
+            const frecSeries = categories.map(d => {
+                const arr = dateMap.get(d).frecs;
+                return arr.length ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : 0;
+            });
+            const presSeries = categories.map(d => {
+                const arr = dateMap.get(d).pres;
+                return arr.length ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : 0;
+            });
+
+            const options = {
+                series: [
+                    { name: 'Frecuencia (Hz)', type: 'column', data: frecSeries },
+                    { name: 'Presión PIP/THP (psi)', type: 'line', data: presSeries }
+                ],
+                chart: {
+                    height: 250,
+                    type: 'line',
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false }
+                },
+                stroke: { width: [0, 3], curve: 'smooth' },
+                colors: ['#2563eb', '#10b981'],
+                xaxis: { categories: categories.map(formatDateLabel) },
+                yaxis: [
+                    { title: { text: 'Frecuencia (Hz)', style: { color: '#2563eb', fontWeight: 700 } } },
+                    { opposite: true, title: { text: 'Presión (psi)', style: { color: '#10b981', fontWeight: 700 } } }
+                ],
+                tooltip: { shared: true, intersect: false }
+            };
+
+            correlationChart = new ApexCharts(el, options);
+            correlationChart.render();
+        }
+
+        function renderParameterChart(rows = []) {
+            resetVisitsChart();
+            const paramSelect = document.getElementById('stats-param-select');
+            const paramKey = paramSelect ? paramSelect.value : 'FREC';
+
+            const paramMap = {
+                'FREC': { label: 'Frecuencia (Hz)', getVal: r => Number(r.frecuencia) || null, unit: 'Hz' },
+                'CHP': { label: 'Presión CHP (psi)', getVal: r => Number(r.presion_chp ?? r.chp_psi ?? r.chp) || null, unit: 'psi' },
+                'THP': { label: 'Presión THP (psi)', getVal: r => Number(r.presion_thp ?? r.thp_psi ?? r.thp) || null, unit: 'psi' },
+                'LF': { label: 'Presión LF (psi)', getVal: r => Number(r.presion_lf ?? r.lf_psi ?? r.lf) || null, unit: 'psi' },
+                'PIP': { label: 'PIP (psi)', getVal: r => Number(r.pip ?? r.pip_psi) || null, unit: 'psi' },
+                'I_MOTOR': { label: 'Corriente Motor (A)', getVal: r => Number(r.corriente_motor ?? r.i_motor) || null, unit: 'A' },
+                'FLUID_LEVEL': { label: 'Nivel Fluido (ft)', getVal: r => Number(r.nivel_fluido ?? r.nivel) || null, unit: 'ft' },
+                'TM': { label: 'Temperatura TM (°F)', getVal: r => Number(r.tm ?? r.tm_f) || null, unit: '°F' }
+            };
+
+            const config = paramMap[paramKey] || paramMap['FREC'];
+
+            // Group rows by date & calculate average or values
+            const dateMap = new Map();
+            rows.forEach(r => {
+                const dateKey = r.fecha || 'Sin fecha';
+                const val = config.getVal(r);
+                if (!dateMap.has(dateKey)) dateMap.set(dateKey, []);
+                if (val !== null && !isNaN(val)) dateMap.get(dateKey).push(val);
+            });
+
+            const categories = Array.from(dateMap.keys()).sort();
+            const seriesData = categories.map(d => {
+                const vals = dateMap.get(d) || [];
+                if (!vals.length) return 0;
+                const sum = vals.reduce((a, b) => a + b, 0);
+                return Number((sum / vals.length).toFixed(2));
+            });
+
+            visitsChart = new ApexCharts(document.getElementById('visits-chart'), {
+                chart: {
+                    type: 'area',
+                    height: 270,
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: true }
+                },
+                colors: ['#2563eb'],
+                fill: {
+                    type: 'gradient',
+                    gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 95, 100] }
+                },
+                stroke: { curve: 'smooth', width: 3 },
+                series: [{ name: config.label, data: seriesData }],
+                xaxis: { categories: categories.map(formatDateLabel) },
+                yaxis: { title: { text: config.label } },
+                tooltip: { y: { formatter: val => `${val} ${config.unit}` } }
             });
             visitsChart.render();
 
+            const validVals = seriesData.filter(v => v > 0);
+            const avgVal = validVals.length ? (validVals.reduce((a, b) => a + b, 0) / validVals.length).toFixed(2) : '--';
+            const maxVal = validVals.length ? Math.max(...validVals) : '--';
+            const minVal = validVals.length ? Math.min(...validVals) : '--';
+
             document.getElementById('chart-insights').innerHTML = `
-                <div class="chart-insights-grid">
-                    <article class="chart-insight-card accent drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="date" data-drilldown-date="${snapshot.busiestDay?.date || ''}">
-                        <span class="chart-insight-label">Día más activo</span>
-                        <strong class="chart-insight-value">${formatDateLabel(snapshot.busiestDay?.date)}</strong>
-                        <span class="chart-insight-meta">${snapshot.busiestDay?.count || 0} monitoreos en una sola fecha.</span>
-                    </article>
-                    <article class="chart-insight-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-average">
-                        <span class="chart-insight-label">Promedio diario</span>
-                        <strong class="chart-insight-value">${snapshot.averagePerDay}</strong>
-                        <span class="chart-insight-meta">Monitoreos promedio por día con actividad.</span>
-                    </article>
-                    <article class="chart-insight-card drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="kpi-latest">
-                        <span class="chart-insight-label">Última actividad</span>
-                        <strong class="chart-insight-value">${snapshot.latestRecord?.pozo_name || '--'}</strong>
-                        <span class="chart-insight-meta">${formatDateLabel(snapshot.latestRecord?.fecha)} · ${formatHourLabel(snapshot.latestRecord?.hora)}</span>
-                    </article>
+                <div style="display:flex; gap:16px; flex-wrap:wrap; background:#f8fafc; padding:12px 16px; border-radius:10px; border:1px solid #e2e8f0; font-size:0.85rem;">
+                    <div><span style="color:#64748b;">Promedio de ${config.label}:</span> <strong style="color:#0f172a;">${avgVal} ${config.unit}</strong></div>
+                    <div><span style="color:#64748b;">Máximo:</span> <strong style="color:#16a34a;">${maxVal} ${config.unit}</strong></div>
+                    <div><span style="color:#64748b;">Mínimo:</span> <strong style="color:#dc2626;">${minVal} ${config.unit}</strong></div>
                 </div>
             `;
+        }
 
-            document.getElementById('off-wells-panel').innerHTML = snapshot.offWells?.length
-                ? `
-                    <div class="off-wells-card">
-                        <div class="off-wells-head">
-                            <div>
-                                <span class="off-wells-kicker">Pozos en OFF</span>
-                                <strong class="off-wells-total">${snapshot.offWells.length}</strong>
-                                <span class="off-wells-note">Último estatus del rango reportado como OFF.</span>
-                            </div>
-                            <span class="off-wells-badge">Atención operativa</span>
-                        </div>
-                        <div class="off-wells-list">
-                            ${snapshot.offWells.slice(0, 6).map(item => `
-                                <article class="off-well-item drilldown-trigger" tabindex="0" role="button" data-drilldown-kind="well" data-drilldown-well="${encodeURIComponent(item.pozo)}">
-                                    <div class="off-well-copy">
-                                        <strong>${item.pozo}</strong>
-                                        <span>${formatDateLabel(item.fecha)} · ${formatHourLabel(item.hora)}</span>
-                                    </div>
-                                    <span class="off-well-status">OFF</span>
-                                </article>
-                            `).join('')}
-                        </div>
-                    </div>
-                `
-                : '<div class="empty-panel compact"><strong>Sin pozos en OFF</strong><span>El último estatus de los pozos dentro del rango no refleja paradas operativas.</span></div>';
+        function renderExecutiveMonitoringTable(rows = [], searchTerm = '') {
+            const tableContainer = document.getElementById('time-table');
+            if (!tableContainer) return;
 
-            document.getElementById('time-table').innerHTML = `
+            if (!rows.length) {
+                tableContainer.innerHTML = '<div class="empty-panel"><strong>No hay registros para mostrar</strong></div>';
+                return;
+            }
+
+            const sortedRows = [...rows].sort((a, b) => {
+                const dateA = `${a.fecha || ''} ${a.hora || ''}`;
+                const dateB = `${b.fecha || ''} ${b.hora || ''}`;
+                return dateB.localeCompare(dateA);
+            });
+
+            const highlightText = (text, term) => {
+                if (!term || !text) return text || '--';
+                const str = String(text);
+                const idx = str.toLowerCase().indexOf(term.toLowerCase());
+                if (idx === -1) return str;
+                const before = str.slice(0, idx);
+                const match = str.slice(idx, idx + term.length);
+                const after = str.slice(idx + term.length);
+                return `${before}<mark style="background:#fef08a; padding:1px 4px; border-radius:4px; font-weight:700;">${match}</mark>${after}`;
+            };
+
+            tableContainer.innerHTML = `
                 <div class="stats-table-wrap">
                     <table class="stats-table stats-table-enhanced">
                         <thead>
                             <tr>
-                                <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3c4.5 0 8 1.7 8 4s-3.5 4-8 4-8-1.7-8-4 3.5-4 8-4Z"></path><path d="M4 7v5c0 2.3 3.5 4 8 4s8-1.7 8-4V7"></path><path d="M4 12v5c0 2.3 3.5 4 8 4s8-1.7 8-4v-5"></path></svg><span>Pozo</span></span></th>
-                                <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 20V10"></path><path d="M7 20V4"></path><path d="M17 20v-6"></path></svg><span>Monitoreos</span></span></th>
-                                <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"></rect><path d="M8 2v4"></path><path d="M16 2v4"></path><path d="M3 10h18"></path></svg><span>Primera fecha</span></span></th>
-                                <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"></rect><path d="M8 2v4"></path><path d="M16 2v4"></path><path d="M3 10h18"></path><path d="m10 15 2 2 4-4"></path></svg><span>Última fecha</span></span></th>
-                                <th><span class="stats-table-head-label"><svg class="stats-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v5l3 2"></path></svg><span>Última hora</span></span></th>
+                                <th>Pozo</th>
+                                <th>Fecha & Hora</th>
+                                <th>Estatus</th>
+                                <th>CHP (psi)</th>
+                                <th>LF (psi)</th>
+                                <th>THP (psi)</th>
+                                <th>PIP (psi)</th>
+                                <th>Frec (Hz)</th>
+                                <th>I Motor (A)</th>
+                                <th>Observaciones & Comentarios</th>
                             </tr>
                         </thead>
-                        <tbody>${(snapshot.wellsArray || []).map(item => `<tr class="drilldown-trigger drilldown-row" tabindex="0" role="button" data-drilldown-kind="well" data-drilldown-well="${encodeURIComponent(item.pozo)}"><td class="stats-pozo-cell">${item.pozo}</td><td><span class="stats-count-badge">${item.count}</span></td><td class="stats-muted-cell"><span class="stats-date-cell">${formatDateLabel(item.firstDate)}</span></td><td class="stats-muted-cell"><span class="stats-date-cell stats-date-cell-latest">${formatDateLabel(item.lastDate)}</span></td><td class="stats-muted-cell"><span class="stats-time-badge">${formatHourLabel(item.lastHour)}</span></td></tr>`).join('')}</tbody>
+                        <tbody>
+                            ${sortedRows.map(r => `
+                                <tr class="drilldown-trigger drilldown-row" tabindex="0" role="button" data-drilldown-kind="well" data-drilldown-well="${encodeURIComponent(r.pozo_name || r.pozo)}">
+                                    <td class="stats-pozo-cell"><strong>${r.pozo_name || r.pozo || '--'}</strong></td>
+                                    <td class="stats-muted-cell"><span class="stats-date-cell">${formatDateLabel(r.fecha)} ${formatHourLabel(r.hora)}</span></td>
+                                    <td><span class="drilldown-status-badge ${r.estatus === 'OFF' ? 'is-off' : 'is-run'}">${r.estatus || '--'}</span></td>
+                                    <td>${r.presion_chp ?? r.chp_psi ?? r.chp ?? '--'}</td>
+                                    <td>${r.presion_lf ?? r.lf_psi ?? r.lf ?? '--'}</td>
+                                    <td>${r.presion_thp ?? r.thp_psi ?? r.thp ?? '--'}</td>
+                                    <td>${r.pip ?? r.pip_psi ?? '--'}</td>
+                                    <td>${r.frecuencia ?? '--'}</td>
+                                    <td>${r.corriente_motor ?? r.i_motor ?? '--'}</td>
+                                    <td style="max-width: 280px; font-size: 0.85rem; line-height: 1.4; color: #334155;">
+                                        ${highlightText(r.observaciones ?? r.observaciones_pozo ?? r.diagnostico ?? 'Sin observaciones.', searchTerm)}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
                     </table>
                 </div>
             `;
-
-            renderDrilldownPanel(snapshot, currentDrilldown);
         }
 
         document.addEventListener('click', event => {
@@ -1656,39 +1794,170 @@
         });
 
         const exportReportButton = document.getElementById('btn-export-stats-report');
-        const constructionModal = document.getElementById('stats-construction-modal');
-        const constructionCloseButton = document.getElementById('stats-construction-close');
-        const constructionAcceptButton = document.getElementById('stats-construction-accept');
+        const exportModal = document.getElementById('stats-export-modal');
+        const exportCloseButton = document.getElementById('stats-export-close');
+        const exportToast = document.getElementById('stats-export-toast');
 
-        function openConstructionModal() {
-            if (!constructionModal) return;
-            constructionModal.hidden = false;
-            constructionModal.setAttribute('aria-hidden', 'false');
-            document.body.classList.add('stats-construction-open');
+        function openExportModal() {
+            if (!exportModal) return;
+            exportModal.hidden = false;
+            exportModal.setAttribute('aria-hidden', 'false');
         }
 
-        function closeConstructionModal() {
-            if (!constructionModal) return;
-            constructionModal.hidden = true;
-            constructionModal.setAttribute('aria-hidden', 'true');
-            document.body.classList.remove('stats-construction-open');
+        function closeExportModal() {
+            if (!exportModal) return;
+            exportModal.hidden = true;
+            exportModal.setAttribute('aria-hidden', 'true');
+            if (exportToast) exportToast.hidden = true;
+        }
+
+        function showExportToast(msg) {
+            if (!exportToast) return;
+            exportToast.textContent = msg;
+            exportToast.hidden = false;
+            setTimeout(() => { if (exportToast) exportToast.hidden = true; }, 3500);
         }
 
         exportReportButton?.addEventListener('click', () => {
-            openConstructionModal();
+            if (exportReportButton.classList.contains('is-disabled')) {
+                alert('Genera estadísticas primero para habilitar la exportación del reporte.');
+                return;
+            }
+            openExportModal();
         });
 
-        constructionCloseButton?.addEventListener('click', closeConstructionModal);
-        constructionAcceptButton?.addEventListener('click', closeConstructionModal);
-        constructionModal?.addEventListener('click', event => {
-            if (event.target === constructionModal) {
-                closeConstructionModal();
-            }
+        exportCloseButton?.addEventListener('click', closeExportModal);
+        exportModal?.addEventListener('click', event => {
+            if (event.target === exportModal) closeExportModal();
         });
 
         document.addEventListener('keydown', event => {
-            if (event.key === 'Escape' && constructionModal && !constructionModal.hidden) {
-                closeConstructionModal();
+            if (event.key === 'Escape' && exportModal && !exportModal.hidden) {
+                closeExportModal();
+            }
+        });
+
+        document.querySelectorAll('.stats-preset-pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+                const preset = pill.dataset.preset;
+                const today = new Date();
+                const formatDate = d => d.toISOString().split('T')[0];
+                let start = formatDate(today), end = formatDate(today);
+
+                if (preset === 'today') {
+                    start = end;
+                } else if (preset === '7days') {
+                    const s = new Date(today);
+                    s.setDate(s.getDate() - 6);
+                    start = formatDate(s);
+                } else if (preset === '30days') {
+                    const s = new Date(today);
+                    s.setDate(s.getDate() - 29);
+                    start = formatDate(s);
+                } else if (preset === 'month') {
+                    const s = new Date(today.getFullYear(), today.getMonth(), 1);
+                    start = formatDate(s);
+                }
+
+                const startInput = document.getElementById('stats-start');
+                const endInput = document.getElementById('stats-end');
+                if (startInput) startInput.value = start;
+                if (endInput) endInput.value = end;
+                document.getElementById('stats-filter-form')?.requestSubmit();
+            });
+        });
+
+        document.getElementById('btn-export-pdf-action')?.addEventListener('click', () => {
+            closeExportModal();
+            if (currentSnapshot) {
+                updateStatsReportHeader(currentSnapshot);
+                const headerEl = document.getElementById('stats-report-header');
+                if (headerEl) {
+                    headerEl.hidden = false;
+                    headerEl.setAttribute('aria-hidden', 'false');
+                }
+            }
+            setTimeout(() => { window.print(); }, 250);
+        });
+
+        document.getElementById('btn-export-csv-action')?.addEventListener('click', () => {
+            if (!currentSnapshot || (!currentSnapshot.rows?.length && !currentSnapshot.historicalRows?.length)) {
+                showExportToast('No hay datos disponibles para exportar.');
+                return;
+            }
+
+            const dataRows = (currentSnapshot.rows && currentSnapshot.rows.length)
+                ? currentSnapshot.rows
+                : (currentSnapshot.historicalRows || []);
+
+            const headers = ['Pozo', 'Fecha', 'Hora', 'Estatus', 'Frecuencia (Hz)', 'PIP (psi)', 'PD (psi)', 'I Motor (A)', 'Técnico', 'Observaciones'];
+            const escapeCsv = val => `"${String(val || '').replace(/"/g, '""')}"`;
+
+            const csvLines = [
+                headers.join(','),
+                ...dataRows.map(r => [
+                    escapeCsv(r.pozo_name || r.pozo),
+                    escapeCsv(r.fecha),
+                    escapeCsv(r.hora),
+                    escapeCsv(r.estatus),
+                    escapeCsv(r.frecuencia),
+                    escapeCsv(r.pip_psi || r.pip),
+                    escapeCsv(r.pd_psi || r.pd),
+                    escapeCsv(r.i_motor),
+                    escapeCsv(r.tecnico_1),
+                    escapeCsv(r.observaciones)
+                ].join(','))
+            ];
+
+            const blob = new Blob(['\ufeff' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Reporte_Estadisticas_UV_Servicios_${currentSnapshot.start || 'export'}_a_${currentSnapshot.end || 'fecha'}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        document.getElementById('stats-param-select')?.addEventListener('change', () => {
+            if (currentSnapshot) renderStatsSnapshot(currentSnapshot);
+        });
+
+        document.getElementById('stats-search-text')?.addEventListener('input', () => {
+            if (currentSnapshot) renderStatsSnapshot(currentSnapshot);
+        });
+
+        document.getElementById('stats-status-filter')?.addEventListener('change', () => {
+            if (currentSnapshot) renderStatsSnapshot(currentSnapshot);
+        });
+
+        document.getElementById('btn-export-text-action')?.addEventListener('click', async () => {
+            if (!currentSnapshot) {
+                showExportToast('Genera estadísticas primero.');
+                return;
+            }
+
+            const s = currentSnapshot;
+            const summaryText = [
+                `📊 *REPORTES Y ESTADÍSTICAS DE MONITOREO - UV SERVICIOS*`,
+                `📅 *Período:* ${s.start || '--'} al ${s.end || '--'}`,
+                `📍 *Pozos Monitoreados:* ${s.uniqueWells || 0} pozos`,
+                `📈 *Total Monitoreos:* ${s.totalCount || 0} visitas`,
+                `🎯 *Cobertura Operativa:* ${s.coverage?.coveragePercent || 0}%`,
+                `⭐ *Pozo Líder:* ${s.topWellName || '--'} (${s.topWellCount || 0} visitas)`,
+                ``,
+                `💡 *Resumen Gerencial:*`,
+                `${s.executiveNarrative?.summary || 'Actividad registrada con normalidad en el rango consultado.'}`,
+                ``,
+                `_Generado desde el Portal de Cliente UV Servicios_`
+            ].join('\n');
+
+            try {
+                await navigator.clipboard.writeText(summaryText);
+                showExportToast('📋 ¡Resumen ejecutivo copiado al portapapeles!');
+            } catch (err) {
+                console.error('Error copiando:', err);
+                showExportToast('Error al copiar al portapapeles.');
             }
         });
 
@@ -1703,42 +1972,36 @@
             if (kpis) kpis.innerHTML = `<div class="stats-kpi-card" style="background:#FFEDED; border-color:#FCA5A5;"><strong>Error</strong><div class="kpi-value" style="font-size:1rem;color:#B91C1C">No fue posible inicializar el selector de pozos.</div></div>`;
         }
 
-        const persistedSnapshot = loadStatsSnapshot(statsUserId);
-        if (persistedSnapshot) {
-            if (persistedSnapshot.start) startInput.value = persistedSnapshot.start;
-            if (persistedSnapshot.end) endInput.value = persistedSnapshot.end;
-            if (wellsPicker && typeof wellsPicker.setSelected === 'function') {
-                wellsPicker.setSelected(persistedSnapshot.selectedWells || []);
+        const handleFilterSubmit = async (e) => {
+            if (e) {
+                e.preventDefault();
             }
-            updateStatsReportHeader(persistedSnapshot);
-            renderStatsSnapshot(persistedSnapshot);
-
-            if (!persistedSnapshot.detailReady) {
-                requestAnimationFrame(() => {
-                    document.getElementById('stats-filter-form')?.requestSubmit();
-                });
-            }
-        }
-
-        document.getElementById('stats-filter-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const start = document.getElementById('stats-start').value;
-            const end = document.getElementById('stats-end').value;
+            const startInput = document.getElementById('stats-start');
+            const endInput = document.getElementById('stats-end');
+            let start = startInput ? startInput.value : '';
+            let end = endInput ? endInput.value : '';
             const wells = (wellsPicker && typeof wellsPicker.getSelected === 'function') ? wellsPicker.getSelected() : [];
-            if (!start || !end) { alert('Selecciona fechas de inicio y fin.'); return; }
+
+            if (!start || !end) {
+                const today = new Date();
+                end = today.toISOString().slice(0, 10);
+                const startDate = new Date(today);
+                startDate.setDate(startDate.getDate() - 30);
+                start = startDate.toISOString().slice(0, 10);
+                if (startInput) startInput.value = start;
+                if (endInput) endInput.value = end;
+            }
+
             currentDrilldown = null;
 
             try {
-                document.getElementById('kpis').innerHTML = 'Cargando...';
-                document.getElementById('coverage-panel').innerHTML = '<div class="empty-panel compact"><strong>Cargando cobertura</strong><span>Analizando los pozos consultados.</span></div>';
-                document.getElementById('alerts-panel').innerHTML = '<div class="empty-panel compact"><strong>Cargando alertas</strong><span>Calculando pozos pendientes y atraso de visitas.</span></div>';
-                document.getElementById('drilldown-panel').innerHTML = '<div class="empty-panel compact"><strong>Preparando detalle</strong><span>Reconstruyendo el contexto de los monitoreos para habilitar el drilldown.</span></div>';
-                console.debug('[stats] solicitando filas', { start, end, wells });
+                const kpis = document.getElementById('kpis');
+                if (kpis) kpis.innerHTML = '<div class="empty-panel compact" style="padding:16px;"><strong>Consultando monitoreos...</strong><span>Obteniendo lecturas y novedades de campo.</span></div>';
+
                 const selectedWells = wells.length > 0 ? wells : [];
                 const availableWells = wellsPicker && typeof wellsPicker.getAvailable === 'function'
                     ? wellsPicker.getAvailable()
                     : (await getUniquePozos()).map(item => String(item || '').trim().toUpperCase()).filter(Boolean);
-                const scopedWells = selectedWells.length > 0 ? selectedWells : availableWells;
                 const rangeDays = getInclusiveRangeDays(start, end);
                 const previousEnd = shiftIsoDate(start, -1);
                 const previousStart = shiftIsoDate(previousEnd, -(rangeDays - 1));
@@ -1748,11 +2011,11 @@
                     getMonitoringData(selectedWells, previousStart, previousEnd),
                     getMonitoringData(selectedWells, null, end)
                 ]);
-                console.debug('[stats] filas recibidas', rows ? rows.length : 0);
 
                 rows = normalizeMonitoringRows(rows);
                 previousRows = normalizeMonitoringRows(previousRows);
                 historicalRows = normalizeMonitoringRows(historicalRows);
+
                 const snapshot = buildStatsSnapshot({
                     start,
                     end,
@@ -1771,14 +2034,39 @@
                 const kpis = document.getElementById('kpis');
                 if (kpis) kpis.innerHTML = `<div class="stats-kpi-card" style="background:#FFEDED; border-color:#FCA5A5;"><strong>Error</strong><div class="kpi-value" style="font-size:1rem;color:#B91C1C">Error generando estadísticas: ${String(err.message || err)}</div></div>`;
                 resetVisitsChart();
-                document.getElementById('coverage-panel').innerHTML = '<div class="empty-panel compact"><strong>No fue posible calcular cobertura</strong><span>Intenta nuevamente con otro rango.</span></div>';
-                document.getElementById('alerts-panel').innerHTML = '<div class="empty-panel compact"><strong>No fue posible generar alertas</strong><span>Revisa el rango o intenta nuevamente.</span></div>';
-                document.getElementById('top-wells').innerHTML = '';
-                document.getElementById('chart-insights').innerHTML = '<div class="empty-panel compact"><strong>No fue posible generar insights</strong><span>Revisa el rango o intenta nuevamente.</span></div>';
-                document.getElementById('off-wells-panel').innerHTML = '<div class="empty-panel compact"><strong>No fue posible calcular pozos en OFF</strong><span>Revisa el rango o intenta nuevamente.</span></div>';
                 document.getElementById('time-table').innerHTML = '';
             }
-        });
+        };
+
+        const formEl = document.getElementById('stats-filter-form');
+        if (formEl) formEl.addEventListener('submit', handleFilterSubmit);
+
+        const btnEl = document.getElementById('btn-generate-stats');
+        if (btnEl) {
+            btnEl.addEventListener('click', (e) => {
+                e.preventDefault();
+                handleFilterSubmit(e);
+            });
+        }
+
+        const persistedSnapshot = loadStatsSnapshot(statsUserId);
+        if (persistedSnapshot) {
+            if (persistedSnapshot.start && startInput) startInput.value = persistedSnapshot.start;
+            if (persistedSnapshot.end && endInput) endInput.value = persistedSnapshot.end;
+            if (wellsPicker && typeof wellsPicker.setSelected === 'function') {
+                wellsPicker.setSelected(persistedSnapshot.selectedWells || []);
+            }
+            updateStatsReportHeader(persistedSnapshot);
+            renderStatsSnapshot(persistedSnapshot);
+
+            if (!persistedSnapshot.detailReady) {
+                requestAnimationFrame(() => {
+                    handleFilterSubmit();
+                });
+            }
+        } else {
+            handleFilterSubmit();
+        }
     });
     </script>
     <script type="module" src="js/help.js"></script>

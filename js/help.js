@@ -375,11 +375,11 @@ function formatPozoList(pozos = [], limit = 8) {
 }
 
 function getAssistantReportRoute() {
-    return currentAccessProfile?.canViewManagement ? 'stats.html' : 'data.html';
+    return (currentAccessProfile?.canViewStats || currentAccessProfile?.canViewManagement) ? 'stats.html' : 'data.html';
 }
 
 function getAssistantOperationsRoute() {
-    return currentAccessProfile?.canViewManagement ? 'stats.html' : 'data.html';
+    return (currentAccessProfile?.canViewStats || currentAccessProfile?.canViewManagement) ? 'stats.html' : 'data.html';
 }
 
 function getAssistantOperationalKeywords() {

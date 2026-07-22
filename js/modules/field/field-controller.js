@@ -1343,7 +1343,8 @@ function getFormPayload() {
     payload.equipo_guardia = [payload.tecnico_1, payload.tecnico_2].filter(Boolean).join(', ');
     payload.pozo = String(document.getElementById('field-pozo')?.value || payload.pozo || '').trim().toUpperCase();
     payload.jornada = getJourneyFromTime(payload.hora || document.getElementById('field-hora')?.value || '');
-    payload.sentido_giro = String(payload.sentido_giro || '').trim() || 'FWD';
+    const isOffStatus = String(payload.estatus || payload.modo_operacion || '').trim().toUpperCase() === 'OFF';
+    payload.sentido_giro = isOffStatus ? '' : (String(payload.sentido_giro || '').trim() || 'FWD');
     payload.diagnostico = resolveDiagnosisPayloadValue(payload.diagnostico);
     const guardField = document.getElementById('field-equipo-guardia');
     if (guardField) guardField.value = payload.equipo_guardia;
@@ -2012,7 +2013,7 @@ function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader =
         headerConfig.empresaMixta ? `Empresa Mixta: ${headerConfig.empresaMixta}` : '',
         headerConfig.empresaServicios ? `Empresa de Servicios: ${headerConfig.empresaServicios}` : '',
         `Fecha ${date || '--'}`,
-        `Cuadrilla ${journey}: ${technicians || '--'}`,
+        `${journey === 'Diurna' ? 'Cuadrilla de día' : journey === 'Nocturna' ? 'Cuadrilla de noche' : 'Cuadrilla ' + journey}: ${technicians || '--'}`,
         headerConfig.actividad ? `Actividad Realizada: ${headerConfig.actividad}` : '',
         '',
         headerConfig.personal || ''
@@ -2023,14 +2024,20 @@ function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader =
 }
 
 function buildJourneyWellMessageBlock(report) {
+    const isOff = String(report.estatus || report.modo_operacion || '').trim().toUpperCase() === 'OFF';
+
     const lines = [
         `Pozo: ${String(report.pozo || '').toUpperCase() || '--'}`,
         `Hora ${formatShareValue(report.hora)}`
     ];
 
+    if (isOff) {
+        lines.push('Estatus: OFF');
+    }
+
     const measurementLines = [
         ['Hz', report.frecuencia, 'Hz'],
-        ['Sentido', report.sentido_giro],
+        ['Sentido', isOff ? null : report.sentido_giro],
         ['Modo de operación', report.modo_operacion],
         ['I VSD', formatSlashValues([report.i_vsd_a, report.i_vsd_b, report.i_vsd_c]), 'Amp'],
         ['V VSD', report.out_vsd, 'Volt'],
@@ -2050,6 +2057,7 @@ function buildJourneyWellMessageBlock(report) {
     ];
 
     measurementLines.forEach(([label, value, unit]) => {
+        if (value === null || value === undefined) return;
         const formattedValue = formatShareValueWithUnit(value, unit);
         if (formattedValue) lines.push(`${label}: ${formattedValue}`);
     });
@@ -3751,6 +3759,15 @@ function selectFieldPozo(pozoName) {
     const displayField = document.getElementById('field-pozo-display');
     if (!hiddenField || !displayField) return;
 
+    if (currentEditingReportId) {
+        const currentReport = getJourneyReports().find(r => r.id === currentEditingReportId);
+        if (currentReport && normalizePozoValue(currentReport.pozo) !== normalizedPozo) {
+            currentEditingReportId = null;
+            localStorage.removeItem('uv-field-draft-editing-id');
+            updateEditingContext();
+        }
+    }
+
     hiddenField.value = normalizedPozo;
     displayField.value = normalizedPozo;
     syncLocationFromPozo(normalizedPozo);
@@ -3785,6 +3802,14 @@ function commitTypedPozoSelection() {
     }
 
     if (availablePozos.length === 0) {
+        if (currentEditingReportId) {
+            const currentReport = getJourneyReports().find(r => r.id === currentEditingReportId);
+            if (currentReport && normalizePozoValue(currentReport.pozo) !== normalizedPozo) {
+                currentEditingReportId = null;
+                localStorage.removeItem('uv-field-draft-editing-id');
+                updateEditingContext();
+            }
+        }
         hiddenField.value = normalizedPozo;
         displayField.value = normalizedPozo;
         syncLocationFromPozo(normalizedPozo);
@@ -3807,6 +3832,15 @@ function commitTypedPozoSelection() {
         syncCaptureGateState();
         updateStatus(`Selecciona ${normalizedPozo} desde la lista de pozos para cargar sus medidas.`, true);
         return;
+    }
+
+    if (currentEditingReportId) {
+        const currentReport = getJourneyReports().find(r => r.id === currentEditingReportId);
+        if (currentReport && normalizePozoValue(currentReport.pozo) !== exactMatch) {
+            currentEditingReportId = null;
+            localStorage.removeItem('uv-field-draft-editing-id');
+            updateEditingContext();
+        }
     }
 
     hiddenField.value = exactMatch;
