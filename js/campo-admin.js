@@ -1283,13 +1283,14 @@ function getJourneyTechnicians(journey = {}, records = []) {
     const firstRecord = Array.isArray(records) ? records.find(Boolean) : null;
     const firstPayload = getRecordPayload(firstRecord);
     const guardTeam = splitGuardTeam(journey.equipo_guardia || firstPayload.equipo_guardia || '');
-    const tecnico1 = String(journey.tecnico_1 || firstPayload.tecnico_1 || guardTeam[0] || '').trim();
-    const tecnico2 = String(journey.tecnico_2 || firstPayload.tecnico_2 || guardTeam[1] || '').trim();
+    const normalizeTechName = name => (/\bSAEN\b/i.test(name) && !/\bSAENZ\b/i.test(name)) ? String(name).replace(/\bSAEN\b/gi, 'SAENZ') : name;
+    const tecnico1 = normalizeTechName(journey.tecnico_1 || firstPayload.tecnico_1 || guardTeam[0] || '');
+    const tecnico2 = normalizeTechName(journey.tecnico_2 || firstPayload.tecnico_2 || guardTeam[1] || '');
 
     return {
         tecnico1,
         tecnico2,
-        equipoGuardia: [tecnico1, tecnico2].filter(Boolean).join(', ') || String(journey.equipo_guardia || firstPayload.equipo_guardia || '').trim()
+        equipoGuardia: [tecnico1, tecnico2].filter(Boolean).join(', ') || normalizeTechName(journey.equipo_guardia || firstPayload.equipo_guardia || '')
     };
 }
 

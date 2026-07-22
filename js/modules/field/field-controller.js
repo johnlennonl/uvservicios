@@ -2067,11 +2067,13 @@ function buildJourneyWellMessageBlock(report) {
 }
 
 function formatTechnicianCrew(report = {}) {
+    const normalizeTechName = name => (/\bSAEN\b/i.test(name) && !/\bSAENZ\b/i.test(name)) ? String(name).replace(/\bSAEN\b/gi, 'SAENZ') : name;
     const technicians = [report.tecnico_1, report.tecnico_2]
         .map(value => String(value || '').trim())
+        .map(normalizeTechName)
         .filter(Boolean);
     if (technicians.length > 0) return technicians.join(' / ');
-    return String(report.equipo_guardia || '').trim();
+    return normalizeTechName(String(report.equipo_guardia || '').trim());
 }
 
 function formatShareDate(value) {
@@ -2089,7 +2091,11 @@ function formatSlashValues(values = []) {
 
 function formatShareValue(value) {
     if (isBlankValue(value)) return '';
-    return String(value).trim();
+    let str = String(value).trim();
+    if (/\bSAEN\b/i.test(str) && !/\bSAENZ\b/i.test(str)) {
+        str = str.replace(/\bSAEN\b/gi, 'SAENZ');
+    }
+    return str;
 }
 
 function formatShareValueWithUnit(value, unit = '') {

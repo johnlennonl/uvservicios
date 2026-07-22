@@ -1,5 +1,8 @@
 function formatValue(value, fallback = '--') {
-    const normalized = String(value ?? '').trim();
+    let normalized = String(value ?? '').trim();
+    if (/\bSAEN\b/i.test(normalized) && !/\bSAENZ\b/i.test(normalized)) {
+        normalized = normalized.replace(/\bSAEN\b/gi, 'SAENZ');
+    }
     return normalized || fallback;
 }
 
