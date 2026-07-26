@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="css/stats-page.css">
     <link rel="stylesheet" href="css/help-page.css">
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="view-mode-standard">
     <div class="dashboard-layout">
@@ -78,6 +79,12 @@
                     </svg>
                     Estadísticas
                 </a>
+                <a href="base-datos.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                    </svg>
+                    Base de Datos
+                </a>
                 <a href="notificacion.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" />
@@ -130,7 +137,21 @@
                 </div>
             </header>
 
-            <section class="content-section" style="padding: 18px 0;">
+            <!-- Barra de Pestañas: Resumen General vs Reportes Personalizados -->
+            <div class="stats-tabs-bar" role="tablist">
+                <button type="button" class="stats-tab-btn active" id="tab-btn-overview" data-target="overview-section" role="tab" aria-selected="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                    <span>Resumen General & Bitácora</span>
+                </button>
+                <button type="button" class="stats-tab-btn" id="tab-btn-custom-reports" data-target="custom-reports-section" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    <span>Reportes Personalizados</span>
+                    <span class="stats-tab-badge">Nuevo</span>
+                </button>
+            </div>
+
+            <!-- Pestaña 1: Resumen General y Bitácora -->
+            <section id="overview-section" class="stats-tab-pane content-section" style="padding: 10px 0 18px 0;">
                 <div class="stats-header">
                     <div style="margin-bottom: 12px;">
                         <h1 style="font-size: 1.45rem; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.02em;">Monitoreo & Bitácora de Campo</h1>
@@ -336,6 +357,237 @@
                 <div id="alerts-panel" hidden></div>
                 <div id="top-wells" hidden></div>
                 <div id="off-wells-panel" hidden></div>
+            </section>
+
+            <!-- Pestaña 2: Generador de Reportes Personalizados -->
+            <section id="custom-reports-section" class="stats-tab-pane content-section" style="padding: 10px 0 18px 0;" hidden>
+                <div class="stats-header" style="margin-bottom: 20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+                        <div>
+                            <h2 style="font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0;">Generador de Reportes Personalizados</h2>
+                            <p style="font-size: 0.9rem; color: #64748b; margin: 4px 0 0 0;">Genera reportes a medida seleccionando pozos (ej: TOM0008), rango de días (15, 30 días, etc.) y variables específicas (CHP, THP, LF, VSD, Hz).</p>
+                        </div>
+                    </div>
+
+                    <div class="stats-filter-panel" style="margin-top: 16px;">
+                        <form id="custom-report-form">
+                            <!-- Grid de opciones del reporte -->
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                                <!-- 1. Pozo(s) -->
+                                <div style="grid-column: span 2;">
+                                    <label style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">1. Pozo(s) del Reporte</span>
+                                        <div id="custom-report-wells-container" class="multi-select" data-placeholder="Seleccionar pozos (ej: TOM0008)...">
+                                            <div class="ms-chips" id="custom-ms-chips"></div>
+                                            <input type="text" id="custom-ms-input" class="ms-input" placeholder="Buscar y elegir pozo(s)..." autocomplete="off">
+                                            <div class="ms-dropdown" id="custom-ms-dropdown" hidden></div>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <!-- 2. Rango Temporal -->
+                                <div>
+                                    <label style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">2. Periodo / Rango Días</span>
+                                        <div class="custom-preset-row">
+                                            <button type="button" class="custom-days-btn" data-days="7">7 Días</button>
+                                            <button type="button" class="custom-days-btn active" data-days="15">15 Días</button>
+                                            <button type="button" class="custom-days-btn" data-days="30">30 Días</button>
+                                            <button type="button" class="custom-days-btn" data-days="60">60 Días</button>
+                                            <button type="button" class="custom-days-btn" data-days="90">90 Días</button>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <!-- Fechas Manuales -->
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                    <label style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Desde</span>
+                                        <input type="date" id="custom-start-date" class="custom-input-date">
+                                    </label>
+                                    <label style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Hasta</span>
+                                        <input type="date" id="custom-end-date" class="custom-input-date">
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 3. Selección de Parámetros y Variables -->
+                            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #e2e8f0;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+                                    <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">3. Variables / Parámetros a Graficar</span>
+                                    
+                                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                                        <!-- Selector de Modo: Combinado vs Separados -->
+                                        <div style="display:inline-flex; background:#f1f5f9; padding:3px; border-radius:10px; border:1px solid #cbd5e1;">
+                                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#0f172a; padding:4px 10px; border-radius:8px; transition:all 0.2s;" id="label-mode-combined">
+                                                <input type="radio" name="custom-chart-mode" value="combined" checked style="accent-color:#2563eb; cursor:pointer;">
+                                                <span>📊 Gráfico Combinado (Lienzo Único)</span>
+                                            </label>
+                                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#64748b; padding:4px 10px; border-radius:8px; transition:all 0.2s;" id="label-mode-individual">
+                                                <input type="radio" name="custom-chart-mode" value="individual" style="accent-color:#2563eb; cursor:pointer;">
+                                                <span>📉 Gráficos Separados</span>
+                                            </label>
+                                        </div>
+
+                                        <!-- Selector de Estilo Visual -->
+                                        <select id="custom-chart-style" style="padding:4px 10px; font-size:0.8rem; font-weight:700; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; cursor:pointer;">
+                                            <option value="line">📈 Líneas Suaves (Spline)</option>
+                                            <option value="area">🌊 Área Sombreada</option>
+                                            <option value="bar">📊 Barras Combinadas</option>
+                                        </select>
+
+                                        <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.82rem; font-weight:700; color:#1e40af; background:#eff6ff; padding:4px 10px; border-radius:8px; border:1px solid #bfdbfe;">
+                                            <input type="checkbox" id="custom-show-datalabels" style="accent-color:#2563eb; cursor:pointer;">
+                                            <span>Valores sobre puntos</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="param-chips-grid">
+                                    <label class="param-chip-checkbox">
+                                        <input type="checkbox" name="custom-vars" value="presion_chp" checked>
+                                        <span class="chip-content">
+                                            <span class="chip-dot" style="background:#2563EB;"></span>
+                                            <span>Presión CHP [psi]</span>
+                                        </span>
+                                    </label>
+                                    <label class="param-chip-checkbox">
+                                        <input type="checkbox" name="custom-vars" value="presion_thp" checked>
+                                        <span class="chip-content">
+                                            <span class="chip-dot" style="background:#D97706;"></span>
+                                            <span>Presión THP [psi]</span>
+                                        </span>
+                                    </label>
+                                    <label class="param-chip-checkbox">
+                                        <input type="checkbox" name="custom-vars" value="presion_lf" checked>
+                                        <span class="chip-content">
+                                            <span class="chip-dot" style="background:#059669;"></span>
+                                            <span>Presión LF [psi]</span>
+                                        </span>
+                                    </label>
+                                    <label class="param-chip-checkbox">
+                                        <input type="checkbox" name="custom-vars" value="pip" checked>
+                                        <span class="chip-content">
+                                            <span class="chip-dot" style="background:#7C3AED;"></span>
+                                            <span>Presión PIP [psi]</span>
+                                        </span>
+                                    </label>
+                                    <label class="param-chip-checkbox">
+                                        <input type="checkbox" name="custom-vars" value="corriente_motor">
+                                        <span class="chip-content">
+                                            <span class="chip-dot" style="background:#DC2626;"></span>
+                                            <span>Corriente Motor [A]</span>
+                                        </span>
+                                    </label>
+                                    <label class="param-chip-checkbox">
+                                        <input type="checkbox" name="custom-vars" value="frecuencia">
+                                        <span class="chip-content">
+                                            <span class="chip-dot" style="background:#0284C7;"></span>
+                                            <span>Frecuencia VSD [Hz]</span>
+                                        </span>
+                                    </label>
+                                    <label class="param-chip-checkbox">
+                                        <input type="checkbox" name="custom-vars" value="vsd_a">
+                                        <span class="chip-content">
+                                            <span class="chip-dot" style="background:#EA580C;"></span>
+                                            <span>VSD A</span>
+                                        </span>
+                                    </label>
+                                    <label class="param-chip-checkbox">
+                                        <input type="checkbox" name="custom-vars" value="vsd_b">
+                                        <span class="chip-content">
+                                            <span class="chip-dot" style="background:#4F46E5;"></span>
+                                            <span>VSD B</span>
+                                        </span>
+                                    </label>
+                                    <label class="param-chip-checkbox">
+                                        <input type="checkbox" name="custom-vars" value="vsd_c">
+                                        <span class="chip-content">
+                                            <span class="chip-dot" style="background:#0891B2;"></span>
+                                            <span>VSD C</span>
+                                        </span>
+                                    </label>
+                                    <label class="param-chip-checkbox">
+                                        <input type="checkbox" name="custom-vars" value="tm">
+                                        <span class="chip-content">
+                                            <span class="chip-dot" style="background:#9333EA;"></span>
+                                            <span>Temperatura TM [°F]</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 4. Título personalizado y botones -->
+                            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:14px; margin-top:18px; padding-top:14px; border-top:1px solid #e2e8f0; align-items:end;">
+                                <label style="display:flex; flex-direction:column; gap:6px;">
+                                    <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Título Personalizado del Reporte</span>
+                                    <input type="text" id="custom-report-title-input" placeholder="Ej: Reporte Ejecutivo Presiones CHP / THP / LF y VSD" class="custom-input-text">
+                                </label>
+
+                                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                                    <button type="submit" id="btn-generate-custom-report" class="stats-generate-btn" style="height:44px;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                        <span>Generar Reporte</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Área donde se renderiza el Reporte Generado -->
+                <div id="custom-report-output" style="display:none;">
+                    <!-- Botones de Exportación / Impresión arriba del reporte -->
+                    <div class="custom-report-actions-bar">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-weight:700; color:#0f172a; font-size:0.95rem;">Acciones del Reporte:</span>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button type="button" id="btn-print-custom-report" class="stats-report-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                <span>Imprimir / PDF Gerencial</span>
+                            </button>
+                            <button type="button" id="btn-csv-custom-report" class="stats-preset-pill" style="height:44px; padding:0 16px; background:#fff; border:1px solid #cbd5e1; font-weight:700;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span>Exportar CSV</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Encabezado Imprimible del Reporte -->
+                    <div class="custom-report-paper" id="custom-report-paper">
+                        <header class="custom-report-header">
+                            <div class="custom-report-brand">
+                                <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" width="140" height="140">
+                                <div>
+                                    <span class="custom-report-kicker">Reporte Personalizado de Monitoreo</span>
+                                    <h1 id="custom-paper-title">Reporte Ejecutivo de Pozos</h1>
+                                    <p id="custom-paper-subtitle">Análisis gráfico temporal y trazabilidad operativa de parámetros seleccionados.</p>
+                                </div>
+                            </div>
+                            <div class="custom-report-meta-grid">
+                                <div class="meta-pill"><span>Pozo(s)</span><strong id="meta-wells-val">--</strong></div>
+                                <div class="meta-pill"><span>Rango</span><strong id="meta-range-val">--</strong></div>
+                                <div class="meta-pill"><span>Variables</span><strong id="meta-vars-val">0</strong></div>
+                                <div class="meta-pill"><span>Total Lecturas</span><strong id="meta-records-val">0</strong></div>
+                                <div class="meta-pill"><span>Emisión</span><strong id="meta-date-val">--</strong></div>
+                            </div>
+                        </header>
+
+                        <!-- Tarjetas Resumen de Métricas (Max, Min, Promedio, Último) -->
+                        <div id="custom-report-kpis-grid" class="custom-kpis-grid"></div>
+
+                        <!-- Contenedor de Gráficos ApexCharts por Variable/Pozo -->
+                        <div id="custom-report-charts-container" class="custom-charts-container"></div>
+
+                        <!-- Tabla de Datos -->
+                        <div class="custom-report-table-wrap">
+                            <h3 style="font-size:1.05rem; font-weight:800; color:#0f172a; margin-bottom:10px;">Detalle de Lecturas de Monitoreo</h3>
+                            <div id="custom-report-table-holder"></div>
+                        </div>
+                    </div>
+                </div>
             </section>
         
     <div style="height: 140px; width: 100%; display: block;" aria-hidden="true" class="mobile-nav-spacer"></div>
@@ -1653,6 +1905,17 @@
                 return Number((sum / vals.length).toFixed(2));
             });
 
+            const validValsForBounds = seriesData.filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+            const minV = validValsForBounds.length ? Math.min(...validValsForBounds) : 0;
+            const maxV = validValsForBounds.length ? Math.max(...validValsForBounds) : 100;
+            const rangeV = maxV - minV;
+            const avgV = validValsForBounds.length ? (validValsForBounds.reduce((a, b) => a + b, 0) / validValsForBounds.length) : 50;
+            const paddingV = Math.max(rangeV * 0.5, Math.abs(avgV) * 0.15, 10);
+
+            let chartYMin = Math.floor((minV - paddingV) / 5) * 5;
+            let chartYMax = Math.ceil((maxV + paddingV) / 5) * 5;
+            if (minV >= 0 && chartYMin < 0) chartYMin = 0;
+
             visitsChart = new ApexCharts(document.getElementById('visits-chart'), {
                 chart: {
                     type: 'area',
@@ -1668,7 +1931,12 @@
                 stroke: { curve: 'smooth', width: 3 },
                 series: [{ name: config.label, data: seriesData }],
                 xaxis: { categories: categories.map(formatDateLabel) },
-                yaxis: { title: { text: config.label } },
+                yaxis: {
+                    min: chartYMin,
+                    max: chartYMax,
+                    forceNiceScale: true,
+                    title: { text: config.label }
+                },
                 tooltip: { y: { formatter: val => `${val} ${config.unit}` } }
             });
             visitsChart.render();
@@ -2068,6 +2336,12 @@
             handleFilterSubmit();
         }
     });
+    </script>
+    <script type="module">
+        import { initCustomReportsTab } from './js/stats-custom-reports.js';
+        document.addEventListener('DOMContentLoaded', () => {
+            initCustomReportsTab();
+        });
     </script>
     <script type="module" src="js/help.js"></script>
     <script type="module" src="js/field-admin-alert.js"></script>

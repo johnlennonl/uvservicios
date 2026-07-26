@@ -202,13 +202,33 @@ function renderPozoFilterOptions(ignoreSearch = false) {
         return;
     }
 
-    menu.innerHTML = filteredPozos.map(item => `
-        <button type="button" class="pozo-selector-option ${item.pozo_name === hiddenInput.value ? 'active' : ''}" data-pozo="${escapeHtml(item.pozo_name)}">
-            <span class="pozo-status-dot ${item.has_records ? 'active' : 'inactive'}"></span>
-            <span class="pozo-option-name">${escapeHtml(item.pozo_name)}</span>
-            <span class="pozo-option-state ${item.has_records ? 'active' : 'inactive'}">${item.has_records ? 'Con registros' : 'Sin registros'}</span>
-        </button>
-    `).join('');
+    menu.innerHTML = filteredPozos.map(item => {
+        let dotClass = 'inactive';
+        let stateClass = 'inactive';
+        let stateText = item.has_records ? 'Con registros' : 'Sin registros';
+
+        if (item.latest_estatus === 'RUN') {
+            dotClass = 'active';
+            stateClass = 'active-run';
+            stateText = 'RUN';
+        } else if (item.latest_estatus === 'OFF') {
+            dotClass = 'inactive-off';
+            stateClass = 'inactive-off';
+            stateText = 'OFF';
+        } else if (item.has_records) {
+            dotClass = 'active';
+            stateClass = 'active';
+            stateText = 'Con registros';
+        }
+
+        return `
+            <button type="button" class="pozo-selector-option ${item.pozo_name === hiddenInput.value ? 'active' : ''}" data-pozo="${escapeHtml(item.pozo_name)}">
+                <span class="pozo-status-dot ${dotClass}"></span>
+                <span class="pozo-option-name">${escapeHtml(item.pozo_name)}</span>
+                <span class="pozo-option-state ${stateClass}">${stateText}</span>
+            </button>
+        `;
+    }).join('');
 
     menu.querySelectorAll('.pozo-selector-option').forEach(button => {
         button.addEventListener('click', async () => {

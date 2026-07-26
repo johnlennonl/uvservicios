@@ -6,7 +6,8 @@ import {
     fetchAllRows,
     fetchExistingMonitoringRecordsForSync,
     getOperationalAlertSignals,
-    normalizeMonitoringTime
+    normalizeMonitoringTime,
+    normalizeOperationalStatus
 } from './monitoring-shared.js';
 
 const MONITORING_FIELDS_TO_COMPARE = [
@@ -396,27 +397,32 @@ export async function getUniquePozos() {
 export async function getPozosHistorySummary() {
     const [pozos, monitoringRows] = await Promise.all([
         getUniquePozos(),
-        fetchAllRows('monitoreo_pozos', 'pozo_name, fecha')
+        fetchAllRows('monitoreo_pozos', 'pozo_name, fecha, hora, estatus')
     ]);
 
     const latestByPozo = new Map();
     (monitoringRows || []).forEach(record => {
         const pozoName = record?.pozo_name?.trim();
-        const fecha = record?.fecha || null;
         if (!pozoName) return;
 
         const currentLatest = latestByPozo.get(pozoName);
-        if (!currentLatest || (fecha && fecha > currentLatest)) {
-            latestByPozo.set(pozoName, fecha);
+        if (!currentLatest || compareMonitoringMoments(record, currentLatest) > 0) {
+            latestByPozo.set(pozoName, record);
         }
     });
 
     return pozos
-        .map(pozoName => ({
-            pozo_name: pozoName,
-            latest_fecha: latestByPozo.get(pozoName) || null,
-            has_records: latestByPozo.has(pozoName)
-        }))
+        .map(pozoName => {
+            const latest = latestByPozo.get(pozoName);
+            const estatusNorm = latest?.estatus ? normalizeOperationalStatus(latest.estatus) : null;
+            return {
+                pozo_name: pozoName,
+                latest_fecha: latest?.fecha || null,
+                latest_hora: latest?.hora || null,
+                latest_estatus: estatusNorm,
+                has_records: latestByPozo.has(pozoName)
+            };
+        })
         .sort((a, b) => a.pozo_name.localeCompare(b.pozo_name));
 }
 

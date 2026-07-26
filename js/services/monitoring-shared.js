@@ -41,7 +41,7 @@ function normalizeSearchText(value) {
         .trim();
 }
 
-function normalizeOperationalStatus(value) {
+export function normalizeOperationalStatus(value) {
     const raw = String(value ?? '').trim();
     if (!raw) return null;
 

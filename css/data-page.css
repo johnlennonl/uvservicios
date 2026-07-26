@@ -438,6 +438,14 @@
             border: 1px solid transparent;
         }
 
+        a[href="base-datos.html"] {
+            display: none !important;
+        }
+
+        body.is-role-base-datos a[href="base-datos.html"] {
+            display: flex !important;
+        }
+
         .nav-link svg {
             width: 20px;
             height: 20px;
@@ -1392,7 +1400,12 @@
 
         .pozo-status-dot.active {
             background: #22C55E;
-            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+        }
+
+        .pozo-status-dot.inactive-off {
+            background: #EF4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
         }
 
         .pozo-status-dot.inactive {
@@ -1405,22 +1418,33 @@
         }
 
         .pozo-option-state {
-            font-size: 0.76rem;
-            font-weight: 700;
+            font-size: 0.75rem;
+            font-weight: 750;
+            letter-spacing: 0.02em;
             color: #64748B;
-            padding: 5px 9px;
+            padding: 3px 10px;
             border-radius: 999px;
             background: #F1F5F9;
+            transition: all 0.2s ease;
         }
 
-        .pozo-option-state.active {
+        .pozo-option-state.active,
+        .pozo-option-state.active-run {
             color: #15803D;
             background: #DCFCE7;
+            border: 1px solid rgba(22, 163, 74, 0.25);
+        }
+
+        .pozo-option-state.inactive-off {
+            color: #B91C1C;
+            background: #FEE2E2;
+            border: 1px solid rgba(220, 38, 38, 0.25);
         }
 
         .pozo-option-state.inactive {
             color: #475569;
             background: #E2E8F0;
+            border: 1px solid transparent;
         }
 
         .pozo-selector-empty {

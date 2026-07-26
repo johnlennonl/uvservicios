@@ -60,6 +60,14 @@ export async function logout() {
 export async function getSession() {
     const { data, error } = await supabase.auth.getSession();
     if (error) return null;
+    if (data?.session) {
+        try {
+            const profile = getAccessProfile(data.session);
+            applyNavigationAccessProfile(profile);
+        } catch (e) {
+            console.warn('Error aplicando perfil de navegación:', e);
+        }
+    }
     return data.session;
 }
 

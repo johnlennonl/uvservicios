@@ -1,3 +1,12 @@
+/* Ocultamiento preventivo por defecto de Base de Datos a nivel CSS (cero pestañeo) */
+a[href="base-datos.html"] {
+    display: none !important;
+}
+
+body.is-role-base-datos a[href="base-datos.html"] {
+    display: flex !important;
+}
+
 body {
     background:
         radial-gradient(circle at top right, var(--brand-soft), transparent 28%),

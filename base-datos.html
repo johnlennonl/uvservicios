@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="./img/pwa-icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>UV Servicios | Base de Datos & Expediente Digital</title>
+    <meta name="description" content="Gestión documental y expediente histórico por pozo de la plataforma de monitoreo UV Servicios.">
+    <link rel="icon" type="image/png" href="./img/pwa-icon-192.png">
+
+    <!-- Fuentes base de la interfaz -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Hojas de estilos oficiales de UV Servicios -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard-page.css">
+    <link rel="stylesheet" href="css/stats-page.css">
+    <link rel="stylesheet" href="css/database-page.css">
+</head>
+
+<body class="view-mode-standard">
+    <!-- Overlay Loader -->
+    <div id="premium-loader" class="premium-loader-overlay">
+        <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" class="loader-logo-pulse">
+    </div>
+
+    <!-- Layout principal -->
+    <div class="dashboard-layout">
+        <!-- Barra lateral de navegación exclusiva -->
+        <aside class="sidebar">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" class="sidebar-logo" width="180" height="180">
+            <nav>
+                <a href="base-datos.html" class="nav-link active">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                    </svg>
+                    Base de Datos
+                </a>
+            </nav>
+            <button id="logout-btn" class="nav-link" style="margin-top: auto; cursor: pointer;">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Cerrar Sesión
+            </button>
+        </aside>
+
+        <!-- Contenido Principal -->
+        <main class="main-container">
+            <header style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
+                <div>
+                    <h1 style="font-size:1.8rem; font-weight:800; color:#0f172a; margin:0 0 6px;">Base de Datos & Expediente Digital</h1>
+                    <p style="margin:0; font-size:0.92rem; color:#64748b;">Dossier histórico de pozos, simulaciones, informes técnicos y fichas BES.</p>
+                </div>
+                <div>
+                    <button id="btn-open-upload-modal" class="stats-generate-btn" style="height: 44px; padding:0 20px;">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Cargar Documento</span>
+                    </button>
+                </div>
+            </header>
+
+            <section class="content-section" style="padding: 18px 0;">
+                <!-- Miga de Pan (Breadcrumb de Navegación) -->
+                <div class="db-breadcrumb" id="db-breadcrumb">
+                    <div class="db-breadcrumb-item is-active" data-nav="root">
+                        <i class="fa-solid fa-database"></i>
+                        <span>Pozos Registrados</span>
+                    </div>
+                </div>
+
+                <!-- Barra de Filtros & Búsqueda -->
+                <div class="stats-filter-panel" style="margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; align-items: end;">
+                        <div>
+                            <label style="display:flex; flex-direction:column; gap:6px;">
+                                <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Buscar Documento</span>
+                                <input type="text" id="db-search-input" placeholder="Ej: informe, simulacion, ficha..." style="width:100%; padding:10px 14px; border-radius:12px; border:1.5px solid #cbd5e1; font-size:0.88rem; height:44px; background:#fff;">
+                            </label>
+                        </div>
+                        <div>
+                            <label style="display:flex; flex-direction:column; gap:6px;">
+                                <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Desde</span>
+                                <input type="date" id="db-start-date" style="width:100%; padding:10px 12px; border-radius:12px; border:1.5px solid #cbd5e1; font-size:0.88rem; height:44px; background:#fff;">
+                            </label>
+                        </div>
+                        <div>
+                            <label style="display:flex; flex-direction:column; gap:6px;">
+                                <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Hasta</span>
+                                <input type="date" id="db-end-date" style="width:100%; padding:10px 12px; border-radius:12px; border:1.5px solid #cbd5e1; font-size:0.88rem; height:44px; background:#fff;">
+                            </label>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button id="btn-db-filter" class="stats-generate-btn" style="height:44px; width:100%;">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <span>Filtrar</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VISTA NIVEL 1: REJILLA DE POZOS -->
+                <div id="view-wells-container">
+                    <div class="db-header-card">
+                        <div class="db-header-left">
+                            <div class="db-header-icon">
+                                <i class="fa-solid fa-folder-tree"></i>
+                            </div>
+                            <div>
+                                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                    <h2 class="db-header-title">Expedientes por Pozo</h2>
+                                    <span id="wells-count-badge" class="db-header-badge">Cargando pozos...</span>
+                                </div>
+                                <p class="db-header-subtitle">Dossiers técnicos, simulaciones, informes y fichas organizadas por pozo.</p>
+                            </div>
+                        </div>
+                        <div class="db-search-box">
+                            <i class="fa-solid fa-magnifying-glass db-search-icon"></i>
+                            <input type="text" id="well-search-input" placeholder="Buscar pozo por nombre (Ej: CEI0003, TOM0010)..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div id="wells-grid" class="wells-grid"></div>
+                </div>
+
+                <!-- VISTA NIVEL 2: CARPETAS DE CATEGORÍA -->
+                <div id="view-folders-container" hidden>
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:18px;">
+                        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                            <button type="button" id="btn-back-to-wells" class="btn-back-nav" title="Regresar a la lista de pozos">
+                                <i class="fa-solid fa-arrow-left"></i>
+                                <span>Volver a Pozos</span>
+                            </button>
+                            <div>
+                                <h2 id="folder-well-title" style="font-size:1.35rem; font-weight:800; color:#0f172a; margin:0;">Pozo --</h2>
+                                <p class="stats-card-subtitle" style="margin:2px 0 0 0;">Selecciona una carpeta temática para acceder a los archivos históricos.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="folders-grid" class="folders-grid"></div>
+                </div>
+
+                <!-- VISTA NIVEL 3: VISOR & TABLA DE DOCUMENTOS -->
+                <div id="view-files-container" hidden>
+                    <div class="stats-card">
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:18px;">
+                            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                                <button type="button" id="btn-back-to-folders" class="btn-back-nav" title="Regresar a las carpetas del pozo">
+                                    <i class="fa-solid fa-arrow-left"></i>
+                                    <span>Volver a Carpetas</span>
+                                </button>
+                                <div>
+                                    <h3 id="files-section-title" style="margin:0; font-size:1.2rem; font-weight:800; color:#0f172a;">Archivos en Carpeta</h3>
+                                    <p id="files-section-subtitle" class="stats-card-subtitle" style="margin:2px 0 0 0;">Documentos disponibles para consulta y descarga.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="files-table-container"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODAL DE ADVERTENCIA POR INACTIVIDAD (CLOCK TIMER) -->
+    <div id="inactivity-warning-modal" class="upload-modal-overlay" hidden>
+        <div class="upload-modal-card" style="max-width: 420px; text-align: center; padding: 32px 28px;">
+            <div class="pulse-clock-icon" style="width:72px; height:72px; border-radius:50%; background:#fff7ed; color:#ea580c; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:2rem;">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <h2 style="margin:0 0 6px; font-size:1.35rem; font-weight:800; color:#0f172a;">Aviso de Inactividad</h2>
+            <p style="margin:0 0 18px; font-size:0.88rem; color:#64748b; line-height:1.45;">
+                Tu sesión expirará por inactividad en <strong id="inactivity-countdown" style="color:#ea580c; font-size:1.15rem; font-weight:800;">60</strong> segundos. ¿Deseas continuar en la plataforma?
+            </p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button type="button" id="btn-extend-session" style="background:linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%); color:#fff; border:none; padding:12px; border-radius:12px; font-weight:800; cursor:pointer; font-size:0.92rem;">
+                    <i class="fa-solid fa-rotate"></i> Extender Sesión
+                </button>
+                <button type="button" id="btn-logout-inactivity" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:10px; border-radius:12px; font-weight:700; cursor:pointer; font-size:0.88rem;">
+                    <i class="fa-solid fa-right-from-bracket"></i> Salir Ahora
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CARGA DE DOCUMENTOS (UPLOAD) -->
+    <div id="upload-document-modal" class="upload-modal-overlay" hidden>
+        <div class="upload-modal-card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                <h2 style="margin:0; font-size:1.2rem; font-weight:800; color:#0f172a;">Cargar Nuevo Documento</h2>
+                <button type="button" id="btn-close-upload-modal" class="icon-btn" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="upload-document-form">
+                <div class="dropzone-area" id="dropzone-area">
+                    <i class="fa-solid fa-cloud-arrow-up" style="font-size:2.2rem; color:#1d4ed8; margin-bottom:8px;"></i>
+                    <p style="margin:0; font-weight:700; color:#0f172a;">Arrastra el archivo aquí o haz clic para seleccionar</p>
+                    <span style="font-size:0.8rem; color:#64748b;">Formatos aceptados: PDF, XLSX, DOCX, PNG, JPG (Máx 50MB)</span>
+                    <input type="file" id="upload-file-input" required style="display:none;">
+                    <div id="selected-file-badge" style="margin-top:10px; font-weight:700; color:#1d4ed8;" hidden></div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+                    <div>
+                        <label style="display:flex; flex-direction:column; gap:4px; font-size:0.82rem; font-weight:700; color:#475569;">
+                            Pozo:
+                            <select id="upload-pozo-select" required style="padding:10px; border-radius:10px; border:1.5px solid #cbd5e1; font-weight:600; background:#fff;">
+                                <option value="">Selecciona Pozo...</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div>
+                        <label style="display:flex; flex-direction:column; gap:4px; font-size:0.82rem; font-weight:700; color:#475569;">
+                            Categoría:
+                            <select id="upload-category-select" required style="padding:10px; border-radius:10px; border:1.5px solid #cbd5e1; font-weight:600; background:#fff;">
+                                <option value="SIMULACIONES">📁 SIMULACIONES</option>
+                                <option value="INFORMES_TECNICOS">📁 INFORMES TÉCNICOS</option>
+                                <option value="PRUEBAS_PRODUCCION">📁 PRUEBAS DE PRODUCCIÓN</option>
+                                <option value="FICHAS_BES">📁 FICHAS TÉCNICAS BES</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                    <label style="display:flex; flex-direction:column; gap:4px; font-size:0.82rem; font-weight:700; color:#475569;">
+                        Descripción o Notas Técnicas (Opcional):
+                        <textarea id="upload-description-input" rows="2" placeholder="Ej: Simulación BES realizada el 20/07/2026..." style="width:100%; padding:10px; border-radius:10px; border:1.5px solid #cbd5e1; font-family:inherit;"></textarea>
+                    </label>
+                </div>
+
+                <button type="submit" id="btn-submit-upload" class="pin-btn-submit">
+                    <span>Guardar y Subir Expediente</span>
+                </button>
+            </form>
+    <!-- MODAL 3: PREVISUALIZADOR DE DOCUMENTOS (PREVIEW MODAL) -->
+    <div id="document-preview-modal" class="upload-modal-overlay" hidden>
+        <div class="upload-modal-card" style="max-width: 900px; width: 95%;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #e2e8f0;">
+                <div>
+                    <h2 id="preview-modal-title" style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">Previsualización de Documento</h2>
+                    <span id="preview-modal-subtitle" style="font-size:0.8rem; color:#64748b;">Visor Oficial de Expedientes Digitales</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <a id="btn-preview-download" href="#" target="_blank" download class="btn-download-doc">
+                        <i class="fa-solid fa-download"></i>
+                        <span>DESCARGAR</span>
+                    </a>
+                    <button type="button" id="btn-close-preview-modal" class="icon-btn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#64748b;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="preview-modal-body" style="min-height: 480px; display:flex; align-items:center; justify-content:center; background:#f8fafc; border-radius:14px; overflow:hidden;">
+                <!-- iFrame o imagen inyectados dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts ES6 Modulares -->
+    <script type="module" src="js/modules/database/database-controller.js"></script>
+</body>
+
+</html>

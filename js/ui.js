@@ -86,18 +86,10 @@ export function clearError() {
 }
 
 /**
- * Redirects to the dashboard.
+ * Redirects to the target path cleanly.
  */
 export function redirectToDashboard(targetPath = 'dashboard.html') {
-    showFullLoader(); // Activate loader before leaving
-    
-    // Smooth fade transition
-    document.body.style.opacity = '0';
-    document.body.style.transition = 'opacity 0.6s ease';
-    
-    setTimeout(() => {
-        window.location.href = targetPath;
-    }, 600);
+    window.location.href = targetPath;
 }
 
 // Global styles for JS-driven animations

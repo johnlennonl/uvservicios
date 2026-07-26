@@ -2,7 +2,8 @@ export const ACCESS_ROLES = Object.freeze({
     ADMIN: 'admin',
     SUPERVISOR: 'supervisor',
     CAMPO: 'campo',
-    CLIENTE_VIEW: 'cliente_view'
+    CLIENTE_VIEW: 'cliente_view',
+    BASE_DATOS: 'base_datos'
 });
 
 const ALLOWED_ACCESS_ROLES = new Set(Object.values(ACCESS_ROLES));
@@ -15,6 +16,11 @@ function normalizeRole(value) {
 }
 
 function readRoleFromClaims(user = {}) {
+    const email = String(user?.email || '').trim().toLowerCase();
+    if (email === 'baseuv@uvservicios.com' || email.includes('baseuv')) {
+        return ACCESS_ROLES.BASE_DATOS;
+    }
+
     return normalizeRole(
         user?.app_metadata?.role
         || user?.user_metadata?.role
@@ -36,12 +42,14 @@ export function getAccessProfile(sessionOrUser) {
     const isFieldOperator = role === ACCESS_ROLES.CAMPO;
     const isSupervisor = role === ACCESS_ROLES.SUPERVISOR;
     const isAdmin = role === ACCESS_ROLES.ADMIN;
+    const isBaseDatos = role === ACCESS_ROLES.BASE_DATOS || email.includes('baseuv');
 
     return {
         email,
         role,
         isReadOnly,
         isFieldOperator,
+        isBaseDatos,
         canViewDashboard: true,
         canViewConsolidado: true,
         canModifyConsolidadoBase: isAdmin || isSupervisor,
@@ -52,11 +60,16 @@ export function getAccessProfile(sessionOrUser) {
         canViewFieldHistory: true,
         canViewJourneyModule: isAdmin || isSupervisor || isFieldOperator,
         canViewJourneyHistory: true,
-        canViewStats: true
+        canViewStats: true,
+        canViewBaseDatos: isBaseDatos
     };
 }
 
 export function getDefaultRouteForAccessProfile(accessProfile) {
+    if (accessProfile?.isBaseDatos || accessProfile?.email?.includes('baseuv')) {
+        return 'base-datos.html';
+    }
+
     if (accessProfile?.isFieldOperator) {
         return 'field.html';
     }
@@ -71,6 +84,16 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
                 link.style.display = 'none';
                 link.setAttribute('aria-hidden', 'true');
                 link.tabIndex = -1;
+            });
+        });
+    };
+
+    const showLinks = hrefs => {
+        hrefs.forEach(href => {
+            root.querySelectorAll(`a[href="${href}"]`).forEach(link => {
+                link.style.display = '';
+                link.removeAttribute('aria-hidden');
+                link.removeAttribute('tabindex');
             });
         });
     };
@@ -91,6 +114,14 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
         });
     };
 
+    if (accessProfile?.isBaseDatos) {
+        document.body.classList.add('is-role-base-datos');
+        showLinks(['base-datos.html']);
+    } else {
+        document.body.classList.remove('is-role-base-datos');
+        hideLinks(['base-datos.html']);
+    }
+
     if (!accessProfile?.canViewManagement) {
         hideLinks(['dashboard-data.html', 'campo-admin.html', 'monitoring-prep.html']);
     }
@@ -108,7 +139,8 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
             'jornada-history.html',
             'notificacion.html',
             'help.html',
-            'monitoring-prep.html'
+            'monitoring-prep.html',
+            'base-datos.html'
         ]);
     } else {
         try { sessionStorage.setItem('access-readonly', 'false'); } catch(e) {}

@@ -1,3 +1,12 @@
+/* Ocultamiento preventivo por defecto de Base de Datos a nivel CSS (cero pestañeo) */
+a[href="base-datos.html"] {
+    display: none !important;
+}
+
+body.is-role-base-datos a[href="base-datos.html"] {
+    display: flex !important;
+}
+
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
 
 :root {
@@ -468,35 +477,42 @@ body.access-protected-nav:not(.access-nav-ready) a[href="jornada-history.html"] 
     left: 0;
     width: 100%;
     height: 100%;
-    background: #0F172A;
+    background: #FFFFFF;
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 9999;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .premium-loader-overlay.hidden {
-    opacity: 0;
-    visibility: hidden;
-    transition: 0.5s;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
 .loader-logo-pulse {
-    width: 150px;
-    animation: breathe 2s infinite;
+    width: 250px;
+    max-width: 82vw;
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 30px rgba(15, 23, 42, 0.08));
+    animation: breathe 2.2s ease-in-out infinite;
 }
 
 @keyframes breathe {
-
-    0%,
-    100% {
+    0%, 100% {
         transform: scale(1);
-        opacity: 0.8;
+        opacity: 0.9;
+        filter: drop-shadow(0 8px 20px rgba(15, 23, 42, 0.06));
     }
 
     50% {
         transform: scale(1.05);
         opacity: 1;
+        filter: drop-shadow(0 16px 36px rgba(29, 78, 216, 0.15));
     }
 }
 
@@ -831,4 +847,92 @@ body.ptr-refreshing .ptr-element svg {
         70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
     }
+}
+
+/* ------------------------------------------------------------------------------
+ * MODAL DE PIN EN INICIO DE SESIÓN (LOGIN)
+ * ---------------------------------------------------------------------------- */
+.login-pin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-pin-modal-overlay[hidden] {
+  display: none !important;
+}
+
+.login-pin-modal-card {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  animation: zoomInPin 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.login-pin-icon-box {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 1.8rem;
+  box-shadow: 0 8px 16px rgba(29, 78, 216, 0.12);
+}
+
+.login-pin-title {
+  margin: 0 0 6px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.login-pin-subtitle {
+  margin: 0 0 20px;
+  font-size: 0.86rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.login-pin-input {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.8rem;
+  letter-spacing: 12px;
+  text-align: center;
+  border-radius: 14px;
+  border: 2px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  outline: none;
+  font-weight: 800;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-pin-input:focus {
+  border-color: #1d4ed8;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.15);
+}
+
+@keyframes zoomInPin {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }

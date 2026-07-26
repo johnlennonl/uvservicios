@@ -67,6 +67,14 @@
             border: 1px solid transparent;
         }
 
+        a[href="base-datos.html"] {
+            display: none !important;
+        }
+
+        body.is-role-base-datos a[href="base-datos.html"] {
+            display: flex !important;
+        }
+
         .nav-link svg {
             width: 20px;
             height: 20px;
