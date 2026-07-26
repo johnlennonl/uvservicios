@@ -144,7 +144,16 @@ function renderCustomWellDropdown(searchQuery = '') {
         return;
     }
 
-    dropdown.innerHTML = filtered.map(item => {
+    const isAllSelected = availableCustomPozos.length > 0 && selectedCustomWells.length === availableCustomPozos.length;
+    const selectAllHtml = `
+        <button type="button" class="pozo-selector-option select-all-option ${isAllSelected ? 'active' : ''}" style="background:#f1f5f9; border-bottom:1px solid #cbd5e1; font-weight:800; color:#2563eb;">
+            <span class="pozo-status-dot active"></span>
+            <span class="pozo-option-name">${isAllSelected ? '✓ Todos los pozos seleccionados' : ' Seleccionar Todos los Pozos'}</span>
+            <span style="margin-left:auto; font-size:0.75rem; font-weight:700; color:#64748b;">(${availableCustomPozos.length} pozos)</span>
+        </button>
+    `;
+
+    dropdown.innerHTML = selectAllHtml + filtered.map(item => {
         const pozoName = item.pozo_name;
         const isSelected = selectedCustomWells.includes(pozoName);
 
@@ -178,14 +187,33 @@ function renderCustomWellDropdown(searchQuery = '') {
         `;
     }).join('');
 
-    dropdown.querySelectorAll('.pozo-selector-option').forEach(button => {
+    const selectAllBtn = dropdown.querySelector('.select-all-option');
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (selectedCustomWells.length === availableCustomPozos.length) {
+                selectedCustomWells = [];
+            } else {
+                selectedCustomWells = availableCustomPozos.map(w => w.pozo_name);
+            }
+            renderCustomWellChips();
+            const input = document.getElementById('custom-ms-input');
+            if (input) input.value = '';
+            dropdown.hidden = true;
+        });
+    }
+
+    dropdown.querySelectorAll('.pozo-selector-option[data-pozo]').forEach(button => {
         button.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             const pozo = button.dataset.pozo;
             toggleSelectCustomWell(pozo);
             renderCustomWellChips();
-            renderCustomWellDropdown(document.getElementById('custom-ms-input')?.value || '');
+            const input = document.getElementById('custom-ms-input');
+            if (input) input.value = '';
+            dropdown.hidden = true;
         });
     });
 }
@@ -212,7 +240,7 @@ function renderCustomWellChips() {
 
     if (input) {
         if (selectedCustomWells.length > 0) {
-            input.placeholder = 'Agregar más pozos...';
+            input.placeholder = 'Seleccionar otro pozo...';
         } else {
             input.placeholder = 'Buscar y elegir pozo(s)...';
         }
@@ -245,6 +273,11 @@ async function generateCustomReport() {
     const endIso = document.getElementById('custom-end-date')?.value;
     const customTitle = document.getElementById('custom-report-title-input')?.value?.trim();
 
+    if (selectedCustomWells.length === 0) {
+        alert('Por favor busca y selecciona al menos un pozo para generar el reporte (o usa la opción "Seleccionar Todos los Pozos").');
+        return;
+    }
+
     const selectedVarCheckboxes = document.querySelectorAll('input[name="custom-vars"]:checked');
     const selectedVarKeys = Array.from(selectedVarCheckboxes).map(cb => cb.value);
 
@@ -273,10 +306,10 @@ async function generateCustomReport() {
         document.getElementById('custom-paper-title').textContent = customTitle || (selectedCustomWells.length > 0 ? `Reporte de Monitoreo - Pozo(s): ${selectedCustomWells.join(', ')}` : 'Reporte de Monitoreo General de Campo');
         document.getElementById('meta-wells-val').textContent = selectedCustomWells.length > 0 ? selectedCustomWells.join(', ') : 'Todos los pozos';
         document.getElementById('meta-range-val').textContent = `${startIso} al ${endIso}`;
-        
+
         const varNamesList = selectedVarKeys.map(k => (VARIABLE_CONFIG[k] ? VARIABLE_CONFIG[k].label : k)).join(', ');
         document.getElementById('meta-vars-val').textContent = varNamesList || 'Ninguna';
-        
+
         document.getElementById('meta-records-val').textContent = sortedRows.length;
         document.getElementById('meta-date-val').textContent = new Date().toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -358,7 +391,7 @@ function renderMetricsKPIs(rows, varKeys) {
                         ${pozoStats.length > 1 ? `${pozoStats.length} Pozos` : escapeHtml(pozoStats[0].pozo)}
                     </span>
                 </div>
-                
+
                 <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:8px;">
                     <strong class="custom-kpi-value" style="color:${config.color}; font-size:1.75rem; font-weight:800;">
                         ${globalAvg.toFixed(1)} <small style="font-size:0.9rem; font-weight:600;">${config.unit}</small>
@@ -591,18 +624,26 @@ function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabel
                     stops: [0, 90, 100]
                 }
             },
+            markers: {
+                size: 4.5,
+                strokeColors: '#ffffff',
+                strokeWidth: 1.5,
+                hover: {
+                    size: 7
+                }
+            },
         dataLabels: {
             enabled: showDataLabels,
             hideOverflowingLabels: true,
-            formatter: function (val, opts) {
+            formatter: function (val) {
                 if (val === null || val === undefined) return '';
                 const num = Number(val);
                 if (isNaN(num)) return '';
                 return num % 1 === 0 ? num.toFixed(0) : num.toFixed(1);
             },
-            offsetY: -7,
+            offsetY: -6,
             style: {
-                fontSize: '11px',
+                fontSize: '8px',
                 fontFamily: 'Inter, sans-serif',
                 fontWeight: '800',
                 colors: colorsList
@@ -612,7 +653,7 @@ function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabel
                 enabled: true,
                 top: 1,
                 left: 1,
-                blur: 3,
+                blur: 2,
                 color: '#ffffff',
                 opacity: 1
             }
@@ -649,7 +690,7 @@ function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabel
 function renderIndividualCharts(container, rows, varKeys, chartStyle, showDataLabels) {
     varKeys.forEach(key => {
         const config = VARIABLE_CONFIG[key] || { label: key, unit: '', color: '#2563eb' };
-        
+
         const seriesByPozo = {};
         rows.forEach(r => {
             const pozo = r.pozo_name || 'Sin Nombre';
@@ -697,18 +738,26 @@ function renderIndividualCharts(container, rows, varKeys, chartStyle, showDataLa
                 type: chartStyle === 'area' ? 'gradient' : 'solid',
                 gradient: { opacityFrom: 0.35, opacityTo: 0.05 }
             },
-            markers: { size: 4, hover: { size: 6 } },
+            markers: {
+                size: 4.5,
+                strokeColors: '#ffffff',
+                strokeWidth: 1.5,
+                hover: {
+                    size: 7
+                }
+            },
             dataLabels: {
                 enabled: showDataLabels,
                 hideOverflowingLabels: true,
                 formatter: function (val) {
                     if (val === null || val === undefined) return '';
                     const num = Number(val);
-                    return isNaN(num) ? '' : (num % 1 === 0 ? num.toFixed(0) : num.toFixed(1));
+                    if (isNaN(num)) return '';
+                    return num % 1 === 0 ? num.toFixed(0) : num.toFixed(1);
                 },
-                offsetY: -7,
+                offsetY: -6,
                 style: {
-                    fontSize: '11px',
+                    fontSize: '8px',
                     fontFamily: 'Inter, sans-serif',
                     fontWeight: '800',
                     colors: [config.color]
@@ -718,7 +767,7 @@ function renderIndividualCharts(container, rows, varKeys, chartStyle, showDataLa
                     enabled: true,
                     top: 1,
                     left: 1,
-                    blur: 3,
+                    blur: 2,
                     color: '#ffffff',
                     opacity: 1
                 }
