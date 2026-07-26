@@ -191,10 +191,24 @@ export async function uploadWellDocument({ file, pozoName, category, description
  * @param {string} filePath - Ruta del archivo almacenado en Supabase Storage.
  * @returns {string} Enlace URL directo para descargar/abrir el documento.
  */
-export function getDocumentDownloadUrl(filePath = '') {
+export async function getDocumentDownloadUrl(filePath = '', expiresInSeconds = 3600) {
     if (!filePath) return '#';
 
-    // Obtener URL pública desde el Bucket de Supabase Storage
+    try {
+        // Generar URL firmada temporal (válida por 1 hora) para Bucket Privado
+        const { data, error } = await supabase
+            .storage
+            .from(BUCKET_NAME)
+            .createSignedUrl(filePath, expiresInSeconds);
+
+        if (!error && data?.signedUrl) {
+            return data.signedUrl;
+        }
+    } catch (err) {
+        console.warn('[well-documents-service] Advertencia generando URL firmada:', err);
+    }
+
+    // Fallback a URL pública si aplica
     const { data } = supabase
         .storage
         .from(BUCKET_NAME)

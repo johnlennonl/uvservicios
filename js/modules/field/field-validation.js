@@ -535,3 +535,41 @@ function buildValidationMessage({ isValid, warnings = [], blockers = [], context
 function getFieldLabel(fieldName) {
     return FIELD_LABELS[fieldName] || fieldName;
 }
+
+/**
+ * Alerta Inteligente de Desviación Histórica (THP, CHP, LF)
+ * Compara el nuevo valor contra la última lectura registrada para ese pozo.
+ */
+export function checkHistoricalDeviationAlert(pozoName, fieldKey, newValue, previousReading = null) {
+    if (!pozoName || !fieldKey || newValue === null || newValue === undefined || newValue === '') {
+        return null;
+    }
+
+    const numVal = Number(newValue);
+    if (!Number.isFinite(numVal) || numVal <= 0) return null;
+
+    const keyMap = {
+        thp_psi: { label: 'THP', key: 'thp_psi' },
+        chp_psi: { label: 'CHP', key: 'chp_psi' },
+        lf_psi: { label: 'LF', key: 'lf_psi' }
+    };
+
+    const target = keyMap[fieldKey];
+    if (!target) return null;
+
+    const prevVal = Number(previousReading?.[target.key] ?? previousReading?.[target.key.toUpperCase()]);
+    if (!Number.isFinite(prevVal) || prevVal <= 0) return null;
+
+    // Si el valor cae en más de un 50% respecto a la jornada anterior
+    if (numVal < prevVal * 0.5) {
+        return {
+            field: fieldKey,
+            label: target.label,
+            currentValue: numVal,
+            previousValue: prevVal,
+            message: `⚠️ El valor de Presión ${target.label} (${numVal} psi) está por debajo de lo habitual en la última jornada (${prevVal} psi) para el pozo ${pozoName}. ¿Verificaste si falta un dígito?`
+        };
+    }
+
+    return null;
+}

@@ -50,6 +50,20 @@ const DOCUMENT_CATEGORIES = [
         icon: 'fa-solid fa-gears',
         cssClass: 'folder-fichas',
         description: 'Fichas de equipos de fondo, motor, bomba, cable y VSD.'
+    },
+    {
+        key: 'REGISTROS_ECHOMETER',
+        name: 'REGISTROS ECHOMETER (TAM)',
+        icon: 'fa-solid fa-chart-area',
+        cssClass: 'folder-echometer',
+        description: 'Mediciones de nivel de fluido, disparos acústicos y archivos Echometer (.028, .019, .twm).'
+    },
+    {
+        key: 'VOLCADOS_VSD',
+        name: 'DESCARGA DE DATA VSD',
+        icon: '⚡',
+        folderName: 'Descarga_Data_VSD',
+        description: 'Registros de memoria, descargas de data de variador (.dat, .raw, .zip) y parámetros de frecuencia.'
     }
 ];
 

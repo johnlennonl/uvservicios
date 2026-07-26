@@ -451,7 +451,7 @@
                 </section>
 
                 <aside class="field-card field-summary-panel">
-                    <div class="field-card-header">
+                    <div class="field-card-header" style="margin-bottom: 14px;">
                         <div>
                             <h2>Resumen del turno</h2>
                         </div>
@@ -716,6 +716,37 @@
             <span>Salir</span>
         </button>
     </nav>
+
+    <!-- Modal de Adjuntos de Campo (Echometer / VSD) -->
+    <div id="modal-adjuntos-jornada" class="modal-overlay" style="display:none; position:fixed; inset:0; z-index:2300; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+        <div class="modal-box" style="background:#ffffff; border-radius:18px; max-width:840px; width:100%; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 20px 40px -10px rgba(15,23,42,0.3); overflow:hidden;">
+            <!-- Header -->
+            <div style="padding:20px 24px; background:linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color:#ffffff; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h3 style="margin:0; font-size:1.15rem; font-weight:800; display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid fa-folder-open"></i> Respaldos Digitales de Campo (Echometer / VSD)
+                    </h3>
+                    <p style="margin:4px 0 0 0; font-size:0.8rem; color:#bfdbfe;">Adjunta los archivos (.028, .dat, .zip, etc.) para los pozos que requirieron medición en este turno.</p>
+                </div>
+                <button type="button" id="btn-close-adjuntos-modal" style="background:transparent; border:none; color:#ffffff; font-size:1.2rem; cursor:pointer; padding:4px 8px; opacity:0.8;">✕</button>
+            </div>
+
+            <!-- Body (Lista de pozos dinámicos) -->
+            <div id="modal-adjuntos-body" style="padding:20px 24px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:20px; background:#f8fafc;">
+                <!-- Se llena dinámicamente con las tarjetas por pozo -->
+            </div>
+
+            <!-- Footer -->
+            <div style="padding:16px 24px; background:#ffffff; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:16px;">
+                <button type="button" id="btn-cancel-adjuntos-modal" style="padding:10px 20px; font-weight:700; font-size:0.85rem; border-radius:10px; border:1px solid #cbd5e1; background:#ffffff; color:#475569; cursor:pointer;">
+                    ⬅️ Volver a la Jornada
+                </button>
+                <button type="button" id="btn-confirm-adjuntos-transmit" style="padding:12px 28px; font-weight:800; font-size:0.95rem; border-radius:10px; border:none; background:linear-gradient(135deg, #059669 0%, #10b981 100%); color:#ffffff; cursor:pointer; box-shadow:0 4px 14px rgba(16,185,129,0.3); display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-paper-plane"></i> Confirmar y Transmitir Jornada
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script type="module" src="js/modules/field/field-controller.js?v=20260531f"></script>
     <script>

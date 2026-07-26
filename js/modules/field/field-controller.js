@@ -694,6 +694,16 @@ function wireForm() {
         syncChpAutoCondition();
     });
 
+    ['thp_psi', 'chp_psi', 'lf_psi'].forEach(fieldKey => {
+        const inputElement = document.querySelector(`[name="${fieldKey}"]`);
+        inputElement?.addEventListener('change', async () => {
+            const val = inputElement.value.trim();
+            if (!val) return;
+            const payload = getFormPayload();
+            await checkAndWarnHistoricalDeviation(payload);
+        });
+    });
+
     syncSensorFondoRequirements();
 
     document.querySelectorAll('.field-accordion').forEach(details => {
@@ -774,10 +784,10 @@ function initializeAccordionProgressControls() {
         loadButton.type = 'button';
         loadButton.className = 'field-accordion-action-btn field-accordion-load-btn';
         loadButton.textContent = 'Cargar';
-        loadButton.addEventListener('click', event => {
+        loadButton.addEventListener('click', async event => {
             event.preventDefault();
             event.stopPropagation();
-            markAccordionSectionLoaded(section, true);
+            await markAccordionSectionLoaded(section, true);
         });
 
         const updateButton = document.createElement('button');
@@ -785,10 +795,10 @@ function initializeAccordionProgressControls() {
         updateButton.className = 'field-accordion-action-btn field-accordion-update-btn';
         updateButton.textContent = 'Actualizar';
         updateButton.hidden = true;
-        updateButton.addEventListener('click', event => {
+        updateButton.addEventListener('click', async event => {
             event.preventDefault();
             event.stopPropagation();
-            markAccordionSectionLoaded(section, false);
+            await markAccordionSectionLoaded(section, false);
             section.open = true;
         });
 
@@ -798,7 +808,7 @@ function initializeAccordionProgressControls() {
     });
 }
 
-function markAccordionSectionLoaded(section, loaded) {
+async function markAccordionSectionLoaded(section, loaded) {
     if (!section || section.classList.contains('is-locked')) return;
 
     if (loaded) {
@@ -823,6 +833,10 @@ function markAccordionSectionLoaded(section, loaded) {
         } else {
             clearSectionInvalidHighlights(section);
         }
+
+        // ⚠️ ALERTA DE DESVIACIÓN HISTÓRICA AL CLICAR "CARGAR" EN LA SECCIÓN
+        const isDevConfirmed = await checkAndWarnHistoricalDeviation(payload);
+        if (!isDevConfirmed) return;
     }
 
     section.classList.toggle('is-loaded', loaded);
@@ -1098,21 +1112,8 @@ function syncSensorFondoRequirements() {
     const descargaDataSelect = document.querySelector('[name="descarga_datas_sensor"]');
     if (descargaDataSelect) {
         const group = descargaDataSelect.closest('.field-input-group');
-        if (currentNoData) {
-            descargaDataSelect.value = 'NO';
-            descargaDataSelect.disabled = isNoSensor || panelSensorSelect?.value === 'SIN PANEL';
-            if (isNoSensor || panelSensorSelect?.value === 'SIN PANEL') {
-                group?.classList.add('field-input-disabled');
-            } else {
-                group?.classList.remove('field-input-disabled');
-            }
-        } else {
-            if (!descargaDataSelect.value) {
-                descargaDataSelect.value = 'SI';
-            }
-            descargaDataSelect.disabled = false;
-            group?.classList.remove('field-input-disabled');
-        }
+        descargaDataSelect.disabled = false;
+        group?.classList.remove('field-input-disabled');
     }
 
     const sensorReqGroups = document.querySelectorAll('[data-sensor-req-group="true"]');
@@ -1475,6 +1476,104 @@ function resumeEditingCurrentPozo() {
     startEditingJourneyReport(targetReport.id);
 }
 
+async function checkAndWarnHistoricalDeviation(payload) {
+    const rawPozo = payload?.pozo || document.getElementById('field-pozo')?.value || document.getElementById('field-pozo-display')?.value || '';
+    if (!rawPozo) return true;
+
+    try {
+        const cleanPozo = String(rawPozo).trim().toUpperCase();
+        const normPozo = cleanPozo.replace(/[^A-Z0-9]/g, '');
+        if (!normPozo) return true;
+
+        let prev = null;
+
+        // 1. Buscar en la tabla principal de reportes de jornada enviada (field_journey_reports)
+        const { data: fjData } = await supabase
+            .from('field_journey_reports')
+            .select('pozo, thp_psi, chp_psi, lf_psi, raw_payload')
+            .or(`pozo.ilike.%${cleanPozo}%,pozo.ilike.%${normPozo}%`)
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        if (fjData && fjData.length > 0) {
+            const matchRow = fjData.find(row => String(row.pozo || '').replace(/[^A-Z0-9]/g, '').toUpperCase() === normPozo) || fjData[0];
+            const rawPayload = matchRow.raw_payload && typeof matchRow.raw_payload === 'object' ? matchRow.raw_payload : {};
+            prev = {
+                thp_psi: matchRow.thp_psi ?? rawPayload.thp_psi,
+                chp_psi: matchRow.chp_psi ?? rawPayload.chp_psi,
+                lf_psi: matchRow.lf_psi ?? rawPayload.lf_psi
+            };
+        }
+
+        // 2. Si no está en field_journey_reports, buscar en monitoring_records
+        if (!prev) {
+            const { data: mrData } = await supabase
+                .from('monitoring_records')
+                .select('pozo_name, presion_thp, presion_chp, presion_lf, thp_psi, chp_psi, lf_psi')
+                .or(`pozo_name.ilike.%${cleanPozo}%,pozo_name.ilike.%${normPozo}%`)
+                .order('created_at', { ascending: false })
+                .limit(5);
+
+            if (mrData && mrData.length > 0) {
+                const matchRow = mrData.find(row => String(row.pozo_name || '').replace(/[^A-Z0-9]/g, '').toUpperCase() === normPozo) || mrData[0];
+                prev = {
+                    thp_psi: matchRow.thp_psi ?? matchRow.presion_thp,
+                    chp_psi: matchRow.chp_psi ?? matchRow.presion_chp,
+                    lf_psi: matchRow.lf_psi ?? matchRow.presion_lf
+                };
+            }
+        }
+
+        // 3. Si tampoco está en la BD, buscar en las jornadas locales guardadas en localStorage
+        if (!prev) {
+            const localReports = getJourneyReports();
+            const matchingLocal = localReports.filter(r => String(r.pozo || '').replace(/[^A-Z0-9]/g, '').toUpperCase() === normPozo && r.id !== currentEditingReportId);
+            if (matchingLocal.length > 0) {
+                prev = matchingLocal[matchingLocal.length - 1];
+            }
+        }
+
+        if (prev) {
+            const warnings = [];
+
+            const fieldsToCheck = [
+                { key: 'thp_psi', label: 'THP' },
+                { key: 'chp_psi', label: 'CHP' },
+                { key: 'lf_psi', label: 'LF' }
+            ];
+
+            fieldsToCheck.forEach(item => {
+                const newNum = Number(payload[item.key]);
+                const prevNum = Number(prev[item.key]);
+
+                if (Number.isFinite(newNum) && newNum > 0 && Number.isFinite(prevNum) && prevNum > 0) {
+                    if (newNum < prevNum * 0.5) {
+                        warnings.push(`• <strong>${item.label}</strong>: Escribiste <strong>${newNum} psi</strong> (en la última jornada fue <strong>${prevNum} psi</strong>).`);
+                    }
+                }
+            });
+
+            if (warnings.length > 0 && typeof Swal !== 'undefined') {
+                const result = await Swal.fire({
+                    title: '⚠️ ¿Alerta de Tipeo / Cambio Operativo?',
+                    html: `Detectamos una caída de presión de más del 50% respecto a la última jornada para el pozo <strong>${escapeHtml(cleanPozo)}</strong>:<br><br>${warnings.join('<br>')}<br><br>¿Confirmas que el valor es correcto o deseas corregirlo?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, es correcto',
+                    cancelButtonText: 'Corregir dato',
+                    confirmButtonColor: '#2563eb',
+                    cancelButtonColor: '#64748b'
+                });
+
+                return result.isConfirmed;
+            }
+        }
+    } catch (err) {
+        console.warn('[field-controller] Advertencia en verificación de desviación histórica:', err);
+    }
+    return true;
+}
+
 async function addCurrentReportToJourney() {
     if (!hasStartedCapture() || !validateCaptureGate({ showMessage: true })) {
         syncCaptureGateState();
@@ -1483,6 +1582,9 @@ async function addCurrentReportToJourney() {
 
     const payload = await resolveReportProductionMeasures(getFormPayload(), { writeToForm: true });
     const validation = validateFieldReport(payload, { context: 'field' });
+
+    const isDevConfirmed = await checkAndWarnHistoricalDeviation(payload);
+    if (!isDevConfirmed) return;
 
     const confirmed = await reviewFieldReportBeforeSave(payload, validation, {
         isEditing: Boolean(currentEditingReportId)
@@ -2131,6 +2233,139 @@ async function submitJourneyForAdminPreview() {
         return;
     }
 
+    // Abrir modal de archivos adjuntos (Echometer / Data VSD) antes de la transmisión final
+    openFieldAttachmentsModal(reports);
+}
+
+function openFieldAttachmentsModal(reports) {
+    // 1. Filtrar pozos que estén en RUN (estatus != OFF) y tengan 'SI' en Echometer o Baja de Data VSD
+    const reportsNeedingFiles = (Array.isArray(reports) ? reports : []).filter(report => {
+        const estatus = String(report.estatus || '').trim().toUpperCase();
+        if (estatus === 'OFF') return false; // Pozos en OFF NUNCA solicitan archivos
+
+        const echometerYes = String(report.echometer || '').trim().toUpperCase() === 'SI';
+        const vsdYes = String(report.descarga_datas_sensor || report.baja_datos || report.descarga_datas_vsd || '').trim().toUpperCase() === 'SI';
+
+        return echometerYes || vsdYes;
+    });
+
+    // 2. Si ningún pozo de la jornada requirió archivos (o todos están en OFF/NO), transmitir directamente sin modal!
+    if (reportsNeedingFiles.length === 0) {
+        processAndExecuteJourneySubmission(reports);
+        return;
+    }
+
+    const modal = document.getElementById('modal-adjuntos-jornada');
+    const body = document.getElementById('modal-adjuntos-body');
+    const btnCancel = document.getElementById('btn-cancel-adjuntos-modal');
+    const btnClose = document.getElementById('btn-close-adjuntos-modal');
+    const btnConfirm = document.getElementById('btn-confirm-adjuntos-transmit');
+
+    if (!modal || !body) {
+        processAndExecuteJourneySubmission(reports);
+        return;
+    }
+
+    // 3. Renderizar SOLAMENTE los pozos que tienen 'SI' en el parámetro correspondiente
+    body.innerHTML = reportsNeedingFiles.map((report, idx) => {
+        const pozoName = String(report.pozo || report.pozo_name || `Pozo #${idx + 1}`).trim().toUpperCase();
+        const echometerYes = String(report.echometer || '').trim().toUpperCase() === 'SI';
+        const vsdYes = String(report.descarga_datas_sensor || report.baja_datos || report.descarga_datas_vsd || '').trim().toUpperCase() === 'SI';
+
+        const echometerFieldHtml = echometerYes ? `
+            <div style="background:#f8fafc; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
+                <label style="display:flex; flex-direction:column; gap:6px; font-size:0.82rem; font-weight:700; color:#1e293b;">
+                    <span>📈 Archivo Echometer (.028, .twm, .zip):</span>
+                    <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="REGISTROS_ECHOMETER" accept=".028,.twm,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:6px; border-radius:8px; border:1px solid #cbd5e1;">
+                    <small style="color:#64748b; font-weight:500;">Medición acústica requerida para este pozo</small>
+                </label>
+            </div>
+        ` : '';
+
+        const vsdFieldHtml = vsdYes ? `
+            <div style="background:#f8fafc; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
+                <label style="display:flex; flex-direction:column; gap:6px; font-size:0.82rem; font-weight:700; color:#1e293b;">
+                    <span>⚡ Descarga de Data VSD (.dat, .raw, .zip):</span>
+                    <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="VOLCADOS_VSD" accept=".dat,.raw,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:6px; border-radius:8px; border:1px solid #cbd5e1;">
+                    <small style="color:#64748b; font-weight:500;">Volcado de memoria de variador VSD requerido para este pozo</small>
+                </label>
+            </div>
+        ` : '';
+
+        return `
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #cbd5e1; padding:18px; display:flex; flex-direction:column; gap:14px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981;"></span>
+                        <strong style="font-size:1.05rem; color:#0f172a; font-weight:800;">Pozo: ${escapeHtml(pozoName)}</strong>
+                    </div>
+                    <span style="font-size:0.78rem; font-weight:700; color:#475569; background:#f1f5f9; padding:4px 12px; border-radius:12px;">${escapeHtml(report.campo || 'Campo')}</span>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
+                    ${echometerFieldHtml}
+                    ${vsdFieldHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    modal.style.display = 'flex';
+
+    const closeModal = () => {
+        modal.style.display = 'none';
+    };
+
+    if (btnCancel) btnCancel.onclick = closeModal;
+    if (btnClose) btnClose.onclick = closeModal;
+
+    if (btnConfirm) {
+        btnConfirm.onclick = async () => {
+            modal.style.display = 'none';
+            await processAndExecuteJourneySubmission(reports);
+        };
+    }
+}
+
+async function processAndExecuteJourneySubmission(reports) {
+    const attachmentInputs = document.querySelectorAll('.field-attachment-input');
+    const selectedFilesToUpload = [];
+
+    attachmentInputs.forEach(input => {
+        if (input.files && input.files[0]) {
+            selectedFilesToUpload.push({
+                file: input.files[0],
+                pozoName: input.dataset.pozo,
+                category: input.dataset.category
+            });
+        }
+    });
+
+    const tempJourneyTag = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY) || `JRN-${Date.now()}`;
+
+    if (selectedFilesToUpload.length > 0) {
+        try {
+            updateStatus(`Subiendo ${selectedFilesToUpload.length} archivo(s) adjunto(s)...`);
+            const { uploadWellDocument } = await import('../../services/well-documents-service.js');
+
+            for (const item of selectedFilesToUpload) {
+                await uploadWellDocument({
+                    file: item.file,
+                    pozoName: item.pozoName,
+                    category: item.category,
+                    description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${item.pozoName}`,
+                    uploadedBy: 'Técnico de Campo'
+                });
+            }
+        } catch (uploadErr) {
+            console.error('Error subiendo adjuntos de campo:', uploadErr);
+            showAlert(`Advertencia: No se pudieron subir algunos adjuntos (${uploadErr.message}). La jornada continuará enviándose.`, 'warning');
+        }
+    }
+
+    await executeActualJourneySubmission(reports);
+}
+
+async function executeActualJourneySubmission(reports) {
     const resolvedJourneyId = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY) || null;
     if (resolvedJourneyId) {
         currentEditingJourneyId = resolvedJourneyId;
@@ -2140,7 +2375,6 @@ async function submitJourneyForAdminPreview() {
     let workflowResult;
     const submitButton = document.getElementById('field-submit-journey-btn');
 
-    // show processing modal with steps
     showProcessingModal();
     isSubmittingJourney = true;
     if (submitButton) {
@@ -2150,11 +2384,10 @@ async function submitJourneyForAdminPreview() {
     updateStatus('Sincronizando captura con Admin Campo...');
 
     try {
-        // step 1 - ensure visible at least 5s
         setProcessingStep(1, 'Generando captura');
         const s1 = Date.now();
         await ensureStepMinDuration(s1, 5000);
-        // execute server workflow (step 2 visible during network call)
+
         setProcessingStep(2, isUpdatingExistingJourney ? 'Actualizando captura en el servidor' : 'Cargando captura al servidor');
         const s2 = Date.now();
         mergedReports = await resolveJourneyProductionMeasures(mergedReports);
@@ -2162,7 +2395,7 @@ async function submitJourneyForAdminPreview() {
             journeyId: resolvedJourneyId
         });
         await ensureStepMinDuration(s2, 5000);
-        // step 3
+
         setProcessingStep(3, isUpdatingExistingJourney ? 'Finalizando actualizacion de captura' : 'Finalizando y marcando como enviada');
         const s3 = Date.now();
         await ensureStepMinDuration(s3, 5000);

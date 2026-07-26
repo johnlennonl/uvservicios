@@ -3187,6 +3187,7 @@
                 </div>
                 <div class="campo-admin-filter-group" id="campo-admin-filter-group">
                     <button type="button" class="campo-admin-filter-chip is-active" data-status-filter="pending">Pendientes</button>
+                    <button type="button" class="campo-admin-filter-chip" data-status-filter="drafts">📡 En vivo (Jornada en Curso)</button>
                     <button type="button" class="campo-admin-filter-chip" data-status-filter="under_review">En revisión</button>
                     <button type="button" class="campo-admin-filter-chip" data-status-filter="approved">Aprobadas</button>
                     <button type="button" class="campo-admin-filter-chip" data-status-filter="all">Todas</button>
@@ -3215,32 +3216,42 @@
                     <div id="campo-admin-sidebar-incidents-panel" class="campo-admin-panel" style="margin-top: 18px;" hidden>
                         <div class="campo-admin-panel-head" style="margin-bottom: 8px;">
                             <div>
-                                <h3>Incidencias e Informes</h3>
-                                <p>Reportes de problemas y descargas de datos de ecómetro (.JRN) recibidos.</p>
+                                <h3>Incidencias y Archivos de Campo</h3>
+                                <p>Reportes de problemas, mediciones Echometer (.028, .zip) y Descarga de Data VSD (.dat, .zip).</p>
                             </div>
                         </div>
 
                         <!-- Pestañas -->
-                        <div class="campo-admin-sidebar-tabs">
-                            <button type="button" class="sidebar-tab-btn active" data-tab="incidents">
-                                Incidencias (<span id="campo-admin-sidebar-incidents-count">0</span>)
+                        <div class="campo-admin-sidebar-tabs" style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" class="sidebar-tab-btn active" data-tab="echometer" style="flex:1; min-width:90px;">
+                                📈 Echometer (<span id="campo-admin-sidebar-echometer-count">0</span>)
                             </button>
-                            <button type="button" class="sidebar-tab-btn" data-tab="files">
-                                Archivos .JRN (<span id="campo-admin-sidebar-files-count">0</span>)
+                            <button type="button" class="sidebar-tab-btn" data-tab="vsd" style="flex:1; min-width:90px;">
+                                ⚡ VSD Data (<span id="campo-admin-sidebar-vsd-count">0</span>)
+                            </button>
+                            <button type="button" class="sidebar-tab-btn" data-tab="incidents" style="flex:1; min-width:90px;">
+                                📌 Incidencias (<span id="campo-admin-sidebar-incidents-count">0</span>)
                             </button>
                         </div>
 
-                        <!-- Contenedor Incidencias -->
-                        <div id="sidebar-incidents-content" class="sidebar-tab-content">
-                            <div id="campo-admin-sidebar-incidents-list" class="campo-admin-incident-list">
-                                <!-- Incidencias se renderizan dinámicamente -->
+                        <!-- Contenedor Archivos Echometer -->
+                        <div id="sidebar-echometer-content" class="sidebar-tab-content">
+                            <div id="campo-admin-sidebar-echometer-list" class="campo-admin-files-list">
+                                <!-- Archivos Echometer -->
                             </div>
                         </div>
 
-                        <!-- Contenedor Archivos JRN -->
-                        <div id="sidebar-files-content" class="sidebar-tab-content" style="display: none;">
-                            <div id="campo-admin-sidebar-files-list" class="campo-admin-files-list">
-                                <!-- Archivos se renderizan dinámicamente -->
+                        <!-- Contenedor Archivos VSD -->
+                        <div id="sidebar-vsd-content" class="sidebar-tab-content" style="display: none;">
+                            <div id="campo-admin-sidebar-vsd-list" class="campo-admin-files-list">
+                                <!-- Archivos VSD -->
+                            </div>
+                        </div>
+
+                        <!-- Contenedor Incidencias -->
+                        <div id="sidebar-incidents-content" class="sidebar-tab-content" style="display: none;">
+                            <div id="campo-admin-sidebar-incidents-list" class="campo-admin-incident-list">
+                                <!-- Incidencias se renderizan dinámicamente -->
                             </div>
                         </div>
                     </div>

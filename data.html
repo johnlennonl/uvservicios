@@ -307,6 +307,8 @@
                 <div class="history-mode-toggle" id="history-mode-toggle">
                     <button type="button" id="btn-operational-history" class="history-mode-btn active">Historial Operativo</button>
                     <button type="button" id="btn-technical-history" class="history-mode-btn">Historial de Medición Técnica</button>
+                    <button type="button" id="btn-echometer-history" class="history-mode-btn">📈 Archivos Echometer</button>
+                    <button type="button" id="btn-vsd-history" class="history-mode-btn">⚡ Descarga de Data VSD</button>
                 </div>
                 <select id="filter-date"
                     style="padding: 10px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; cursor: pointer; background: white;">
@@ -1025,12 +1027,14 @@
             }
         }
 
-        // Cambia la vista entre historial operativo y medicion tecnica.
+        // Cambia la vista entre historial operativo, medicion tecnica, archivos echometer y descarga VSD.
         function setHistoryMode(mode) {
             activeHistoryMode = mode;
 
             document.getElementById('btn-operational-history').classList.toggle('active', mode === 'operational');
             document.getElementById('btn-technical-history').classList.toggle('active', mode === 'technical');
+            document.getElementById('btn-echometer-history').classList.toggle('active', mode === 'echometer');
+            document.getElementById('btn-vsd-history').classList.toggle('active', mode === 'vsd');
 
             renderHistoryHead();
             if (activePozo) {
@@ -1045,6 +1049,20 @@
             if (!thead) return;
 
             table?.classList.toggle('technical-history-table', activeHistoryMode === 'technical');
+
+            if (activeHistoryMode === 'echometer' || activeHistoryMode === 'vsd') {
+                thead.innerHTML = `
+                    <tr>
+                        <th>Fecha de Carga</th>
+                        <th>Categoría</th>
+                        <th>Nombre del Archivo</th>
+                        <th>Usuario / Técnico</th>
+                        <th style="text-align: center;">Tamaño</th>
+                        <th style="text-align: right;">Acción</th>
+                    </tr>
+                `;
+                return;
+            }
 
             if (activeHistoryMode === 'technical') {
                 thead.innerHTML = `
@@ -1139,6 +1157,8 @@
             document.getElementById('mobile-logout-btn').addEventListener('click', logout);
             document.getElementById('btn-operational-history').addEventListener('click', () => setHistoryMode('operational'));
             document.getElementById('btn-technical-history').addEventListener('click', () => setHistoryMode('technical'));
+            document.getElementById('btn-echometer-history').addEventListener('click', () => setHistoryMode('echometer'));
+            document.getElementById('btn-vsd-history').addEventListener('click', () => setHistoryMode('vsd'));
             document.getElementById('data-view-mode').addEventListener('change', (event) => setDataViewMode(event.target.value));
             document.getElementById('ticket-date').addEventListener('change', loadDailyTicketData);
             document.getElementById('ticket-shift').addEventListener('change', loadDailyTicketData);
@@ -1308,6 +1328,15 @@
         // Resuelve filtros, consulta Supabase y refresca la tabla activa del pozo.
         async function loadPozoData() {
             if (!activePozo) return;
+
+            if (activeHistoryMode === 'echometer' || activeHistoryMode === 'vsd') {
+                document.getElementById('table-title').textContent = activeHistoryMode === 'echometer'
+                    ? `Archivos Echometer: ${activePozo}`
+                    : `Descarga de Data VSD: ${activePozo}`;
+                await loadPozoDocumentFiles(activePozo, activeHistoryMode);
+                return;
+            }
+
             try {
                 // Traduce el filtro visible en rangos de fecha para la consulta.
                 const filterVal = document.getElementById('filter-date').value;
@@ -1336,6 +1365,85 @@
                 renderTable();
             } catch (err) {
                 Swal.fire({ icon: 'error', title: 'Error BD', text: err.message });
+            }
+        }
+
+        async function loadPozoDocumentFiles(pozoName, mode) {
+            const tbody = document.getElementById('history-body');
+            const countLabel = document.getElementById('record-count');
+            if (!tbody) return;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 40px;">Cargando archivos de ${mode === 'echometer' ? 'Echometer' : 'Data VSD'}...</td></tr>`;
+
+            try {
+                const { getWellDocuments, getDocumentDownloadUrl } = await import('./js/services/well-documents-service.js');
+                const categoryFilter = mode === 'echometer' ? 'REGISTROS_ECHOMETER' : 'VOLCADOS_VSD';
+                const docs = await getWellDocuments({ pozoName, category: categoryFilter });
+
+                if (countLabel) {
+                    countLabel.textContent = `${docs?.length || 0} Archivo(s)`;
+                }
+
+                if (!docs || docs.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay archivos de ${mode === 'echometer' ? 'Echometer' : 'Descarga VSD'} registrados para el pozo ${escapeHtml(pozoName)}</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                for (const doc of docs) {
+                    const tr = document.createElement('tr');
+                    const createdDate = doc.created_at ? new Date(doc.created_at).toLocaleString('es-VE') : '--';
+                    const fileName = doc.nombre_archivo || doc.file_name || 'Archivo_Adjunto';
+                    const badgeBg = mode === 'echometer' ? 'rgba(37, 99, 235, 0.12)' : 'rgba(217, 119, 6, 0.12)';
+                    const badgeColor = mode === 'echometer' ? '#2563eb' : '#d97706';
+                    const userEmail = doc.uploaded_by_email || doc.usuario || 'Técnico de Campo';
+                    const sizeMb = doc.tamaño_bytes ? `${(doc.tamaño_bytes / (1024 * 1024)).toFixed(2)} MB` : '--';
+
+                    tr.innerHTML = `
+                        <td style="padding: 12px 16px;"><strong>${escapeHtml(createdDate)}</strong></td>
+                        <td style="padding: 12px 16px;"><span style="display:inline-block; padding:4px 12px; border-radius:12px; font-weight:800; font-size:0.78rem; background:${badgeBg}; color:${badgeColor};">${escapeHtml(mode === 'echometer' ? '📈 Echometer' : '⚡ Data VSD')}</span></td>
+                        <td style="padding: 12px 16px;"><strong style="color:#0f172a; font-size:0.92rem;">${escapeHtml(fileName)}</strong></td>
+                        <td style="padding: 12px 16px;"><span style="font-size:0.85rem; color:#475569;">${escapeHtml(userEmail)}</span></td>
+                        <td style="text-align:center; padding: 12px 16px;"><small style="color:#64748b; font-weight:700;">${escapeHtml(sizeMb)}</small></td>
+                        <td style="text-align:right; padding: 12px 16px;">
+                            <button type="button" class="btn-download-doc-inline" data-file-path="${escapeHtml(doc.file_path || doc.ruta_storage || '')}" style="padding:8px 16px; border-radius:10px; background:#10b981; color:#fff; font-weight:800; font-size:0.82rem; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition: background 0.2s;">
+                                ⬇️ Descargar
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+
+                // Handler para botones de descarga directa
+                tbody.querySelectorAll('.btn-download-doc-inline').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const path = e.currentTarget.dataset.filePath;
+                        if (!path) {
+                            if (window.Swal) Swal.fire({ icon: 'warning', title: 'Archivo', text: 'No se encontró la ruta del archivo.' });
+                            return;
+                        }
+                        try {
+                            btn.disabled = true;
+                            btn.innerHTML = 'Generando...';
+                            const url = await getDocumentDownloadUrl(path);
+                            if (url) {
+                                window.open(url, '_blank');
+                            } else {
+                                throw new Error('No se pudo generar el enlace de descarga.');
+                            }
+                        } catch (err) {
+                            console.error('Error al descargar archivo:', err);
+                            if (window.Swal) {
+                                Swal.fire({ icon: 'error', title: 'Error al descargar', text: err.message || 'No se pudo obtener el archivo.' });
+                            }
+                        } finally {
+                            btn.disabled = false;
+                            btn.innerHTML = '⬇️ Descargar';
+                        }
+                    });
+                });
+            } catch (err) {
+                console.error('Error cargando documentos de pozo:', err);
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#ef4444; padding:30px;">Error al consultar archivos: ${escapeHtml(err.message || err)}</td></tr>`;
             }
         }
 

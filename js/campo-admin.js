@@ -5,13 +5,15 @@ import { validateFieldReport } from './modules/field/field-validation.js';
 
 const STATUS_FILTERS = {
     pending: ['submitted', 'under_review'],
+    drafts: ['draft'],
     submitted: ['submitted'],
     under_review: ['under_review'],
     approved: ['approved', 'published'],
-    all: ['submitted', 'under_review', 'approved', 'published', 'rejected', 'archived']
+    all: ['submitted', 'under_review', 'approved', 'published', 'rejected', 'archived', 'draft']
 };
 
 const STATUS_LABELS = {
+    draft: 'En vivo (Jornada en Curso)',
     submitted: 'Pendiente',
     under_review: 'En revisión',
     approved: 'Aprobada',
@@ -24,6 +26,10 @@ const FILTER_EMPTY_COPY = {
     pending: {
         title: 'Sin pendientes',
         detail: 'No hay jornadas pendientes o en revisión en este momento.'
+    },
+    drafts: {
+        title: 'Sin borrador en vivo',
+        detail: 'En este momento ningún operador tiene un borrador en curso activo en campo.'
     },
     submitted: {
         title: 'Sin jornadas pendientes',
@@ -2350,6 +2356,7 @@ async function renderDetail(detail) {
         ...detail,
         tickets: mergedTickets
     };
+    const isDraftJourney = journey.status === 'draft';
     const technicians = getJourneyTechnicians(journey, records);
     const reviewSummary = summarizeJourneyReview(records, journey);
     const recordsMarkup = records.length > 0
@@ -2357,6 +2364,18 @@ async function renderDetail(detail) {
             const summary = getRecordSummary(record);
             const review = reviewSummary.byRecord.get(record.id) || { tone: 'warning', label: 'Con alerta' };
             const recordPosition = `${index + 1} de ${records.length}`;
+
+            const rowActionsMarkup = isDraftJourney
+                ? `
+                    ${buildRecordDiagnosticBadge(record)}
+                    <button type="button" class="campo-admin-inline-btn" data-record-open="${escapeHtml(record.id)}">Ver parámetros</button>
+                `
+                : `
+                    ${buildRecordDiagnosticBadge(record)}
+                    <button type="button" class="campo-admin-inline-btn" data-record-open="${escapeHtml(record.id)}">Ver parámetros</button>
+                    <button type="button" class="campo-admin-inline-btn campo-admin-inline-btn-strong" data-record-edit="${escapeHtml(record.id)}">Editar</button>
+                    <button type="button" class="campo-admin-inline-btn" style="color:#b91c1c;border-color:rgba(185,28,28,0.2);background:rgba(185,28,28,0.05);" data-record-delete="${escapeHtml(record.id)}">Eliminar</button>
+                `;
 
             return `
                 <article class="campo-admin-record-row">
@@ -2384,10 +2403,7 @@ async function renderDetail(detail) {
                         </div>
                     </div>
                     <div class="campo-admin-record-row-actions">
-                        ${buildRecordDiagnosticBadge(record)}
-                        <button type="button" class="campo-admin-inline-btn" data-record-open="${escapeHtml(record.id)}">Ver parametros</button>
-                        <button type="button" class="campo-admin-inline-btn campo-admin-inline-btn-strong" data-record-edit="${escapeHtml(record.id)}">Editar</button>
-                        <button type="button" class="campo-admin-inline-btn" style="color:#b91c1c;border-color:rgba(185,28,28,0.2);background:rgba(185,28,28,0.05);" data-record-delete="${escapeHtml(record.id)}">Eliminar</button>
+                        ${rowActionsMarkup}
                     </div>
                 </article>
             `;
@@ -2427,35 +2443,14 @@ async function renderDetail(detail) {
             </div>
         `;
 
-    elements.detailShell.innerHTML = `
-        <section class="campo-admin-panel">
-            <div class="campo-admin-detail-head">
-                <div class="campo-admin-detail-title-block">
-                    <div class="campo-admin-ticket-top">
-                        <span class="${buildStatusClass(journey.status)}">${escapeHtml(normalizeStatusLabel(journey.status))}</span>
-                        <span class="campo-admin-tag campo-admin-tag-soft">Recibida ${escapeHtml(formatDateTime(journey.created_at))}</span>
-                    </div>
-                    <h2>${escapeHtml(journey.locacion_jornada || 'Jornada sin locación')}</h2>
-                </div>
+    const journeyActionsSectionMarkup = isDraftJourney
+        ? `
+            <div style="padding: 16px 20px; border-radius: 16px; background: linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(255, 255, 255, 0.98)); border: 1px solid rgba(167, 243, 208, 0.9); display: flex; align-items: center; gap: 12px; color: #047857; margin-top: 10px;">
+                <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); flex-shrink:0;"></span>
+                <span style="font-size: 0.88rem; font-weight: 700;">📡 Monitoreo en Vivo de Jornada en Curso: Las acciones de edición de pozos, exportación Excel/PDF y transmisión al Dashboard se habilitarán en cuanto la cuadrilla envíe la jornada desde Campo.</span>
             </div>
-            <div class="campo-admin-detail-metadata-grid-v2">
-                <div class="metadata-card-v2">
-                    <span class="metadata-card-label-v2">Equipo de Guardia</span>
-                    <strong class="metadata-card-value-v2">${escapeHtml(technicians.equipoGuardia || 'Sin personal asignado')}</strong>
-                </div>
-                <div class="metadata-card-v2">
-                    <span class="metadata-card-label-v2">Turno y Fecha</span>
-                    <strong class="metadata-card-value-v2">${escapeHtml(journey.jornada || 'No especificada')} · ${escapeHtml(formatDate(journey.journey_date))}</strong>
-                </div>
-                <div class="metadata-card-v2">
-                    <span class="metadata-card-label-v2">Responsable de Envío</span>
-                    <strong class="metadata-card-value-v2">${escapeHtml(journey.submitted_by_email || 'No disponible')}</strong>
-                </div>
-                <div class="metadata-card-v2">
-                    <span class="metadata-card-label-v2">Ventana y Pozos</span>
-                    <strong class="metadata-card-value-v2">${escapeHtml(summarizeJourneyWindow(journey))} · ${escapeHtml(String(journey.total_reports || 0))} pozo(s)</strong>
-                </div>
-            </div>
+          `
+        : `
             <div class="campo-admin-actions-section">
                 <h3 class="campo-admin-actions-title">Acciones de la Jornada</h3>
                 <div class="campo-admin-actions-grid-v2">
@@ -2493,6 +2488,38 @@ async function renderDetail(detail) {
                     </button>
                 </div>
             </div>
+          `;
+
+    elements.detailShell.innerHTML = `
+        <section class="campo-admin-panel">
+            <div class="campo-admin-detail-head">
+                <div class="campo-admin-detail-title-block">
+                    <div class="campo-admin-ticket-top">
+                        <span class="${buildStatusClass(journey.status)}">${escapeHtml(normalizeStatusLabel(journey.status))}</span>
+                        <span class="campo-admin-tag campo-admin-tag-soft">Recibida ${escapeHtml(formatDateTime(journey.created_at))}</span>
+                    </div>
+                    <h2>${escapeHtml(journey.locacion_jornada || 'Jornada sin locación')}</h2>
+                </div>
+            </div>
+            <div class="campo-admin-detail-metadata-grid-v2">
+                <div class="metadata-card-v2">
+                    <span class="metadata-card-label-v2">Equipo de Guardia</span>
+                    <strong class="metadata-card-value-v2">${escapeHtml(technicians.equipoGuardia || 'Sin personal asignado')}</strong>
+                </div>
+                <div class="metadata-card-v2">
+                    <span class="metadata-card-label-v2">Turno y Fecha</span>
+                    <strong class="metadata-card-value-v2">${escapeHtml(journey.jornada || 'No especificada')} · ${escapeHtml(formatDate(journey.journey_date))}</strong>
+                </div>
+                <div class="metadata-card-v2">
+                    <span class="metadata-card-label-v2">Responsable de Envío</span>
+                    <strong class="metadata-card-value-v2">${escapeHtml(journey.submitted_by_email || 'No disponible')}</strong>
+                </div>
+                <div class="metadata-card-v2">
+                    <span class="metadata-card-label-v2">Ventana y Pozos</span>
+                    <strong class="metadata-card-value-v2">${escapeHtml(summarizeJourneyWindow(journey))} · ${escapeHtml(String(journey.total_reports || 0))} pozo(s)</strong>
+                </div>
+            </div>
+            ${journeyActionsSectionMarkup}
         </section>
 
         <section class="campo-admin-panel">
@@ -2550,28 +2577,98 @@ async function renderDetail(detail) {
         </details>
     `;
 
-    // Por el momento no hay archivos .JRN adjuntos en las jornadas (listo para futura integración)
-    const mockFilesCount = 0;
-    const filesMarkup = `
-        <div class="campo-admin-empty-small">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 28px; height: 28px; color: #94a3b8; margin: 0 auto 8px; display: block;">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5-3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-            </svg>
-            <strong>Sin archivos .JRN recibidos</strong>
-            <p style="font-size: 0.78rem; color: #64748b; margin: 2px 0 0;">Esta jornada no adjuntó descargas de ecómetro o registros de datos.</p>
-        </div>
-    `;
+    const wellNames = Array.from(new Set(records.map(r => r.pozo_name || r.pozo).filter(Boolean)));
+    let echometerDocs = [];
+    let vsdDocs = [];
+
+    if (wellNames.length > 0) {
+        try {
+            const { getWellDocuments } = await import('./services/well-documents-service.js');
+            const allDocsArrays = await Promise.all(wellNames.map(pozoName => getWellDocuments({ pozoName })));
+            const allDocs = allDocsArrays.flat();
+            
+            const journeyIdStr = String(journey.id || '');
+            const isMatchingJourney = (d) => {
+                const desc = String(d.descripcion || '');
+                if (desc.includes('[JORNADA_ID:')) {
+                    return desc.includes(`[JORNADA_ID:${journeyIdStr}]`);
+                }
+                // Archivos antiguos de prueba sin etiqueta de jornada NO se muestran en la bandeja actual
+                return false;
+            };
+
+            echometerDocs = allDocs.filter(d => d.categoria === 'REGISTROS_ECHOMETER' && isMatchingJourney(d));
+            vsdDocs = allDocs.filter(d => d.categoria === 'VOLCADOS_VSD' && isMatchingJourney(d));
+        } catch (err) {
+            console.warn('Error al consultar archivos adjuntos de pozos:', err);
+        }
+    }
 
     // Renderizar incidencias e informes en el sidebar izquierdo
-    if (elements.sidebarIncidentsPanel && elements.sidebarIncidentsList && elements.sidebarIncidentsCount) {
+    if (elements.sidebarIncidentsPanel) {
         elements.sidebarIncidentsPanel.hidden = false;
-        elements.sidebarIncidentsCount.textContent = String(mergedTickets.length);
-        elements.sidebarIncidentsList.innerHTML = ticketsMarkup;
+        if (elements.sidebarIncidentsCount) elements.sidebarIncidentsCount.textContent = String(mergedTickets.length);
+        if (elements.sidebarIncidentsList) elements.sidebarIncidentsList.innerHTML = ticketsMarkup;
 
-        const filesCountEl = document.getElementById('campo-admin-sidebar-files-count');
-        const filesListEl = document.getElementById('campo-admin-sidebar-files-list');
-        if (filesCountEl) filesCountEl.textContent = String(mockFilesCount);
-        if (filesListEl) filesListEl.innerHTML = filesMarkup;
+        const echometerCountEl = document.getElementById('campo-admin-sidebar-echometer-count');
+        const echometerListEl = document.getElementById('campo-admin-sidebar-echometer-list');
+        const vsdCountEl = document.getElementById('campo-admin-sidebar-vsd-count');
+        const vsdListEl = document.getElementById('campo-admin-sidebar-vsd-list');
+
+        if (echometerCountEl) echometerCountEl.textContent = String(echometerDocs.length);
+        if (vsdCountEl) vsdCountEl.textContent = String(vsdDocs.length);
+
+        if (echometerListEl) {
+            echometerListEl.innerHTML = echometerDocs.length > 0 ? echometerDocs.map(doc => `
+                <div style="padding:12px; border-radius:12px; background:#fff; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div>
+                        <strong style="font-size:0.88rem; color:#0f172a; display:block;">${escapeHtml(doc.nombre_archivo || 'Archivo Echometer')}</strong>
+                        <span style="font-size:0.78rem; color:#64748b;">Pozo: ${escapeHtml(doc.pozo_name)} · ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
+                    </div>
+                    <button type="button" class="btn-download-sidebar-doc" data-file-path="${escapeHtml(doc.file_path)}" style="padding:6px 12px; border-radius:8px; background:#2563eb; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
+                        ⬇️ Descargar
+                    </button>
+                </div>
+            `).join('') : '<div class="campo-admin-empty"><strong>Sin archivos Echometer</strong><p>No se adjuntaron mediciones Echometer en esta jornada.</p></div>';
+        }
+
+        if (vsdListEl) {
+            vsdListEl.innerHTML = vsdDocs.length > 0 ? vsdDocs.map(doc => `
+                <div style="padding:12px; border-radius:12px; background:#fff; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div>
+                        <strong style="font-size:0.88rem; color:#0f172a; display:block;">${escapeHtml(doc.nombre_archivo || 'Data VSD')}</strong>
+                        <span style="font-size:0.78rem; color:#64748b;">Pozo: ${escapeHtml(doc.pozo_name)} · ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
+                    </div>
+                    <button type="button" class="btn-download-sidebar-doc" data-file-path="${escapeHtml(doc.file_path)}" style="padding:6px 12px; border-radius:8px; background:#d97706; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
+                        ⬇️ Descargar
+                    </button>
+                </div>
+            `).join('') : '<div class="campo-admin-empty"><strong>Sin descargas VSD</strong><p>No se adjuntaron descargas VSD en esta jornada.</p></div>';
+        }
+
+        document.querySelectorAll('.btn-download-sidebar-doc').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const path = e.currentTarget.dataset.filePath;
+                if (!path) return;
+                try {
+                    btn.disabled = true;
+                    btn.innerText = 'Generando link...';
+                    const { getDocumentDownloadUrl } = await import('./services/well-documents-service.js');
+                    const url = await getDocumentDownloadUrl(path);
+                    if (url) {
+                        window.open(url, '_blank');
+                    } else {
+                        alert('No se pudo obtener el enlace de descarga.');
+                    }
+                } catch (err) {
+                    console.error('Error al descargar documento:', err);
+                    alert(err.message || 'Error al obtener archivo');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = '⬇️ Descargar';
+                }
+            });
+        });
     }
 
     elements.detailShell.querySelectorAll('[data-detail-action]').forEach(button => {
@@ -2880,15 +2977,12 @@ async function bootstrap() {
 
         const tab = tabBtn.dataset.tab;
         const incidentsContent = document.getElementById('sidebar-incidents-content');
-        const filesContent = document.getElementById('sidebar-files-content');
+        const echometerContent = document.getElementById('sidebar-echometer-content');
+        const vsdContent = document.getElementById('sidebar-vsd-content');
 
-        if (tab === 'incidents') {
-            if (incidentsContent) incidentsContent.style.display = 'block';
-            if (filesContent) filesContent.style.display = 'none';
-        } else if (tab === 'files') {
-            if (incidentsContent) incidentsContent.style.display = 'none';
-            if (filesContent) filesContent.style.display = 'block';
-        }
+        if (incidentsContent) incidentsContent.style.display = (tab === 'incidents') ? 'block' : 'none';
+        if (echometerContent) echometerContent.style.display = (tab === 'echometer') ? 'block' : 'none';
+        if (vsdContent) vsdContent.style.display = (tab === 'vsd') ? 'block' : 'none';
     });
 
     await loadJourneys();

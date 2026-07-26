@@ -1342,7 +1342,7 @@
         }
 
         .manual-form-panel {
-            display: none;
+            display: block;
             margin-top: 4px;
             animation: technicalFormReveal 0.22s ease;
         }
