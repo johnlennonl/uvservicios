@@ -369,14 +369,24 @@
                         </div>
                     </div>
 
-                    <div class="stats-filter-panel" style="margin-top: 16px;">
+                    <div class="stats-filter-panel" style="margin-top: 16px; background:#ffffff; border:1px solid #cbd5e1; border-radius:16px; padding:24px; box-shadow: 0 4px 20px -2px rgba(15,23,42,0.06);">
                         <form id="custom-report-form">
-                            <!-- Grid de opciones del reporte -->
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                            <!-- Encabezado del Panel -->
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:14px; margin-bottom:20px;">
+                                <div>
+                                    <h2 style="font-size:1.1rem; font-weight:800; color:#0f172a; margin:0; display:flex; align-items:center; gap:8px;">
+                                        <i class="fa-solid fa-sliders" style="color:#2563eb;"></i> Panel de Configuración de Reporte Gerencial
+                                    </h2>
+                                    <p style="font-size:0.8rem; color:#64748b; margin:4px 0 0 0;">Seleccione los pozos, rango de fechas y variables técnicas a incluir en el análisis.</p>
+                                </div>
+                            </div>
+
+                            <!-- Fila 1: Selección de Pozos y Periodo -->
+                            <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; align-items: start;">
                                 <!-- 1. Pozo(s) -->
-                                <div style="grid-column: span 2;">
+                                <div>
                                     <label style="display:flex; flex-direction:column; gap:6px;">
-                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">1. Pozo(s) del Reporte</span>
+                                        <span style="font-weight:800; color:#1e293b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em;">1. Pozos del Reporte</span>
                                         <div id="custom-report-wells-container" class="multi-select" data-placeholder="Seleccionar pozos (ej: TOM0008)...">
                                             <div class="ms-chips" id="custom-ms-chips"></div>
                                             <input type="text" id="custom-ms-input" class="ms-input" placeholder="Buscar y elegir pozo(s)..." autocomplete="off">
@@ -387,148 +397,178 @@
 
                                 <!-- 2. Rango Temporal -->
                                 <div>
-                                    <label style="display:flex; flex-direction:column; gap:6px;">
-                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">2. Periodo / Rango Días</span>
-                                        <div class="custom-preset-row">
-                                            <button type="button" class="custom-days-btn" data-days="7">7 Días</button>
-                                            <button type="button" class="custom-days-btn active" data-days="15">15 Días</button>
-                                            <button type="button" class="custom-days-btn" data-days="30">30 Días</button>
+                                    <div style="display:flex; flex-direction:column; gap:10px;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <span style="font-weight:800; color:#1e293b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em;">2. Periodo / Rango Días</span>
+                                            <div class="custom-preset-row" style="margin:0;">
+                                                <button type="button" class="custom-days-btn" data-days="7">7 Días</button>
+                                                <button type="button" class="custom-days-btn active" data-days="15">15 Días</button>
+                                                <button type="button" class="custom-days-btn" data-days="30">30 Días</button>
+                                            </div>
                                         </div>
-                                    </label>
-                                </div>
 
-                                <!-- Fechas Manuales -->
-                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                                    <label style="display:flex; flex-direction:column; gap:6px;">
-                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Desde</span>
-                                        <input type="date" id="custom-start-date" class="custom-input-date">
-                                    </label>
-                                    <label style="display:flex; flex-direction:column; gap:6px;">
-                                        <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Hasta</span>
-                                        <input type="date" id="custom-end-date" class="custom-input-date">
-                                    </label>
+                                        <!-- Fechas Manuales -->
+                                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                            <label style="display:flex; flex-direction:column; gap:4px;">
+                                                <span style="font-weight:700; color:#64748b; font-size:0.75rem; text-transform:uppercase;">Desde</span>
+                                                <input type="date" id="custom-start-date" class="custom-input-date">
+                                            </label>
+                                            <label style="display:flex; flex-direction:column; gap:4px;">
+                                                <span style="font-weight:700; color:#64748b; font-size:0.75rem; text-transform:uppercase;">Hasta</span>
+                                                <input type="date" id="custom-end-date" class="custom-input-date">
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- 3. Selección de Parámetros y Variables -->
-                            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #e2e8f0;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
-                                    <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">3. Variables / Parámetros a Graficar</span>
-                                    
-                                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                                        <!-- Selector de Modo: Combinado vs Separados -->
-                                        <div style="display:inline-flex; background:#f1f5f9; padding:3px; border-radius:10px; border:1px solid #cbd5e1;">
-                                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#0f172a; padding:4px 10px; border-radius:8px; transition:all 0.2s;" id="label-mode-combined">
+                            <!-- Fila 2: Selección de Parámetros (TODOS DESMARCADOS POR DEFECTO PARA SELECCIÓN MANUAL) -->
+                            <div style="margin-top: 22px; padding-top: 18px; border-top: 1px solid #e2e8f0;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                    <span style="font-weight:800; color:#1e293b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em;">3. Variables / Parámetros a Graficar (Selección Manual)</span>
+                                    <span style="font-size:0.75rem; color:#64748b; font-weight:600;">Selecciona 1 o más variables</span>
+                                </div>
+                                
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                                    <!-- Grupo A: Presiones -->
+                                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px;">
+                                        <span style="font-size:0.76rem; font-weight:800; color:#2563eb; text-transform:uppercase; display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+                                            🔹 Presiones Operativas de Pozo
+                                        </span>
+                                        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="presion_chp">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#2563EB;"></span>
+                                                    <span>Presión CHP [psi]</span>
+                                                </span>
+                                            </label>
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="presion_thp">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#D97706;"></span>
+                                                    <span>Presión THP [psi]</span>
+                                                </span>
+                                            </label>
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="presion_lf">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#059669;"></span>
+                                                    <span>Presión LF [psi]</span>
+                                                </span>
+                                            </label>
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="pip">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#7C3AED;"></span>
+                                                    <span>Presión PIP [psi]</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Grupo B: Variables Eléctricas y VSD -->
+                                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px;">
+                                        <span style="font-size:0.76rem; font-weight:800; color:#d97706; text-transform:uppercase; display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+                                            ⚡ Parámetros Eléctricos y VSD
+                                        </span>
+                                        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="corriente_motor">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#DC2626;"></span>
+                                                    <span>Corriente Motor [A]</span>
+                                                </span>
+                                            </label>
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="frecuencia">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#0284C7;"></span>
+                                                    <span>Frecuencia VSD [Hz]</span>
+                                                </span>
+                                            </label>
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="vsd_a">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#EA580C;"></span>
+                                                    <span>VSD A</span>
+                                                </span>
+                                            </label>
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="vsd_b">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#4F46E5;"></span>
+                                                    <span>VSD B</span>
+                                                </span>
+                                            </label>
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="vsd_c">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#0891B2;"></span>
+                                                    <span>VSD C</span>
+                                                </span>
+                                            </label>
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="tm">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#9333EA;"></span>
+                                                    <span>Temperatura TM [°F]</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Fila 3: Opciones de Formato y Presentación -->
+                            <div style="margin-top: 18px; padding: 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; display:grid; grid-template-columns: 1fr auto; gap:20px; align-items:center;">
+                                <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+                                    <!-- Modo de Gráfico -->
+                                    <div style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-size:0.72rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.03em;">Modo de Presentación</span>
+                                        <div style="display:inline-flex; background:#ffffff; padding:3px; border-radius:10px; border:1px solid #cbd5e1;">
+                                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#0f172a; padding:6px 12px; border-radius:8px; transition:all 0.2s;" id="label-mode-combined">
                                                 <input type="radio" name="custom-chart-mode" value="combined" checked style="accent-color:#2563eb; cursor:pointer;">
                                                 <span>📊 Gráfico Combinado (Lienzo Único)</span>
                                             </label>
-                                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#64748b; padding:4px 10px; border-radius:8px; transition:all 0.2s;" id="label-mode-individual">
+                                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#64748b; padding:6px 12px; border-radius:8px; transition:all 0.2s;" id="label-mode-individual">
                                                 <input type="radio" name="custom-chart-mode" value="individual" style="accent-color:#2563eb; cursor:pointer;">
                                                 <span>📉 Gráficos Separados</span>
                                             </label>
                                         </div>
+                                    </div>
 
-                                        <!-- Selector de Estilo Visual -->
-                                        <select id="custom-chart-style" style="padding:4px 10px; font-size:0.8rem; font-weight:700; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; cursor:pointer;">
+                                    <!-- Estilo Visual -->
+                                    <div style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-size:0.72rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.03em;">Estilo de Línea</span>
+                                        <select id="custom-chart-style" style="padding:0 12px; font-size:0.8rem; font-weight:700; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; cursor:pointer; height:36px;">
                                             <option value="line">📈 Líneas Suaves (Spline)</option>
                                             <option value="area">🌊 Área Sombreada</option>
                                             <option value="bar">📊 Barras Combinadas</option>
                                         </select>
+                                    </div>
 
-                                        <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.82rem; font-weight:700; color:#1e40af; background:#eff6ff; padding:4px 10px; border-radius:8px; border:1px solid #bfdbfe;">
+                                    <!-- Valores sobre puntos -->
+                                    <div style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-size:0.72rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.03em;">Opciones de Lectura</span>
+                                        <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#1e40af; background:#eff6ff; padding:0 12px; border-radius:8px; border:1px solid #bfdbfe; height:36px;">
                                             <input type="checkbox" id="custom-show-datalabels" style="accent-color:#2563eb; cursor:pointer;">
                                             <span>Valores sobre puntos</span>
                                         </label>
                                     </div>
                                 </div>
-                                
-                                <div class="param-chips-grid">
-                                    <label class="param-chip-checkbox">
-                                        <input type="checkbox" name="custom-vars" value="presion_chp" checked>
-                                        <span class="chip-content">
-                                            <span class="chip-dot" style="background:#2563EB;"></span>
-                                            <span>Presión CHP [psi]</span>
-                                        </span>
-                                    </label>
-                                    <label class="param-chip-checkbox">
-                                        <input type="checkbox" name="custom-vars" value="presion_thp" checked>
-                                        <span class="chip-content">
-                                            <span class="chip-dot" style="background:#D97706;"></span>
-                                            <span>Presión THP [psi]</span>
-                                        </span>
-                                    </label>
-                                    <label class="param-chip-checkbox">
-                                        <input type="checkbox" name="custom-vars" value="presion_lf" checked>
-                                        <span class="chip-content">
-                                            <span class="chip-dot" style="background:#059669;"></span>
-                                            <span>Presión LF [psi]</span>
-                                        </span>
-                                    </label>
-                                    <label class="param-chip-checkbox">
-                                        <input type="checkbox" name="custom-vars" value="pip" checked>
-                                        <span class="chip-content">
-                                            <span class="chip-dot" style="background:#7C3AED;"></span>
-                                            <span>Presión PIP [psi]</span>
-                                        </span>
-                                    </label>
-                                    <label class="param-chip-checkbox">
-                                        <input type="checkbox" name="custom-vars" value="corriente_motor">
-                                        <span class="chip-content">
-                                            <span class="chip-dot" style="background:#DC2626;"></span>
-                                            <span>Corriente Motor [A]</span>
-                                        </span>
-                                    </label>
-                                    <label class="param-chip-checkbox">
-                                        <input type="checkbox" name="custom-vars" value="frecuencia">
-                                        <span class="chip-content">
-                                            <span class="chip-dot" style="background:#0284C7;"></span>
-                                            <span>Frecuencia VSD [Hz]</span>
-                                        </span>
-                                    </label>
-                                    <label class="param-chip-checkbox">
-                                        <input type="checkbox" name="custom-vars" value="vsd_a">
-                                        <span class="chip-content">
-                                            <span class="chip-dot" style="background:#EA580C;"></span>
-                                            <span>VSD A</span>
-                                        </span>
-                                    </label>
-                                    <label class="param-chip-checkbox">
-                                        <input type="checkbox" name="custom-vars" value="vsd_b">
-                                        <span class="chip-content">
-                                            <span class="chip-dot" style="background:#4F46E5;"></span>
-                                            <span>VSD B</span>
-                                        </span>
-                                    </label>
-                                    <label class="param-chip-checkbox">
-                                        <input type="checkbox" name="custom-vars" value="vsd_c">
-                                        <span class="chip-content">
-                                            <span class="chip-dot" style="background:#0891B2;"></span>
-                                            <span>VSD C</span>
-                                        </span>
-                                    </label>
-                                    <label class="param-chip-checkbox">
-                                        <input type="checkbox" name="custom-vars" value="tm">
-                                        <span class="chip-content">
-                                            <span class="chip-dot" style="background:#9333EA;"></span>
-                                            <span>Temperatura TM [°F]</span>
-                                        </span>
-                                    </label>
-                                </div>
                             </div>
 
-                            <!-- 4. Título personalizado y botones -->
-                            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:14px; margin-top:18px; padding-top:14px; border-top:1px solid #e2e8f0; align-items:end;">
+                            <!-- Fila 4: Título Personalizado y Botón Generar (Alineación Perfecta) -->
+                            <div style="display:grid; grid-template-columns: 1fr auto; gap:20px; margin-top:20px; align-items:end;">
                                 <label style="display:flex; flex-direction:column; gap:6px;">
-                                    <span style="font-weight:700; color:#475569; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em;">Título Personalizado del Reporte</span>
-                                    <input type="text" id="custom-report-title-input" placeholder="Ej: Reporte Ejecutivo Presiones CHP / THP / LF y VSD" class="custom-input-text">
+                                    <span style="font-weight:800; color:#1e293b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em;">Título Personalizado del Reporte (Opcional)</span>
+                                    <input type="text" id="custom-report-title-input" placeholder="Ej: Reporte Ejecutivo Presiones CHP / THP / LF y VSD" style="width:100%; height:46px; border-radius:10px; border:1px solid #cbd5e1; padding:0 16px; font-size:0.9rem; font-weight:600; color:#0f172a; background:#ffffff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);">
                                 </label>
 
-                                <div style="display:flex; gap:10px; justify-content:flex-end;">
-                                    <button type="submit" id="btn-generate-custom-report" class="stats-generate-btn" style="height:44px;">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                                        <span>Generar Reporte</span>
-                                    </button>
-                                </div>
+                                <button type="submit" id="btn-generate-custom-report" class="btn-generate-report" style="height:46px; padding:0 28px; font-weight:800; font-size:0.95rem; border-radius:10px; background:linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color:#ffffff; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:10px; box-shadow:0 4px 14px rgba(37,99,235,0.3); transition:all 0.2s;">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                    <span>Generar Reporte Gerencial</span>
                             </div>
                         </form>
                     </div>
