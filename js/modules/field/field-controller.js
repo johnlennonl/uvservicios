@@ -2250,7 +2250,10 @@ function openFieldAttachmentsModal(reports) {
         if (estatus === 'OFF') return false; // Pozos en OFF NUNCA solicitan archivos
 
         const echometerYes = String(report.echometer || '').trim().toUpperCase() === 'SI';
-        const vsdYes = String(report.descarga_datas_sensor || report.baja_datos || report.descarga_datas_vsd || '').trim().toUpperCase() === 'SI';
+        
+        const isSensorDataYes = String(report.descarga_datas_sensor || '').trim().toUpperCase() === 'SI';
+        const isVsdDataYes = String(report.descarga_datas_vsd || '').trim().toUpperCase() === 'SI';
+        const vsdYes = isSensorDataYes || isVsdDataYes;
 
         return echometerYes || vsdYes;
     });
@@ -2276,7 +2279,10 @@ function openFieldAttachmentsModal(reports) {
     body.innerHTML = reportsNeedingFiles.map((report, idx) => {
         const pozoName = String(report.pozo || report.pozo_name || `Pozo #${idx + 1}`).trim().toUpperCase();
         const echometerYes = String(report.echometer || '').trim().toUpperCase() === 'SI';
-        const vsdYes = String(report.descarga_datas_sensor || report.baja_datos || report.descarga_datas_vsd || '').trim().toUpperCase() === 'SI';
+        
+        const isSensorDataYes = String(report.descarga_datas_sensor || '').trim().toUpperCase() === 'SI';
+        const isVsdDataYes = String(report.descarga_datas_vsd || '').trim().toUpperCase() === 'SI';
+        const vsdYes = isSensorDataYes || isVsdDataYes;
 
         const echometerFieldHtml = echometerYes ? `
             <div style="background:#f8fafc; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
@@ -2316,6 +2322,14 @@ function openFieldAttachmentsModal(reports) {
     }).join('');
 
     modal.style.display = 'flex';
+
+    // Proteger el modal contra clics accidentales fuera del recuadro
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    };
 
     const closeModal = () => {
         modal.style.display = 'none';
