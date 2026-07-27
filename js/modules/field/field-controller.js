@@ -1112,8 +1112,14 @@ function syncSensorFondoRequirements() {
     const descargaDataSelect = document.querySelector('[name="descarga_datas_sensor"]');
     if (descargaDataSelect) {
         const group = descargaDataSelect.closest('.field-input-group');
-        descargaDataSelect.disabled = false;
-        group?.classList.remove('field-input-disabled');
+        if (isNoSensor || panelSensorSelect?.value === 'SIN PANEL') {
+            descargaDataSelect.value = 'NO';
+            descargaDataSelect.disabled = true;
+            group?.classList.add('field-input-disabled');
+        } else {
+            descargaDataSelect.disabled = false;
+            group?.classList.remove('field-input-disabled');
+        }
     }
 
     const sensorReqGroups = document.querySelectorAll('[data-sensor-req-group="true"]');
