@@ -244,7 +244,7 @@
                                 <label class="field-input-group field-input-group-readonly"><span>% Desbalance Corriente VSD [A]</span><input type="number" step="0.01" name="desbalance_corriente_vsd" readonly></label>
                                 <label class="field-input-group" data-op-req-group="true"><span>POSEE SENSOR DE FONDO? <em class="field-req-mark">*</em></span><select name="posee_sensor_fondo" id="field-posee-sensor-fondo"><option value="SI" selected>SI</option><option value="NO">NO</option></select></label>
                                 <label class="field-input-group"><span>ESTADO DEL PANEL DEL SENSOR</span><select name="estado_panel_sensor_choques"><option value="BUENO">BUENO</option><option value="MALO">MALO</option><option value="SIN PANEL">SIN PANEL</option></select></label>
-                                <label class="field-input-group"><span>DESCARGA DATAS DEL SENSOR</span><select name="descarga_datas_sensor"><option value="NO" selected>NO</option><option value="SI">SI</option></select></label>
+                                <label class="field-input-group"><span>DESCARGÓ DATA DEL SENSOR?</span><select name="descarga_datas_sensor"><option value="NO" selected>NO</option><option value="SI">SI</option></select></label>
                                 <label class="field-input-group" data-sensor-req-group="true"><span>PIP [psi] <em class="field-req-mark" hidden>*</em></span><input type="number" step="0.01" name="pip_psi"></label>
                                 <label class="field-input-group"><span>PD [psi]</span><input type="number" step="0.01" name="pd_psi"></label>
                                 <label class="field-input-group"><span>Ti [°F]</span><input type="number" step="0.01" name="ti_f"></label>
@@ -282,7 +282,7 @@
                                 <button type="button" id="field-surface-fixed-edit-btn" class="field-config-edit-btn">Modificar VSD / Tx</button>
                             </div>
                             <div class="field-accordion-body field-form-grid">
-                                <label class="field-input-group" data-surface-req="true"><span>BAJA DATOS? <em class="field-req-mark">*</em></span><select name="baja_datos"><option value="NO" selected>NO</option><option value="SI">SI</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>DESCARGÓ DATA DEL VDF? <em class="field-req-mark">*</em></span><select name="baja_datos"><option value="NO" selected>NO</option><option value="SI">SI</option></select></label>
                                 <label class="field-input-group field-input-group-readonly"><span>VSD [KVA]</span><input type="text" name="vsd_kva" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>MARCA VSD</span><input type="text" name="marca_vsd" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>MODELO VSD</span><input type="text" name="modelo_vsd" readonly></label>
@@ -511,9 +511,9 @@
                                 <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
                                 <span>Enviar captura</span>
                             </button>
-                            <button type="button" id="field-send-ticket-btn" class="btn-submit field-ticket-trigger-btn" title="Reportar incidencia">
-                                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                                <span>Reportar incidencia</span>
+                            <button type="button" id="field-open-attachments-btn" class="btn-submit field-ticket-trigger-btn" style="background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color: #ffffff;" title="Reportes y adjuntos de campo">
+                                <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
+                                <span>Reportes y adjuntos de campo</span>
                             </button>
                         </div>
                         <p id="field-summary-submit-copy">Cuando la lista esté completa, envía la captura para que administración la reciba como un solo paquete operativo.</p>
@@ -737,11 +737,11 @@
             </div>
 
             <!-- Footer -->
-            <div style="padding:16px 24px; background:#ffffff; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:16px;">
-                <button type="button" id="btn-cancel-adjuntos-modal" style="padding:10px 20px; font-weight:700; font-size:0.85rem; border-radius:10px; border:1px solid #cbd5e1; background:#ffffff; color:#475569; cursor:pointer;">
+            <div style="padding:14px 18px; background:#ffffff; border-top:1px solid #e2e8f0; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
+                <button type="button" id="btn-cancel-adjuntos-modal" style="padding:10px 16px; font-weight:700; font-size:0.82rem; border-radius:10px; border:1px solid #cbd5e1; background:#ffffff; color:#475569; cursor:pointer; flex:1; min-width:140px; text-align:center;">
                     ⬅️ Volver a la Jornada
                 </button>
-                <button type="button" id="btn-confirm-adjuntos-transmit" style="padding:12px 28px; font-weight:800; font-size:0.95rem; border-radius:10px; border:none; background:linear-gradient(135deg, #059669 0%, #10b981 100%); color:#ffffff; cursor:pointer; box-shadow:0 4px 14px rgba(16,185,129,0.3); display:inline-flex; align-items:center; gap:8px;">
+                <button type="button" id="btn-confirm-adjuntos-transmit" style="padding:12px 20px; font-weight:800; font-size:0.88rem; border-radius:10px; border:none; background:linear-gradient(135deg, #059669 0%, #10b981 100%); color:#ffffff; cursor:pointer; box-shadow:0 4px 14px rgba(16,185,129,0.3); display:inline-flex; align-items:center; justify-content:center; gap:8px; flex:1.2; min-width:200px;">
                     <i class="fa-solid fa-paper-plane"></i> Confirmar y Transmitir Jornada
                 </button>
             </div>

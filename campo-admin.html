@@ -3217,20 +3217,20 @@
                         <div class="campo-admin-panel-head" style="margin-bottom: 8px;">
                             <div>
                                 <h3>Incidencias y Archivos de Campo</h3>
-                                <p>Reportes de problemas, mediciones Echometer (.028, .zip) y Descarga de Data VSD (.dat, .zip).</p>
+                                <p>Respaldos digitales Echometer, Data Sensor de Fondo y Volcados VSD adjuntos en esta jornada.</p>
                             </div>
                         </div>
 
                         <!-- Pestañas -->
                         <div class="campo-admin-sidebar-tabs" style="display:flex; gap:6px; flex-wrap:wrap;">
-                            <button type="button" class="sidebar-tab-btn active" data-tab="echometer" style="flex:1; min-width:90px;">
+                            <button type="button" class="sidebar-tab-btn active" data-tab="echometer" style="flex:1; min-width:85px; padding:6px 8px; font-size:0.78rem;">
                                 📈 Echometer (<span id="campo-admin-sidebar-echometer-count">0</span>)
                             </button>
-                            <button type="button" class="sidebar-tab-btn" data-tab="vsd" style="flex:1; min-width:90px;">
-                                ⚡ VSD Data (<span id="campo-admin-sidebar-vsd-count">0</span>)
+                            <button type="button" class="sidebar-tab-btn" data-tab="sensor" style="flex:1; min-width:85px; padding:6px 8px; font-size:0.78rem;">
+                                📊 Data Sensor (<span id="campo-admin-sidebar-sensor-count">0</span>)
                             </button>
-                            <button type="button" class="sidebar-tab-btn" data-tab="incidents" style="flex:1; min-width:90px;">
-                                📌 Incidencias (<span id="campo-admin-sidebar-incidents-count">0</span>)
+                            <button type="button" class="sidebar-tab-btn" data-tab="vsd" style="flex:1; min-width:85px; padding:6px 8px; font-size:0.78rem;">
+                                ⚡ Data VSD (<span id="campo-admin-sidebar-vsd-count">0</span>)
                             </button>
                         </div>
 
@@ -3241,17 +3241,17 @@
                             </div>
                         </div>
 
+                        <!-- Contenedor Data Sensor de Fondo -->
+                        <div id="sidebar-sensor-content" class="sidebar-tab-content" style="display: none;">
+                            <div id="campo-admin-sidebar-sensor-list" class="campo-admin-files-list">
+                                <!-- Archivos Sensor Fondo -->
+                            </div>
+                        </div>
+
                         <!-- Contenedor Archivos VSD -->
                         <div id="sidebar-vsd-content" class="sidebar-tab-content" style="display: none;">
                             <div id="campo-admin-sidebar-vsd-list" class="campo-admin-files-list">
                                 <!-- Archivos VSD -->
-                            </div>
-                        </div>
-
-                        <!-- Contenedor Incidencias -->
-                        <div id="sidebar-incidents-content" class="sidebar-tab-content" style="display: none;">
-                            <div id="campo-admin-sidebar-incidents-list" class="campo-admin-incident-list">
-                                <!-- Incidencias se renderizan dinámicamente -->
                             </div>
                         </div>
                     </div>

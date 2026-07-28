@@ -59,10 +59,17 @@ const DOCUMENT_CATEGORIES = [
         description: 'Mediciones de nivel de fluido, disparos acústicos y archivos Echometer (.028, .019, .twm).'
     },
     {
+        key: 'DATA_SENSOR_FONDO',
+        name: 'DATA SENSOR DE FONDO',
+        icon: 'fa-solid fa-microchip',
+        cssClass: 'folder-sensor',
+        description: 'Registros y descargas de datos de sensor de fondo (.dat, .raw, .zip, .txt).'
+    },
+    {
         key: 'VOLCADOS_VSD',
         name: 'DESCARGA DE DATA VSD',
-        icon: '⚡',
-        folderName: 'Descarga_Data_VSD',
+        icon: 'fa-solid fa-bolt',
+        cssClass: 'folder-vsd',
         description: 'Registros de memoria, descargas de data de variador (.dat, .raw, .zip) y parámetros de frecuencia.'
     }
 ];

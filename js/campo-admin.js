@@ -155,7 +155,7 @@ const RECORD_EDITOR_SECTIONS = [
             ['MAXIMO ABS I VSD', 'max_desviacion_vsd'],
             ['% Desbalance Corriente VSD', 'desbalance_corriente_vsd'],
             ['Posee sensor de fondo', 'posee_sensor_fondo'],
-            ['Descarga datas del sensor', 'descarga_datas_sensor'],
+            ['Descargó data del sensor', 'descarga_datas_sensor'],
             ['PIP [psi]', 'pip_psi'],
             ['PD [psi]', 'pd_psi'],
             ['Ti [F]', 'ti_f'],
@@ -183,7 +183,7 @@ const RECORD_EDITOR_SECTIONS = [
     {
         title: 'Superficie',
         fields: [
-            ['Baja datos', 'baja_datos'],
+            ['Descargó data del VDF', 'baja_datos'],
             ['VSD [KVA]', 'vsd_kva'],
             ['Marca VSD', 'marca_vsd'],
             ['Modelo VSD', 'modelo_vsd'],
@@ -2579,6 +2579,7 @@ async function renderDetail(detail) {
 
     const wellNames = Array.from(new Set(records.map(r => r.pozo_name || r.pozo).filter(Boolean)));
     let echometerDocs = [];
+    let sensorDocs = [];
     let vsdDocs = [];
 
     if (wellNames.length > 0) {
@@ -2591,13 +2592,14 @@ async function renderDetail(detail) {
             const isMatchingJourney = (d) => {
                 const desc = String(d.descripcion || '');
                 if (desc.includes('[JORNADA_ID:')) {
-                    return desc.includes(`[JORNADA_ID:${journeyIdStr}]`);
+                    if (journeyIdStr && desc.includes(`[JORNADA_ID:${journeyIdStr}]`)) return true;
+                    if (String(journey.status || '').toLowerCase() === 'draft') return true;
                 }
-                // Archivos antiguos de prueba sin etiqueta de jornada NO se muestran en la bandeja actual
                 return false;
             };
 
             echometerDocs = allDocs.filter(d => d.categoria === 'REGISTROS_ECHOMETER' && isMatchingJourney(d));
+            sensorDocs = allDocs.filter(d => d.categoria === 'DATA_SENSOR_FONDO' && isMatchingJourney(d));
             vsdDocs = allDocs.filter(d => d.categoria === 'VOLCADOS_VSD' && isMatchingJourney(d));
         } catch (err) {
             console.warn('Error al consultar archivos adjuntos de pozos:', err);
@@ -2612,10 +2614,13 @@ async function renderDetail(detail) {
 
         const echometerCountEl = document.getElementById('campo-admin-sidebar-echometer-count');
         const echometerListEl = document.getElementById('campo-admin-sidebar-echometer-list');
+        const sensorCountEl = document.getElementById('campo-admin-sidebar-sensor-count');
+        const sensorListEl = document.getElementById('campo-admin-sidebar-sensor-list');
         const vsdCountEl = document.getElementById('campo-admin-sidebar-vsd-count');
         const vsdListEl = document.getElementById('campo-admin-sidebar-vsd-list');
 
         if (echometerCountEl) echometerCountEl.textContent = String(echometerDocs.length);
+        if (sensorCountEl) sensorCountEl.textContent = String(sensorDocs.length);
         if (vsdCountEl) vsdCountEl.textContent = String(vsdDocs.length);
 
         if (echometerListEl) {
@@ -2630,6 +2635,20 @@ async function renderDetail(detail) {
                     </button>
                 </div>
             `).join('') : '<div class="campo-admin-empty"><strong>Sin archivos Echometer</strong><p>No se adjuntaron mediciones Echometer en esta jornada.</p></div>';
+        }
+
+        if (sensorListEl) {
+            sensorListEl.innerHTML = sensorDocs.length > 0 ? sensorDocs.map(doc => `
+                <div style="padding:12px; border-radius:12px; background:#fff; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div>
+                        <strong style="font-size:0.88rem; color:#0f172a; display:block;">${escapeHtml(doc.nombre_archivo || 'Data Sensor Fondo')}</strong>
+                        <span style="font-size:0.78rem; color:#64748b;">Pozo: ${escapeHtml(doc.pozo_name)} · ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
+                    </div>
+                    <button type="button" class="btn-download-sidebar-doc" data-file-path="${escapeHtml(doc.file_path)}" style="padding:6px 12px; border-radius:8px; background:#0d9488; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
+                        ⬇️ Descargar
+                    </button>
+                </div>
+            `).join('') : '<div class="campo-admin-empty"><strong>Sin data de sensor</strong><p>No se adjuntaron descargas de sensor de fondo en esta jornada.</p></div>';
         }
 
         if (vsdListEl) {
@@ -2976,13 +2995,15 @@ async function bootstrap() {
         tabBtn.classList.add('active');
 
         const tab = tabBtn.dataset.tab;
-        const incidentsContent = document.getElementById('sidebar-incidents-content');
         const echometerContent = document.getElementById('sidebar-echometer-content');
+        const sensorContent = document.getElementById('sidebar-sensor-content');
         const vsdContent = document.getElementById('sidebar-vsd-content');
+        const incidentsContent = document.getElementById('sidebar-incidents-content');
 
-        if (incidentsContent) incidentsContent.style.display = (tab === 'incidents') ? 'block' : 'none';
         if (echometerContent) echometerContent.style.display = (tab === 'echometer') ? 'block' : 'none';
+        if (sensorContent) sensorContent.style.display = (tab === 'sensor') ? 'block' : 'none';
         if (vsdContent) vsdContent.style.display = (tab === 'vsd') ? 'block' : 'none';
+        if (incidentsContent) incidentsContent.style.display = (tab === 'incidents') ? 'block' : 'none';
     });
 
     await loadJourneys();

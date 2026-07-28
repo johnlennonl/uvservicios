@@ -341,7 +341,7 @@ export function validateFieldReport(payload, options = {}) {
         }
 
         const missingSuperficie = [];
-        if (!hasValue(normalizedPayload.baja_datos)) missingSuperficie.push('BAJA DATOS?');
+        if (!hasValue(normalizedPayload.baja_datos)) missingSuperficie.push('DESCARGÓ DATA DEL VDF?');
         if (!hasValue(normalizedPayload.estado_tx)) missingSuperficie.push('ESTADO DEL TX');
         if (!hasValue(normalizedPayload.estado_vsd)) missingSuperficie.push('ESTADO DEL VSD');
         if (!hasValue(normalizedPayload.estado_panel_sensor_choques)) missingSuperficie.push('PANEL DEL SENSOR');
@@ -435,7 +435,7 @@ export function validateSectionParameters(sectionIndex, payload = {}) {
         }
     } else if (sectionIndex === 3) { // Condiciones de Superficie
         if (!isOff) {
-            if (!hasValue(payload.baja_datos)) missing.push('BAJA DATOS?');
+            if (!hasValue(payload.baja_datos)) missing.push('DESCARGÓ DATA DEL VDF?');
             if (!hasValue(payload.estado_tx)) missing.push('ESTADO DEL TX');
             if (!hasValue(payload.estado_vsd)) missing.push('ESTADO DEL VSD');
             if (!hasValue(payload.estado_aterramiento)) missing.push('ATERRAMIENTO');

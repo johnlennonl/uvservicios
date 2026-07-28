@@ -308,6 +308,7 @@
                     <button type="button" id="btn-operational-history" class="history-mode-btn active">Historial Operativo</button>
                     <button type="button" id="btn-technical-history" class="history-mode-btn">Historial de Medición Técnica</button>
                     <button type="button" id="btn-echometer-history" class="history-mode-btn">📈 Archivos Echometer</button>
+                    <button type="button" id="btn-sensor-history" class="history-mode-btn">📊 Data Sensor de Fondo</button>
                     <button type="button" id="btn-vsd-history" class="history-mode-btn">⚡ Descarga de Data VSD</button>
                 </div>
                 <select id="filter-date"
@@ -1034,6 +1035,7 @@
             document.getElementById('btn-operational-history').classList.toggle('active', mode === 'operational');
             document.getElementById('btn-technical-history').classList.toggle('active', mode === 'technical');
             document.getElementById('btn-echometer-history').classList.toggle('active', mode === 'echometer');
+            document.getElementById('btn-sensor-history').classList.toggle('active', mode === 'sensor');
             document.getElementById('btn-vsd-history').classList.toggle('active', mode === 'vsd');
 
             renderHistoryHead();
@@ -1050,7 +1052,7 @@
 
             table?.classList.toggle('technical-history-table', activeHistoryMode === 'technical');
 
-            if (activeHistoryMode === 'echometer' || activeHistoryMode === 'vsd') {
+            if (activeHistoryMode === 'echometer' || activeHistoryMode === 'sensor' || activeHistoryMode === 'vsd') {
                 thead.innerHTML = `
                     <tr>
                         <th>Fecha de Carga</th>
@@ -1158,6 +1160,7 @@
             document.getElementById('btn-operational-history').addEventListener('click', () => setHistoryMode('operational'));
             document.getElementById('btn-technical-history').addEventListener('click', () => setHistoryMode('technical'));
             document.getElementById('btn-echometer-history').addEventListener('click', () => setHistoryMode('echometer'));
+            document.getElementById('btn-sensor-history').addEventListener('click', () => setHistoryMode('sensor'));
             document.getElementById('btn-vsd-history').addEventListener('click', () => setHistoryMode('vsd'));
             document.getElementById('data-view-mode').addEventListener('change', (event) => setDataViewMode(event.target.value));
             document.getElementById('ticket-date').addEventListener('change', loadDailyTicketData);
@@ -1329,9 +1332,11 @@
         async function loadPozoData() {
             if (!activePozo) return;
 
-            if (activeHistoryMode === 'echometer' || activeHistoryMode === 'vsd') {
+            if (activeHistoryMode === 'echometer' || activeHistoryMode === 'sensor' || activeHistoryMode === 'vsd') {
                 document.getElementById('table-title').textContent = activeHistoryMode === 'echometer'
                     ? `Archivos Echometer: ${activePozo}`
+                    : activeHistoryMode === 'sensor'
+                    ? `Data Sensor de Fondo: ${activePozo}`
                     : `Descarga de Data VSD: ${activePozo}`;
                 await loadPozoDocumentFiles(activePozo, activeHistoryMode);
                 return;
@@ -1372,11 +1377,16 @@
             const tbody = document.getElementById('history-body');
             const countLabel = document.getElementById('record-count');
             if (!tbody) return;
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 40px;">Cargando archivos de ${mode === 'echometer' ? 'Echometer' : 'Data VSD'}...</td></tr>`;
+            const modeText = mode === 'echometer' ? 'Echometer' : mode === 'sensor' ? 'Sensor de Fondo' : 'Data VSD';
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 40px;">Cargando archivos de ${modeText}...</td></tr>`;
 
             try {
                 const { getWellDocuments, getDocumentDownloadUrl } = await import('./js/services/well-documents-service.js');
-                const categoryFilter = mode === 'echometer' ? 'REGISTROS_ECHOMETER' : 'VOLCADOS_VSD';
+                const categoryFilter = mode === 'echometer' 
+                    ? 'REGISTROS_ECHOMETER' 
+                    : mode === 'sensor' 
+                    ? 'DATA_SENSOR_FONDO' 
+                    : 'VOLCADOS_VSD';
                 const docs = await getWellDocuments({ pozoName, category: categoryFilter });
 
                 if (countLabel) {
@@ -1384,7 +1394,8 @@
                 }
 
                 if (!docs || docs.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay archivos de ${mode === 'echometer' ? 'Echometer' : 'Descarga VSD'} registrados para el pozo ${escapeHtml(pozoName)}</td></tr>`;
+                    const emptyText = mode === 'echometer' ? 'Echometer' : mode === 'sensor' ? 'Sensor de Fondo' : 'Descarga VSD';
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay archivos de ${emptyText} registrados para el pozo ${escapeHtml(pozoName)}</td></tr>`;
                     return;
                 }
 
@@ -1393,14 +1404,29 @@
                     const tr = document.createElement('tr');
                     const createdDate = doc.created_at ? new Date(doc.created_at).toLocaleString('es-VE') : '--';
                     const fileName = doc.nombre_archivo || doc.file_name || 'Archivo_Adjunto';
-                    const badgeBg = mode === 'echometer' ? 'rgba(37, 99, 235, 0.12)' : 'rgba(217, 119, 6, 0.12)';
-                    const badgeColor = mode === 'echometer' ? '#2563eb' : '#d97706';
+                    
+                    const badgeBg = mode === 'echometer' 
+                        ? 'rgba(37, 99, 235, 0.12)' 
+                        : mode === 'sensor' 
+                        ? 'rgba(13, 148, 136, 0.12)' 
+                        : 'rgba(217, 119, 6, 0.12)';
+                    const badgeColor = mode === 'echometer' 
+                        ? '#2563eb' 
+                        : mode === 'sensor' 
+                        ? '#0d9488' 
+                        : '#d97706';
+                    const badgeLabel = mode === 'echometer' 
+                        ? '📈 Echometer' 
+                        : mode === 'sensor' 
+                        ? '📊 Data Sensor' 
+                        : '⚡ Data VSD';
+
                     const userEmail = doc.uploaded_by_email || doc.usuario || 'Técnico de Campo';
                     const sizeMb = doc.tamaño_bytes ? `${(doc.tamaño_bytes / (1024 * 1024)).toFixed(2)} MB` : '--';
 
                     tr.innerHTML = `
                         <td style="padding: 12px 16px;"><strong>${escapeHtml(createdDate)}</strong></td>
-                        <td style="padding: 12px 16px;"><span style="display:inline-block; padding:4px 12px; border-radius:12px; font-weight:800; font-size:0.78rem; background:${badgeBg}; color:${badgeColor};">${escapeHtml(mode === 'echometer' ? '📈 Echometer' : '⚡ Data VSD')}</span></td>
+                        <td style="padding: 12px 16px;"><span style="display:inline-block; padding:4px 12px; border-radius:12px; font-weight:800; font-size:0.78rem; background:${badgeBg}; color:${badgeColor};">${escapeHtml(badgeLabel)}</span></td>
                         <td style="padding: 12px 16px;"><strong style="color:#0f172a; font-size:0.92rem;">${escapeHtml(fileName)}</strong></td>
                         <td style="padding: 12px 16px;"><span style="font-size:0.85rem; color:#475569;">${escapeHtml(userEmail)}</span></td>
                         <td style="text-align:center; padding: 12px 16px;"><small style="color:#64748b; font-weight:700;">${escapeHtml(sizeMb)}</small></td>

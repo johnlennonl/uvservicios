@@ -1881,6 +1881,13 @@ body {
     box-shadow: 0 12px 24px rgba(15, 118, 110, 0.16);
 }
 
+.field-submit-action-row .btn-submit {
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
 .field-ticket-trigger-btn:hover {
     background: linear-gradient(135deg, #115e59, #0f766e);
     box-shadow: 0 14px 26px rgba(15, 118, 110, 0.2);

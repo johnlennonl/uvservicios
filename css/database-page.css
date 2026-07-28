@@ -320,6 +320,9 @@
 .folder-informes .folder-card-icon { background: #dcfce7; color: #16a34a; }
 .folder-pruebas .folder-card-icon { background: #fef3c7; color: #d97706; }
 .folder-fichas .folder-card-icon { background: #f3e8ff; color: #9333ea; }
+.folder-echometer .folder-card-icon { background: #dbeafe; color: #2563eb; }
+.folder-sensor .folder-card-icon { background: #ccfbf1; color: #0d9488; }
+.folder-vsd .folder-card-icon { background: #fef3c7; color: #d97706; }
 
 .folder-card-title {
   font-size: 1.05rem;

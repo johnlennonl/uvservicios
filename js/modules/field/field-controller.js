@@ -2,6 +2,7 @@ import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile }
 import { getUniquePozos } from '../../services/monitoring-service.js';
 import { autosaveFieldJourneyDraft, submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney, getFieldSubmittedJourneys, getFieldSubmittedJourneyDetail, getLatestFieldJourneyDraft } from '../../services/field-journey-service.js';
 import { getWellRibbonData } from '../../services/technical-measurements-service.js';
+import { uploadWellDocument, deleteWellDocument, getWellDocuments } from '../../services/well-documents-service.js';
 import { validateFieldJourneyForSubmission, validateFieldReport, validateSectionParameters } from './field-validation.js';
 
 const DRAFT_STORAGE_KEY = 'uv-field-capture-draft';
@@ -74,7 +75,7 @@ const REPORT_COLUMNS = [
     ['TIEMPO DE DESACELERACIÓN [SEG]', 'tiempo_desaceleracion_seg'],
     ['LOW PIP SHUT DOWN [PSI]', 'low_pip_shutdown_psi'],
     ['MAX HIGH TEMP. SHUT DOWN [°F]', 'max_high_temp_shutdown_f'],
-    ['BAJA DATOS?', 'baja_datos'],
+    ['DESCARGÓ DATA DEL VDF?', 'baja_datos'],
     ['VSD [KVA]', 'vsd_kva'],
     ['MARCA VSD', 'marca_vsd'],
     ['MODELO VSD', 'modelo_vsd'],
@@ -96,7 +97,7 @@ const REPORT_COLUMNS = [
     ['ESTADO CAJA DE VENTEO', 'estado_caja_venteo'],
     ['OBSERVACIONES DEL POZO', 'observaciones_pozo'],
     ['POSEE SENSOR DE FONDO?', 'posee_sensor_fondo'],
-    ['DESCARGA DATAS DEL SENSOR', 'descarga_datas_sensor'],
+    ['DESCARGÓ DATA DEL SENSOR?', 'descarga_datas_sensor'],
     ['THP [psi]', 'thp_psi'],
     ['CHP [psi]', 'chp_psi'],
     ['LF [psi]', 'lf_psi'],
@@ -590,6 +591,10 @@ function bindStaticActions() {
     });
     ['message-company-mixta', 'message-company-service', 'message-activity', 'message-personnel'].forEach(fieldId => {
         document.getElementById(fieldId)?.addEventListener('input', syncJourneyMessageComposerText);
+    });
+    document.getElementById('field-open-attachments-btn')?.addEventListener('click', () => {
+        const reports = getJourneyReports();
+        openFieldAttachmentsModal(reports, true);
     });
     document.getElementById('field-send-ticket-btn')?.addEventListener('click', openTicketModal);
     document.getElementById('field-ticket-close')?.addEventListener('click', closeTicketModal);
@@ -1922,9 +1927,7 @@ function updateEditingContext(reports = getJourneyReports()) {
     if (submitBtn) {
         const span = submitBtn.querySelector('span');
         if (span) {
-            span.innerHTML = isEditingSubmitted 
-                ? '<i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Actualizar y enviar a revisión'
-                : '<i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Enviar captura';
+            span.textContent = isEditingSubmitted ? 'Actualizar y enviar a revisión' : 'Enviar captura';
         }
         submitBtn.title = isEditingSubmitted ? 'Actualizar captura en revisión' : 'Enviar captura a revisión';
     }
@@ -2243,27 +2246,7 @@ async function submitJourneyForAdminPreview() {
     openFieldAttachmentsModal(reports);
 }
 
-function openFieldAttachmentsModal(reports) {
-    // 1. Filtrar pozos que estén en RUN (estatus != OFF) y tengan 'SI' en Echometer o Baja de Data VSD
-    const reportsNeedingFiles = (Array.isArray(reports) ? reports : []).filter(report => {
-        const estatus = String(report.estatus || '').trim().toUpperCase();
-        if (estatus === 'OFF') return false; // Pozos en OFF NUNCA solicitan archivos
-
-        const echometerYes = String(report.echometer || '').trim().toUpperCase() === 'SI';
-        
-        const isSensorDataYes = String(report.descarga_datas_sensor || '').trim().toUpperCase() === 'SI';
-        const isVsdDataYes = String(report.descarga_datas_vsd || '').trim().toUpperCase() === 'SI';
-        const vsdYes = isSensorDataYes || isVsdDataYes;
-
-        return echometerYes || vsdYes;
-    });
-
-    // 2. Si ningún pozo de la jornada requirió archivos (o todos están en OFF/NO), transmitir directamente sin modal!
-    if (reportsNeedingFiles.length === 0) {
-        processAndExecuteJourneySubmission(reports);
-        return;
-    }
-
+async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
     const modal = document.getElementById('modal-adjuntos-jornada');
     const body = document.getElementById('modal-adjuntos-body');
     const btnCancel = document.getElementById('btn-cancel-adjuntos-modal');
@@ -2271,59 +2254,212 @@ function openFieldAttachmentsModal(reports) {
     const btnConfirm = document.getElementById('btn-confirm-adjuntos-transmit');
 
     if (!modal || !body) {
-        processAndExecuteJourneySubmission(reports);
+        if (!isManualTrigger) {
+            processAndExecuteJourneySubmission(reports);
+        }
         return;
     }
 
-    // 3. Renderizar SOLAMENTE los pozos que tienen 'SI' en el parámetro correspondiente
-    body.innerHTML = reportsNeedingFiles.map((report, idx) => {
-        const pozoName = String(report.pozo || report.pozo_name || `Pozo #${idx + 1}`).trim().toUpperCase();
+    modal.style.display = 'flex';
+
+    const allReports = Array.isArray(reports) ? reports : [];
+
+    const reportsToDisplay = isManualTrigger ? allReports.filter(r => String(r.estatus || '').toUpperCase() !== 'OFF') : allReports.filter(report => {
+        const estatus = String(report.estatus || '').trim().toUpperCase();
+        if (estatus === 'OFF') return false;
+
         const echometerYes = String(report.echometer || '').trim().toUpperCase() === 'SI';
-        
         const isSensorDataYes = String(report.descarga_datas_sensor || '').trim().toUpperCase() === 'SI';
         const isVsdDataYes = String(report.descarga_datas_vsd || '').trim().toUpperCase() === 'SI';
         const vsdYes = isSensorDataYes || isVsdDataYes;
 
-        const echometerFieldHtml = echometerYes ? `
-            <div style="background:#f8fafc; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
-                <label style="display:flex; flex-direction:column; gap:6px; font-size:0.82rem; font-weight:700; color:#1e293b;">
-                    <span>📈 Archivo Echometer (.028, .twm, .zip):</span>
-                    <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="REGISTROS_ECHOMETER" accept=".028,.twm,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:6px; border-radius:8px; border:1px solid #cbd5e1;">
-                    <small style="color:#64748b; font-weight:500;">Medición acústica requerida para este pozo</small>
-                </label>
-            </div>
-        ` : '';
+        return echometerYes || vsdYes;
+    });
 
-        const vsdFieldHtml = vsdYes ? `
-            <div style="background:#f8fafc; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;">
-                <label style="display:flex; flex-direction:column; gap:6px; font-size:0.82rem; font-weight:700; color:#1e293b;">
-                    <span>⚡ Descarga de Data VSD (.dat, .raw, .zip):</span>
-                    <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="VOLCADOS_VSD" accept=".dat,.raw,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:6px; border-radius:8px; border:1px solid #cbd5e1;">
-                    <small style="color:#64748b; font-weight:500;">Volcado de memoria de variador VSD requerido para este pozo</small>
-                </label>
-            </div>
-        ` : '';
+    if (!isManualTrigger && reportsToDisplay.length === 0) {
+        modal.style.display = 'none';
+        processAndExecuteJourneySubmission(reports);
+        return;
+    }
 
-        return `
-            <div style="background:#ffffff; border-radius:14px; border:1px solid #cbd5e1; padding:18px; display:flex; flex-direction:column; gap:14px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:10px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981;"></span>
-                        <strong style="font-size:1.05rem; color:#0f172a; font-weight:800;">Pozo: ${escapeHtml(pozoName)}</strong>
-                    </div>
-                    <span style="font-size:0.78rem; font-weight:700; color:#475569; background:#f1f5f9; padding:4px 12px; border-radius:12px;">${escapeHtml(report.campo || 'Campo')}</span>
+    const tempJourneyTag = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY) || `JRN-${Date.now()}`;
+
+    if (!window._modalExtraWells) window._modalExtraWells = new Set();
+    window._modalExtraWells.forEach(pozoName => {
+        if (!reportsToDisplay.some(r => (r.pozo || r.pozo_name) === pozoName)) {
+            reportsToDisplay.push({ pozo: pozoName, campo: 'Campo', echometer: 'SI', descarga_datas_sensor: 'SI' });
+        }
+    });
+
+    let existingDocs = [];
+    try {
+        const wellNames = Array.from(new Set(reportsToDisplay.map(r => r.pozo || r.pozo_name).filter(Boolean)));
+        if (wellNames.length > 0) {
+            const docsArrays = await Promise.all(wellNames.map(pozoName => getWellDocuments({ pozoName }).catch(() => [])));
+            existingDocs = docsArrays.flat().filter(d => String(d.descripcion || '').includes(`[JORNADA_ID:${tempJourneyTag}]`));
+        }
+    } catch (err) {
+        console.warn('Error fetching existing journey attachments:', err);
+    }
+
+    let allPozoOptions = [];
+    try {
+        const uniqueWells = await getUniquePozos().catch(() => []);
+        allPozoOptions = (Array.isArray(uniqueWells) ? uniqueWells : [])
+            .map(w => typeof w === 'string' ? w : (w?.pozo || w?.pozo_name || w?.name))
+            .filter(Boolean);
+    } catch (e) {
+        console.warn('Error getting unique pozos:', e);
+    }
+
+    // Ordenar los pozos del campo por orden natural alfanumérico (CEI0003, CEI0006, CEI0007..., TOM0008, TOM0010...)
+    allPozoOptions = Array.from(new Set(allPozoOptions)).sort((a, b) => {
+        return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+     const extraWellPickerHtml = `
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #cbd5e1; padding:14px 16px; margin-bottom:14px; display:flex; flex-direction:column; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+            <label style="font-size:0.85rem; font-weight:700; color:#1e293b; display:flex; flex-direction:column; gap:6px;">
+                <span>➕ ¿Quieres adjuntar un archivo para otro pozo que aún no has cargado?</span>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; width:100%;">
+                    <select id="modal-select-extra-pozo" style="font-size:0.85rem; padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; flex:1; min-width:180px; background:#fff; box-sizing:border-box;">
+                        <option value="">-- Seleccionar pozo extra del campo --</option>
+                        ${allPozoOptions.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
+                    </select>
+                    <button type="button" id="btn-add-extra-pozo-card" style="background:#2563eb; color:#ffffff; border:none; border-radius:8px; padding:9px 16px; font-weight:700; font-size:0.82rem; cursor:pointer; flex-shrink:0; text-align:center;">
+                        + Mostrar Pozo
+                    </button>
                 </div>
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
-                    ${echometerFieldHtml}
-                    ${vsdFieldHtml}
-                </div>
+            </label>
+        </div>
+    `;
+
+    if (reportsToDisplay.length === 0) {
+        body.innerHTML = extraWellPickerHtml + `
+            <div style="text-align:center; padding:35px 20px; color:#64748b;">
+                <i class="fa-solid fa-folder-open" style="font-size:2.4rem; margin-bottom:12px; color:#94a3b8; display:block;"></i>
+                <strong style="font-size:1.05rem; color:#1e293b;">No hay pozos agregados aún a esta jornada</strong>
+                <p style="font-size:0.85rem; margin-top:6px; color:#64748b;">Selecciona un pozo en el menú de arriba para adjuntarle su archivo de Echometer, Sensor o Data VSD.</p>
             </div>
         `;
-    }).join('');
+    } else {
+        body.innerHTML = extraWellPickerHtml + reportsToDisplay.map((report, idx) => {
+            const pozoName = String(report.pozo || report.pozo_name || `Pozo #${idx + 1}`).trim().toUpperCase();
+            const echometerYes = String(report.echometer || '').trim().toUpperCase() === 'SI';
+            const isSensorDataYes = String(report.descarga_datas_sensor || '').trim().toUpperCase() === 'SI';
+            const isVsdDataYes = String(report.descarga_datas_vsd || report.baja_datos || '').trim().toUpperCase() === 'SI';
+
+            const existingEchoDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'REGISTROS_ECHOMETER');
+            const existingSensorDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'DATA_SENSOR_FONDO');
+            const existingVsdDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'VOLCADOS_VSD');
+
+            const echometerFieldHtml = (echometerYes || isManualTrigger) ? `
+                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📈 Archivo Echometer (.028, .twm, .zip)</span>
+                        ${existingEchoDoc ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ Subido</span>` : ''}
+                    </div>
+                    ${existingEchoDoc ? `
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px 14px; border-radius:10px; border:1px solid #cbd5e1; gap:10px;">
+                            <span style="font-size:0.8rem; font-weight:600; color:#0f172a; word-break:break-all;">${escapeHtml(existingEchoDoc.nombre_archivo)}</span>
+                            <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(existingEchoDoc.id)}" data-file-path="${escapeHtml(existingEchoDoc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:0.78rem; font-weight:700; cursor:pointer; flex-shrink:0;">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    ` : `
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="REGISTROS_ECHOMETER" accept=".028,.twm,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                            <button type="button" class="btn-upload-single-doc" data-pozo="${escapeHtml(pozoName)}" data-category="REGISTROS_ECHOMETER" style="background:linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:0.82rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box;">
+                                ⬆️ Subir Archivo Echometer
+                            </button>
+                        </div>
+                    `}
+                </div>
+            ` : '';
+
+            const sensorFieldHtml = (isSensorDataYes || isManualTrigger) ? `
+                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📊 Data Sensor de Fondo (.dat, .raw, .zip, .txt)</span>
+                        ${existingSensorDoc ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ Subido</span>` : ''}
+                    </div>
+                    ${existingSensorDoc ? `
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px 14px; border-radius:10px; border:1px solid #cbd5e1; gap:10px;">
+                            <span style="font-size:0.8rem; font-weight:600; color:#0f172a; word-break:break-all;">${escapeHtml(existingSensorDoc.nombre_archivo)}</span>
+                            <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(existingSensorDoc.id)}" data-file-path="${escapeHtml(existingSensorDoc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:0.78rem; font-weight:700; cursor:pointer; flex-shrink:0;">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    ` : `
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="DATA_SENSOR_FONDO" accept=".dat,.raw,.zip,.rar,.txt,.csv" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                            <button type="button" class="btn-upload-single-doc" data-pozo="${escapeHtml(pozoName)}" data-category="DATA_SENSOR_FONDO" style="background:linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:0.82rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box;">
+                                ⬆️ Subir Data Sensor de Fondo
+                            </button>
+                        </div>
+                    `}
+                </div>
+            ` : '';
+
+            const vsdFieldHtml = (isVsdDataYes || isManualTrigger) ? `
+                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">⚡ Descarga Data VSD (.dat, .raw, .zip)</span>
+                        ${existingVsdDoc ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ Subido</span>` : ''}
+                    </div>
+                    ${existingVsdDoc ? `
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px 14px; border-radius:10px; border:1px solid #cbd5e1; gap:10px;">
+                            <span style="font-size:0.8rem; font-weight:600; color:#0f172a; word-break:break-all;">${escapeHtml(existingVsdDoc.nombre_archivo)}</span>
+                            <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(existingVsdDoc.id)}" data-file-path="${escapeHtml(existingVsdDoc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:0.78rem; font-weight:700; cursor:pointer; flex-shrink:0;">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    ` : `
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="VOLCADOS_VSD" accept=".dat,.raw,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                            <button type="button" class="btn-upload-single-doc" data-pozo="${escapeHtml(pozoName)}" data-category="VOLCADOS_VSD" style="background:linear-gradient(135deg, #d97706 0%, #f59e0b 100%); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:0.82rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box;">
+                                ⬆️ Subir Archivo Data VSD
+                            </button>
+                        </div>
+                    `}
+                </div>
+            ` : '';
+
+            let attachedCount = 0;
+            if (existingEchoDoc) attachedCount++;
+            if (existingSensorDoc) attachedCount++;
+            if (existingVsdDoc) attachedCount++;
+
+            const isExtraWell = window._modalExtraWells && window._modalExtraWells.has(pozoName);
+            const removeBtnHtml = isExtraWell 
+                ? `<button type="button" class="btn-remove-extra-well" data-pozo="${escapeHtml(pozoName)}" style="background:rgba(239, 68, 68, 0.08); color:#ef4444; border:none; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; padding:6px 12px; border-radius:8px; transition: background 0.2s; margin-left:8px;">
+                     <i class="fa-solid fa-circle-xmark"></i> Quitar Pozo
+                   </button>` 
+                : '';
+
+            return `
+                <div style="background:#ffffff; border-radius:14px; border:1px solid #cbd5e1; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:10px; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981;"></span>
+                            <strong style="font-size:1.05rem; color:#0f172a; font-weight:800;">Pozo: ${escapeHtml(pozoName)}</strong>
+                            <span style="font-size:0.75rem; font-weight:700; color:#475569; background:#e2e8f0; padding:3px 10px; border-radius:10px;">${attachedCount} archivo(s) subido(s)</span>
+                            ${removeBtnHtml}
+                        </div>
+                        <span style="font-size:0.78rem; font-weight:700; color:#475569; background:#f1f5f9; padding:4px 12px; border-radius:12px;">${escapeHtml(report.campo || 'Campo')}</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
+                        ${echometerFieldHtml}
+                        ${sensorFieldHtml}
+                        ${vsdFieldHtml}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
 
     modal.style.display = 'flex';
 
-    // Proteger el modal contra clics accidentales fuera del recuadro
     modal.onclick = (e) => {
         if (e.target === modal) {
             e.stopPropagation();
@@ -2335,15 +2471,230 @@ function openFieldAttachmentsModal(reports) {
         modal.style.display = 'none';
     };
 
+    const btnAddExtra = body.querySelector('#btn-add-extra-pozo-card');
+    const selectExtra = body.querySelector('#modal-select-extra-pozo');
+    if (selectExtra) {
+        const handleExtraPozoSelect = async () => {
+            const selectedPozo = String(selectExtra.value || '').trim().toUpperCase();
+            if (!selectedPozo) return;
+            if (!window._modalExtraWells) window._modalExtraWells = new Set();
+            window._modalExtraWells.add(selectedPozo);
+            await openFieldAttachmentsModal(reports, isManualTrigger);
+        };
+
+        selectExtra.onchange = handleExtraPozoSelect;
+        if (btnAddExtra) btnAddExtra.onclick = handleExtraPozoSelect;
+    }
+
     if (btnCancel) btnCancel.onclick = closeModal;
     if (btnClose) btnClose.onclick = closeModal;
 
     if (btnConfirm) {
-        btnConfirm.onclick = async () => {
-            modal.style.display = 'none';
-            await processAndExecuteJourneySubmission(reports);
-        };
+        if (isManualTrigger) {
+            btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> Guardar y Seguir en la Jornada';
+            btnConfirm.style.background = 'linear-gradient(135deg, #1e40af 0%, #2563eb 100%)';
+            btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> Guardar y Seguir en la Jornada';
+            btnConfirm.style.background = 'linear-gradient(135deg, #1e40af 0%, #2563eb 100%)';
+            btnConfirm.onclick = async () => {
+                const inputs = body.querySelectorAll('.field-attachment-input');
+                const filesToUpload = [];
+                inputs.forEach(input => {
+                    if (input.files && input.files[0]) {
+                        filesToUpload.push({
+                            file: input.files[0],
+                            pozoName: input.dataset.pozo,
+                            category: input.dataset.category,
+                            inputEl: input
+                        });
+                    }
+                });
+
+                if (filesToUpload.length > 0) {
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            title: 'Subiendo respaldos...',
+                            html: `Por favor espera mientras se suben <strong>${filesToUpload.length}</strong> archivo(s) a Supabase.`,
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            didOpen: () => {
+                                window.Swal.showLoading();
+                            }
+                        });
+                    } else {
+                        showAlert('Subiendo archivos...', 'info');
+                    }
+
+                    try {
+                        for (const item of filesToUpload) {
+                            await uploadWellDocument({
+                                file: item.file,
+                                pozoName: item.pozoName,
+                                category: item.category,
+                                description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${item.pozoName}`,
+                                uploadedBy: 'Técnico de Campo'
+                            });
+                            item.inputEl.value = '';
+                        }
+
+                        modal.style.display = 'none';
+
+                        if (window.Swal) {
+                            await window.Swal.fire({
+                                icon: 'success',
+                                title: 'REPORTES ADJUNTOS GUARDADOS EN JORNADA',
+                                text: 'Los archivos se han subido y sincronizado correctamente con Supabase.',
+                                timer: 2500,
+                                showConfirmButton: true,
+                                confirmButtonText: 'Entendido'
+                            });
+                        } else {
+                            showAlert('REPORTES ADJUNTOS GUARDADOS EN JORNADA', 'success');
+                        }
+                    } catch (err) {
+                        console.error('Error al subir archivos en grupo:', err);
+                        if (window.Swal) {
+                            window.Swal.fire({
+                                icon: 'error',
+                                title: 'Error al subir archivos',
+                                text: err.message || 'Ocurrió un error inesperado al subir los adjuntos.'
+                            });
+                        } else {
+                            showAlert(`Error al subir archivos: ${err.message}`, 'error');
+                        }
+                    }
+                } else {
+                    modal.style.display = 'none';
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            icon: 'success',
+                            title: 'JORNADA ACTUALIZADA',
+                            text: 'Se guardaron los cambios.',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        showAlert('Jornada guardada exitosamente.', 'success');
+                    }
+                }
+            };
+        } else {
+            btnConfirm.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Confirmar y Transmitir Jornada';
+            btnConfirm.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+            btnConfirm.onclick = async () => {
+                modal.style.display = 'none';
+                await processAndExecuteJourneySubmission(reports);
+            };
+        }
     }
+
+    body.querySelectorAll('.btn-upload-single-doc').forEach(btn => {
+        btn.onclick = async () => {
+            const pozoName = btn.dataset.pozo;
+            const category = btn.dataset.category;
+            const container = btn.closest('div');
+            const fileInput = container?.querySelector('input[type="file"]');
+
+            if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'warning',
+                        title: 'Archivo no seleccionado',
+                        text: 'Por favor selecciona un archivo antes de presionar Subir.'
+                    });
+                } else {
+                    showAlert('Por favor selecciona un archivo antes de presionar Subir.', 'warning');
+                }
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                btn.innerText = 'Subiendo...';
+
+                if (window.Swal) {
+                    window.Swal.fire({
+                        title: 'Subiendo archivo...',
+                        text: 'Cargando archivo en Supabase Storage...',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            window.Swal.showLoading();
+                        }
+                    });
+                }
+
+                await uploadWellDocument({
+                    file: fileInput.files[0],
+                    pozoName: pozoName,
+                    category: category,
+                    description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${pozoName}`,
+                    uploadedBy: 'Técnico de Campo'
+                });
+
+                if (window.Swal) {
+                    await window.Swal.fire({
+                        icon: 'success',
+                        title: 'REPORTES ADJUNTOS GUARDADOS EN JORNADA',
+                        text: `Archivo del pozo ${pozoName} subido correctamente.`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    showAlert(`Archivo para pozo ${pozoName} subido exitosamente a Supabase.`, 'success');
+                }
+
+                await openFieldAttachmentsModal(reports, isManualTrigger);
+            } catch (err) {
+                console.error('Error subiendo archivo individual:', err);
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'error',
+                        title: 'Error al subir',
+                        text: err.message
+                    });
+                } else {
+                    showAlert(`Error subiendo archivo: ${err.message}`, 'error');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '⬆️ Subir';
+            }
+        };
+    });
+
+    body.querySelectorAll('.btn-delete-field-doc').forEach(btn => {
+        btn.onclick = async () => {
+            const docId = btn.dataset.docId;
+            const filePath = btn.dataset.filePath;
+            if (!docId) return;
+
+            if (!confirm('¿Estás seguro de eliminar este archivo adjunto?')) return;
+
+            try {
+                btn.disabled = true;
+                btn.innerText = 'Borrando...';
+                await deleteWellDocument(docId, filePath);
+                showAlert('Archivo eliminado exitosamente.', 'success');
+                await openFieldAttachmentsModal(reports, isManualTrigger);
+            } catch (err) {
+                console.error('Error borrando archivo:', err);
+                showAlert(`Error eliminando archivo: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '🗑️ Eliminar';
+            }
+        };
+    });
+
+    body.querySelectorAll('.btn-remove-extra-well').forEach(btn => {
+        btn.onclick = async () => {
+            const targetPozo = btn.dataset.pozo;
+            if (window._modalExtraWells) {
+                window._modalExtraWells.delete(targetPozo);
+            }
+            await openFieldAttachmentsModal(reports, isManualTrigger);
+        };
+    });
 }
 
 async function processAndExecuteJourneySubmission(reports) {
@@ -2365,7 +2716,6 @@ async function processAndExecuteJourneySubmission(reports) {
     if (selectedFilesToUpload.length > 0) {
         try {
             updateStatus(`Subiendo ${selectedFilesToUpload.length} archivo(s) adjunto(s)...`);
-            const { uploadWellDocument } = await import('../../services/well-documents-service.js');
 
             for (const item of selectedFilesToUpload) {
                 await uploadWellDocument({
