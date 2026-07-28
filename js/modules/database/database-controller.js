@@ -71,6 +71,13 @@ const DOCUMENT_CATEGORIES = [
         icon: 'fa-solid fa-bolt',
         cssClass: 'folder-vsd',
         description: 'Registros de memoria, descargas de data de variador (.dat, .raw, .zip) y parámetros de frecuencia.'
+    },
+    {
+        key: 'SOPORTES',
+        name: 'SOPORTES DE CAMPO',
+        icon: 'fa-solid fa-camera',
+        cssClass: 'folder-soportes',
+        description: 'Evidencias fotográficas y soportes visuales capturados en campo (máx 5 por turno).'
     }
 ];
 

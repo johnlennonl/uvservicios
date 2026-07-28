@@ -2425,10 +2425,54 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                 </div>
             ` : '';
 
+            const existingSoportes = existingDocs.filter(d => d.pozo_name === pozoName && d.categoria === 'SOPORTES');
+            const soportesCount = existingSoportes.length;
+
+            let soportesListHtml = '';
+            if (soportesCount > 0) {
+                soportesListHtml = `
+                    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:8px;">
+                        ${existingSoportes.map((doc, sIdx) => `
+                            <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; border:1px solid #cbd5e1; gap:6px;">
+                                <span style="font-size:0.75rem; font-weight:600; color:#0f172a; word-break:break-all; text-align:left;">📸 Foto #${sIdx + 1}: ${escapeHtml(doc.nombre_archivo)}</span>
+                                <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(doc.id)}" data-file-path="${escapeHtml(doc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:6px; padding:4px 8px; font-size:0.72rem; font-weight:700; cursor:pointer; flex-shrink:0;">
+                                    🗑️ Borrar
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            const canAddMoreSoportes = soportesCount < 5;
+            const uploadSoportesHtml = canAddMoreSoportes ? `
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="SOPORTES" accept="image/*" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                    <button type="button" class="btn-upload-single-doc" data-pozo="${escapeHtml(pozoName)}" data-category="SOPORTES" style="background:linear-gradient(135deg, #475569 0%, #64748b 100%); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:0.82rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box;">
+                        ⬆️ Subir Foto (${soportesCount}/5)
+                    </button>
+                </div>
+            ` : `
+                <div style="font-size:0.78rem; font-weight:700; color:#dc2626; background:#fee2e2; padding:8px 12px; border-radius:8px; text-align:center;">
+                    ⚠️ Límite de 5 imágenes alcanzado
+                </div>
+            `;
+
+            const soportesFieldHtml = `
+                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📸 Soportes de Campo (${soportesCount}/5)</span>
+                    </div>
+                    ${soportesListHtml}
+                    ${uploadSoportesHtml}
+                </div>
+            `;
+
             let attachedCount = 0;
             if (existingEchoDoc) attachedCount++;
             if (existingSensorDoc) attachedCount++;
             if (existingVsdDoc) attachedCount++;
+            attachedCount += soportesCount;
 
             const isExtraWell = window._modalExtraWells && window._modalExtraWells.has(pozoName);
             const removeBtnHtml = isExtraWell 
@@ -2452,6 +2496,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                         ${echometerFieldHtml}
                         ${sensorFieldHtml}
                         ${vsdFieldHtml}
+                        ${soportesFieldHtml}
                     </div>
                 </div>
             `;

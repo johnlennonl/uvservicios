@@ -323,6 +323,7 @@
 .folder-echometer .folder-card-icon { background: #dbeafe; color: #2563eb; }
 .folder-sensor .folder-card-icon { background: #ccfbf1; color: #0d9488; }
 .folder-vsd .folder-card-icon { background: #fef3c7; color: #d97706; }
+.folder-soportes .folder-card-icon { background: #fee2e2; color: #ef4444; }
 
 .folder-card-title {
   font-size: 1.05rem;

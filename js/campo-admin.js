@@ -2581,6 +2581,7 @@ async function renderDetail(detail) {
     let echometerDocs = [];
     let sensorDocs = [];
     let vsdDocs = [];
+    let soportesDocs = [];
 
     if (wellNames.length > 0) {
         try {
@@ -2601,6 +2602,7 @@ async function renderDetail(detail) {
             echometerDocs = allDocs.filter(d => d.categoria === 'REGISTROS_ECHOMETER' && isMatchingJourney(d));
             sensorDocs = allDocs.filter(d => d.categoria === 'DATA_SENSOR_FONDO' && isMatchingJourney(d));
             vsdDocs = allDocs.filter(d => d.categoria === 'VOLCADOS_VSD' && isMatchingJourney(d));
+            soportesDocs = allDocs.filter(d => d.categoria === 'SOPORTES' && isMatchingJourney(d));
         } catch (err) {
             console.warn('Error al consultar archivos adjuntos de pozos:', err);
         }
@@ -2618,10 +2620,13 @@ async function renderDetail(detail) {
         const sensorListEl = document.getElementById('campo-admin-sidebar-sensor-list');
         const vsdCountEl = document.getElementById('campo-admin-sidebar-vsd-count');
         const vsdListEl = document.getElementById('campo-admin-sidebar-vsd-list');
+        const soportesCountEl = document.getElementById('campo-admin-sidebar-soportes-count');
+        const soportesListEl = document.getElementById('campo-admin-sidebar-soportes-list');
 
         if (echometerCountEl) echometerCountEl.textContent = String(echometerDocs.length);
         if (sensorCountEl) sensorCountEl.textContent = String(sensorDocs.length);
         if (vsdCountEl) vsdCountEl.textContent = String(vsdDocs.length);
+        if (soportesCountEl) soportesCountEl.textContent = String(soportesDocs.length);
 
         if (echometerListEl) {
             echometerListEl.innerHTML = echometerDocs.length > 0 ? echometerDocs.map(doc => `
@@ -2665,6 +2670,25 @@ async function renderDetail(detail) {
             `).join('') : '<div class="campo-admin-empty"><strong>Sin descargas VSD</strong><p>No se adjuntaron descargas VSD en esta jornada.</p></div>';
         }
 
+        if (soportesListEl) {
+            soportesListEl.innerHTML = soportesDocs.length > 0 ? soportesDocs.map(doc => `
+                <div style="padding:12px; border-radius:12px; background:#fff; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; margin-bottom:8px;">
+                    <div>
+                        <strong style="font-size:0.88rem; color:#0f172a; display:block; text-align:left;">${escapeHtml(doc.nombre_archivo || 'Foto Soporte')}</strong>
+                        <span style="font-size:0.78rem; color:#64748b; display:block; text-align:left;">Pozo: ${escapeHtml(doc.pozo_name)} · ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button type="button" class="btn-download-sidebar-doc" data-file-path="${escapeHtml(doc.file_path)}" style="flex:1; padding:6px 12px; border-radius:8px; background:#475569; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
+                            ⬇️ Descargar
+                        </button>
+                        <button type="button" class="btn-preview-sidebar-image" data-file-path="${escapeHtml(doc.file_path)}" style="flex:1; padding:6px 12px; border-radius:8px; background:#1e40af; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
+                            👁️ Ver Imagen
+                        </button>
+                    </div>
+                </div>
+            `).join('') : '<div class="campo-admin-empty"><strong>Sin soportes de campo</strong><p>No se adjuntaron imágenes de soporte en esta jornada.</p></div>';
+        }
+
         document.querySelectorAll('.btn-download-sidebar-doc').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const path = e.currentTarget.dataset.filePath;
@@ -2685,6 +2709,30 @@ async function renderDetail(detail) {
                 } finally {
                     btn.disabled = false;
                     btn.innerText = '⬇️ Descargar';
+                }
+            });
+        });
+
+        document.querySelectorAll('.btn-preview-sidebar-image').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const path = e.currentTarget.dataset.filePath;
+                if (!path) return;
+                try {
+                    btn.disabled = true;
+                    btn.innerText = 'Abriendo...';
+                    const { getDocumentDownloadUrl } = await import('./services/well-documents-service.js');
+                    const url = await getDocumentDownloadUrl(path);
+                    if (url) {
+                        window.open(url, '_blank');
+                    } else {
+                        alert('No se pudo obtener la imagen.');
+                    }
+                } catch (err) {
+                    console.error('Error al abrir imagen:', err);
+                    alert(err.message || 'Error al obtener imagen');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = '👁️ Ver Imagen';
                 }
             });
         });
@@ -2998,11 +3046,13 @@ async function bootstrap() {
         const echometerContent = document.getElementById('sidebar-echometer-content');
         const sensorContent = document.getElementById('sidebar-sensor-content');
         const vsdContent = document.getElementById('sidebar-vsd-content');
+        const soportesContent = document.getElementById('sidebar-soportes-content');
         const incidentsContent = document.getElementById('sidebar-incidents-content');
 
         if (echometerContent) echometerContent.style.display = (tab === 'echometer') ? 'block' : 'none';
         if (sensorContent) sensorContent.style.display = (tab === 'sensor') ? 'block' : 'none';
         if (vsdContent) vsdContent.style.display = (tab === 'vsd') ? 'block' : 'none';
+        if (soportesContent) soportesContent.style.display = (tab === 'soportes') ? 'block' : 'none';
         if (incidentsContent) incidentsContent.style.display = (tab === 'incidents') ? 'block' : 'none';
     });
 
