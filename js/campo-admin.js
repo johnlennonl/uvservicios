@@ -2908,6 +2908,10 @@ async function selectJourney(journeyId, options = {}) {
         renderList();
     }
 
+    if (elements.sidebarIncidentsPanel) {
+        elements.sidebarIncidentsPanel.hidden = true;
+    }
+
     elements.detailShell.innerHTML = `
         <div class="campo-admin-empty">
             <strong>Cargando detalle</strong>
