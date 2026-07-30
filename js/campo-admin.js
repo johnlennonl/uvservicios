@@ -2810,6 +2810,7 @@ function setLoading(isLoading) {
 }
 
 async function fetchJourneysForFilter(filterKey) {
+
     // Si hay un término de búsqueda, consultamos en todos los estados para no limitar al usuario a la pestaña activa
     const statuses = state.searchTerm
         ? ['submitted', 'under_review', 'approved', 'published', 'rejected', 'archived']
