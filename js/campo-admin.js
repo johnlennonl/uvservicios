@@ -1,3 +1,4 @@
+import { supabase } from './supabaseClient.js';
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
 import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, deleteAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo } from './services/field-journey-service.js';
 import { exportFieldJourneyToExcel, openFieldJourneyPdf, exportHistoricalFieldReportsToExcel } from './services/field-journey-export.js';
@@ -437,6 +438,7 @@ const LONG_TEXT_FIELDS = new Set(['diagnostico', 'observaciones_pozo']);
 const EDITOR_FIELD_NAMES = RECORD_EDITOR_SECTIONS.flatMap(section => section.fields.map(([, fieldName]) => fieldName));
 
 const state = {
+    profilesMap: {},
     journeys: [],
     selectedJourneyId: '',
     filterKey: 'pending',
@@ -541,7 +543,7 @@ function buildAdminTicketMarkup(ticket, index) {
             </div>
             <div class="campo-admin-detail-meta">
                 <span class="campo-admin-tag">${escapeHtml(formatDateTime(ticket.submitted_at || ticket.created_at))}</span>
-                <span class="campo-admin-tag">${escapeHtml(ticket.submitted_by_email || 'Sin correo')}</span>
+                <span class="campo-admin-tag">${escapeHtml(getSubmitterLabel(ticket.submitted_by_email))}</span>
             </div>
             ${attachmentsMarkup}
         </article>
@@ -1155,7 +1157,7 @@ function renderIncidentModal() {
             <div>
                 <span class="campo-admin-tag campo-admin-tag-soft">${ticket._local ? 'Ticket local' : 'Ticket enviado'}</span>
                 <h3 id="campo-admin-incident-modal-title">${escapeHtml(ticket.subject || 'Incidencia sin asunto')}</h3>
-                <p>${escapeHtml(formatDateTime(ticket.submitted_at || ticket.created_at))} · ${escapeHtml(ticket.submitted_by_email || 'Sin correo')}</p>
+                <p>${escapeHtml(formatDateTime(ticket.submitted_at || ticket.created_at))} · ${escapeHtml(getSubmitterLabel(ticket.submitted_by_email))}</p>
             </div>
             <button type="button" class="campo-admin-modal-close" data-incident-modal-close aria-label="Cerrar detalle de incidencia">×</button>
         </div>
@@ -1298,6 +1300,17 @@ function getJourneyTechnicians(journey = {}, records = []) {
         tecnico2,
         equipoGuardia: [tecnico1, tecnico2].filter(Boolean).join(', ') || normalizeTechName(journey.equipo_guardia || firstPayload.equipo_guardia || '')
     };
+}
+
+function getSubmitterLabel(email) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const profile = state.profilesMap[cleanEmail];
+    if (profile) {
+        const roleLabel = profile.role === 'campo' ? 'Téc' : 'Ing';
+        const nameLabel = `${profile.nombre || ''} ${profile.apellido || ''}`.trim() || profile.email;
+        return `${roleLabel}: ${nameLabel}`;
+    }
+    return `Ing: ${email}`;
 }
 
 function buildTechnicianTags(technicians = {}) {
@@ -1840,7 +1853,7 @@ function renderList() {
                     <div class="campo-admin-ticket-left">
                         <h3>${escapeHtml(match.pozo)}</h3>
                         <p>Jornada: ${escapeHtml(match.journey.locacion_jornada || 'Sin locación')} · ${escapeHtml(formatDate(match.journey.journey_date))}</p>
-                        <span class="campo-admin-ticket-engineer">${escapeHtml(match.journey.submitted_by_email || 'No disponible')}</span>
+                        <span class="campo-admin-ticket-engineer">${escapeHtml(getSubmitterLabel(match.journey.submitted_by_email))}</span>
                     </div>
                     <div class="campo-admin-ticket-right">
                         <span class="${buildStatusClass(match.journey.status)}">${escapeHtml(normalizeStatusLabel(match.journey.status))}</span>
@@ -1881,7 +1894,7 @@ function renderList() {
                 <div class="campo-admin-ticket-left">
                     <h3>${escapeHtml(journey.locacion_jornada || 'Sin locación')}</h3>
                     <p>${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')} · ${escapeHtml(formatDate(journey.journey_date))}</p>
-                    <span class="campo-admin-ticket-engineer">Ing: ${escapeHtml(journey.submitted_by_email || 'No disponible')}</span>
+                    <span class="campo-admin-ticket-engineer">${escapeHtml(getSubmitterLabel(journey.submitted_by_email))}</span>
                 </div>
                 <div class="campo-admin-ticket-right">
                     <span class="${buildStatusClass(journey.status)}">${escapeHtml(normalizeStatusLabel(journey.status))}</span>
@@ -2512,7 +2525,7 @@ async function renderDetail(detail) {
                 </div>
                 <div class="metadata-card-v2">
                     <span class="metadata-card-label-v2">Responsable de Envío</span>
-                    <strong class="metadata-card-value-v2">${escapeHtml(journey.submitted_by_email || 'No disponible')}</strong>
+                    <strong class="metadata-card-value-v2">${escapeHtml(getSubmitterLabel(journey.submitted_by_email))}</strong>
                 </div>
                 <div class="metadata-card-v2">
                     <span class="metadata-card-label-v2">Ventana y Pozos</span>
@@ -3059,6 +3072,21 @@ async function bootstrap() {
         if (soportesContent) soportesContent.style.display = (tab === 'soportes') ? 'block' : 'none';
         if (incidentsContent) incidentsContent.style.display = (tab === 'incidents') ? 'block' : 'none';
     });
+
+    try {
+        const { data: profiles } = await supabase
+            .from('profiles')
+            .select('email, nombre, apellido, role');
+        state.profilesMap = {};
+        if (Array.isArray(profiles)) {
+            profiles.forEach(p => {
+                state.profilesMap[String(p.email || '').trim().toLowerCase()] = p;
+            });
+        }
+        console.log('[DEBUG] Perfiles cargados en Administrador de Campo:', state.profilesMap);
+    } catch (err) {
+        console.error('Error loading profiles in bootstrap:', err);
+    }
 
     await loadJourneys();
 }

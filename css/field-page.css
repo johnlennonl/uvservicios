@@ -2256,8 +2256,7 @@ body {
     display: grid;
     place-items: center;
     padding: 24px;
-    background: rgba(15, 23, 42, 0.48);
-    backdrop-filter: blur(10px);
+    background: rgba(15, 23, 42, 0.75);
 }
 
 .field-report-preview-modal[hidden] {

@@ -3,7 +3,8 @@ export const ACCESS_ROLES = Object.freeze({
     SUPERVISOR: 'supervisor',
     CAMPO: 'campo',
     CLIENTE_VIEW: 'cliente_view',
-    BASE_DATOS: 'base_datos'
+    BASE_DATOS: 'base_datos',
+    GESTOR_USUARIOS: 'gestor_usuarios'
 });
 
 const ALLOWED_ACCESS_ROLES = new Set(Object.values(ACCESS_ROLES));
@@ -43,6 +44,7 @@ export function getAccessProfile(sessionOrUser) {
     const isSupervisor = role === ACCESS_ROLES.SUPERVISOR;
     const isAdmin = role === ACCESS_ROLES.ADMIN;
     const isBaseDatos = role === ACCESS_ROLES.BASE_DATOS || email.includes('baseuv');
+    const isGestorUsuarios = role === ACCESS_ROLES.GESTOR_USUARIOS;
 
     return {
         email,
@@ -50,18 +52,20 @@ export function getAccessProfile(sessionOrUser) {
         isReadOnly,
         isFieldOperator,
         isBaseDatos,
-        canViewDashboard: true,
-        canViewConsolidado: true,
+        isGestorUsuarios,
+        canViewDashboard: !isGestorUsuarios,
+        canViewConsolidado: !isGestorUsuarios,
         canModifyConsolidadoBase: isAdmin || isSupervisor,
         canViewManagement: isAdmin || isSupervisor,
         canEditData: isAdmin || isSupervisor,
         canCreateFieldReports: isAdmin || isSupervisor || isFieldOperator,
         canViewFieldModule: isAdmin || isSupervisor || isFieldOperator,
-        canViewFieldHistory: true,
+        canViewFieldHistory: !isGestorUsuarios,
         canViewJourneyModule: isAdmin || isSupervisor || isFieldOperator,
-        canViewJourneyHistory: true,
-        canViewStats: true,
-        canViewBaseDatos: isBaseDatos
+        canViewJourneyHistory: !isGestorUsuarios,
+        canViewStats: !isGestorUsuarios,
+        canViewBaseDatos: isBaseDatos,
+        canManageUsers: isGestorUsuarios || isAdmin
     };
 }
 
@@ -72,6 +76,10 @@ export function getDefaultRouteForAccessProfile(accessProfile) {
 
     if (accessProfile?.isFieldOperator) {
         return 'field.html';
+    }
+
+    if (accessProfile?.isGestorUsuarios) {
+        return 'gestion-usuarios.html';
     }
 
     return 'dashboard.html';
@@ -144,6 +152,33 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
         ]);
     } else {
         try { sessionStorage.setItem('access-readonly', 'false'); } catch(e) {}
+    }
+
+    if (accessProfile?.isGestorUsuarios) {
+        document.body.classList.add('access-gestor-usuarios');
+        hideLinks([
+            'dashboard.html',
+            'consolidado.html',
+            'data.html',
+            'stats.html',
+            'dashboard-data.html',
+            'campo-admin.html',
+            'field.html',
+            'jornada.html',
+            'jornada-history.html',
+            'notificacion.html',
+            'help.html',
+            'monitoring-prep.html',
+            'base-datos.html'
+        ]);
+        showLinks(['gestion-usuarios.html']);
+    } else {
+        document.body.classList.remove('access-gestor-usuarios');
+        if (accessProfile?.canManageUsers) {
+            showLinks(['gestion-usuarios.html']);
+        } else {
+            hideLinks(['gestion-usuarios.html']);
+        }
     }
 
     document.body.classList.add('access-nav-ready');

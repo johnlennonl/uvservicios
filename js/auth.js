@@ -34,6 +34,33 @@ export async function login(email, password) {
             return { success: false, message: msg };
         }
 
+        if (data?.user) {
+            const profile = getAccessProfile(data.user);
+            // Registrar fecha y hora de último acceso y sincronizar rol en segundo plano
+            supabase
+                .from('profiles')
+                .update({ 
+                    last_login_at: new Date().toISOString(),
+                    role: profile.role
+                })
+                .eq('id', data.user.id)
+                .then(({ error: updateErr }) => {
+                    if (updateErr) console.warn('No se pudo actualizar perfil:', updateErr);
+                });
+
+            // Registrar log de acceso en la nueva tabla
+            supabase
+                .from('user_access_logs')
+                .insert([{
+                    user_id: data.user.id,
+                    email: data.user.email,
+                    login_time: new Date().toISOString()
+                }])
+                .then(({ error: logErr }) => {
+                    if (logErr) console.warn('No se pudo guardar el log de acceso:', logErr);
+                });
+        }
+
         return { success: true, user: data.user };
     } catch (err) {
         console.error('Supabase Auth Error:', err);
@@ -64,6 +91,41 @@ export async function getSession() {
         try {
             const profile = getAccessProfile(data.session);
             applyNavigationAccessProfile(profile);
+
+            // Buscar elementos del header para pintar el usuario activo dinámicamente
+            const headerNameEl = document.getElementById('header-user-name');
+            const headerRoleEl = document.getElementById('header-user-role');
+            if (headerNameEl && headerRoleEl) {
+                const labels = {
+                    admin: 'Administrador del Sistema',
+                    supervisor: 'Supervisor',
+                    campo: 'Técnico de Campo',
+                    cliente_view: 'Cliente (Solo Lectura)',
+                    base_datos: 'Administrador Base de Datos',
+                    gestor_usuarios: 'Gestor de Accesos'
+                };
+                
+                const currentName = headerNameEl.textContent.trim();
+                const userEmail = data.session.user.email;
+
+                // Si ya está cargado el nombre real, no hacemos nada para evitar parpadeos y consultas redundantes
+                if (!currentName || currentName === 'Cargando...' || currentName === userEmail) {
+                    headerRoleEl.textContent = labels[profile.role] || profile.role || 'Cliente (Solo Lectura)';
+                    headerNameEl.textContent = userEmail; // Fallback inicial
+
+                    // Intentar traer el nombre real
+                    supabase
+                        .from('profiles')
+                        .select('nombre, apellido')
+                        .eq('id', data.session.user.id)
+                        .single()
+                        .then(({ data: userProf }) => {
+                            if (userProf?.nombre) {
+                                headerNameEl.textContent = `${userProf.nombre} ${userProf.apellido || ''}`.trim();
+                            }
+                        });
+                }
+            }
         } catch (e) {
             console.warn('Error aplicando perfil de navegación:', e);
         }
