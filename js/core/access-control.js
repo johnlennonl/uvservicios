@@ -122,6 +122,22 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
         });
     };
 
+    const renameCampoLinks = () => {
+        root.querySelectorAll('a[href="campo-admin.html"]').forEach(link => {
+            const label = link.querySelector('span');
+            if (label) {
+                label.textContent = 'Jornadas en Vivo';
+                return;
+            }
+
+            const textNode = [...link.childNodes]
+                .filter(node => node.nodeType === Node.TEXT_NODE)
+                .find(node => node.textContent.trim());
+
+            if (textNode) textNode.textContent = ' Jornadas en Vivo';
+        });
+    };
+
     if (accessProfile?.isBaseDatos) {
         document.body.classList.add('is-role-base-datos');
         showLinks(['base-datos.html']);
@@ -130,8 +146,10 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
         hideLinks(['base-datos.html']);
     }
 
-    if (!accessProfile?.canViewManagement) {
+    if (!accessProfile?.canViewManagement && !accessProfile?.isReadOnly) {
         hideLinks(['dashboard-data.html', 'campo-admin.html', 'monitoring-prep.html']);
+    } else if (accessProfile?.isReadOnly) {
+        hideLinks(['dashboard-data.html', 'monitoring-prep.html']);
     }
 
     if (accessProfile?.isReadOnly) {
@@ -139,9 +157,9 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
         document.documentElement.classList.add('is-readonly');
         try { sessionStorage.setItem('access-readonly', 'true'); } catch(e) {}
         renameDataLinks();
+        renameCampoLinks();
         hideLinks([
             'dashboard-data.html',
-            'campo-admin.html',
             'field.html',
             'jornada.html',
             'jornada-history.html',
@@ -150,6 +168,7 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
             'monitoring-prep.html',
             'base-datos.html'
         ]);
+        showLinks(['campo-admin.html']);
     } else {
         try { sessionStorage.setItem('access-readonly', 'false'); } catch(e) {}
     }

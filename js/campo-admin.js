@@ -442,6 +442,7 @@ const state = {
     journeys: [],
     selectedJourneyId: '',
     filterKey: 'pending',
+    accessProfile: null,
     searchTerm: '',
     loading: false,
     searchTimer: null,
@@ -2087,7 +2088,7 @@ function renderRecordModal() {
             <div class="campo-admin-modal-sections">${buildRecordPreviewSections(recordPayload)}</div>
             <div class="campo-admin-modal-actions">
                 <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-record-modal-close>Cerrar</button>
-                <button type="button" class="campo-admin-action-btn" data-record-mode="edit">Editar pozo</button>
+                ${state.accessProfile?.isReadOnly ? '' : `<button type="button" class="campo-admin-action-btn" data-record-mode="edit">Editar pozo</button>`}
             </div>
         `}
     `;
@@ -2378,7 +2379,7 @@ async function renderDetail(detail) {
             const review = reviewSummary.byRecord.get(record.id) || { tone: 'warning', label: 'Con alerta' };
             const recordPosition = `${index + 1} de ${records.length}`;
 
-            const rowActionsMarkup = isDraftJourney
+            const rowActionsMarkup = (isDraftJourney || state.accessProfile?.isReadOnly)
                 ? `
                     ${buildRecordDiagnosticBadge(record)}
                     <button type="button" class="campo-admin-inline-btn" data-record-open="${escapeHtml(record.id)}">Ver parámetros</button>
@@ -2810,6 +2811,13 @@ function setLoading(isLoading) {
 }
 
 async function fetchJourneysForFilter(filterKey) {
+    if (state.accessProfile?.isReadOnly) {
+        return getAdminFieldJourneys({
+            statuses: ['draft'],
+            searchTerm: state.searchTerm,
+            limit: 120
+        });
+    }
 
     // Si hay un término de búsqueda, consultamos en todos los estados para no limitar al usuario a la pestaña activa
     const statuses = state.searchTerm
@@ -3016,9 +3024,38 @@ async function bootstrap() {
     }
 
     const accessProfile = getAccessProfile(session);
-    if (!accessProfile?.canViewManagement) {
+    state.accessProfile = accessProfile;
+    if (!accessProfile?.canViewManagement && !accessProfile?.isReadOnly) {
         window.location.href = getDefaultRouteForAccessProfile(accessProfile);
         return;
+    }
+
+    if (accessProfile?.isReadOnly) {
+        state.filterKey = 'drafts';
+        
+        // Ocultar barra de pestañas/filtros
+        if (elements.filterGroup) {
+            elements.filterGroup.style.display = 'none';
+        }
+        
+        // Ocultar estadísticas generales de bandejas administrativas
+        const statsSec = document.querySelector('.campo-admin-stats');
+        if (statsSec) {
+            statsSec.style.display = 'none';
+        }
+        
+        // Adaptar textos corporativos para el cliente
+        const kickerEl = document.querySelector('.campo-admin-kicker');
+        if (kickerEl) kickerEl.textContent = 'Monitoreo en Vivo';
+        
+        const titleEl = document.querySelector('.campo-admin-opsbar h1');
+        if (titleEl) titleEl.textContent = 'Jornadas en Curso';
+        
+        const listTitle = document.querySelector('.campo-admin-panel-head h2');
+        if (listTitle) listTitle.textContent = 'Jornadas en Curso en Vivo';
+        
+        const listDesc = document.querySelector('.campo-admin-panel-head p');
+        if (listDesc) listDesc.textContent = 'Monitoreo de parámetros y pozos capturados en tiempo real por el equipo de campo.';
     }
 
     elements.logoutButton?.addEventListener('click', logout);

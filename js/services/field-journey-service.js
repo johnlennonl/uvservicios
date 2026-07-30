@@ -41,7 +41,7 @@ async function ensureFieldWriteAccess() {
 async function ensureFieldAdminReadAccess() {
     const { accessProfile } = await ensureFieldSessionAccess();
 
-    if (!accessProfile.canViewManagement) {
+    if (!accessProfile.canViewManagement && !accessProfile.isReadOnly) {
         throw new Error('Tu usuario no tiene permisos para consultar jornadas administrativas.');
     }
 }
