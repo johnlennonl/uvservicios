@@ -112,6 +112,9 @@ async function init() {
     const alertasSearchInput = document.getElementById('alertas-search-input');
     alertasSearchInput?.addEventListener('input', () => applyAlertasFilters());
 
+    const alertasStatusSelect = document.getElementById('alertas-status-select');
+    alertasStatusSelect?.addEventListener('change', () => applyAlertasFilters());
+
     // Pozo multi-select filter
     const btnPozoFilter = document.getElementById('btn-pozo-filter');
     const pozoDropdown = document.getElementById('pozo-filter-dropdown');
@@ -507,7 +510,7 @@ function isObservacionNormal(obs) {
 }
 
 // Renderiza la tabla de observaciones del mes
-function renderAlertasTable(filterText, selectedPozos) {
+function renderAlertasTable(filterText, selectedPozos, selectedStatus) {
     const tbody = document.getElementById('alertas-operativas-body');
     if (!tbody) return;
 
@@ -521,6 +524,14 @@ function renderAlertasTable(filterText, selectedPozos) {
         alertas = alertas.filter(r => {
             const pozo = String(r.pozo_name || '').trim().toUpperCase();
             return selectedPozos.includes(pozo);
+        });
+    }
+
+    // Filtrar por estatus
+    if (selectedStatus && selectedStatus !== 'TODOS') {
+        alertas = alertas.filter(r => {
+            const status = String(r.estatus || '').trim().toUpperCase();
+            return status === selectedStatus;
         });
     }
 
@@ -593,11 +604,12 @@ function getSelectedPozos() {
     return Array.from(checkboxes).map(cb => cb.value);
 }
 
-// Aplicar todos los filtros de alertas (texto + pozos)
+// Aplicar todos los filtros de alertas (texto + pozos + estatus)
 function applyAlertasFilters() {
     const searchText = document.getElementById('alertas-search-input')?.value || '';
     const selectedPozos = getSelectedPozos();
-    renderAlertasTable(searchText, selectedPozos);
+    const selectedStatus = document.getElementById('alertas-status-select')?.value || 'TODOS';
+    renderAlertasTable(searchText, selectedPozos, selectedStatus);
 }
 
 // Renderizar chips de pozos seleccionados
