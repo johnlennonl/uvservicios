@@ -2447,9 +2447,9 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             const canAddMoreSoportes = soportesCount < 5;
             const uploadSoportesHtml = canAddMoreSoportes ? `
                 <div style="display:flex; flex-direction:column; gap:6px;">
-                    <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="SOPORTES" accept="image/*" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                    <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="SOPORTES" accept="image/*" multiple style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
                     <button type="button" class="btn-upload-single-doc" data-pozo="${escapeHtml(pozoName)}" data-category="SOPORTES" style="background:linear-gradient(135deg, #475569 0%, #64748b 100%); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:0.82rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box;">
-                        ⬆️ Subir Foto (${soportesCount}/5)
+                        ⬆️ Subir Foto(s) (${soportesCount}/5)
                     </button>
                 </div>
             ` : `
@@ -2544,12 +2544,14 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                 const inputs = body.querySelectorAll('.field-attachment-input');
                 const filesToUpload = [];
                 inputs.forEach(input => {
-                    if (input.files && input.files[0]) {
-                        filesToUpload.push({
-                            file: input.files[0],
-                            pozoName: input.dataset.pozo,
-                            category: input.dataset.category,
-                            inputEl: input
+                    if (input.files && input.files.length > 0) {
+                        Array.from(input.files).forEach(file => {
+                            filesToUpload.push({
+                                file: file,
+                                pozoName: input.dataset.pozo,
+                                category: input.dataset.category,
+                                inputEl: input
+                            });
                         });
                     }
                 });
@@ -2639,7 +2641,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             const container = btn.closest('div');
             const fileInput = container?.querySelector('input[type="file"]');
 
-            if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
                 if (window.Swal) {
                     window.Swal.fire({
                         icon: 'warning',
@@ -2656,10 +2658,20 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                 btn.disabled = true;
                 btn.innerText = 'Subiendo...';
 
+                const filesArray = Array.from(fileInput.files);
+
+                if (category === 'SOPORTES') {
+                    const existingSoportesCount = existingDocs.filter(d => d.pozo_name === pozoName && d.categoria === 'SOPORTES').length;
+                    if (existingSoportesCount + filesArray.length > 5) {
+                        const maxAllowed = 5 - existingSoportesCount;
+                        throw new Error(`Límite excedido. Solo puedes subir ${maxAllowed} foto(s) más para este pozo.`);
+                    }
+                }
+
                 if (window.Swal) {
                     window.Swal.fire({
-                        title: 'Subiendo archivo...',
-                        text: 'Cargando archivo en Supabase Storage...',
+                        title: 'Subiendo archivos...',
+                        text: `Cargando ${filesArray.length} archivo(s) en Supabase Storage...`,
                         allowOutsideClick: false,
                         allowEscapeKey: false,
                         didOpen: () => {
@@ -2668,29 +2680,31 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                     });
                 }
 
-                await uploadWellDocument({
-                    file: fileInput.files[0],
-                    pozoName: pozoName,
-                    category: category,
-                    description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${pozoName}`,
-                    uploadedBy: 'Técnico de Campo'
-                });
+                for (const file of filesArray) {
+                    await uploadWellDocument({
+                        file: file,
+                        pozoName: pozoName,
+                        category: category,
+                        description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${pozoName}`,
+                        uploadedBy: 'Técnico de Campo'
+                    });
+                }
 
                 if (window.Swal) {
                     await window.Swal.fire({
                         icon: 'success',
-                        title: 'REPORTES ADJUNTOS GUARDADOS EN JORNADA',
-                        text: `Archivo del pozo ${pozoName} subido correctamente.`,
+                        title: 'ARCHIVOS GUARDADOS',
+                        text: `Se subieron ${filesArray.length} archivo(s) del pozo ${pozoName} correctamente.`,
                         timer: 2000,
                         showConfirmButton: false
                     });
                 } else {
-                    showAlert(`Archivo para pozo ${pozoName} subido exitosamente a Supabase.`, 'success');
+                    showAlert(`Se subieron ${filesArray.length} archivo(s) para el pozo ${pozoName} exitosamente.`, 'success');
                 }
 
                 await openFieldAttachmentsModal(reports, isManualTrigger);
             } catch (err) {
-                console.error('Error subiendo archivo individual:', err);
+                console.error('Error subiendo archivo(s):', err);
                 if (window.Swal) {
                     window.Swal.fire({
                         icon: 'error',
@@ -2700,7 +2714,6 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                 } else {
                     showAlert(`Error subiendo archivo: ${err.message}`, 'error');
                 }
-            } finally {
                 btn.disabled = false;
                 btn.innerText = '⬆️ Subir';
             }
@@ -2747,11 +2760,13 @@ async function processAndExecuteJourneySubmission(reports) {
     const selectedFilesToUpload = [];
 
     attachmentInputs.forEach(input => {
-        if (input.files && input.files[0]) {
-            selectedFilesToUpload.push({
-                file: input.files[0],
-                pozoName: input.dataset.pozo,
-                category: input.dataset.category
+        if (input.files && input.files.length > 0) {
+            Array.from(input.files).forEach(file => {
+                selectedFilesToUpload.push({
+                    file: file,
+                    pozoName: input.dataset.pozo,
+                    category: input.dataset.category
+                });
             });
         }
     });
