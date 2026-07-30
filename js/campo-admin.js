@@ -2461,7 +2461,12 @@ async function renderDetail(detail) {
         ? `
             <div style="padding: 16px 20px; border-radius: 16px; background: linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(255, 255, 255, 0.98)); border: 1px solid rgba(167, 243, 208, 0.9); display: flex; align-items: center; gap: 12px; color: #047857; margin-top: 10px;">
                 <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); flex-shrink:0;"></span>
-                <span style="font-size: 0.88rem; font-weight: 700;">📡 Monitoreo en Vivo de Jornada en Curso: Las acciones de edición de pozos, exportación Excel/PDF y transmisión al Dashboard se habilitarán en cuanto la cuadrilla envíe la jornada desde Campo.</span>
+                <span style="font-size: 0.88rem; font-weight: 700;">
+                    ${state.accessProfile?.isReadOnly 
+                        ? '📡 Monitoreo en Vivo de Jornada en Curso: Estás visualizando los parámetros operativos reportados en tiempo real por la cuadrilla en Campo.'
+                        : '📡 Monitoreo en Vivo de Jornada en Curso: Las acciones de edición de pozos, exportación Excel/PDF y transmisión al Dashboard se habilitarán en cuanto la cuadrilla envíe la jornada desde Campo.'
+                    }
+                </span>
             </div>
           `
         : `
