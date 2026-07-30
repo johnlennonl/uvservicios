@@ -174,11 +174,7 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
         showLinks(['gestion-usuarios.html']);
     } else {
         document.body.classList.remove('access-gestor-usuarios');
-        if (accessProfile?.canManageUsers) {
-            showLinks(['gestion-usuarios.html']);
-        } else {
-            hideLinks(['gestion-usuarios.html']);
-        }
+        hideLinks(['gestion-usuarios.html']);
     }
 
     document.body.classList.add('access-nav-ready');

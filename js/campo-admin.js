@@ -2607,7 +2607,6 @@ async function renderDetail(detail) {
                 const desc = String(d.descripcion || '');
                 if (desc.includes('[JORNADA_ID:')) {
                     if (journeyIdStr && desc.includes(`[JORNADA_ID:${journeyIdStr}]`)) return true;
-                    if (String(journey.status || '').toLowerCase() === 'draft') return true;
                 }
                 return false;
             };

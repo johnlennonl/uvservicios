@@ -506,16 +506,14 @@ function isObservacionNormal(obs) {
     return NORMAL_KEYWORDS.some(kw => lower.includes(kw));
 }
 
-// Renderiza la tabla de alertas: observaciones NO normales, con pozo y fecha
+// Renderiza la tabla de observaciones del mes
 function renderAlertasTable(filterText, selectedPozos) {
     const tbody = document.getElementById('alertas-operativas-body');
     if (!tbody) return;
 
-    // Filtrar registros con observaciones que NO son "condiciones normales"
+    // Obtener todos los registros con observaciones escritas
     let alertas = state.records.filter(r => {
-        const obs = String(r.observaciones || '').trim();
-        if (!obs) return false;
-        return !isObservacionNormal(obs);
+        return String(r.observaciones || '').trim() !== '';
     });
 
     // Filtrar por pozos seleccionados
@@ -536,12 +534,12 @@ function renderAlertasTable(filterText, selectedPozos) {
         });
     }
 
-    // Limitar a 15 más recientes
-    const top = alertas.slice(0, 15);
+    // Mostrar todas las observaciones encontradas (ya ordenadas por fecha desc)
+    const top = alertas;
 
     tbody.innerHTML = '';
     if (top.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94A3B8;padding:24px;">Sin observaciones fuera de lo normal para este filtro.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94A3B8;padding:24px;">Sin observaciones registradas para este filtro.</td></tr>';
         return;
     }
 
