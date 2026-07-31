@@ -50,6 +50,33 @@ const FILTER_EMPTY_COPY = {
     }
 };
 
+const QUEUE_HEADER_COPY = {
+    pending: {
+        title: 'Listado de jornadas pendientes',
+        subtitle: 'Selecciona una jornada para abrir el detalle administrativo y revisar los pozos enviados por Campo.'
+    },
+    drafts: {
+        title: 'Listado de jornadas en vivo',
+        subtitle: 'Monitorea en tiempo real los parámetros operativos de las jornadas activas en curso en el campo.'
+    },
+    submitted: {
+        title: 'Listado de jornadas pendientes',
+        subtitle: 'Revisa las jornadas recién enviadas por la cuadrilla de campo.'
+    },
+    under_review: {
+        title: 'Listado de jornadas en revisión',
+        subtitle: 'Jornadas que se encuentran actualmente bajo inspección o corrección.'
+    },
+    approved: {
+        title: 'Listado de jornadas aprobadas',
+        subtitle: 'Consulta las jornadas que ya fueron aprobadas por la supervisión o publicadas al Dashboard.'
+    },
+    all: {
+        title: 'Listado de todas las jornadas',
+        subtitle: 'Bandeja completa con el historial de todas las jornadas registradas en el sistema.'
+    }
+};
+
 const REVIEW_ACTION_LABELS = {
     submitted: 'Jornada recibida',
     under_review: 'Parámetros actualizados',
@@ -474,6 +501,8 @@ const elements = {
     reportCount: document.getElementById('campo-admin-report-count'),
     listCount: document.getElementById('campo-admin-list-count'),
     list: document.getElementById('campo-admin-list'),
+    queueTitle: document.getElementById('campo-admin-queue-title'),
+    queueSubtitle: document.getElementById('campo-admin-queue-subtitle'),
     detailShell: document.getElementById('campo-admin-detail-shell'),
     sidebarIncidentsPanel: document.getElementById('campo-admin-sidebar-incidents-panel'),
     sidebarIncidentsCount: document.getElementById('campo-admin-sidebar-incidents-count'),
@@ -2892,6 +2921,16 @@ function getCurrentFilterEmptyCopy() {
     return FILTER_EMPTY_COPY[state.filterKey] || FILTER_EMPTY_COPY.all;
 }
 
+function updateQueueHeader() {
+    const copy = QUEUE_HEADER_COPY[state.filterKey] || QUEUE_HEADER_COPY.all;
+    if (elements.queueTitle) {
+        elements.queueTitle.textContent = copy.title;
+    }
+    if (elements.queueSubtitle) {
+        elements.queueSubtitle.textContent = copy.subtitle;
+    }
+}
+
 async function loadWorkflowDiagnostics() {
     try {
         state.diagnostics = await getFieldWorkflowDiagnostics();
@@ -2940,6 +2979,7 @@ async function loadJourneys() {
 
         renderStats();
         renderList();
+        updateQueueHeader();
 
         if (state.selectedJourneyId) {
             await selectJourney(state.selectedJourneyId, { keepList: true });
