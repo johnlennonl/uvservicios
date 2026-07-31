@@ -255,3 +255,29 @@ export async function deleteWellDocument(documentId, filePath) {
         throw err;
     }
 }
+
+/**
+ * Actualiza la descripción (comentario/nota técnica) de un documento histórico.
+ * 
+ * @param {string} documentId - ID del registro en well_historical_documents.
+ * @param {string} description - Nueva descripción o nota técnica.
+ * @returns {Promise<Object>} Registro del documento actualizado.
+ */
+export async function updateWellDocumentDescription(documentId, description) {
+    if (!documentId) throw new Error('ID de documento no proporcionado.');
+
+    try {
+        const { data, error } = await supabase
+            .from('well_historical_documents')
+            .update({ descripcion: String(description || '').trim() })
+            .eq('id', documentId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (err) {
+        console.error('[well-documents-service] Error actualizando descripción del documento:', err);
+        throw err;
+    }
+}

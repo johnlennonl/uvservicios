@@ -2,7 +2,7 @@ import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile }
 import { getUniquePozos } from '../../services/monitoring-service.js';
 import { autosaveFieldJourneyDraft, submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney, getFieldSubmittedJourneys, getFieldSubmittedJourneyDetail, getLatestFieldJourneyDraft } from '../../services/field-journey-service.js';
 import { getWellRibbonData } from '../../services/technical-measurements-service.js';
-import { uploadWellDocument, deleteWellDocument, getWellDocuments } from '../../services/well-documents-service.js';
+import { uploadWellDocument, deleteWellDocument, getWellDocuments, updateWellDocumentDescription } from '../../services/well-documents-service.js';
 import { validateFieldJourneyForSubmission, validateFieldReport, validateSectionParameters } from './field-validation.js';
 
 const DRAFT_STORAGE_KEY = 'uv-field-capture-draft';
@@ -2425,15 +2425,36 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             let soportesListHtml = '';
             if (soportesCount > 0) {
                 soportesListHtml = `
-                    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:8px;">
-                        ${existingSoportes.map((doc, sIdx) => `
-                            <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; border:1px solid #cbd5e1; gap:6px;">
-                                <span style="font-size:0.75rem; font-weight:600; color:#0f172a; word-break:break-all; text-align:left;">📸 Foto #${sIdx + 1}: ${escapeHtml(doc.nombre_archivo)}</span>
-                                <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(doc.id)}" data-file-path="${escapeHtml(doc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:6px; padding:4px 8px; font-size:0.72rem; font-weight:700; cursor:pointer; flex-shrink:0;">
-                                    🗑️ Borrar
-                                </button>
-                            </div>
-                        `).join('')}
+                    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;">
+                        ${existingSoportes.map((doc, sIdx) => {
+                            const desc = String(doc.descripcion || '').trim();
+                            const prefix = `[JORNADA_ID:${tempJourneyTag}]`;
+                            let userComment = desc;
+                            if (userComment.startsWith(prefix)) {
+                                userComment = userComment.slice(prefix.length).trim();
+                            } else {
+                                userComment = userComment.replace(/^\[JORNADA_ID:[^\]]+\]\s*/i, '');
+                            }
+                            if (userComment === 'Soporte de campo' || userComment === 'Archivo de campo' || userComment.includes('Adjunto enviado desde captura')) {
+                                userComment = '';
+                            }
+                            return `
+                                <div style="display:flex; flex-direction:column; background:#fff; padding:10px; border-radius:10px; border:1px solid #cbd5e1; gap:8px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                        <span style="font-size:0.75rem; font-weight:700; color:#0f172a; word-break:break-all; text-align:left;">📸 Foto #${sIdx + 1}: ${escapeHtml(doc.nombre_archivo)}</span>
+                                        <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(doc.id)}" data-file-path="${escapeHtml(doc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:6px; padding:4px 8px; font-size:0.72rem; font-weight:700; cursor:pointer; flex-shrink:0;">
+                                            🗑️ Borrar
+                                        </button>
+                                    </div>
+                                    <div style="display:flex; gap:6px; align-items:center; margin-top:2px;">
+                                        <input type="text" class="input-photo-comment" data-doc-id="${escapeHtml(doc.id)}" value="${escapeHtml(userComment)}" placeholder="Escribe un motivo/comentario (ej: falla de polea)" style="flex:1; font-size:0.75rem; padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; box-sizing:border-box;">
+                                        <button type="button" class="btn-save-photo-comment" data-doc-id="${escapeHtml(doc.id)}" style="background:#059669; color:#fff; border:none; border-radius:6px; padding:6px 10px; font-size:0.75rem; font-weight:700; cursor:pointer; flex-shrink:0; display:inline-flex; align-items:center; gap:4px;">
+                                            💾 Guardar
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 `;
             }
@@ -2762,6 +2783,46 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             } finally {
                 btn.disabled = false;
                 btn.innerText = '🗑️ Eliminar';
+            }
+        };
+    });
+
+    body.querySelectorAll('.btn-save-photo-comment').forEach(btn => {
+        btn.onclick = async () => {
+            const docId = btn.dataset.docId;
+            const input = btn.closest('div').querySelector('.input-photo-comment');
+            if (!docId || !input) return;
+
+            const commentText = String(input.value || '').trim();
+            const newDescription = `[JORNADA_ID:${tempJourneyTag}] ${commentText}`;
+
+            try {
+                btn.disabled = true;
+                btn.innerText = '⏳ ...';
+                await updateWellDocumentDescription(docId, newDescription);
+
+                const docObj = existingDocs.find(d => d.id === docId);
+                if (docObj) {
+                    docObj.descripcion = newDescription;
+                }
+
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'success',
+                        title: 'Guardado',
+                        text: 'Comentario de foto guardado exitosamente.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                } else {
+                    showAlert('Comentario guardado.', 'success');
+                }
+            } catch (err) {
+                console.error('Error al guardar comentario de foto:', err);
+                showAlert(`Error al guardar comentario: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '💾 Guardar';
             }
         };
     });

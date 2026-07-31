@@ -1921,9 +1921,11 @@ function renderList() {
                         <span class="${buildStatusClass(match.journey.status)}">${escapeHtml(normalizeStatusLabel(match.journey.status))}</span>
                     </div>
                     
-                    <div class="campo-admin-ticket-row-crew">
+                    <div class="campo-admin-ticket-row-crew crew-names-container">
                         <svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                        <span class="crew-names">Jornada: ${escapeHtml(match.journey.locacion_jornada || 'Sin locación')}</span>
+                        <div class="crew-names-wrapper">
+                            <span class="crew-names">Jornada: ${escapeHtml(match.journey.locacion_jornada || 'Sin locación')}</span>
+                        </div>
                     </div>
                     
                     <div class="campo-admin-ticket-row-footer">
@@ -1953,6 +1955,7 @@ function renderList() {
                 await selectJourney(journeyId);
             });
         });
+        applyCrewMarquees();
         return;
     }
 
@@ -2003,9 +2006,11 @@ function renderList() {
                     <span class="${buildStatusClass(journey.status)}">${escapeHtml(normalizeStatusLabel(journey.status))}</span>
                 </div>
                 
-                <div class="campo-admin-ticket-row-crew">
+                <div class="campo-admin-ticket-row-crew crew-names-container">
                     <svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                    <span class="crew-names" title="${escapeHtml(technicians.equipoGuardia)}">${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')}</span>
+                    <div class="crew-names-wrapper">
+                        <span class="crew-names" title="${escapeHtml(technicians.equipoGuardia)}">${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')}</span>
+                    </div>
                 </div>
                 
                 <div class="campo-admin-ticket-row-footer">
@@ -2053,6 +2058,32 @@ function renderList() {
             const { journeyId } = button.dataset;
             if (!journeyId) return;
             selectJourney(journeyId);
+        });
+    });
+
+    applyCrewMarquees();
+}
+
+function applyCrewMarquees() {
+    const wrappers = document.querySelectorAll('.crew-names-wrapper');
+    wrappers.forEach(wrapper => {
+        const textSpan = wrapper.querySelector('.crew-names');
+        if (!textSpan) return;
+        
+        // Reset state
+        textSpan.classList.remove('animate-marquee');
+        textSpan.style.removeProperty('--scroll-dist');
+        
+        // requestAnimationFrame yields clean layout sizes
+        requestAnimationFrame(() => {
+            const scrollW = textSpan.scrollWidth;
+            const clientW = wrapper.clientWidth;
+            
+            if (scrollW > clientW) {
+                const scrollDist = clientW - scrollW - 16; // Leaving 16px safe spacing at the end
+                textSpan.style.setProperty('--scroll-dist', `${scrollDist}px`);
+                textSpan.classList.add('animate-marquee');
+            }
         });
     });
 }
@@ -2844,22 +2875,41 @@ async function renderDetail(detail) {
         }
 
         if (soportesListEl) {
-            soportesListEl.innerHTML = soportesDocs.length > 0 ? soportesDocs.map(doc => `
-                <div style="padding:12px; border-radius:12px; background:#fff; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; margin-bottom:8px;">
-                    <div>
-                        <strong style="font-size:0.88rem; color:#0f172a; display:block; text-align:left;">${escapeHtml(doc.nombre_archivo || 'Foto Soporte')}</strong>
-                        <span style="font-size:0.78rem; color:#64748b; display:block; text-align:left;">Pozo: ${escapeHtml(doc.pozo_name)} · ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
+            soportesListEl.innerHTML = soportesDocs.length > 0 ? soportesDocs.map(doc => {
+                const desc = String(doc.descripcion || '').trim();
+                const prefix = `[JORNADA_ID:${journey.id}]`;
+                let userComment = desc;
+                if (userComment.startsWith(prefix)) {
+                    userComment = userComment.slice(prefix.length).trim();
+                } else {
+                    userComment = userComment.replace(/^\[JORNADA_ID:[^\]]+\]\s*/i, '');
+                }
+                if (userComment === 'Soporte de campo' || userComment === 'Archivo de campo' || userComment.includes('Adjunto enviado desde captura')) {
+                    userComment = '';
+                }
+
+                const commentHtml = userComment 
+                    ? `<div style="margin-top: 6px; padding: 6px 10px; background: #f8fafc; border-left: 3px solid #64748b; border-radius: 4px; font-size: 0.78rem; color: #334155; font-style: italic; text-align: left;">💬 ${escapeHtml(userComment)}</div>` 
+                    : '';
+
+                return `
+                    <div style="padding:12px; border-radius:12px; background:#fff; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; margin-bottom:8px;">
+                        <div>
+                            <strong style="font-size:0.88rem; color:#0f172a; display:block; text-align:left;">${escapeHtml(doc.nombre_archivo || 'Foto Soporte')}</strong>
+                            <span style="font-size:0.78rem; color:#64748b; display:block; text-align:left;">Pozo: ${escapeHtml(doc.pozo_name)} · ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
+                            ${commentHtml}
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button type="button" class="btn-download-sidebar-doc" data-file-path="${escapeHtml(doc.file_path)}" style="flex:1; padding:6px 12px; border-radius:8px; background:#475569; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
+                                ⬇️ Descargar
+                            </button>
+                            <button type="button" class="btn-preview-sidebar-image" data-file-path="${escapeHtml(doc.file_path)}" style="flex:1; padding:6px 12px; border-radius:8px; background:#1e40af; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
+                                👁️ Ver Imagen
+                            </button>
+                        </div>
                     </div>
-                    <div style="display:flex; gap:6px;">
-                        <button type="button" class="btn-download-sidebar-doc" data-file-path="${escapeHtml(doc.file_path)}" style="flex:1; padding:6px 12px; border-radius:8px; background:#475569; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
-                            ⬇️ Descargar
-                        </button>
-                        <button type="button" class="btn-preview-sidebar-image" data-file-path="${escapeHtml(doc.file_path)}" style="flex:1; padding:6px 12px; border-radius:8px; background:#1e40af; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
-                            👁️ Ver Imagen
-                        </button>
-                    </div>
-                </div>
-            `).join('') : '<div class="campo-admin-empty"><strong>Sin soportes de campo</strong><p>No se adjuntaron imágenes de soporte en esta jornada.</p></div>';
+                `;
+            }).join('') : '<div class="campo-admin-empty"><strong>Sin soportes de campo</strong><p>No se adjuntaron imágenes de soporte en esta jornada.</p></div>';
         }
 
         document.querySelectorAll('.btn-download-sidebar-doc').forEach(btn => {

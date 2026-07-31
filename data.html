@@ -1440,6 +1440,16 @@
                         ? '⚡ Data VSD'
                         : '📸 Soporte Foto';
 
+                    const desc = String(doc.descripcion || '').trim();
+                    let userComment = desc;
+                    userComment = userComment.replace(/^\[JORNADA_ID:[^\]]+\]\s*/i, '');
+                    if (userComment === 'Soporte de campo' || userComment === 'Archivo de campo' || userComment.includes('Adjunto enviado desde captura')) {
+                        userComment = '';
+                    }
+                    const commentHtml = userComment 
+                        ? `<div style="margin-top: 4px; font-size: 0.78rem; color: #475569; font-style: italic;">💬 ${escapeHtml(userComment)}</div>` 
+                        : '';
+
                     const userEmail = doc.uploaded_by_email || doc.usuario || 'Técnico de Campo';
                     const sizeMb = doc.tamaño_bytes ? `${(doc.tamaño_bytes / (1024 * 1024)).toFixed(2)} MB` : '--';
                     const actionLabel = mode === 'soportes' ? '👁️ Ver Foto' : '⬇️ Descargar';
@@ -1447,7 +1457,10 @@
                     tr.innerHTML = `
                         <td style="padding: 12px 16px;"><strong>${escapeHtml(createdDate)}</strong></td>
                         <td style="padding: 12px 16px;"><span style="display:inline-block; padding:4px 12px; border-radius:12px; font-weight:800; font-size:0.78rem; background:${badgeBg}; color:${badgeColor};">${escapeHtml(badgeLabel)}</span></td>
-                        <td style="padding: 12px 16px;"><strong style="color:#0f172a; font-size:0.92rem;">${escapeHtml(fileName)}</strong></td>
+                        <td style="padding: 12px 16px;">
+                            <strong style="color:#0f172a; font-size:0.92rem;">${escapeHtml(fileName)}</strong>
+                            ${commentHtml}
+                        </td>
                         <td style="padding: 12px 16px;"><span style="font-size:0.85rem; color:#475569;">${escapeHtml(userEmail)}</span></td>
                         <td style="text-align:center; padding: 12px 16px;"><small style="color:#64748b; font-weight:700;">${escapeHtml(sizeMb)}</small></td>
                         <td style="text-align:right; padding: 12px 16px;">

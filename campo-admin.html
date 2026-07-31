@@ -1034,6 +1034,11 @@
             transition: all 0.2s ease;
             text-align: left;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+            font-family: inherit;
         }
 
         .campo-admin-ticket:hover,
@@ -1049,6 +1054,9 @@
             justify-content: space-between;
             align-items: center;
             gap: 8px;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
         }
 
         .campo-admin-ticket-loc {
@@ -1059,12 +1067,37 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .campo-admin-ticket-row-crew {
             display: flex;
             align-items: center;
             gap: 6px;
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .crew-names-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .crew-names-wrapper {
+            overflow: hidden;
+            white-space: nowrap;
+            width: 100%;
+            position: relative;
+            display: flex;
             min-width: 0;
         }
 
@@ -1079,12 +1112,32 @@
             flex: 1;
         }
 
+        .crew-names.animate-marquee {
+            display: inline-block !important;
+            width: max-content !important;
+            flex: none !important;
+            animation: crewMarqueeScroll 10s ease-in-out infinite alternate;
+            padding-right: 24px;
+            text-overflow: clip;
+            white-space: nowrap;
+        }
+
+        @keyframes crewMarqueeScroll {
+            0% { transform: translateX(0); }
+            20% { transform: translateX(0); }
+            80% { transform: translateX(var(--scroll-dist, 0px)); }
+            100% { transform: translateX(var(--scroll-dist, 0px)); }
+        }
+
         .campo-admin-ticket-row-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 8px;
             margin-top: 2px;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
         }
 
         .footer-meta-left {
@@ -1155,12 +1208,21 @@
             border-top: 1px dashed #e2e8f0;
             padding-top: 6px;
             margin-top: 2px;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .submitter-label {
             font-size: 0.74rem;
             color: #64748b;
             font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .mobile-back-to-list-btn {
@@ -2535,14 +2597,16 @@
             }
 
             .campo-admin-filter-group {
-                display: grid;
-                grid-template-columns: repeat(4, minmax(0, 1fr));
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
                 width: 100%;
+                justify-content: flex-start;
             }
 
             .campo-admin-filter-chip {
                 min-height: 44px;
-                width: 100%;
+                width: auto;
                 justify-content: center;
                 text-align: center;
             }
@@ -2701,6 +2765,42 @@
                 padding: 16px;
             }
 
+            /* Symmetrical mobile wrap grid for filter chips */
+            .campo-admin-filter-group {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+
+            .campo-admin-filter-chip {
+                min-height: 40px;
+                padding: 6px 10px;
+                font-size: 0.78rem;
+                white-space: nowrap;
+                text-align: center;
+                justify-content: center;
+                border-radius: 12px;
+                flex: 1 1 calc(50% - 4px) !important;
+            }
+
+            .campo-admin-filter-chip[data-status-filter="pending"] {
+                order: 1;
+            }
+            .campo-admin-filter-chip[data-status-filter="under_review"] {
+                order: 2;
+            }
+            .campo-admin-filter-chip[data-status-filter="drafts"] {
+                order: 3;
+                flex: 1 1 100% !important; /* Full width for the long 'En vivo' text */
+            }
+            .campo-admin-filter-chip[data-status-filter="approved"] {
+                order: 4;
+            }
+            .campo-admin-filter-chip[data-status-filter="all"] {
+                order: 5;
+            }
+
             .campo-admin-stats,
             .campo-admin-steps,
             .campo-admin-ticket-summary-grid,
@@ -2747,9 +2847,7 @@
                 justify-content: flex-start;
             }
 
-            .campo-admin-filter-group {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
+
 
             .campo-admin-search {
                 min-height: 48px;
