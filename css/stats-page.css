@@ -3108,7 +3108,8 @@ mark {
 .alertas-table-wrap {
   max-height: 480px;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 0 20px 16px;
 }
 

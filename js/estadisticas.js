@@ -54,6 +54,14 @@ async function init() {
         });
     }
 
+    const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
+    if (mobileLogoutBtn) {
+        mobileLogoutBtn.addEventListener('click', async () => {
+            await logout();
+            window.location.href = 'index.html';
+        });
+    }
+
     // 3. Inicializar Pestaña de Reportes Personalizados
     try {
         initCustomReportsTab();
