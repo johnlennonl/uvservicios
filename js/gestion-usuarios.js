@@ -785,6 +785,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         await logout();
     });
 
+    const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
+    if (mobileLogoutBtn) {
+        mobileLogoutBtn.addEventListener('click', async () => {
+            await logout();
+        });
+    }
+
     // Toggle password visibility for user creation
     const toggleCreatePasswordBtn = document.getElementById('toggle-create-password');
     const inputPassword = document.getElementById('input-password');

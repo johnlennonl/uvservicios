@@ -671,6 +671,10 @@ div.swal2-container,
     border: none;
     cursor: pointer;
     font-family: inherit;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    box-sizing: border-box;
 }
 
 .more-menu-item.active {
@@ -697,6 +701,8 @@ div.swal2-container,
 .more-menu-icon svg {
     width: 26px;
     height: 26px;
+    stroke-width: 2.2 !important;
+    overflow: visible !important;
 }
 
 .more-menu-item span {
