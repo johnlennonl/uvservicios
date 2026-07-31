@@ -2,7 +2,7 @@
   "name": "UV Servicios",
   "short_name": "UVServicios",
   "description": "Plataforma de captura y consolidado operativo.",
-  "start_url": "./field.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#2563eb",
