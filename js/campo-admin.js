@@ -1390,8 +1390,8 @@ function isRecordDateInsideJourneyWindow(recordPayload = {}, journey = {}) {
     if (!jornada.includes('nocturna')) return false;
 
     const hour = getHourFromTime(recordPayload.hora);
-    if (diffDays === -1) return hour === null || hour >= 18;
-    if (diffDays === 1) return hour === null || hour < 6;
+    if (diffDays === -1) return hour === null || hour >= 16; // Tolerancia: permitir desde las 4:00 PM (16:00)
+    if (diffDays === 1) return hour === null || hour < 9;   // Tolerancia: permitir hasta las 8:59 AM
     return false;
 }
 
@@ -1849,12 +1849,29 @@ function renderList() {
     if (state.searchTerm && pozoMatches.length > 0) {
         elements.list.innerHTML = pozoMatches.map(match => {
             const isSelected = match.journey.id === state.selectedJourneyId;
+            
+            const getAuditLabel = (email, labelPrefix) => {
+                const cleanEmail = String(email || '').trim().toLowerCase();
+                const profile = state.profilesMap[cleanEmail];
+                if (profile) {
+                    const title = profile.role === 'campo' ? 'Téc.' : 'Ing.';
+                    const fullName = `${profile.nombre || ''} ${profile.apellido || ''}`.trim();
+                    return ` · ${labelPrefix}: ${title} ${fullName}`;
+                }
+                return ` · ${labelPrefix}: Ing. ${cleanEmail.split('@')[0]}`;
+            };
+
+            const publisherLabel = (match.journey.status === 'published' && match.journey.published_by_email)
+                ? getAuditLabel(match.journey.published_by_email, 'Publicada')
+                : (match.journey.status === 'approved' && match.journey.reviewed_by_email)
+                    ? getAuditLabel(match.journey.reviewed_by_email, 'Aprobada')
+                    : '';
             return `
                 <button type="button" class="campo-admin-ticket${isSelected ? ' is-selected' : ''}" data-pozo-match-name="${escapeHtml(match.pozo)}" data-journey-id="${escapeHtml(match.journey.id)}">
                     <div class="campo-admin-ticket-left">
                         <h3>${escapeHtml(match.pozo)}</h3>
                         <p>Jornada: ${escapeHtml(match.journey.locacion_jornada || 'Sin locación')} · ${escapeHtml(formatDate(match.journey.journey_date))}</p>
-                        <span class="campo-admin-ticket-engineer">${escapeHtml(getSubmitterLabel(match.journey.submitted_by_email))}</span>
+                        <span class="campo-admin-ticket-engineer">${escapeHtml(getSubmitterLabel(match.journey.submitted_by_email))}${escapeHtml(publisherLabel)}</span>
                     </div>
                     <div class="campo-admin-ticket-right">
                         <span class="${buildStatusClass(match.journey.status)}">${escapeHtml(normalizeStatusLabel(match.journey.status))}</span>
@@ -1889,13 +1906,30 @@ function renderList() {
     elements.list.innerHTML = state.journeys.map(journey => {
         const isSelected = journey.id === state.selectedJourneyId;
         const technicians = getJourneyTechnicians(journey);
+        
+        const getAuditLabel = (email, labelPrefix) => {
+            const cleanEmail = String(email || '').trim().toLowerCase();
+            const profile = state.profilesMap[cleanEmail];
+            if (profile) {
+                const title = profile.role === 'campo' ? 'Téc.' : 'Ing.';
+                const fullName = `${profile.nombre || ''} ${profile.apellido || ''}`.trim();
+                return ` · ${labelPrefix}: ${title} ${fullName}`;
+            }
+            return ` · ${labelPrefix}: Ing. ${cleanEmail.split('@')[0]}`;
+        };
+
+        const publisherLabel = (journey.status === 'published' && journey.published_by_email)
+            ? getAuditLabel(journey.published_by_email, 'Publicada')
+            : (journey.status === 'approved' && journey.reviewed_by_email)
+                ? getAuditLabel(journey.reviewed_by_email, 'Aprobada')
+                : '';
 
         return `
             <button type="button" class="campo-admin-ticket${isSelected ? ' is-selected' : ''}" data-journey-id="${escapeHtml(journey.id)}">
                 <div class="campo-admin-ticket-left">
                     <h3>${escapeHtml(journey.locacion_jornada || 'Sin locación')}</h3>
                     <p>${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')} · ${escapeHtml(formatDate(journey.journey_date))}</p>
-                    <span class="campo-admin-ticket-engineer">${escapeHtml(getSubmitterLabel(journey.submitted_by_email))}</span>
+                    <span class="campo-admin-ticket-engineer">${escapeHtml(getSubmitterLabel(journey.submitted_by_email))}${escapeHtml(publisherLabel)}</span>
                 </div>
                 <div class="campo-admin-ticket-right">
                     <span class="${buildStatusClass(journey.status)}">${escapeHtml(normalizeStatusLabel(journey.status))}</span>
@@ -2537,6 +2571,18 @@ async function renderDetail(detail) {
                     <span class="metadata-card-label-v2">Ventana y Pozos</span>
                     <strong class="metadata-card-value-v2">${escapeHtml(summarizeJourneyWindow(journey))} · ${escapeHtml(String(journey.total_reports || 0))} pozo(s)</strong>
                 </div>
+                ${journey.reviewed_by_email ? `
+                    <div class="metadata-card-v2">
+                        <span class="metadata-card-label-v2">Revisado por</span>
+                        <strong class="metadata-card-value-v2">${escapeHtml(getSubmitterLabel(journey.reviewed_by_email))}</strong>
+                    </div>
+                ` : ''}
+                ${journey.published_by_email ? `
+                    <div class="metadata-card-v2">
+                        <span class="metadata-card-label-v2">Publicado por</span>
+                        <strong class="metadata-card-value-v2">${escapeHtml(getSubmitterLabel(journey.published_by_email))}</strong>
+                    </div>
+                ` : ''}
             </div>
             ${journeyActionsSectionMarkup}
         </section>
