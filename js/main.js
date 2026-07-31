@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let pendingRoute = null;
 
     // 1. Initial State: Check for existing session
+    const startTime = Date.now();
     const session = await getSession();
 
     if (session) {
@@ -33,13 +34,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Si ya hay sesión pero falta el PIN, mostramos el Paso 2
             pendingRoute = route;
             showPinStep();
-            ui.hideFullLoader();
+            
+            const elapsedTime = Date.now() - startTime;
+            const remainingDelay = Math.max(0, 2500 - elapsedTime);
+            setTimeout(() => {
+                ui.hideFullLoader();
+            }, remainingDelay);
         } else {
             ui.redirectToDashboard(route);
             return;
         }
     } else {
-        ui.hideFullLoader();
+        const elapsedTime = Date.now() - startTime;
+        const remainingDelay = Math.max(0, 2500 - elapsedTime);
+        setTimeout(() => {
+            ui.hideFullLoader();
+        }, remainingDelay);
     }
 
     function showPinStep() {
