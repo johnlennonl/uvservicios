@@ -1897,14 +1897,49 @@ function renderList() {
                     : '';
             return `
                 <button type="button" class="campo-admin-ticket${isSelected ? ' is-selected' : ''}" data-pozo-match-name="${escapeHtml(match.pozo)}" data-journey-id="${escapeHtml(match.journey.id)}">
-                    <div class="campo-admin-ticket-left">
-                        <h3>${escapeHtml(match.pozo)}</h3>
-                        <p>Jornada: ${escapeHtml(match.journey.locacion_jornada || 'Sin locación')} · ${escapeHtml(formatDate(match.journey.journey_date))}</p>
-                        <span class="campo-admin-ticket-engineer">${escapeHtml(getSubmitterLabel(match.journey.submitted_by_email))}${escapeHtml(publisherLabel)}</span>
-                    </div>
-                    <div class="campo-admin-ticket-right">
+                    <div class="campo-admin-ticket-row-header">
+                        <span class="campo-admin-ticket-loc">
+                            <svg class="ticket-icon" viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                                <g>
+                                    <circle cx="12" cy="38" r="6" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2,2" opacity="0.4" />
+                                    <g>
+                                        <rect x="10" y="32" width="4" height="12" rx="2" fill="currentColor" stroke="none" />
+                                        <circle cx="12" cy="38" r="1.5" fill="#f0fdfa" stroke="none" />
+                                    </g>
+                                </g>
+                                <g>
+                                    <path d="M8 16 L52 16 L52 20 L8 20 Z" fill="currentColor" stroke="none" />
+                                    <path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z" fill="currentColor" stroke="none" />
+                                    <line x1="62" y1="34" x2="62" y2="46" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1.5,1.5" />
+                                    <line x1="12" y1="20" x2="12" y2="34" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                                    <circle cx="32" cy="18" r="2.8" fill="#f0fdfa" stroke="currentColor" stroke-width="1" />
+                                </g>
+                            </svg>
+                            Pozo: ${escapeHtml(match.pozo)}
+                        </span>
                         <span class="${buildStatusClass(match.journey.status)}">${escapeHtml(normalizeStatusLabel(match.journey.status))}</span>
-                        <span class="campo-admin-ticket-count">Editar pozo</span>
+                    </div>
+                    
+                    <div class="campo-admin-ticket-row-crew">
+                        <svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                        <span class="crew-names">Jornada: ${escapeHtml(match.journey.locacion_jornada || 'Sin locación')}</span>
+                    </div>
+                    
+                    <div class="campo-admin-ticket-row-footer">
+                        <div class="footer-meta-left">
+                            <span class="date-text">
+                                <svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                ${escapeHtml(formatDate(match.journey.journey_date))}
+                            </span>
+                        </div>
+                        <div class="footer-meta-right">
+                            <span class="well-count-pill accent">Editar pozo</span>
+                        </div>
+                    </div>
+
+                    <div class="campo-admin-ticket-row-submitter">
+                        <span class="submitter-label">${escapeHtml(getSubmitterLabel(match.journey.submitted_by_email))}${escapeHtml(publisherLabel)}</span>
                     </div>
                 </button>
             `;
@@ -1953,16 +1988,61 @@ function renderList() {
                 ? getAuditLabel(journey.reviewed_by_email, 'Aprobada')
                 : '';
 
+        const isDayShift = journey.jornada && String(journey.jornada).toLowerCase() === 'diurna';
+        const shiftIcon = isDayShift
+            ? `<svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`
+            : `<svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+
         return `
             <button type="button" class="campo-admin-ticket${isSelected ? ' is-selected' : ''}" data-journey-id="${escapeHtml(journey.id)}">
-                <div class="campo-admin-ticket-left">
-                    <h3>${escapeHtml(journey.locacion_jornada || 'Sin locación')}</h3>
-                    <p>${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')} · ${escapeHtml(journey.jornada || 'Jornada no informada')} · ${escapeHtml(formatDate(journey.journey_date))}</p>
-                    <span class="campo-admin-ticket-engineer">${escapeHtml(getSubmitterLabel(journey.submitted_by_email))}${escapeHtml(publisherLabel)}</span>
-                </div>
-                <div class="campo-admin-ticket-right">
+                <div class="campo-admin-ticket-row-header">
+                    <span class="campo-admin-ticket-loc">
+                        <svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                        ${escapeHtml(journey.locacion_jornada || 'Sin locación')}
+                    </span>
                     <span class="${buildStatusClass(journey.status)}">${escapeHtml(normalizeStatusLabel(journey.status))}</span>
-                    <span class="campo-admin-ticket-count">${escapeHtml(String(journey.total_reports || 0))} pozo(s)</span>
+                </div>
+                
+                <div class="campo-admin-ticket-row-crew">
+                    <svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <span class="crew-names" title="${escapeHtml(technicians.equipoGuardia)}">${escapeHtml(technicians.equipoGuardia || 'Equipo no informado')}</span>
+                </div>
+                
+                <div class="campo-admin-ticket-row-footer">
+                    <div class="footer-meta-left">
+                        <span class="shift-badge shift-${String(journey.jornada || 'day').toLowerCase()}">
+                            ${shiftIcon} ${escapeHtml(journey.jornada || 'Diurna')}
+                        </span>
+                        <span class="date-text">
+                            <svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                            ${escapeHtml(formatDate(journey.journey_date))}
+                        </span>
+                    </div>
+                        <span class="well-count-pill">
+                            <svg class="ticket-icon" viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                                <g>
+                                    <circle cx="12" cy="38" r="6" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2,2" opacity="0.4" />
+                                    <g>
+                                        <rect x="10" y="32" width="4" height="12" rx="2" fill="currentColor" stroke="none" />
+                                        <circle cx="12" cy="38" r="1.5" fill="#f0fdfa" stroke="none" />
+                                    </g>
+                                </g>
+                                <g>
+                                    <path d="M8 16 L52 16 L52 20 L8 20 Z" fill="currentColor" stroke="none" />
+                                    <path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z" fill="currentColor" stroke="none" />
+                                    <line x1="62" y1="34" x2="62" y2="46" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1.5,1.5" />
+                                    <line x1="12" y1="20" x2="12" y2="34" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                                    <circle cx="32" cy="18" r="2.8" fill="#f0fdfa" stroke="currentColor" stroke-width="1" />
+                                </g>
+                            </svg>
+                            ${escapeHtml(String(journey.total_reports || 0))} pozo(s)
+                        </span>
+                    </div>
+                </div>
+
+                <div class="campo-admin-ticket-row-submitter">
+                    <span class="submitter-label">${escapeHtml(getSubmitterLabel(journey.submitted_by_email))}${escapeHtml(publisherLabel)}</span>
                 </div>
             </button>
         `;
@@ -3024,6 +3104,21 @@ async function selectJourney(journeyId, options = {}) {
         elements.sidebarIncidentsPanel.hidden = true;
     }
 
+    // Toggle master-detail view in mobile responsive layout
+    const isMobile = window.innerWidth <= 1024;
+    const shouldShowDetailView = !isMobile || !options.keepList;
+
+    if (shouldShowDetailView) {
+        const shell = document.querySelector('.campo-admin-shell');
+        if (shell) {
+            shell.classList.remove('show-queue');
+            shell.classList.add('show-detail');
+        }
+        if (isMobile) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
     elements.detailShell.innerHTML = `
         <div class="campo-admin-empty">
             <strong>Cargando detalle</strong>
@@ -3200,6 +3295,19 @@ async function bootstrap() {
         if (soportesContent) soportesContent.style.display = (tab === 'soportes') ? 'block' : 'none';
         if (incidentsContent) incidentsContent.style.display = (tab === 'incidents') ? 'block' : 'none';
     });
+
+    // Mobile responsive master-detail view back action
+    const handleGoBackToList = () => {
+        const shell = document.querySelector('.campo-admin-shell');
+        if (shell) {
+            shell.classList.remove('show-detail');
+            shell.classList.add('show-queue');
+        }
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    };
+
+    document.getElementById('mobile-back-to-list-btn')?.addEventListener('click', handleGoBackToList);
+    document.getElementById('mobile-floating-back-btn')?.addEventListener('click', handleGoBackToList);
 
     try {
         const { data: profiles } = await supabase

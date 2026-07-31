@@ -20,7 +20,21 @@
     <link rel="stylesheet" href="css/dashboard-page.css">
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        try {
+            if (sessionStorage.getItem('access-readonly') === 'true') {
+                document.documentElement.classList.add('is-readonly-role');
+            }
+        } catch (e) {}
+    </script>
     <style>
+        .is-readonly-role .campo-admin-stats {
+            display: none !important;
+        }
+        .is-readonly-role #campo-admin-filter-group {
+            display: none !important;
+        }
+
         [hidden] {
             display: none !important;
         }
@@ -880,43 +894,75 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 0;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            font-size: 0.72rem;
-            font-weight: 800;
-            letter-spacing: 0.05em;
+            padding: 4px 10px !important;
+            border-radius: 999px !important;
+            font-size: 0.68rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.05em !important;
             text-transform: uppercase;
             white-space: nowrap;
+            box-shadow: none !important;
         }
 
         .campo-admin-status-pill::before {
             content: '';
-            width: 7px;
-            height: 7px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: currentColor;
             display: inline-block;
             flex-shrink: 0;
         }
 
+        .campo-admin-status-pill.status-draft {
+            background: #f0fdf4 !important;
+            color: #16a34a !important;
+            border: 1px solid rgba(22, 163, 74, 0.25) !important;
+        }
+        .campo-admin-status-pill.status-draft::before {
+            background-color: #16a34a;
+            animation: pulse-green 1.8s infinite;
+        }
+
         .campo-admin-status-pill.status-submitted {
-            color: #d97706;
+            background: #fffbeb !important;
+            color: #d97706 !important;
+            border: 1px solid rgba(217, 119, 6, 0.25) !important;
         }
 
         .campo-admin-status-pill.status-under_review {
-            color: #2563eb;
+            background: #eff6ff !important;
+            color: #2563eb !important;
+            border: 1px solid rgba(37, 99, 235, 0.25) !important;
         }
 
         .campo-admin-status-pill.status-approved,
         .campo-admin-status-pill.status-published {
-            color: #10b981;
+            background: #f0fdf4 !important;
+            color: #10b981 !important;
+            border: 1px solid rgba(16, 185, 129, 0.25) !important;
         }
 
         .campo-admin-status-pill.status-rejected,
         .campo-admin-status-pill.status-archived {
-            color: #ef4444;
+            background: #fef2f2 !important;
+            color: #ef4444 !important;
+            border: 1px solid rgba(239, 68, 68, 0.25) !important;
+        }
+
+        @keyframes pulse-green {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 5px rgba(22, 163, 74, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+            }
         }
 
         .campo-admin-shell {
@@ -981,9 +1027,9 @@
             padding: 12px 14px;
             background: #ffffff;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
+            flex-direction: column;
+            gap: 8px;
+            align-items: stretch;
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: left;
@@ -998,34 +1044,131 @@
             background: #F0F6FF;
         }
 
-        .campo-admin-ticket-left {
-            display: grid;
-            gap: 4px;
+        .campo-admin-ticket-row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .campo-admin-ticket-loc {
+            font-size: 0.92rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .campo-admin-ticket-row-crew {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .crew-names {
+            font-size: 0.8rem;
+            color: #475569;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             min-width: 0;
             flex: 1;
         }
 
-        .campo-admin-ticket-right {
+        .campo-admin-ticket-row-footer {
             display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 6px;
-            flex-shrink: 0;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-top: 2px;
         }
 
-        .campo-admin-ticket-engineer {
-            font-size: 0.76rem;
-            color: var(--text-muted);
+        .footer-meta-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .shift-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .shift-badge.shift-diurna,
+        .shift-badge.shift-day {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .shift-badge.shift-nocturna,
+        .shift-badge.shift-night {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .date-text {
+            font-size: 0.74rem;
+            color: #64748b;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .well-count-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #f1f5f9;
+            color: #475569;
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .well-count-pill.accent {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .ticket-icon {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            color: currentColor;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .campo-admin-ticket-row-submitter {
+            border-top: 1px dashed #e2e8f0;
+            padding-top: 6px;
+            margin-top: 2px;
+        }
+
+        .submitter-label {
+            font-size: 0.74rem;
+            color: #64748b;
             font-weight: 500;
         }
 
-        .campo-admin-ticket-count {
-            font-size: 0.72rem;
-            color: var(--text-muted);
-            font-weight: 700;
-            background: transparent !important;
-            padding: 0 !important;
-            border-radius: 0 !important;
+        .mobile-back-to-list-btn {
+            display: none;
+        }
+
+        .mobile-floating-back-btn {
+            display: none;
         }
 
         .campo-admin-ticket-top,
@@ -2454,6 +2597,76 @@
             .campo-admin-detail-actions .campo-admin-action-btn {
                 min-height: 44px;
             }
+
+            /* Master-Detail view toggling in mobile */
+            .campo-admin-shell.show-detail .campo-admin-queue {
+                display: none !important;
+            }
+            .campo-admin-shell.show-queue .campo-admin-detail {
+                display: none !important;
+            }
+            .campo-admin-shell:not(.show-detail) .campo-admin-detail {
+                display: none !important;
+            }
+
+            .mobile-back-to-list-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: #f1f5f9;
+                color: #334155;
+                border: 1px solid #e2e8f0;
+                padding: 10px 16px;
+                border-radius: 12px;
+                font-size: 0.85rem;
+                font-weight: 800;
+                cursor: pointer;
+                transition: all 0.2s;
+                width: fit-content;
+                margin-bottom: 14px;
+            }
+            .mobile-back-to-list-btn:hover {
+                background: #e2e8f0;
+                color: #0f172a;
+            }
+            .mobile-back-to-list-btn svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            .mobile-floating-back-btn {
+                position: fixed;
+                bottom: 84px; /* Above the mobile bottom navigation bar */
+                right: 20px;  /* Align to right side for easy thumb access */
+                z-index: 999;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                background: #1e293b;
+                color: #ffffff;
+                border: none;
+                padding: 12px 18px;
+                border-radius: 999px;
+                font-size: 0.85rem;
+                font-weight: 800;
+                box-shadow: 0 8px 24px rgba(15, 23, 42, 0.3);
+                cursor: pointer;
+                transition: transform 0.2s, background 0.2s;
+            }
+            .mobile-floating-back-btn:active {
+                transform: scale(0.95);
+            }
+            .mobile-floating-back-btn svg {
+                width: 16px;
+                height: 16px;
+                stroke: currentColor;
+            }
+
+            /* Only show floating button when detail view is active in mobile */
+            .campo-admin-shell:not(.show-detail) ~ .mobile-floating-back-btn,
+            .campo-admin-shell.show-queue ~ .mobile-floating-back-btn {
+                display: none !important;
+            }
         }
 
         @media (max-width: 860px) {
@@ -3210,7 +3423,7 @@
                 </div>
             </section>
 
-            <section class="campo-admin-shell">
+            <section class="campo-admin-shell show-queue">
                 <section class="campo-admin-queue" aria-label="Listado de jornadas pendientes">
                     <div class="campo-admin-panel">
                         <div class="campo-admin-panel-head">
@@ -3284,6 +3497,15 @@
                 </section>
 
                 <section class="campo-admin-detail" aria-label="Detalle de jornada seleccionada">
+                    <!-- BOTÓN VOLVER EN MÓVIL (para regresar al listado de jornadas) -->
+                    <button type="button" class="mobile-back-to-list-btn" id="mobile-back-to-list-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                        <span>Volver al listado de jornadas</span>
+                    </button>
+
                     <div id="campo-admin-detail-shell" class="campo-admin-detail-sections">
                         <div class="campo-admin-empty">
                             <strong>Selecciona una jornada</strong>
@@ -3292,6 +3514,15 @@
                     </div>
                 </section>
             </section>
+
+            <!-- Botón flotante en móvil para volver al listado -->
+            <button type="button" class="mobile-floating-back-btn" id="mobile-floating-back-btn" aria-label="Volver al listado de jornadas">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>Volver</span>
+            </button>
 
             <div id="campo-admin-record-modal" class="campo-admin-modal" hidden>
                 <div class="campo-admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="campo-admin-record-modal-title">

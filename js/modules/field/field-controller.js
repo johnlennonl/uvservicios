@@ -2354,7 +2354,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             const existingVsdDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'VOLCADOS_VSD');
 
             const echometerFieldHtml = (echometerYes || isManualTrigger) ? `
-                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px;">
+                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; border-left: 4px solid #3b82f6;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📈 Archivo Echometer (.028, .twm, .zip)</span>
                         ${existingEchoDoc ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ Subido</span>` : ''}
@@ -2367,18 +2367,16 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                             </button>
                         </div>
                     ` : `
-                        <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; flex-direction:column; gap:6px;">
                             <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="REGISTROS_ECHOMETER" accept=".028,.twm,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
-                            <button type="button" class="btn-upload-single-doc" data-pozo="${escapeHtml(pozoName)}" data-category="REGISTROS_ECHOMETER" style="background:linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:0.82rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box;">
-                                ⬆️ Subir Archivo Echometer
-                            </button>
+                            <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
                         </div>
                     `}
                 </div>
             ` : '';
 
             const sensorFieldHtml = (isSensorDataYes || isManualTrigger) ? `
-                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px;">
+                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; border-left: 4px solid #14b8a6;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📊 Data Sensor de Fondo (.dat, .raw, .zip, .txt)</span>
                         ${existingSensorDoc ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ Subido</span>` : ''}
@@ -2391,18 +2389,16 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                             </button>
                         </div>
                     ` : `
-                        <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; flex-direction:column; gap:6px;">
                             <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="DATA_SENSOR_FONDO" accept=".dat,.raw,.zip,.rar,.txt,.csv" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
-                            <button type="button" class="btn-upload-single-doc" data-pozo="${escapeHtml(pozoName)}" data-category="DATA_SENSOR_FONDO" style="background:linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:0.82rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box;">
-                                ⬆️ Subir Data Sensor de Fondo
-                            </button>
+                            <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
                         </div>
                     `}
                 </div>
             ` : '';
 
             const vsdFieldHtml = (isVsdDataYes || isManualTrigger) ? `
-                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px;">
+                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; border-left: 4px solid #f59e0b;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">⚡ Descarga Data VSD (.dat, .raw, .zip)</span>
                         ${existingVsdDoc ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ Subido</span>` : ''}
@@ -2415,11 +2411,9 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                             </button>
                         </div>
                     ` : `
-                        <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; flex-direction:column; gap:6px;">
                             <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="VOLCADOS_VSD" accept=".dat,.raw,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
-                            <button type="button" class="btn-upload-single-doc" data-pozo="${escapeHtml(pozoName)}" data-category="VOLCADOS_VSD" style="background:linear-gradient(135deg, #d97706 0%, #f59e0b 100%); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:0.82rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box;">
-                                ⬆️ Subir Archivo Data VSD
-                            </button>
+                            <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
                         </div>
                     `}
                 </div>
@@ -2448,9 +2442,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             const uploadSoportesHtml = canAddMoreSoportes ? `
                 <div style="display:flex; flex-direction:column; gap:6px;">
                     <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="SOPORTES" accept="image/*" multiple style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
-                    <button type="button" class="btn-upload-single-doc" data-pozo="${escapeHtml(pozoName)}" data-category="SOPORTES" style="background:linear-gradient(135deg, #475569 0%, #64748b 100%); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:0.82rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box;">
-                        ⬆️ Subir Foto(s) (${soportesCount}/5)
-                    </button>
+                    <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
                 </div>
             ` : `
                 <div style="font-size:0.78rem; font-weight:700; color:#dc2626; background:#fee2e2; padding:8px 12px; border-radius:8px; text-align:center;">
@@ -2459,7 +2451,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             `;
 
             const soportesFieldHtml = `
-                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px;">
+                <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; border-left: 4px solid #64748b;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📸 Soportes de Campo (${soportesCount}/5)</span>
                     </div>
@@ -2481,22 +2473,44 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                    </button>` 
                 : '';
 
+            if (!window._expandedPozos) {
+                window._expandedPozos = new Set();
+                if (reportsToDisplay.length > 0) {
+                    const firstPozoName = String(reportsToDisplay[0].pozo || reportsToDisplay[0].pozo_name || '').trim().toUpperCase();
+                    if (firstPozoName) window._expandedPozos.add(firstPozoName);
+                }
+            }
+
+            const isExpanded = window._expandedPozos.has(pozoName);
+            const badgeColor = attachedCount > 0 ? '#059669' : '#475569';
+            const badgeBg = attachedCount > 0 ? '#d1fae5' : '#e2e8f0';
+
             return `
-                <div style="background:#ffffff; border-radius:14px; border:1px solid #cbd5e1; padding:16px; display:flex; flex-direction:column; gap:14px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:10px; flex-wrap:wrap; gap:8px;">
-                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <div class="well-accordion-item" style="background:#ffffff; border-radius:14px; border:1px solid #cbd5e1; box-shadow:0 4px 12px rgba(0,0,0,0.03); overflow:hidden; display:flex; flex-direction:column; margin-bottom:10px; flex-shrink:0;">
+                    <!-- Cabecera de Acordeón -->
+                    <div class="well-accordion-trigger" data-pozo-name="${escapeHtml(pozoName)}" style="padding:16px; background:${isExpanded ? '#f8fafc' : '#ffffff'}; cursor:pointer; display:flex; justify-content:space-between; align-items:center; user-select:none; transition: background 0.2s; border-bottom: ${isExpanded ? '1px solid #cbd5e1' : 'none'};">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                             <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981;"></span>
                             <strong style="font-size:1.05rem; color:#0f172a; font-weight:800;">Pozo: ${escapeHtml(pozoName)}</strong>
-                            <span style="font-size:0.75rem; font-weight:700; color:#475569; background:#e2e8f0; padding:3px 10px; border-radius:10px;">${attachedCount} archivo(s) subido(s)</span>
+                            <span style="font-size:0.75rem; font-weight:700; color:${badgeColor}; background:${badgeBg}; padding:3px 10px; border-radius:10px; transition: all 0.2s;">
+                                ${attachedCount} ${attachedCount === 1 ? 'archivo subido' : 'archivos subidos'}
+                            </span>
                             ${removeBtnHtml}
                         </div>
-                        <span style="font-size:0.78rem; font-weight:700; color:#475569; background:#f1f5f9; padding:4px 12px; border-radius:12px;">${escapeHtml(report.campo || 'Campo')}</span>
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <span style="font-size:0.78rem; font-weight:700; color:#475569; background:#f1f5f9; padding:4px 12px; border-radius:12px;">${escapeHtml(report.campo || 'Campo')}</span>
+                            <span class="accordion-arrow" style="font-size: 0.9rem; color: #64748b; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'}; transition: transform 0.2s; display: inline-block;">▶</span>
+                        </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
-                        ${echometerFieldHtml}
-                        ${sensorFieldHtml}
-                        ${vsdFieldHtml}
-                        ${soportesFieldHtml}
+                    
+                    <!-- Contenido de Acordeón -->
+                    <div class="well-accordion-content" style="display: ${isExpanded ? 'block' : 'none'}; padding:16px; background:#fff;">
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
+                            ${echometerFieldHtml}
+                            ${sensorFieldHtml}
+                            ${vsdFieldHtml}
+                            ${soportesFieldHtml}
+                        </div>
                     </div>
                 </div>
             `;
@@ -2634,29 +2648,58 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
         }
     }
 
-    body.querySelectorAll('.btn-upload-single-doc').forEach(btn => {
-        btn.onclick = async () => {
-            const pozoName = btn.dataset.pozo;
-            const category = btn.dataset.category;
-            const container = btn.closest('div');
-            const fileInput = container?.querySelector('input[type="file"]');
+    // Toggle para los acordeones colapsables por pozo
+    body.querySelectorAll('.well-accordion-trigger').forEach(trigger => {
+        trigger.onclick = () => {
+            const pozoName = trigger.dataset.pozoName;
+            const content = trigger.nextElementSibling;
+            const arrow = trigger.querySelector('.accordion-arrow');
 
-            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-                if (window.Swal) {
-                    window.Swal.fire({
-                        icon: 'warning',
-                        title: 'Archivo no seleccionado',
-                        text: 'Por favor selecciona un archivo antes de presionar Subir.'
-                    });
-                } else {
-                    showAlert('Por favor selecciona un archivo antes de presionar Subir.', 'warning');
-                }
-                return;
+            const isCurrentlyExpanded = content.style.display === 'block';
+
+            if (isCurrentlyExpanded) {
+                content.style.display = 'none';
+                trigger.style.background = '#ffffff';
+                trigger.style.borderBottom = 'none';
+                if (arrow) arrow.style.transform = 'rotate(0deg)';
+                window._expandedPozos.delete(pozoName);
+            } else {
+                // Colapsar los otros acordeones para mantener orden y no "marear" al técnico
+                body.querySelectorAll('.well-accordion-content').forEach(c => c.style.display = 'none');
+                body.querySelectorAll('.well-accordion-trigger').forEach(t => {
+                    t.style.background = '#ffffff';
+                    t.style.borderBottom = 'none';
+                    const a = t.querySelector('.accordion-arrow');
+                    if (a) a.style.transform = 'rotate(0deg)';
+                });
+                window._expandedPozos.clear();
+
+                content.style.display = 'block';
+                trigger.style.background = '#f8fafc';
+                trigger.style.borderBottom = '1px solid #cbd5e1';
+                if (arrow) arrow.style.transform = 'rotate(90deg)';
+                window._expandedPozos.add(pozoName);
             }
+        };
+    });
+
+    // Subida automática al seleccionar archivo (onchange)
+    body.querySelectorAll('.field-attachment-input').forEach(fileInput => {
+        fileInput.onchange = async () => {
+            const pozoName = fileInput.dataset.pozo;
+            const category = fileInput.dataset.category;
+            const container = fileInput.closest('div');
+            const statusLabel = container?.querySelector('.upload-status-lbl');
+
+            if (!fileInput.files || fileInput.files.length === 0) return;
 
             try {
-                btn.disabled = true;
-                btn.innerText = 'Subiendo...';
+                fileInput.disabled = true;
+                if (statusLabel) {
+                    statusLabel.style.display = 'block';
+                    statusLabel.innerHTML = `⏳ Subiendo archivo...`;
+                    statusLabel.style.color = '#2563eb';
+                }
 
                 const filesArray = Array.from(fileInput.files);
 
@@ -2666,18 +2709,6 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                         const maxAllowed = 5 - existingSoportesCount;
                         throw new Error(`Límite excedido. Solo puedes subir ${maxAllowed} foto(s) más para este pozo.`);
                     }
-                }
-
-                if (window.Swal) {
-                    window.Swal.fire({
-                        title: 'Subiendo archivos...',
-                        text: `Cargando ${filesArray.length} archivo(s) en Supabase Storage...`,
-                        allowOutsideClick: false,
-                        allowEscapeKey: false,
-                        didOpen: () => {
-                            window.Swal.showLoading();
-                        }
-                    });
                 }
 
                 for (const file of filesArray) {
@@ -2690,32 +2721,23 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                     });
                 }
 
-                if (window.Swal) {
-                    await window.Swal.fire({
-                        icon: 'success',
-                        title: 'ARCHIVOS GUARDADOS',
-                        text: `Se subieron ${filesArray.length} archivo(s) del pozo ${pozoName} correctamente.`,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                } else {
-                    showAlert(`Se subieron ${filesArray.length} archivo(s) para el pozo ${pozoName} exitosamente.`, 'success');
+                if (statusLabel) {
+                    statusLabel.innerHTML = `✓ ¡Archivo guardado!`;
+                    statusLabel.style.color = '#059669';
                 }
 
-                await openFieldAttachmentsModal(reports, isManualTrigger);
+                setTimeout(async () => {
+                    await openFieldAttachmentsModal(reports, isManualTrigger);
+                }, 800);
+
             } catch (err) {
                 console.error('Error subiendo archivo(s):', err);
-                if (window.Swal) {
-                    window.Swal.fire({
-                        icon: 'error',
-                        title: 'Error al subir',
-                        text: err.message
-                    });
-                } else {
-                    showAlert(`Error subiendo archivo: ${err.message}`, 'error');
+                if (statusLabel) {
+                    statusLabel.innerHTML = `❌ Error: ${err.message}`;
+                    statusLabel.style.color = '#ef4444';
                 }
-                btn.disabled = false;
-                btn.innerText = '⬆️ Subir';
+                fileInput.disabled = false;
+                fileInput.value = '';
             }
         };
     });

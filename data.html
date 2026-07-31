@@ -316,6 +316,7 @@
                     <button type="button" id="btn-echometer-history" class="history-mode-btn">📈 Archivos Echometer</button>
                     <button type="button" id="btn-sensor-history" class="history-mode-btn">📊 Data Sensor de Fondo</button>
                     <button type="button" id="btn-vsd-history" class="history-mode-btn">⚡ Descarga de Data VSD</button>
+                    <button type="button" id="btn-soportes-history" class="history-mode-btn">📸 Soportes de Campo</button>
                 </div>
                 <select id="filter-date"
                     style="padding: 10px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; cursor: pointer; background: white;">
@@ -1043,6 +1044,7 @@
             document.getElementById('btn-echometer-history').classList.toggle('active', mode === 'echometer');
             document.getElementById('btn-sensor-history').classList.toggle('active', mode === 'sensor');
             document.getElementById('btn-vsd-history').classList.toggle('active', mode === 'vsd');
+            document.getElementById('btn-soportes-history').classList.toggle('active', mode === 'soportes');
 
             renderHistoryHead();
             if (activePozo) {
@@ -1058,7 +1060,7 @@
 
             table?.classList.toggle('technical-history-table', activeHistoryMode === 'technical');
 
-            if (activeHistoryMode === 'echometer' || activeHistoryMode === 'sensor' || activeHistoryMode === 'vsd') {
+            if (activeHistoryMode === 'echometer' || activeHistoryMode === 'sensor' || activeHistoryMode === 'vsd' || activeHistoryMode === 'soportes') {
                 thead.innerHTML = `
                     <tr>
                         <th>Fecha de Carga</th>
@@ -1168,6 +1170,7 @@
             document.getElementById('btn-echometer-history').addEventListener('click', () => setHistoryMode('echometer'));
             document.getElementById('btn-sensor-history').addEventListener('click', () => setHistoryMode('sensor'));
             document.getElementById('btn-vsd-history').addEventListener('click', () => setHistoryMode('vsd'));
+            document.getElementById('btn-soportes-history').addEventListener('click', () => setHistoryMode('soportes'));
             document.getElementById('data-view-mode').addEventListener('change', (event) => setDataViewMode(event.target.value));
             document.getElementById('ticket-date').addEventListener('change', loadDailyTicketData);
             document.getElementById('ticket-shift').addEventListener('change', loadDailyTicketData);
@@ -1338,12 +1341,14 @@
         async function loadPozoData() {
             if (!activePozo) return;
 
-            if (activeHistoryMode === 'echometer' || activeHistoryMode === 'sensor' || activeHistoryMode === 'vsd') {
+            if (activeHistoryMode === 'echometer' || activeHistoryMode === 'sensor' || activeHistoryMode === 'vsd' || activeHistoryMode === 'soportes') {
                 document.getElementById('table-title').textContent = activeHistoryMode === 'echometer'
                     ? `Archivos Echometer: ${activePozo}`
                     : activeHistoryMode === 'sensor'
                     ? `Data Sensor de Fondo: ${activePozo}`
-                    : `Descarga de Data VSD: ${activePozo}`;
+                    : activeHistoryMode === 'vsd'
+                    ? `Descarga de Data VSD: ${activePozo}`
+                    : `Soportes Fotográficos de Campo: ${activePozo}`;
                 await loadPozoDocumentFiles(activePozo, activeHistoryMode);
                 return;
             }
@@ -1383,7 +1388,7 @@
             const tbody = document.getElementById('history-body');
             const countLabel = document.getElementById('record-count');
             if (!tbody) return;
-            const modeText = mode === 'echometer' ? 'Echometer' : mode === 'sensor' ? 'Sensor de Fondo' : 'Data VSD';
+            const modeText = mode === 'echometer' ? 'Echometer' : mode === 'sensor' ? 'Sensor de Fondo' : mode === 'vsd' ? 'Data VSD' : 'Soportes de Campo';
             tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 40px;">Cargando archivos de ${modeText}...</td></tr>`;
 
             try {
@@ -1392,7 +1397,9 @@
                     ? 'REGISTROS_ECHOMETER' 
                     : mode === 'sensor' 
                     ? 'DATA_SENSOR_FONDO' 
-                    : 'VOLCADOS_VSD';
+                    : mode === 'vsd'
+                    ? 'VOLCADOS_VSD'
+                    : 'SOPORTES';
                 const docs = await getWellDocuments({ pozoName, category: categoryFilter });
 
                 if (countLabel) {
@@ -1400,7 +1407,7 @@
                 }
 
                 if (!docs || docs.length === 0) {
-                    const emptyText = mode === 'echometer' ? 'Echometer' : mode === 'sensor' ? 'Sensor de Fondo' : 'Descarga VSD';
+                    const emptyText = mode === 'echometer' ? 'Echometer' : mode === 'sensor' ? 'Sensor de Fondo' : mode === 'vsd' ? 'Descarga VSD' : 'Soportes de Campo';
                     tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay archivos de ${emptyText} registrados para el pozo ${escapeHtml(pozoName)}</td></tr>`;
                     return;
                 }
@@ -1415,20 +1422,27 @@
                         ? 'rgba(37, 99, 235, 0.12)' 
                         : mode === 'sensor' 
                         ? 'rgba(13, 148, 136, 0.12)' 
-                        : 'rgba(217, 119, 6, 0.12)';
+                        : mode === 'vsd'
+                        ? 'rgba(217, 119, 6, 0.12)'
+                        : 'rgba(71, 85, 105, 0.12)';
                     const badgeColor = mode === 'echometer' 
                         ? '#2563eb' 
                         : mode === 'sensor' 
                         ? '#0d9488' 
-                        : '#d97706';
+                        : mode === 'vsd'
+                        ? '#d97706'
+                        : '#475569';
                     const badgeLabel = mode === 'echometer' 
                         ? '📈 Echometer' 
                         : mode === 'sensor' 
                         ? '📊 Data Sensor' 
-                        : '⚡ Data VSD';
+                        : mode === 'vsd'
+                        ? '⚡ Data VSD'
+                        : '📸 Soporte Foto';
 
                     const userEmail = doc.uploaded_by_email || doc.usuario || 'Técnico de Campo';
                     const sizeMb = doc.tamaño_bytes ? `${(doc.tamaño_bytes / (1024 * 1024)).toFixed(2)} MB` : '--';
+                    const actionLabel = mode === 'soportes' ? '👁️ Ver Foto' : '⬇️ Descargar';
 
                     tr.innerHTML = `
                         <td style="padding: 12px 16px;"><strong>${escapeHtml(createdDate)}</strong></td>
@@ -1438,7 +1452,7 @@
                         <td style="text-align:center; padding: 12px 16px;"><small style="color:#64748b; font-weight:700;">${escapeHtml(sizeMb)}</small></td>
                         <td style="text-align:right; padding: 12px 16px;">
                             <button type="button" class="btn-download-doc-inline" data-file-path="${escapeHtml(doc.file_path || doc.ruta_storage || '')}" style="padding:8px 16px; border-radius:10px; background:#10b981; color:#fff; font-weight:800; font-size:0.82rem; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition: background 0.2s;">
-                                ⬇️ Descargar
+                                ${escapeHtml(actionLabel)}
                             </button>
                         </td>
                     `;
