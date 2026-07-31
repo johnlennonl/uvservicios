@@ -2866,6 +2866,7 @@ mark {
 
 .alertas-table {
   width: 100%;
+  min-width: 800px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -3129,6 +3130,7 @@ mark {
   }
   .alertas-table {
     font-size: 12px;
+    min-width: 800px !important;
   }
   .alertas-table thead th,
   .alertas-table tbody td {
