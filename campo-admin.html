@@ -1039,6 +1039,15 @@
             box-sizing: border-box;
             overflow: hidden;
             font-family: inherit;
+            min-height: 112px;
+            flex-shrink: 0;
+        }
+
+        .campo-admin-ticket-row-header,
+        .campo-admin-ticket-row-crew,
+        .campo-admin-ticket-row-footer,
+        .campo-admin-ticket-row-submitter {
+            flex-shrink: 0;
         }
 
         .campo-admin-ticket:hover,
@@ -3712,7 +3721,7 @@
         </div>
     </div>
 
-    <script type="module" src="js/campo-admin.js"></script>
+    <script type="module" src="js/campo-admin.js?v=2.0.2"></script>
     <script type="module" src="js/field-admin-alert.js"></script>
 
     <script>

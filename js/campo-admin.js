@@ -2043,7 +2043,6 @@ function renderList() {
                             </svg>
                             ${escapeHtml(String(journey.total_reports || 0))} pozo(s)
                         </span>
-                    </div>
                 </div>
 
                 <div class="campo-admin-ticket-row-submitter">
