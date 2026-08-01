@@ -539,6 +539,12 @@ function renderAlertasTable(filterText, selectedPozos, selectedStatus) {
     if (selectedStatus && selectedStatus !== 'TODOS') {
         alertas = alertas.filter(r => {
             const status = String(r.estatus || '').trim().toUpperCase();
+            if (selectedStatus === 'RUN') {
+                return ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(status);
+            }
+            if (selectedStatus === 'OFF') {
+                return ['OFF', 'PARADA MANUAL'].includes(status);
+            }
             return status === selectedStatus;
         });
     }
@@ -569,8 +575,8 @@ function renderAlertasTable(filterText, selectedPozos, selectedStatus) {
         const estatus = String(r.estatus || '—').trim().toUpperCase();
         const obs = String(r.observaciones || '').trim();
         
-        const isRun = estatus === 'RUN';
-        const isOff = estatus === 'OFF';
+        const isRun = ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(estatus);
+        const isOff = ['OFF', 'PARADA MANUAL'].includes(estatus);
         
         const tr = document.createElement('tr');
         tr.innerHTML = `

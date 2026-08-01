@@ -267,15 +267,32 @@ export async function updateWellDocumentDescription(documentId, description) {
     if (!documentId) throw new Error('ID de documento no proporcionado.');
 
     try {
-        const { data, error } = await supabase
+        // Try with original type first (could be UUID or string-represented bigint)
+        let { data, error } = await supabase
             .from('well_historical_documents')
             .update({ descripcion: String(description || '').trim() })
             .eq('id', documentId)
-            .select()
-            .single();
+            .select();
 
         if (error) throw error;
-        return data;
+
+        // If 0 rows updated and documentId is a numeric string, try parsing to number
+        if ((!data || data.length === 0) && !isNaN(Number(documentId))) {
+            const numResult = await supabase
+                .from('well_historical_documents')
+                .update({ descripcion: String(description || '').trim() })
+                .eq('id', Number(documentId))
+                .select();
+            
+            if (numResult.error) throw numResult.error;
+            data = numResult.data;
+        }
+
+        if (!data || data.length === 0) {
+            throw new Error('No se encontró el archivo adjunto para actualizar su comentario.');
+        }
+
+        return data[0];
     } catch (err) {
         console.error('[well-documents-service] Error actualizando descripción del documento:', err);
         throw err;

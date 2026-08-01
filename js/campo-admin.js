@@ -2782,34 +2782,42 @@ async function renderDetail(detail) {
         </details>
     `;
 
-    const wellNames = Array.from(new Set(records.map(r => r.pozo_name || r.pozo).filter(Boolean)));
     let echometerDocs = [];
     let sensorDocs = [];
     let vsdDocs = [];
     let soportesDocs = [];
 
-    if (wellNames.length > 0) {
-        try {
-            const { getWellDocuments } = await import('./services/well-documents-service.js');
-            const allDocsArrays = await Promise.all(wellNames.map(pozoName => getWellDocuments({ pozoName })));
-            const allDocs = allDocsArrays.flat();
-            
-            const journeyIdStr = String(journey.id || '');
-            const isMatchingJourney = (d) => {
-                const desc = String(d.descripcion || '');
-                if (desc.includes('[JORNADA_ID:')) {
-                    if (journeyIdStr && desc.includes(`[JORNADA_ID:${journeyIdStr}]`)) return true;
-                }
-                return false;
-            };
+    try {
+        const journeyIdStr = String(journey.id || '');
+        if (journeyIdStr) {
+            const { data: allDocs, error: docsError } = await supabase
+                .from('well_historical_documents')
+                .select('*')
+                .like('descripcion', `%[JORNADA_ID:${journeyIdStr}]%`);
 
-            echometerDocs = allDocs.filter(d => d.categoria === 'REGISTROS_ECHOMETER' && isMatchingJourney(d));
-            sensorDocs = allDocs.filter(d => d.categoria === 'DATA_SENSOR_FONDO' && isMatchingJourney(d));
-            vsdDocs = allDocs.filter(d => d.categoria === 'VOLCADOS_VSD' && isMatchingJourney(d));
-            soportesDocs = allDocs.filter(d => d.categoria === 'SOPORTES' && isMatchingJourney(d));
-        } catch (err) {
-            console.warn('Error al consultar archivos adjuntos de pozos:', err);
+            if (docsError) throw docsError;
+
+            if (allDocs && allDocs.length > 0) {
+                echometerDocs = allDocs.filter(d => d.categoria === 'REGISTROS_ECHOMETER');
+                sensorDocs = allDocs.filter(d => d.categoria === 'DATA_SENSOR_FONDO');
+                vsdDocs = allDocs.filter(d => d.categoria === 'VOLCADOS_VSD');
+                soportesDocs = allDocs.filter(d => d.categoria === 'SOPORTES');
+
+                // Pre-fetch signed download URLs for image thumbnails in admin sidebar
+                await Promise.all(soportesDocs.map(async (doc) => {
+                    if (doc.file_path) {
+                        try {
+                            const { getDocumentDownloadUrl } = await import('./services/well-documents-service.js');
+                            doc.downloadUrl = await getDocumentDownloadUrl(doc.file_path);
+                        } catch (e) {
+                            console.warn(`Error getting admin thumbnail url for doc ${doc.id}:`, e);
+                        }
+                    }
+                }));
+            }
         }
+    } catch (err) {
+        console.warn('Error al consultar archivos adjuntos de pozos:', err);
     }
 
     // Renderizar incidencias e informes en el sidebar izquierdo
@@ -2894,11 +2902,18 @@ async function renderDetail(detail) {
 
                 return `
                     <div style="padding:12px; border-radius:12px; background:#fff; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; margin-bottom:8px;">
-                        <div>
-                            <strong style="font-size:0.88rem; color:#0f172a; display:block; text-align:left;">${escapeHtml(doc.nombre_archivo || 'Foto Soporte')}</strong>
-                            <span style="font-size:0.78rem; color:#64748b; display:block; text-align:left;">Pozo: ${escapeHtml(doc.pozo_name)} · ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
-                            ${commentHtml}
+                        <div style="display:flex; gap:12px; align-items:center;">
+                            ${doc.downloadUrl ? `
+                                <div style="width:50px; height:50px; border-radius:8px; overflow:hidden; border:1px solid #e2e8f0; background:#f1f5f9; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                    <img src="${doc.downloadUrl}" style="width:100%; height:100%; object-fit:cover;">
+                                </div>
+                            ` : ''}
+                            <div style="flex:1; min-width:0;">
+                                <strong style="font-size:0.88rem; color:#0f172a; display:block; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(doc.nombre_archivo)}">${escapeHtml(doc.nombre_archivo || 'Foto Soporte')}</strong>
+                                <span style="font-size:0.78rem; color:#64748b; display:block; text-align:left;">Pozo: ${escapeHtml(doc.pozo_name)} · ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
+                            </div>
                         </div>
+                        ${commentHtml}
                         <div style="display:flex; gap:6px;">
                             <button type="button" class="btn-download-sidebar-doc" data-file-path="${escapeHtml(doc.file_path)}" style="flex:1; padding:6px 12px; border-radius:8px; background:#475569; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
                                 ⬇️ Descargar

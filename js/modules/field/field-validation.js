@@ -293,12 +293,13 @@ export function validateFieldReport(payload, options = {}) {
     }
 
     const estatus = String(normalizedPayload.estatus || '').trim().toUpperCase();
-    const isOff = estatus === 'OFF';
+    const estatusNorm = estatus.replace(/[^A-Z]/g, '');
+    const isOffLike = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm);
     const poseeSensor = String(normalizedPayload.posee_sensor_fondo || '').trim().toUpperCase() === 'SI';
 
-    if (isOff) {
+    if (isOffLike) {
         if (!hasValue(normalizedPayload.diagnostico)) {
-            blockers.push('Al estar el pozo en estatus OFF, el DIAGNÓSTICO es obligatorio para indicar el motivo de la parada.');
+            blockers.push(`Al estar el pozo en estatus ${estatus}, el DIAGNÓSTICO es obligatorio.`);
         }
     } else {
         const missingElectrico = [];
@@ -375,8 +376,8 @@ export function validateFieldReport(payload, options = {}) {
         warnings.push('El estatus esta en RUN pero la frecuencia quedo vacia.');
     }
 
-    if (estatus === 'OFF' && frecuencia !== null && frecuencia > 5) {
-        warnings.push('El estatus esta en OFF pero la frecuencia sigue alta. Revisa si el estado era correcto.');
+    if (['OFF', 'PARADA MANUAL'].includes(estatus) && frecuencia !== null && frecuencia > 5) {
+        warnings.push(`El estatus esta en ${estatus} pero la frecuencia sigue alta. Revisa si el estado era correcto.`);
     }
 
     if (!hasValue(normalizedPayload.tecnico_1) && !hasValue(normalizedPayload.equipo_guardia)) {
@@ -407,7 +408,8 @@ export function validateFieldReport(payload, options = {}) {
 
 export function validateSectionParameters(sectionIndex, payload = {}) {
     const estatus = String(payload.estatus || '').trim().toUpperCase();
-    const isOff = estatus === 'OFF';
+    const estatusNorm = estatus.replace(/[^A-Z]/g, '');
+    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm);
     const poseeSensor = String(payload.posee_sensor_fondo || '').trim().toUpperCase() === 'SI';
     const missing = [];
 

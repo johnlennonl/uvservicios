@@ -52,12 +52,12 @@ export function normalizeOperationalStatus(value) {
         .replace(/[^A-Z0-9]+/g, '');
 
     const runValues = new Set(['RUN', 'RUNNING', 'ON', 'ENCENDIDO', 'OPERANDO', 'OPERATIVO', 'ACTIVO', 'MARCHA', '1']);
-    const offValues = new Set(['OFF', 'OFFLINE', 'STOP', 'STOPPED', 'PARADO', 'APAGADO', 'INACTIVO', 'DETENIDO', '0']);
+    const offValues = new Set(['OFF', 'OFFLINE', 'STOP', 'STOPPED', 'PARADO', 'PARADA', 'APAGADO', 'INACTIVO', 'DETENIDO', '0']);
 
     if (runValues.has(normalized)) return 'RUN';
     if (offValues.has(normalized)) return 'OFF';
     if (normalized.includes('RUN')) return 'RUN';
-    if (normalized.includes('OFF') || normalized.includes('STOP')) return 'OFF';
+    if (normalized.includes('OFF') || normalized.includes('STOP') || normalized.includes('PARAD') || normalized.includes('APAG')) return 'OFF';
     return raw.toUpperCase();
 }
 
@@ -92,7 +92,7 @@ export function getOperationalAlertSignals(record = {}) {
     const normalizedNotes = normalizeSearchText(record?.observaciones);
     const signals = [];
 
-    if (normalizedStatus && !['RUN', 'OFF'].includes(normalizedStatus)) {
+    if (normalizedStatus && !['RUN', 'OFF', 'PARADA MANUAL', 'RUN / ATENCION AL CLIENTE'].includes(normalizedStatus)) {
         signals.push(`estatus ${normalizedStatus}`);
     }
 

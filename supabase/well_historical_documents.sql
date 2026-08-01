@@ -37,6 +37,10 @@ CREATE POLICY "Permitir eliminacion autenticada en well_historical_documents"
 ON public.well_historical_documents FOR DELETE
 USING (true);
 
+CREATE POLICY "Permitir actualizacion autenticada en well_historical_documents"
+ON public.well_historical_documents FOR UPDATE
+USING (true);
+
 -- ==============================================================================
 -- POLÍTICAS RLS PARA SUPABASE STORAGE BUCKET: expedientes-pozos
 -- ==============================================================================

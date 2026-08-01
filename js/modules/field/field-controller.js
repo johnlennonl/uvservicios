@@ -2,8 +2,9 @@ import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile }
 import { getUniquePozos } from '../../services/monitoring-service.js';
 import { autosaveFieldJourneyDraft, submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney, getFieldSubmittedJourneys, getFieldSubmittedJourneyDetail, getLatestFieldJourneyDraft } from '../../services/field-journey-service.js';
 import { getWellRibbonData } from '../../services/technical-measurements-service.js';
-import { uploadWellDocument, deleteWellDocument, getWellDocuments, updateWellDocumentDescription } from '../../services/well-documents-service.js';
+import { uploadWellDocument, deleteWellDocument, getWellDocuments, updateWellDocumentDescription, getDocumentDownloadUrl } from '../../services/well-documents-service.js';
 import { validateFieldJourneyForSubmission, validateFieldReport, validateSectionParameters } from './field-validation.js';
+import { supabase } from '../../supabaseClient.js';
 
 const DRAFT_STORAGE_KEY = 'uv-field-capture-draft';
 const REPORTS_STORAGE_KEY = 'uv-field-capture-reports';
@@ -1050,7 +1051,8 @@ function syncReadonlyPrefilledFields() {
 function syncInputsBasedOnStatus() {
     const statusSelect = document.querySelector('[name="estatus"]');
     if (!statusSelect) return;
-    const isOff = statusSelect.value === 'OFF';
+    const estatusNorm = String(statusSelect.value || '').replace(/[^A-Z]/g, '').toUpperCase();
+    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm);
 
     const giroSelect = document.querySelector('[name="sentido_giro"]');
     if (giroSelect) {
@@ -1097,7 +1099,8 @@ function syncSensorFondoRequirements() {
 
     const poseeSensor = poseeSensorSelect.value === 'SI';
     const isNoSensor = poseeSensorSelect.value === 'NO';
-    const isOff = estatusSelect?.value === 'OFF';
+    const estatusNorm = String(estatusSelect?.value || '').replace(/[^A-Z]/g, '').toUpperCase();
+    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm);
 
     if (panelSensorSelect) {
         const panelGroup = panelSensorSelect.closest('.field-input-group');
@@ -1355,7 +1358,8 @@ function getFormPayload() {
     payload.equipo_guardia = [payload.tecnico_1, payload.tecnico_2].filter(Boolean).join(', ');
     payload.pozo = String(document.getElementById('field-pozo')?.value || payload.pozo || '').trim().toUpperCase();
     payload.jornada = getJourneyFromTime(payload.hora || document.getElementById('field-hora')?.value || '');
-    const isOffStatus = String(payload.estatus || payload.modo_operacion || '').trim().toUpperCase() === 'OFF';
+    const estatusNorm = String(payload.estatus || '').replace(/[^A-Z]/g, '').toUpperCase();
+    const isOffStatus = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm);
     payload.sentido_giro = isOffStatus ? '' : (String(payload.sentido_giro || '').trim() || 'FWD');
     payload.diagnostico = resolveDiagnosisPayloadValue(payload.diagnostico);
     const guardField = document.getElementById('field-equipo-guardia');
@@ -2135,15 +2139,20 @@ function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader =
 }
 
 function buildJourneyWellMessageBlock(report) {
-    const isOff = String(report.estatus || report.modo_operacion || '').trim().toUpperCase() === 'OFF';
+    const estatusStr = String(report.estatus || '').trim().toUpperCase();
+    const isOff = ['OFF', 'PARADA MANUAL', 'RUN / ATENCION AL CLIENTE'].includes(estatusStr);
 
     const lines = [
         `Pozo: ${String(report.pozo || '').toUpperCase() || '--'}`,
         `Hora ${formatShareValue(report.hora)}`
     ];
 
-    if (isOff) {
+    if (estatusStr === 'OFF') {
         lines.push('Estatus: OFF');
+    } else if (estatusStr === 'PARADA MANUAL') {
+        lines.push('Estatus: PARADA MANUAL');
+    } else if (estatusStr === 'RUN / ATENCION AL CLIENTE') {
+        lines.push('Estatus: RUN / ATENCION AL CLIENTE');
     }
 
     const measurementLines = [
@@ -2264,17 +2273,20 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
 
     const allReports = Array.isArray(reports) ? reports : [];
 
-    const reportsToDisplay = isManualTrigger ? allReports.filter(r => String(r.estatus || '').toUpperCase() !== 'OFF') : allReports.filter(report => {
-        const estatus = String(report.estatus || '').trim().toUpperCase();
-        if (estatus === 'OFF') return false;
+    const reportsToDisplay = isManualTrigger 
+        ? [...allReports] 
+        : allReports.filter(report => {
+            const estatus = String(report.estatus || '').trim().toUpperCase();
+            const estatusNorm = estatus.replace(/[^A-Z]/g, '');
+            if (['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm)) return false;
 
-        const echometerYes = String(report.echometer || '').trim().toUpperCase() === 'SI';
-        const isSensorDataYes = String(report.descarga_datas_sensor || '').trim().toUpperCase() === 'SI';
-        const isVsdDataYes = String(report.descarga_datas_vsd || '').trim().toUpperCase() === 'SI';
-        const vsdYes = isSensorDataYes || isVsdDataYes;
+            const echometerYes = String(report.echometer || '').trim().toUpperCase() === 'SI';
+            const isSensorDataYes = String(report.descarga_datas_sensor || '').trim().toUpperCase() === 'SI';
+            const isVsdDataYes = String(report.descarga_datas_vsd || '').trim().toUpperCase() === 'SI';
+            const vsdYes = isSensorDataYes || isVsdDataYes;
 
-        return echometerYes || vsdYes;
-    });
+            return echometerYes || vsdYes;
+        });
 
     if (!isManualTrigger && reportsToDisplay.length === 0) {
         modal.style.display = 'none';
@@ -2287,16 +2299,48 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
     if (!window._modalExtraWells) window._modalExtraWells = new Set();
     window._modalExtraWells.forEach(pozoName => {
         if (!reportsToDisplay.some(r => (r.pozo || r.pozo_name) === pozoName)) {
-            reportsToDisplay.push({ pozo: pozoName, campo: 'Campo', echometer: 'SI', descarga_datas_sensor: 'SI' });
+            reportsToDisplay.push({ pozo: pozoName, campo: 'Campo', echometer: 'SI', descarga_datas_sensor: 'SI', descarga_datas_vsd: 'SI', _isExtra: true });
         }
     });
 
     let existingDocs = [];
     try {
-        const wellNames = Array.from(new Set(reportsToDisplay.map(r => r.pozo || r.pozo_name).filter(Boolean)));
-        if (wellNames.length > 0) {
-            const docsArrays = await Promise.all(wellNames.map(pozoName => getWellDocuments({ pozoName }).catch(() => [])));
-            existingDocs = docsArrays.flat().filter(d => String(d.descripcion || '').includes(`[JORNADA_ID:${tempJourneyTag}]`));
+        const journeyIdStr = String(tempJourneyTag || '');
+        if (journeyIdStr) {
+            const { data: allDocs, error: docsError } = await supabase
+                .from('well_historical_documents')
+                .select('*')
+                .like('descripcion', `%[JORNADA_ID:${journeyIdStr}]%`);
+
+            if (docsError) throw docsError;
+            if (allDocs) existingDocs = allDocs;
+
+            // Automatically inject any wells that already have documents uploaded for this journey
+            existingDocs.forEach(doc => {
+                const pName = String(doc.pozo_name || '').trim().toUpperCase();
+                if (pName && !reportsToDisplay.some(r => String(r.pozo || r.pozo_name || '').trim().toUpperCase() === pName)) {
+                    reportsToDisplay.push({ 
+                        pozo: pName, 
+                        pozo_name: pName, 
+                        echometer: 'SI', 
+                        descarga_datas_sensor: 'SI',
+                        descarga_datas_vsd: 'SI',
+                        baja_datos: 'SI',
+                        _isExtra: true 
+                    });
+                }
+            });
+
+            // Pre-fetch signed download URLs for image previews in attachments list
+            await Promise.all(existingDocs.map(async (doc) => {
+                if (doc.categoria === 'SOPORTES' && doc.file_path) {
+                    try {
+                        doc.downloadUrl = await getDocumentDownloadUrl(doc.file_path);
+                    } catch (e) {
+                        console.warn(`Error getting preview URL for doc ${doc.id}:`, e);
+                    }
+                }
+            }));
         }
     } catch (err) {
         console.warn('Error fetching existing journey attachments:', err);
@@ -2438,17 +2482,26 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                             if (userComment === 'Soporte de campo' || userComment === 'Archivo de campo' || userComment.includes('Adjunto enviado desde captura')) {
                                 userComment = '';
                             }
+
                             return `
                                 <div style="display:flex; flex-direction:column; background:#fff; padding:10px; border-radius:10px; border:1px solid #cbd5e1; gap:8px;">
-                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                                        <span style="font-size:0.75rem; font-weight:700; color:#0f172a; word-break:break-all; text-align:left;">📸 Foto #${sIdx + 1}: ${escapeHtml(doc.nombre_archivo)}</span>
-                                        <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(doc.id)}" data-file-path="${escapeHtml(doc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:6px; padding:4px 8px; font-size:0.72rem; font-weight:700; cursor:pointer; flex-shrink:0;">
+                                    <div style="display:flex; gap:12px; align-items:center;">
+                                        ${doc.downloadUrl ? `
+                                            <div style="width:50px; height:50px; border-radius:8px; overflow:hidden; border:1px solid #e2e8f0; background:#f1f5f9; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                                <img src="${doc.downloadUrl}" style="width:100%; height:100%; object-fit:cover;">
+                                            </div>
+                                        ` : ''}
+                                        <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;">
+                                            <span style="font-size:0.75rem; font-weight:700; color:#0f172a; word-break:break-all; text-align:left; line-height:1.2;">📸 Foto #${sIdx + 1}: ${escapeHtml(doc.nombre_archivo)}</span>
+                                            <span style="font-size:0.68rem; color:#64748b;">Subido el ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
+                                        </div>
+                                        <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(doc.id)}" data-file-path="${escapeHtml(doc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:6px; padding:6px 10px; font-size:0.72rem; font-weight:700; cursor:pointer; flex-shrink:0; align-self:flex-start;">
                                             🗑️ Borrar
                                         </button>
                                     </div>
                                     <div style="display:flex; gap:6px; align-items:center; margin-top:2px;">
-                                        <input type="text" class="input-photo-comment" data-doc-id="${escapeHtml(doc.id)}" value="${escapeHtml(userComment)}" placeholder="Escribe un motivo/comentario (ej: falla de polea)" style="flex:1; font-size:0.75rem; padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; box-sizing:border-box;">
-                                        <button type="button" class="btn-save-photo-comment" data-doc-id="${escapeHtml(doc.id)}" style="background:#059669; color:#fff; border:none; border-radius:6px; padding:6px 10px; font-size:0.75rem; font-weight:700; cursor:pointer; flex-shrink:0; display:inline-flex; align-items:center; gap:4px;">
+                                        <input type="text" class="input-photo-comment" data-doc-id="${escapeHtml(doc.id)}" value="${escapeHtml(userComment)}" placeholder="Escribe un motivo/comentario (ej: falla de polea)" style="flex:1; font-size:0.75rem; padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; box-sizing:border-box; height:32px;">
+                                        <button type="button" class="btn-save-photo-comment" data-doc-id="${escapeHtml(doc.id)}" style="background:#059669; color:#fff; border:none; border-radius:6px; padding:6px 10px; font-size:0.75rem; font-weight:700; cursor:pointer; flex-shrink:0; display:inline-flex; align-items:center; gap:4px; height:32px;">
                                             💾 Guardar
                                         </button>
                                     </div>
@@ -2787,43 +2840,55 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
         };
     });
 
+    const saveComment = async (docId, commentText, inputElement, btnElement) => {
+        const newDescription = `[JORNADA_ID:${tempJourneyTag}] ${commentText}`;
+        try {
+            if (inputElement) inputElement.style.borderColor = '#2563eb';
+            if (btnElement) {
+                btnElement.disabled = true;
+                btnElement.innerText = '⏳ ...';
+            }
+
+            await updateWellDocumentDescription(docId, newDescription);
+
+            const docObj = existingDocs.find(d => d.id === docId);
+            if (docObj) {
+                docObj.descripcion = newDescription;
+            }
+
+            if (inputElement) {
+                inputElement.style.borderColor = '#10b981';
+                setTimeout(() => {
+                    inputElement.style.borderColor = '#cbd5e1';
+                }, 2000);
+            }
+        } catch (err) {
+            console.error('Error guardando comentario:', err);
+            if (inputElement) inputElement.style.borderColor = '#ef4444';
+            showAlert(`Error al guardar comentario: ${err.message}`, 'error');
+        } finally {
+            if (btnElement) {
+                btnElement.disabled = false;
+                btnElement.innerText = '💾 Guardar';
+            }
+        }
+    };
+
+    body.querySelectorAll('.input-photo-comment').forEach(input => {
+        input.onchange = async () => {
+            const docId = input.dataset.docId;
+            const btn = input.closest('div').querySelector('.btn-save-photo-comment');
+            await saveComment(docId, String(input.value || '').trim(), input, btn);
+        };
+    });
+
     body.querySelectorAll('.btn-save-photo-comment').forEach(btn => {
         btn.onclick = async () => {
             const docId = btn.dataset.docId;
-            const input = btn.closest('div').querySelector('.input-photo-comment');
+            const rowContainer = btn.closest('div');
+            const input = rowContainer.querySelector('.input-photo-comment');
             if (!docId || !input) return;
-
-            const commentText = String(input.value || '').trim();
-            const newDescription = `[JORNADA_ID:${tempJourneyTag}] ${commentText}`;
-
-            try {
-                btn.disabled = true;
-                btn.innerText = '⏳ ...';
-                await updateWellDocumentDescription(docId, newDescription);
-
-                const docObj = existingDocs.find(d => d.id === docId);
-                if (docObj) {
-                    docObj.descripcion = newDescription;
-                }
-
-                if (window.Swal) {
-                    window.Swal.fire({
-                        icon: 'success',
-                        title: 'Guardado',
-                        text: 'Comentario de foto guardado exitosamente.',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                } else {
-                    showAlert('Comentario guardado.', 'success');
-                }
-            } catch (err) {
-                console.error('Error al guardar comentario de foto:', err);
-                showAlert(`Error al guardar comentario: ${err.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = '💾 Guardar';
-            }
+            await saveComment(docId, String(input.value || '').trim(), input, btn);
         };
     });
 
