@@ -105,7 +105,7 @@ const FIELD_LABELS = {
     thp_psi: 'el THP',
     chp_psi: 'el CHP',
     lf_psi: 'el LF',
-    temperatura_caseta: 'la temperatura de la caseta',
+    temperatura_caseta: 'la temperatura de la caseta del VDF',
     estado_fosa_porcentaje: 'el estado de fosa',
     ays_percentage: 'el % AyS'
 };
@@ -218,7 +218,7 @@ const WARNING_LIMIT_RULES = [
     { field: 'chp_psi', max: 5000, message: 'El CHP esta por encima de lo usual. Confirma que no hubo un cero adicional.' },
     { field: 'lf_psi', max: 5000, message: 'El LF esta por encima de lo usual. Confirma que no hubo un cero adicional.' },
     { field: 'i_motor', max: 400, message: 'La corriente del motor esta alta para un monitoreo habitual. Revisala.' },
-    { field: 'temperatura_caseta', max: 180, message: 'La temperatura de caseta luce alta. Revisa el dato.' },
+    { field: 'temperatura_caseta', max: 180, message: 'La temperatura de la caseta del VDF luce alta. Revisa el dato.' },
     { field: 'estado_fosa_porcentaje', max: 100, message: 'El estado de fosa supera 100%. Revisa si el porcentaje esta bien escrito.' },
     { field: 'ays_percentage', max: 100, message: 'El % AyS supera 100%. Revisa el dato antes de guardar.' }
 ];
@@ -316,7 +316,7 @@ export function validateFieldReport(payload, options = {}) {
         }
 
         if (!hasValue(normalizedPayload.posee_sensor_fondo)) {
-            blockers.push('Indica si el pozo POSEE SENSOR DE FONDO? (SI / NO).');
+            blockers.push('Indica si el pozo POSEE SENSOR DE FONDO?.');
         } else if (poseeSensor) {
             const estadoPanel = String(normalizedPayload.estado_panel_sensor_choques || '').trim().toUpperCase();
             const isPanelBueno = estadoPanel === 'BUENO';
@@ -348,8 +348,8 @@ export function validateFieldReport(payload, options = {}) {
         if (!hasValue(normalizedPayload.estado_panel_sensor_choques)) missingSuperficie.push('PANEL DEL SENSOR');
         if (!hasValue(normalizedPayload.estado_aterramiento)) missingSuperficie.push('ATERRAMIENTO');
         if (!hasValue(normalizedPayload.condicion_cableado)) missingSuperficie.push('CONDICIÓN DE CABLEADO');
-        if (!hasValue(normalizedPayload.condicion_caseta)) missingSuperficie.push('CONDICIÓN DE LA CASETA');
-        if (!hasValue(normalizedPayload.temperatura_caseta)) missingSuperficie.push('TEMPERATURA DE CASETA');
+        if (!hasValue(normalizedPayload.condicion_caseta)) missingSuperficie.push('CONDICIÓN DE LA JAULA');
+        if (!hasValue(normalizedPayload.temperatura_caseta)) missingSuperficie.push('TEMPERATURA DE LA CASETA DEL VDF');
         if (!hasValue(normalizedPayload.estado_fosa_porcentaje)) missingSuperficie.push('ESTADO DE FOSA [%]');
         if (!hasValue(normalizedPayload.estado_biw_conector)) missingSuperficie.push('BIW/CONECTOR');
         if (!hasValue(normalizedPayload.estado_manometros)) missingSuperficie.push('MANÓMETROS');
@@ -442,8 +442,8 @@ export function validateSectionParameters(sectionIndex, payload = {}) {
             if (!hasValue(payload.estado_vsd)) missing.push('ESTADO DEL VSD');
             if (!hasValue(payload.estado_aterramiento)) missing.push('ATERRAMIENTO');
             if (!hasValue(payload.condicion_cableado)) missing.push('CONDICIÓN DEL CABLEADO');
-            if (!hasValue(payload.condicion_caseta)) missing.push('CONDICIÓN DE LA CASETA');
-            if (!hasValue(payload.temperatura_caseta)) missing.push('TEMPERATURA DE LA CASETA');
+            if (!hasValue(payload.condicion_caseta)) missing.push('CONDICIÓN DE LA JAULA');
+            if (!hasValue(payload.temperatura_caseta)) missing.push('TEMPERATURA DE LA CASETA DEL VDF');
             if (!hasValue(payload.estado_fosa_porcentaje)) missing.push('ESTADO DE FOSA');
             if (!hasValue(payload.estado_biw_conector)) missing.push('BIW/CONECTOR');
             if (!hasValue(payload.estado_manometros)) missing.push('MANÓMETROS');

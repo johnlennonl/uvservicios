@@ -46,6 +46,7 @@ const FORCE_TEXT_COLUMN_IDENTITIES = new Set([
     'CONDICIONCHP',
     'CONDICIONDELCABLEADO',
     'CONDICIONDELACASETA',
+    'CONDICIONDELAJAULA',
     'ESTADODELTX',
     'ESTADODELVSD',
     'ESTADODEPANELDESENSORCHOQUES',
@@ -1532,7 +1533,11 @@ function getStoredRowExportValue(storedRow = {}, label = '', pumpMap = null) {
         const normalizedIdentity = normalizeColumnIdentity(label);
         const aliases = {
             'ESTADODEFOSA': ['ESTADODELAFOSA', 'ESTADODELAFOSA%', 'ESTADODEFOSA%', 'ESTADOFOSA', 'EDOFOSA', 'ESTADOFOSA%', 'EDOFOSA%'],
-            'OBSERVACIONES': ['OBSERVACIONESDELPOZO']
+            'OBSERVACIONES': ['OBSERVACIONESDELPOZO'],
+            'CONDICIONDELAJAULA': ['CONDICIONDELACASETA'],
+            'CONDICIONDELACASETA': ['CONDICIONDELAJAULA'],
+            'TEMPERATURADELACASETADELVDF': ['TEMPERATURADELACASETA', 'TEMPERATURACASETA'],
+            'TEMPERATURADELACASETA': ['TEMPERATURADELACASETADELVDF']
         };
         const possibleIdentities = [normalizedIdentity, ...(aliases[normalizedIdentity] || [])];
         const matchingKey = Object.keys(rowData).find(key => {

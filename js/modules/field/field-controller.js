@@ -14,6 +14,16 @@ const ACCORDION_PROGRESS_STORAGE_KEY = 'uv-field-accordion-progress';
 const MESSAGE_HEADER_STORAGE_KEY = 'uv-field-message-header';
 const JOURNEY_STARTED_STORAGE_KEY = 'uv-field-journey-started';
 
+function generateUUID() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
 const GENERAL_READONLY_FIELD_NAMES = ['campo', 'ef', 'estado', 'categoria', 'potencial', 'bruta', 'neta', 'ays_percentage'];
 const BES_CONFIG_FIELD_NAMES = ['amp_nominal_motor', 'volt_nominal_motor', 'frec_max_hz', 'low_speed_hz', 'ul_a', 'ol_a', 'i_limit_a', 'tiempo_desaceleracion_seg', 'low_pip_shutdown_psi', 'max_high_temp_shutdown_f'];
 const SURFACE_FIXED_FIELD_NAMES = ['vsd_kva', 'marca_vsd', 'modelo_vsd', 'tx_kva', 'tap_v', 'rt'];
@@ -88,8 +98,8 @@ const REPORT_COLUMNS = [
     ['ESTADO DE PANEL DE SENSOR / CHOQUES', 'estado_panel_sensor_choques'],
     ['ESTADO DEL ATERRAMIENTO', 'estado_aterramiento'],
     ['CONDICIÓN DEL CABLEADO', 'condicion_cableado'],
-    ['CONDICIÓN DE LA CASETA', 'condicion_caseta'],
-    ['TEMPERATURA DE LA CASETA', 'temperatura_caseta'],
+    ['CONDICIÓN DE LA JAULA', 'condicion_caseta'],
+    ['TEMPERATURA DE LA CASETA DEL VDF', 'temperatura_caseta'],
     ['ESTADO DE FOSA [%]', 'estado_fosa_porcentaje'],
     ['ESTADO DEL BIW/CONECTOR', 'estado_biw_conector'],
     ['ESTADO DE MANÓMETROS', 'estado_manometros'],
@@ -320,8 +330,8 @@ const WELL_PREVIEW_SECTIONS = [
             ['Estado panel sensor / choques', 'estado_panel_sensor_choques'],
             ['Estado del aterramiento', 'estado_aterramiento'],
             ['Condicion del cableado', 'condicion_cableado'],
-            ['Condicion de la caseta', 'condicion_caseta'],
-            ['Temperatura de la caseta', 'temperatura_caseta'],
+            ['Condicion de la jaula', 'condicion_caseta'],
+            ['Temperatura de la caseta del VDF', 'temperatura_caseta'],
             ['Estado de fosa [%]', 'estado_fosa_porcentaje'],
             ['Estado del BIW/conector', 'estado_biw_conector'],
             ['Estado de manometros', 'estado_manometros'],
@@ -2294,7 +2304,11 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
         return;
     }
 
-    const tempJourneyTag = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY) || `JRN-${Date.now()}`;
+    let tempJourneyTag = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
+    if (!tempJourneyTag) {
+        tempJourneyTag = generateUUID();
+        localStorage.setItem(DRAFT_JOURNEY_KEY_STORAGE_KEY, tempJourneyTag);
+    }
 
     if (!window._modalExtraWells) window._modalExtraWells = new Set();
     window._modalExtraWells.forEach(pozoName => {
@@ -2919,7 +2933,11 @@ async function processAndExecuteJourneySubmission(reports) {
         }
     });
 
-    const tempJourneyTag = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY) || `JRN-${Date.now()}`;
+    let tempJourneyTag = currentEditingJourneyId || localStorage.getItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
+    if (!tempJourneyTag) {
+        tempJourneyTag = generateUUID();
+        localStorage.setItem(DRAFT_JOURNEY_KEY_STORAGE_KEY, tempJourneyTag);
+    }
 
     if (selectedFilesToUpload.length > 0) {
         try {

@@ -242,7 +242,7 @@
                                 <label class="field-input-group field-input-group-readonly"><span>Desv. Fase C</span><input type="number" step="0.01" name="desv_fase_c" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>Máx. Desviación</span><input type="number" step="0.01" name="max_desviacion_vsd" readonly></label>
                                 <label class="field-input-group field-input-group-readonly"><span>% Desbalance Corriente VSD [A]</span><input type="number" step="0.01" name="desbalance_corriente_vsd" readonly></label>
-                                <label class="field-input-group" data-op-req-group="true"><span>POSEE SENSOR DE FONDO? <em class="field-req-mark">*</em></span><select name="posee_sensor_fondo" id="field-posee-sensor-fondo"><option value="SI" selected>SI</option><option value="NO">NO</option></select></label>
+                                <label class="field-input-group" data-op-req-group="true"><span>POSEE SENSOR DE FONDO? <em class="field-req-mark">*</em></span><select name="posee_sensor_fondo" id="field-posee-sensor-fondo"><option value="SI" selected>SI</option><option value="NO">NO</option><option value="MALO">MALO</option><option value="FASE A TIERRA">FASE A TIERRA</option><option value="BAJO AISLAMIENTO">BAJO AISLAMIENTO</option></select></label>
                                 <label class="field-input-group"><span>ESTADO DEL PANEL DEL SENSOR</span><select name="estado_panel_sensor_choques"><option value="BUENO">BUENO</option><option value="MALO">MALO</option><option value="SIN PANEL">SIN PANEL</option></select></label>
                                 <label class="field-input-group"><span>DESCARGÓ DATA DEL SENSOR?</span><select name="descarga_datas_sensor"><option value="NO" selected>NO</option><option value="SI">SI</option></select></label>
                                 <label class="field-input-group" data-sensor-req-group="true"><span>PIP [psi] <em class="field-req-mark" hidden>*</em></span><input type="number" step="0.01" name="pip_psi"></label>
@@ -293,8 +293,8 @@
                                 <label class="field-input-group" data-surface-req="true"><span>ESTADO DEL VSD <em class="field-req-mark">*</em></span><select name="estado_vsd"><option value=""></option><option value="OK">OK</option><option value="DEFECTUOSO">DEFECTUOSO</option></select></label>
                                 <label class="field-input-group" data-surface-req="true"><span>ESTADO DEL ATERRAMIENTO <em class="field-req-mark">*</em></span><select name="estado_aterramiento"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
                                 <label class="field-input-group" data-surface-req="true"><span>CONDICIÓN DEL CABLEADO <em class="field-req-mark">*</em></span><select name="condicion_cableado"><option value=""></option><option value="BUENO">BUENO</option><option value="MALO">MALO</option></select></label>
-                                <label class="field-input-group" data-surface-req="true"><span>CONDICIÓN DE LA CASETA <em class="field-req-mark">*</em></span><select name="condicion_caseta"><option value=""></option><option value="ABIERTA">ABIERTA</option><option value="CERRADA">CERRADA</option></select></label>
-                                <label class="field-input-group" data-surface-req="true"><span>TEMPERATURA DE LA CASETA <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="temperatura_caseta"></label>
+                                <label class="field-input-group" data-surface-req="true"><span>CONDICIÓN DE LA JAULA <em class="field-req-mark">*</em></span><select name="condicion_caseta"><option value=""></option><option value="ABIERTA">ABIERTA</option><option value="CERRADA">CERRADA</option></select></label>
+                                <label class="field-input-group" data-surface-req="true"><span>TEMPERATURA DE LA CASETA DEL VDF <em class="field-req-mark">*</em></span><input type="number" step="0.01" name="temperatura_caseta"></label>
                                 <label class="field-input-group" data-surface-req="true">
                                     <span>ESTADO DE FOSA <em class="field-req-mark">*</em></span>
                                     <div class="field-input-suffix-shell">
@@ -748,7 +748,7 @@
         </div>
     </div>
 
-    <script type="module" src="js/modules/field/field-controller.js?v=20260531f"></script>
+    <script type="module" src="js/modules/field/field-controller.js?v=2.0.2"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
