@@ -540,7 +540,7 @@ function processMetrics() {
     document.getElementById('kpi-pozos-unicos').textContent = pozosUnicos.size;
 
     // 4. Niveles ejecutados — Echometer o medición acústica con valores reales.
-    const nivelesEjecutados = state.records.filter(hasExecutedLevel).length;
+    const nivelesEjecutados = getExecutedLevelPozoNames().size;
     document.getElementById('kpi-visitas-prom').textContent = nivelesEjecutados;
 
     // 5. Métricas de Ingeniería de Detalle
@@ -829,7 +829,10 @@ function renderCharts() {
     // GRÁFICO 3: Cantidad de niveles por pozo — Barras verticales
     // ====================================================
     const nivelesPozoMap = new Map();
-    state.records.filter(hasExecutedLevel).forEach(record => incrementMap(nivelesPozoMap, record.pozo_name));
+    const executedLevelPozos = getExecutedLevelPozoNames();
+    state.records
+        .filter(record => executedLevelPozos.has(normalizePozoName(record.pozo_name)))
+        .forEach(record => incrementMap(nivelesPozoMap, record.pozo_name));
     const pozosEntries = mapToSortedEntries(nivelesPozoMap);
     const maxNiveles = Math.max(...pozosEntries.map(([, value]) => value), 0);
     const barColors = pozosEntries.map(([, value]) => value === maxNiveles && value > 0 ? PALETTE.orange : PALETTE.blue);
@@ -1021,6 +1024,7 @@ function renderFieldDetailSummary(fields = []) {
 }
 
 function buildFieldDetailRows(fields = getReportFieldOrder()) {
+    const executedLevelPozos = getExecutedLevelPozoNames();
     return fields.map(field => {
         const records = getFieldRecords(field);
         return {
@@ -1028,7 +1032,7 @@ function buildFieldDetailRows(fields = getReportFieldOrder()) {
             total: records.length,
             runCount: records.filter(record => classifyDiagnostico(record) === 'POZOS EN RUN / SIN FALLA').length,
             offCount: records.filter(record => ['OFF', 'PARADAMANUAL'].includes(normalizeStatus(record.estatus))).length,
-            levelCount: records.filter(hasExecutedLevel).length,
+            levelCount: records.filter(record => executedLevelPozos.has(normalizePozoName(record.pozo_name))).length,
             mainMode: getTopEntry(records, classifyModeForChart),
             mainDiagnostic: getTopEntry(records, classifyDiagnostico)
         };
@@ -1064,6 +1068,23 @@ function getDocumentsByPozoAndCategory() {
         map.set(key, (map.get(key) || 0) + 1);
     });
     return map;
+}
+
+function getExecutedLevelPozoNames() {
+    const documentsMap = getDocumentsByPozoAndCategory();
+    const pozos = new Set();
+
+    state.records.forEach(record => {
+        const pozo = normalizePozoName(record.pozo_name);
+        if (!pozo) return;
+
+        const hasEchometerDoc = (documentsMap.get(`${pozo}|REGISTROS_ECHOMETER`) || 0) > 0;
+        if (hasExecutedLevel(record) || hasEchometerDoc) {
+            pozos.add(pozo);
+        }
+    });
+
+    return pozos;
 }
 
 function renderAttachmentsSummary() {
@@ -1445,7 +1466,7 @@ function getMonthlyPdfData() {
     const total = state.records.length;
     const pozosUnicos = new Set(state.records.map(record => normalizePozoName(record.pozo_name)).filter(Boolean));
     const sinFallaCount = state.records.filter(record => classifyDiagnostico(record) === 'POZOS EN RUN / SIN FALLA').length;
-    const nivelesEjecutados = state.records.filter(hasExecutedLevel).length;
+    const nivelesEjecutados = getExecutedLevelPozoNames().size;
     const offCount = state.records.filter(record => ['OFF', 'PARADAMANUAL'].includes(normalizeStatus(record.estatus))).length;
 
     return {
@@ -1974,7 +1995,8 @@ function exportNativeMonthlyPdf(filename) {
         incrementMap(map, classifyModeForChart(record));
         return map;
     }, new Map()));
-    const nivelesEntries = mapToSortedEntries(state.records.filter(hasExecutedLevel).reduce((map, record) => {
+    const executedLevelPozos = getExecutedLevelPozoNames();
+    const nivelesEntries = mapToSortedEntries(state.records.filter(record => executedLevelPozos.has(normalizePozoName(record.pozo_name))).reduce((map, record) => {
         incrementMap(map, record.pozo_name);
         return map;
     }, new Map()));
