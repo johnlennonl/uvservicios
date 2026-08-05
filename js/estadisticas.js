@@ -262,18 +262,32 @@ async function loadData() {
         const { data: monitoringData, error: monitoringError } = await monitoringQuery;
         if (monitoringError) throw monitoringError;
 
-        const { data: journeysData, error: journeysError } = await supabase
-            .from('field_journeys')
-            .select('id, status, journey_date, jornada, equipo_guardia, total_reports, first_report_time, last_report_time, operational_scope, published_at, reviewed_at')
-            .eq('operational_scope', state.activeOperationalScope)
-            .in('status', ['approved', 'published'])
-            .gte('journey_date', start)
-            .lte('journey_date', end)
-            .order('journey_date', { ascending: false });
+        const { data: scopedJourneyRecords, error: scopedJourneyRecordsError } = await supabase
+            .from('field_journey_records')
+            .select('journey_id')
+            .in('pozo', state.activeScopePozoNames)
+            .limit(10000);
 
-        if (journeysError) throw journeysError;
+        if (scopedJourneyRecordsError) throw scopedJourneyRecordsError;
 
-        state.fieldJourneys = journeysData || [];
+        const scopedJourneyIds = [...new Set((scopedJourneyRecords || []).map(record => record.journey_id).filter(Boolean))];
+        let journeysData = [];
+
+        if (scopedJourneyIds.length) {
+            const { data, error: journeysError } = await supabase
+                .from('field_journeys')
+                .select('id, status, journey_date, jornada, equipo_guardia, total_reports, first_report_time, last_report_time, operational_scope, published_at, reviewed_at')
+                .in('id', scopedJourneyIds)
+                .in('status', ['approved', 'published'])
+                .gte('journey_date', start)
+                .lte('journey_date', end)
+                .order('journey_date', { ascending: false });
+
+            if (journeysError) throw journeysError;
+            journeysData = data || [];
+        }
+
+        state.fieldJourneys = journeysData;
         const journeyIds = state.fieldJourneys.map(journey => journey.id).filter(Boolean);
         let journeyRecords = [];
 
@@ -584,6 +598,29 @@ function buildDiagnosticEntries() {
     return mapToSortedEntries(diagnosticoMap);
 }
 
+function calculateJourneyCounts(totalRecords = state.records.length) {
+    const journeysWithRecords = new Set(state.journeyRecords.map(record => record.journey_id).filter(Boolean));
+    const countableJourneys = state.field === 'TODOS'
+        ? state.fieldJourneys
+        : state.fieldJourneys.filter(journey => journeysWithRecords.has(journey.id));
+    let diurnoCount = 0;
+    let nocturnoCount = 0;
+
+    countableJourneys.forEach(journey => {
+        const jornada = String(journey?.jornada || '').trim().toUpperCase();
+        if (jornada === 'NOCTURNA') nocturnoCount += 1;
+        if (jornada === 'DIURNA') diurnoCount += 1;
+    });
+
+    const hasJourneyTypeData = countableJourneys.length > 0;
+
+    return {
+        totalJourneys: countableJourneys.length || journeysWithRecords.size || totalRecords,
+        diurnoCount: hasJourneyTypeData ? diurnoCount : totalRecords,
+        nocturnoCount
+    };
+}
+
 function renderMonthlyBrief({ total = 0, pozosUnicos = new Set(), diagnosticoEntries = [] } = {}) {
     const title = document.getElementById('monthly-report-title');
     const contract = document.getElementById('monthly-report-contract');
@@ -598,15 +635,7 @@ function renderMonthlyBrief({ total = 0, pozosUnicos = new Set(), diagnosticoEnt
     const visitas = document.getElementById('brief-visitas');
     const puntos = document.getElementById('brief-puntos-interes');
 
-    const journeyById = new Map(state.fieldJourneys.map(journey => [journey.id, journey]));
-    const journeysWithRecords = new Set(state.journeyRecords.map(record => record.journey_id).filter(Boolean));
-    let diurnoCount = 0;
-    let nocturnoCount = 0;
-    journeysWithRecords.forEach(journeyId => {
-        const jornada = String(journeyById.get(journeyId)?.jornada || '').trim().toUpperCase();
-        if (jornada === 'NOCTURNA') nocturnoCount += 1;
-        else diurnoCount += 1;
-    });
+    const journeyCounts = calculateJourneyCounts(total);
 
     const offCount = state.records.filter(record => String(record.estatus || '').trim().toUpperCase().includes('OFF')).length;
     if (title) title.textContent = `Resumen de Actividades ${getMonthLabel().toUpperCase()}`;
@@ -614,9 +643,9 @@ function renderMonthlyBrief({ total = 0, pozosUnicos = new Set(), diagnosticoEnt
     if (campo) campo.textContent = state.field === 'TODOS' ? getContractDisplayName() : state.field;
     if (estadoPozo) estadoPozo.textContent = offCount > 0 ? 'OPERANDO / PARADO' : 'OPERANDO';
     if (periodo) periodo.textContent = getMonthLabel().toUpperCase();
-    if (recorridoTotal) recorridoTotal.textContent = String(state.fieldJourneys.length || journeysWithRecords.size || total);
-    if (diurno) diurno.textContent = String(diurnoCount || total);
-    if (nocturno) nocturno.textContent = String(nocturnoCount);
+    if (recorridoTotal) recorridoTotal.textContent = String(journeyCounts.totalJourneys);
+    if (diurno) diurno.textContent = String(journeyCounts.diurnoCount);
+    if (nocturno) nocturno.textContent = String(journeyCounts.nocturnoCount);
     if (pozos) pozos.textContent = [...pozosUnicos].join(', ') || '—';
     if (actividad) actividad.textContent = 'TOMA DE PARAMETROS OPERATIVOS';
     if (visitas) visitas.textContent = String(total);
@@ -632,39 +661,95 @@ function renderMonthlyBrief({ total = 0, pozosUnicos = new Set(), diagnosticoEnt
 function buildInterestPointGroups() {
     const groups = new Map();
     state.records.forEach(record => {
-        const diagnostic = classifyDiagnostico(record);
-        if (diagnostic === 'POZOS EN RUN / SIN FALLA') return;
+        const diagnosticCategory = classifyDiagnostico(record);
+        if (diagnosticCategory === 'POZOS EN RUN / SIN FALLA') return;
+        const pozoName = normalizePozoName(record.pozo_name) || 'SIN POZO';
+        const fieldDetail = String(record.diagnostico || record.observaciones || '').trim();
+        const eventTitle = normalizeInterestEventTitle(fieldDetail || diagnosticCategory);
+        if (!eventTitle) return;
 
-        const current = groups.get(diagnostic) || {
-            diagnostic,
+        const current = groups.get(eventTitle) || {
+            diagnostic: eventTitle,
+            category: diagnosticCategory,
             records: [],
             pozos: new Set(),
-            details: new Set()
+            details: new Set(),
+            pozoStats: new Map()
         };
         current.records.push(record);
-        if (record.pozo_name) current.pozos.add(record.pozo_name);
+        if (pozoName) current.pozos.add(pozoName);
 
-        const detail = String(record.diagnostico || record.observaciones || '').trim();
+        const detail = fieldDetail && normalizeInterestEventTitle(fieldDetail) !== eventTitle ? fieldDetail : '';
         if (detail) current.details.add(detail);
 
-        groups.set(diagnostic, current);
+        const pozoStats = current.pozoStats.get(pozoName) || {
+            pozoName,
+            count: 0,
+            details: new Set(),
+            timestamps: new Set()
+        };
+        pozoStats.count += 1;
+        if (detail) pozoStats.details.add(detail);
+        const timestamp = [record.fecha, record.hora].map(value => String(value || '').trim()).filter(Boolean).join(' ');
+        if (timestamp) pozoStats.timestamps.add(timestamp);
+        current.pozoStats.set(pozoName, pozoStats);
+
+        groups.set(eventTitle, current);
     });
 
     return [...groups.values()].sort((left, right) => right.records.length - left.records.length || left.diagnostic.localeCompare(right.diagnostic));
 }
 
+function normalizeInterestEventTitle(value = '') {
+    const normalized = String(value || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/[.;:,]+$/g, '')
+        .toUpperCase();
+
+    if (!normalized) return '';
+    if (/CONDICIONES? NORMALES?|SIN FALLA|OPERANDO NORMAL|SIN NOVEDAD/.test(normalized)) return '';
+    if (/BAJA\s+CARGA/.test(normalized)) return 'BAJA CARGA';
+    if (/FALLA.*GENERADOR|GENERADOR/.test(normalized)) return 'FALLA DE GENERADOR';
+    if (/FALLA\s+ELECTR|ELECTRICA|ELÉCTRICA/.test(normalized)) return 'FALLA ELECTRICA';
+    if (/PERDIDA\s+DE\s+SE[NÑ]AL|SE[NÑ]AL|SENSOR|COMUNICACI|DATA/.test(normalized)) return 'PERDIDA DE SENAL';
+    if (/BAJA\s+PRODUCCI|BAJO\s+APORTE/.test(normalized)) return 'BAJA PRODUCCION';
+    return normalized;
+}
+
 function renderInterestPointItem(group = {}) {
-    const pozos = [...(group.pozos || new Set())].sort().join(', ') || 'Sin pozo identificado';
-    const details = [...(group.details || new Set())].slice(0, 3);
-    const detailsHtml = group.diagnostic === 'OTROS DIAGNÓSTICOS' && details.length
-        ? `<div class="interest-point-details">${details.map(detail => `<span>${escapeHtml(detail)}</span>`).join('')}</div>`
+    const pozoRows = [...(group.pozoStats || new Map()).values()]
+        .sort((left, right) => right.count - left.count || left.pozoName.localeCompare(right.pozoName))
+        .slice(0, 6);
+    const hiddenPozos = Math.max(0, (group.pozoStats?.size || 0) - pozoRows.length);
+    const pozoRowsHtml = pozoRows.map(row => {
+        const timestamps = [...row.timestamps].slice(0, 3);
+        return `
+            <div class="interest-point-pozo-row">
+                <div class="interest-point-pozo-main">
+                    <strong>${escapeHtml(row.pozoName)}</strong>
+                    <span>${row.count} evento${row.count === 1 ? '' : 's'}</span>
+                </div>
+                ${timestamps.length ? `<p>Registros de Campo: ${timestamps.map(escapeHtml).join(' · ')}</p>` : ''}
+            </div>
+        `;
+    }).join('');
+    const supportDetails = [...(group.details || new Set())].slice(0, 3);
+    const supportDetailsHtml = supportDetails.length
+        ? `<div class="interest-point-support"><span>Notas asociadas desde Campo</span>${supportDetails.map(detail => `<p>${escapeHtml(detail)}</p>`).join('')}</div>`
         : '';
 
     return `
         <li>
-            <strong>${escapeHtml(group.diagnostic)}</strong> · ${group.records?.length || 0} evento(s).
-            <span>Pozos: ${escapeHtml(pozos)}</span>
-            ${detailsHtml}
+            <div class="interest-point-header">
+                <strong>${escapeHtml(group.diagnostic)}</strong>
+                <span>${group.records?.length || 0} evento${(group.records?.length || 0) === 1 ? '' : 's'} en ${group.pozoStats?.size || 0} pozo${(group.pozoStats?.size || 0) === 1 ? '' : 's'}</span>
+            </div>
+            <div class="interest-point-pozo-list">
+                ${pozoRowsHtml}
+                ${hiddenPozos ? `<div class="interest-point-more">+ ${hiddenPozos} pozo${hiddenPozos === 1 ? '' : 's'} adicional${hiddenPozos === 1 ? '' : 'es'}</div>` : ''}
+            </div>
+            ${supportDetailsHtml}
         </li>
     `;
 }
@@ -1353,22 +1438,7 @@ function restorePdfCaptureState(container, headerPrint, ignoreElements, original
 }
 
 function getJourneyCounts() {
-    const journeyById = new Map(state.fieldJourneys.map(journey => [journey.id, journey]));
-    const journeysWithRecords = new Set(state.journeyRecords.map(record => record.journey_id).filter(Boolean));
-    let diurnoCount = 0;
-    let nocturnoCount = 0;
-
-    journeysWithRecords.forEach(journeyId => {
-        const jornada = String(journeyById.get(journeyId)?.jornada || '').trim().toUpperCase();
-        if (jornada === 'NOCTURNA') nocturnoCount += 1;
-        else diurnoCount += 1;
-    });
-
-    return {
-        totalJourneys: state.fieldJourneys.length || journeysWithRecords.size || state.records.length,
-        diurnoCount: diurnoCount || state.records.length,
-        nocturnoCount
-    };
+    return calculateJourneyCounts(state.records.length);
 }
 
 function getMonthlyPdfData() {

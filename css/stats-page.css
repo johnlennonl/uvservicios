@@ -727,7 +727,7 @@ body.is-role-base-datos a[href="base-datos.html"] {
 }
 
 .monthly-report-points li {
-  padding: 10px 12px;
+  padding: 12px;
   border-bottom: 1px solid #e5e7eb;
   background: #f3f5f2;
   color: #475569;
@@ -735,11 +735,112 @@ body.is-role-base-datos a[href="base-datos.html"] {
   line-height: 1.5;
 }
 
-.monthly-report-points li span {
+.interest-point-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #0f172a;
+}
+
+.interest-point-header > strong {
+  color: #1e3a8a;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+
+.interest-point-header > span {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.interest-point-pozo-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.interest-point-pozo-row {
+  padding: 9px 10px;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #0052cc;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.interest-point-pozo-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.interest-point-pozo-main strong {
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.interest-point-pozo-main span {
+  margin: 0;
+  color: #0052cc;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.interest-point-pozo-row p {
+  margin: 5px 0 0;
+  color: #475569;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.interest-point-support {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-left: 3px solid #64748b;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.interest-point-support span {
   display: block;
-  margin-top: 4px;
+  margin-bottom: 5px;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.interest-point-support p {
+  margin: 0 0 4px;
   color: #334155;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.interest-point-more {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border: 1px dashed #bfdbfe;
+  border-radius: 8px;
+  color: #1d4ed8;
+  font-size: 0.76rem;
+  font-weight: 800;
 }
 
 .interest-point-details {

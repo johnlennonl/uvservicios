@@ -169,6 +169,46 @@ function normalizeTimeValue(value) {
     return normalized;
 }
 
+function getMinutesFromTime(value) {
+    const [hourText, minuteText = '0'] = String(value || '').split(':');
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+    return (hour * 60) + minute;
+}
+
+function addDaysToDateString(dateValue, days = 0) {
+    const normalizedDate = String(dateValue || '').trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return normalizedDate;
+    const date = new Date(`${normalizedDate}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().slice(0, 10);
+}
+
+function resolveJourneyStartDate(reports = []) {
+    const validReports = (Array.isArray(reports) ? reports : [])
+        .map(report => ({
+            fecha: String(report?.fecha || '').trim().slice(0, 10),
+            minutes: getMinutesFromTime(report?.hora)
+        }))
+        .filter(report => /^\d{4}-\d{2}-\d{2}$/.test(report.fecha));
+
+    if (!validReports.length) return '';
+
+    const journeyType = String(reports[0]?.jornada || '').trim().toLowerCase();
+    if (journeyType !== 'nocturna') {
+        return validReports.map(report => report.fecha).sort()[0];
+    }
+
+    const eveningReports = validReports.filter(report => report.minutes !== null && report.minutes >= 1080);
+    if (eveningReports.length) {
+        return eveningReports.map(report => report.fecha).sort()[0];
+    }
+
+    const earliestDate = validReports.map(report => report.fecha).sort()[0];
+    return addDaysToDateString(earliestDate, -1);
+}
+
 function normalizeOptionalText(value, transform = value => value) {
     const normalized = String(value ?? '').trim();
     if (!normalized) return null;
@@ -349,13 +389,14 @@ function buildWorkflowJourneyRow(reports, session, journeyId, operationalScope =
     const submittedAt = new Date().toISOString();
     const locationLabel = buildJourneyLocationLabel(reports);
     const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope || firstReport.operational_scope);
+    const journeyStartDate = resolveJourneyStartDate(reports) || firstReport.fecha;
 
     return {
         id: journeyId || undefined,
         operational_scope: normalizedOperationalScope,
         submitted_by_user_id: session.user.id,
         submitted_by_email: session.user.email,
-        journey_date: firstReport.fecha,
+        journey_date: journeyStartDate,
         jornada: firstReport.jornada || 'Diurna',
         equipo_guardia: String(firstReport.equipo_guardia || '').trim(),
         locacion_jornada: locationLabel || String(firstReport.locacion_jornada || '').trim() || null,
@@ -369,13 +410,14 @@ function buildWorkflowDraftJourneyRow(reports, session, journeyId, operationalSc
     const firstReport = reports[0] || {};
     const locationLabel = buildJourneyLocationLabel(reports);
     const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope || firstReport.operational_scope);
+    const journeyStartDate = resolveJourneyStartDate(reports) || firstReport.fecha;
 
     return {
         id: journeyId || undefined,
         operational_scope: normalizedOperationalScope,
         submitted_by_user_id: session.user.id,
         submitted_by_email: session.user.email,
-        journey_date: firstReport.fecha,
+        journey_date: journeyStartDate,
         jornada: firstReport.jornada || 'Diurna',
         equipo_guardia: String(firstReport.equipo_guardia || '').trim() || 'Sin definir',
         locacion_jornada: locationLabel || String(firstReport.locacion_jornada || '').trim() || null,
@@ -1418,11 +1460,19 @@ export async function saveAdminFieldJourneyReview(journeyId, options = {}) {
     const comment = String(options.comment || '').trim();
     const adminNotes = String(options.adminNotes || '').trim();
     const metadata = options.metadata && typeof options.metadata === 'object' ? options.metadata : {};
+    const journeyDate = String(options.journeyDate || '').trim();
 
     try {
         const journeyUpdate = {
             admin_notes: adminNotes || null
         };
+
+        if (journeyDate) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(journeyDate)) {
+                throw new Error('La fecha de jornada debe tener formato YYYY-MM-DD.');
+            }
+            journeyUpdate.journey_date = journeyDate;
+        }
 
         if (nextStatus !== 'commented') {
             journeyUpdate.status = nextStatus;

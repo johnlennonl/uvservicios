@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient.js';
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
 import { initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
-import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, deleteAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo } from './services/field-journey-service.js';
+import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, deleteAdminFieldJourneyRecord, saveAdminFieldJourneyReview, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo } from './services/field-journey-service.js';
 import { exportFieldJourneyToExcel, openFieldJourneyPdf, exportHistoricalFieldReportsToExcel } from './services/field-journey-export.js';
 import { validateFieldReport } from './modules/field/field-validation.js';
 
@@ -1808,6 +1808,42 @@ async function confirmDeleteJourney(journey) {
     return result.isConfirmed;
 }
 
+async function promptJourneyDateEdit(journey) {
+    const currentDate = String(journey?.journey_date || '').slice(0, 10);
+    if (!window.Swal) {
+        const fallbackValue = window.prompt('Nueva fecha de la jornada (YYYY-MM-DD):', currentDate);
+        return fallbackValue ? String(fallbackValue).trim() : '';
+    }
+
+    const result = await window.Swal.fire({
+        icon: 'question',
+        title: 'Editar fecha de jornada',
+        html: `
+            <div style="text-align:left;display:grid;gap:10px;">
+                <p style="margin:0;color:#475569;font-weight:600;line-height:1.45;">Solo se actualiza la cabecera de la jornada. Las fechas de cada pozo no se modifican.</p>
+                <label style="display:grid;gap:6px;font-weight:800;color:#0f172a;">
+                    Fecha operativa de inicio
+                    <input id="campo-admin-journey-date-input" type="date" class="swal2-input" value="${escapeHtml(currentDate)}" style="width:100%;margin:0;">
+                </label>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Guardar fecha',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#0052cc',
+        preConfirm: () => {
+            const value = document.getElementById('campo-admin-journey-date-input')?.value || '';
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                window.Swal.showValidationMessage('Indica una fecha valida.');
+                return false;
+            }
+            return value;
+        }
+    });
+
+    return result.isConfirmed ? result.value : '';
+}
+
 async function confirmPublicationPreview(preview, reviewSummary) {
     const lines = [
         `Insertará: ${preview.inserted || 0}`,
@@ -2702,6 +2738,7 @@ async function renderDetail(detail) {
                 <div class="metadata-card-v2">
                     <span class="metadata-card-label-v2">Turno y Fecha</span>
                     <strong class="metadata-card-value-v2">${escapeHtml(journey.jornada || 'No especificada')} · ${escapeHtml(formatDate(journey.journey_date))}</strong>
+                    ${state.accessProfile?.canViewManagement ? `<button type="button" class="campo-admin-inline-btn" style="margin-top:8px;justify-content:center;" data-detail-action="edit-journey-date">Editar fecha</button>` : ''}
                 </div>
                 <div class="metadata-card-v2">
                     <span class="metadata-card-label-v2">Responsable de Envío</span>
@@ -3224,6 +3261,27 @@ async function handleDetailAction(action) {
 
         if (action === 'review-publication') {
             await showPublicationReadiness();
+            return;
+        }
+
+        if (action === 'edit-journey-date') {
+            const nextDate = await promptJourneyDateEdit(journey);
+            if (!nextDate || nextDate === String(journey.journey_date || '').slice(0, 10)) return;
+
+            setActionButtonsBusy(true);
+            await saveAdminFieldJourneyReview(journey.id, {
+                status: 'commented',
+                journeyDate: nextDate,
+                comment: `Fecha de jornada corregida de ${formatDate(journey.journey_date)} a ${formatDate(nextDate)}.`,
+                metadata: {
+                    previous_journey_date: String(journey.journey_date || '').slice(0, 10),
+                    new_journey_date: nextDate,
+                    source: 'campo-admin-date-correction'
+                }
+            });
+            await loadJourneys();
+            await selectJourney(journey.id, { keepList: true });
+            await notify('Fecha de jornada actualizada. Los pozos no fueron modificados.', 'success');
             return;
         }
 
