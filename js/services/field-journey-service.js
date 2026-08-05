@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient.js';
 import { getSession } from '../auth.js';
 import { getAccessProfile } from '../core/access-control.js';
+import { getActiveOperationalScope, getActiveOperationalScopeWellNames } from './operational-scope-context.js';
 import { previewMonitoringSync, syncMonitoringRecords } from './monitoring-records-service.js';
 import { getWellTechnicalData } from './technical-measurements-service.js';
 import { REPORT_COLUMNS } from './field-journey-export.js';
@@ -74,6 +75,41 @@ function normalizeUuid(value) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)
         ? raw
         : null;
+}
+
+function normalizeOperationalScopeValue(value) {
+    return String(value || getActiveOperationalScope() || 'ceiba_tomoporo').trim().toLowerCase() || 'ceiba_tomoporo';
+}
+
+function normalizePozoNames(values = []) {
+    return [...new Set((Array.isArray(values) ? values : [values])
+        .map(value => String(value || '').trim().toUpperCase())
+        .filter(Boolean))];
+}
+
+async function resolveActiveScopeGuard(options = {}) {
+    const operationalScope = normalizeOperationalScopeValue(options.operationalScope);
+
+    if (Array.isArray(options.pozoNames)) {
+        const pozoNames = normalizePozoNames(options.pozoNames);
+        return { operationalScope, pozoNames, pozoSet: new Set(pozoNames) };
+    }
+
+    try {
+        const pozoNames = normalizePozoNames(await getActiveOperationalScopeWellNames());
+        return { operationalScope, pozoNames, pozoSet: new Set(pozoNames) };
+    } catch (error) {
+        console.warn('No se pudo resolver el alcance operativo activo para Campo:', error);
+        return { operationalScope, pozoNames: [], pozoSet: new Set() };
+    }
+}
+
+function filterRecordsByScope(records = [], scopeGuard = {}) {
+    if (!scopeGuard?.pozoSet?.size) return [];
+    return (Array.isArray(records) ? records : []).filter(record => {
+        const pozo = String(record?.pozo || record?.pozo_name || '').trim().toUpperCase();
+        return pozo && scopeGuard.pozoSet.has(pozo);
+    });
 }
 
 function normalizeJourneyStatuses(statuses = []) {
@@ -273,10 +309,12 @@ function buildJourneyLocationLabel(reports = []) {
     return locations.join(' / ');
 }
 
-function mapFieldReportToRow(report, session) {
+function mapFieldReportToRow(report, session, operationalScope = '') {
+    const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope || report.operational_scope);
     return {
         user_id: session.user.id,
         user_email: session.user.email,
+        operational_scope: normalizedOperationalScope,
         client_report_id: String(report.id || '').trim(),
         journey_key: buildJourneyKey(report, session.user.email),
         report_date: report.fecha,
@@ -306,13 +344,15 @@ function mapFieldReportToRow(report, session) {
     };
 }
 
-function buildWorkflowJourneyRow(reports, session, journeyId) {
+function buildWorkflowJourneyRow(reports, session, journeyId, operationalScope = '') {
     const firstReport = reports[0] || {};
     const submittedAt = new Date().toISOString();
     const locationLabel = buildJourneyLocationLabel(reports);
+    const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope || firstReport.operational_scope);
 
     return {
         id: journeyId || undefined,
+        operational_scope: normalizedOperationalScope,
         submitted_by_user_id: session.user.id,
         submitted_by_email: session.user.email,
         journey_date: firstReport.fecha,
@@ -325,12 +365,14 @@ function buildWorkflowJourneyRow(reports, session, journeyId) {
     };
 }
 
-function buildWorkflowDraftJourneyRow(reports, session, journeyId) {
+function buildWorkflowDraftJourneyRow(reports, session, journeyId, operationalScope = '') {
     const firstReport = reports[0] || {};
     const locationLabel = buildJourneyLocationLabel(reports);
+    const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope || firstReport.operational_scope);
 
     return {
         id: journeyId || undefined,
+        operational_scope: normalizedOperationalScope,
         submitted_by_user_id: session.user.id,
         submitted_by_email: session.user.email,
         journey_date: firstReport.fecha,
@@ -343,9 +385,11 @@ function buildWorkflowDraftJourneyRow(reports, session, journeyId) {
     };
 }
 
-function mapFieldReportToWorkflowRecord(report, journeyId) {
+function mapFieldReportToWorkflowRecord(report, journeyId, operationalScope = '') {
+    const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope || report.operational_scope);
     return {
         journey_id: journeyId,
+        operational_scope: normalizedOperationalScope,
         source_client_report_id: String(report.id || '').trim() || null,
         pozo: String(report.pozo || '').trim().toUpperCase(),
         report_date: report.fecha,
@@ -375,19 +419,23 @@ function mapFieldReportToWorkflowRecord(report, journeyId) {
         lf_psi: normalizeNumber(report.lf_psi),
         observaciones_pozo: String(report.observaciones_pozo || '').trim() || null,
         diagnostico: String(report.diagnostico || '').trim() || null,
-        raw_payload: report
+        raw_payload: {
+            ...report,
+            operational_scope: normalizedOperationalScope
+        }
     };
 }
 
 export async function saveFieldJourneyReports(reports = []) {
     const session = await ensureFieldWriteAccess();
     const normalizedReports = (Array.isArray(reports) ? reports : []).filter(report => report?.id && report?.pozo && report?.fecha);
+    const operationalScope = normalizeOperationalScopeValue();
 
     if (normalizedReports.length === 0) {
         return { saved: 0 };
     }
 
-    const rows = normalizedReports.map(report => mapFieldReportToRow(report, session));
+    const rows = normalizedReports.map(report => mapFieldReportToRow(report, session, operationalScope));
 
     try {
         const { data, error } = await supabase
@@ -436,10 +484,13 @@ export async function getFieldJourneyHistory(limit = 150) {
 
 export async function getFieldJourneyReportsRange(startDate, endDate, limit = 5000) {
     await ensureFieldAdminReadAccess();
+    const scopeGuard = await resolveActiveScopeGuard();
+    if (!scopeGuard.pozoNames.length) return [];
 
     let query = supabase
         .from('field_journey_reports')
         .select('*')
+        .in('pozo', scopeGuard.pozoNames)
         .order('report_date', { ascending: false })
         .order('report_time', { ascending: false });
 
@@ -467,6 +518,8 @@ export async function getFieldJourneyReportsRange(startDate, endDate, limit = 50
 
 export async function getHistoricalFieldReports(filters = {}) {
     await ensureFieldAdminReadAccess();
+    const scopeGuard = await resolveActiveScopeGuard(filters);
+    if (!scopeGuard.pozoNames.length) return [];
 
     const {
         startDate = '',
@@ -478,6 +531,7 @@ export async function getHistoricalFieldReports(filters = {}) {
     let query = supabase
         .from('field_journey_reports')
         .select('*')
+        .in('pozo', scopeGuard.pozoNames)
         .order('report_date', { ascending: false })
         .order('report_time', { ascending: false });
 
@@ -510,6 +564,8 @@ export async function getHistoricalFieldReports(filters = {}) {
 
 export async function getHistoricalFieldReportAudit(filters = {}) {
     await ensureFieldAdminReadAccess();
+    const scopeGuard = await resolveActiveScopeGuard(filters);
+    if (!scopeGuard.pozoNames.length) return [];
 
     const {
         pozo = '',
@@ -519,6 +575,7 @@ export async function getHistoricalFieldReportAudit(filters = {}) {
     let query = supabase
         .from('field_journey_reports')
         .select('id, client_report_id, user_email, pozo, report_date, report_time, jornada, equipo_guardia, locacion_jornada, created_at, updated_at')
+        .in('pozo', scopeGuard.pozoNames)
         .order('pozo', { ascending: true })
         .order('report_date', { ascending: false })
         .order('report_time', { ascending: false });
@@ -599,10 +656,15 @@ export async function getHistoricalFieldReportAudit(filters = {}) {
 
 export async function deleteHistoricalFieldReportsByPozo(pozo) {
     await ensureFieldAdminReadAccess();
+    const scopeGuard = await resolveActiveScopeGuard();
 
     const normalizedPozo = String(pozo || '').trim().toUpperCase();
     if (!normalizedPozo) {
         throw new Error('No se recibió un pozo válido para limpiar el histórico legado.');
+    }
+
+    if (!scopeGuard.pozoSet.has(normalizedPozo)) {
+        throw new Error('No se puede limpiar un pozo que no pertenece al contrato activo.');
     }
 
     try {
@@ -632,10 +694,25 @@ export async function getAdminFieldJourneys(options = {}) {
     const statuses = normalizeJourneyStatuses(options.statuses);
     const limit = Number(options.limit);
     const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 120;
+    const scopeGuard = await resolveActiveScopeGuard(options);
+
+    if (!scopeGuard.pozoNames.length) return [];
+
+    const { data: matchingRecords, error: matchingRecordsError } = await supabase
+        .from('field_journey_records')
+        .select('journey_id')
+        .in('pozo', scopeGuard.pozoNames)
+        .limit(10000);
+
+    if (matchingRecordsError) throw wrapFieldJourneyError(matchingRecordsError);
+
+    const scopedJourneyIds = [...new Set((matchingRecords || []).map(record => record.journey_id).filter(Boolean))];
+    if (!scopedJourneyIds.length) return [];
 
     let query = supabase
         .from('field_journeys')
         .select('*')
+        .in('id', scopedJourneyIds)
         .in('status', statuses)
         .order('journey_date', { ascending: false })
         .order('updated_at', { ascending: false })
@@ -662,6 +739,7 @@ export async function getAdminFieldJourneys(options = {}) {
             .from('field_journey_records')
             .select('journey_id, pozo, report_time')
             .in('journey_id', journeyIds)
+            .in('pozo', scopeGuard.pozoNames)
             .order('report_time', { ascending: true })
             .order('pozo', { ascending: true });
 
@@ -687,10 +765,25 @@ export async function getAdminFieldJourneys(options = {}) {
 export async function getAdminFieldJourneyPendingCount(statuses = ['submitted', 'under_review']) {
     await ensureFieldAdminReadAccess();
 
+    const scopeGuard = await resolveActiveScopeGuard();
+    if (!scopeGuard.pozoNames.length) return 0;
+
     try {
+        const { data: matchingRecords, error: recordsError } = await supabase
+            .from('field_journey_records')
+            .select('journey_id')
+            .in('pozo', scopeGuard.pozoNames)
+            .limit(10000);
+
+        if (recordsError) throw recordsError;
+
+        const scopedJourneyIds = [...new Set((matchingRecords || []).map(record => record.journey_id).filter(Boolean))];
+        if (!scopedJourneyIds.length) return 0;
+
         const { count, error } = await supabase
             .from('field_journeys')
             .select('id', { count: 'exact', head: true })
+            .in('id', scopedJourneyIds)
             .in('status', normalizeJourneyStatuses(statuses));
 
         if (error) throw error;
@@ -736,6 +829,11 @@ export async function getAdminFieldJourneyDetail(journeyId) {
     }
 
     try {
+        const scopeGuard = await resolveActiveScopeGuard();
+        if (!scopeGuard.pozoNames.length) {
+            throw new Error('El contrato activo no tiene pozos configurados para mostrar esta jornada.');
+        }
+
         const [{ data: journey, error: journeyError }, { data: records, error: recordsError }, { data: reviewLog, error: reviewLogError }] = await Promise.all([
             supabase
                 .from('field_journeys')
@@ -762,9 +860,14 @@ export async function getAdminFieldJourneyDetail(journeyId) {
             throw new Error('La jornada solicitada no existe o ya no está disponible.');
         }
 
+        const scopedRecords = filterRecordsByScope(records || [], scopeGuard);
+        if (!scopedRecords.length) {
+            throw new Error('La jornada seleccionada no pertenece al contrato activo.');
+        }
+
         return {
-            journey: buildJourneyPreviewSummary(journey, records || []),
-            records: records || [],
+            journey: buildJourneyPreviewSummary(journey, scopedRecords),
+            records: scopedRecords,
             reviewLog: reviewLog || []
         };
     } catch (error) {
@@ -776,11 +879,26 @@ export async function getFieldSubmittedJourneys(options = {}) {
     const { session } = await ensureFieldSessionAccess();
     const limit = Number(options.limit);
     const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 80;
+    const scopeGuard = await resolveActiveScopeGuard(options);
+
+    if (!scopeGuard.pozoNames.length) return [];
+
+    const { data: matchingRecords, error: matchingRecordsError } = await supabase
+        .from('field_journey_records')
+        .select('journey_id')
+        .in('pozo', scopeGuard.pozoNames)
+        .limit(10000);
+
+    if (matchingRecordsError) throw wrapFieldJourneyError(matchingRecordsError);
+
+    const scopedJourneyIds = [...new Set((matchingRecords || []).map(record => record.journey_id).filter(Boolean))];
+    if (!scopedJourneyIds.length) return [];
 
     let query = supabase
         .from('field_journeys')
         .select('*')
         .eq('submitted_by_user_id', session.user.id)
+        .in('id', scopedJourneyIds)
         .order('journey_date', { ascending: false })
         .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
@@ -806,6 +924,7 @@ export async function getFieldSubmittedJourneys(options = {}) {
             .from('field_journey_records')
             .select('journey_id, pozo, report_time')
             .in('journey_id', journeyIds)
+            .in('pozo', scopeGuard.pozoNames)
             .order('report_time', { ascending: true })
             .order('pozo', { ascending: true });
 
@@ -921,12 +1040,14 @@ export async function deleteFieldJourneyReport(clientReportId) {
 
 export async function getLatestFieldJourneyDraft() {
     const { session } = await ensureFieldSessionAccess();
+    const operationalScope = normalizeOperationalScopeValue();
 
     try {
         const { data: journey, error: journeyError } = await supabase
             .from('field_journeys')
             .select('*')
             .eq('submitted_by_user_id', session.user.id)
+            .eq('operational_scope', operationalScope)
             .eq('status', 'draft')
             .order('updated_at', { ascending: false })
             .limit(1)
@@ -975,7 +1096,9 @@ export async function autosaveFieldJourneyDraft(reports = [], options = {}) {
     normalizedReports = await inheritReportsProductionMeasures(normalizedReports);
 
     try {
-        const journeyRow = buildWorkflowDraftJourneyRow(normalizedReports, session, requestedJourneyId);
+        const operationalScope = normalizeOperationalScopeValue(options.operationalScope);
+        normalizedReports = normalizedReports.map(report => ({ ...report, operational_scope: operationalScope }));
+        const journeyRow = buildWorkflowDraftJourneyRow(normalizedReports, session, requestedJourneyId, operationalScope);
         const { data: journey, error: journeyError } = await supabase
             .from('field_journeys')
             .upsert(journeyRow, { onConflict: 'id' })
@@ -994,7 +1117,7 @@ export async function autosaveFieldJourneyDraft(reports = [], options = {}) {
 
         if (deleteRecordsError) throw deleteRecordsError;
 
-        const recordRows = normalizedReports.map(report => mapFieldReportToWorkflowRecord(report, journeyId));
+        const recordRows = normalizedReports.map(report => mapFieldReportToWorkflowRecord(report, journeyId, operationalScope));
         const { error: recordsError } = await supabase
             .from('field_journey_records')
             .insert(recordRows);
@@ -1046,7 +1169,9 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
             }
         }
 
-        const journeyRow = buildWorkflowJourneyRow(normalizedReports, session, requestedJourneyId);
+        const operationalScope = normalizeOperationalScopeValue(options.operationalScope);
+        normalizedReports = normalizedReports.map(report => ({ ...report, operational_scope: operationalScope }));
+        const journeyRow = buildWorkflowJourneyRow(normalizedReports, session, requestedJourneyId, operationalScope);
         if (wasAlreadyPublishedOrApproved) {
             journeyRow.status = originalStatus;
         }
@@ -1071,7 +1196,7 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
 
         if (deleteRecordsError) throw deleteRecordsError;
 
-        const recordRows = normalizedReports.map(report => mapFieldReportToWorkflowRecord(report, journeyId));
+        const recordRows = normalizedReports.map(report => mapFieldReportToWorkflowRecord(report, journeyId, operationalScope));
         const { error: recordsError } = await supabase
             .from('field_journey_records')
             .insert(recordRows);
@@ -1349,8 +1474,10 @@ export async function saveAdminFieldJourneyReview(journeyId, options = {}) {
 
 function mapWorkflowRecordToMonitoringRecord(record = {}) {
     const payload = record?.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
+    const operationalScope = normalizeOperationalScopeValue(record.operational_scope || payload.operational_scope);
 
     return {
+        operational_scope: operationalScope,
         pozo_name: String(record.pozo || payload.pozo || '').trim().toUpperCase(),
         campo: String(record.campo || payload.campo || '').trim(),
         fecha: record.report_date || payload.fecha || null,
@@ -1479,12 +1606,17 @@ async function buildConsolidatedFieldRows(records = [], journeyId = '') {
     return Promise.all((Array.isArray(records) ? records : []).map(async (record, index) => {
         const pozo = String(record.pozo || '').trim().toUpperCase();
         const profile = besProfilesMap.get(pozo) || null;
+        const operationalScope = normalizeOperationalScopeValue(record.operational_scope || record.raw_payload?.operational_scope);
         
-        const rowData = buildConsolidatedFieldRowData(record, profile);
+        const rowData = {
+            ...buildConsolidatedFieldRowData(record, profile),
+            OPERATIONAL_SCOPE: operationalScope
+        };
         const rowHashSeed = buildConsolidatedFieldRowHashSeed({ rowData, journeyId, record, index });
 
         return {
             source_type: 'field_journey',
+            operational_scope: operationalScope,
             source_file_name: null,
             source_sheet_name: 'DASHBOARD GENERAL',
             source_row_number: null,
@@ -1540,10 +1672,16 @@ export async function previewAdminFieldJourneyPublication(journeyId) {
     }
 
     try {
+        const scopeGuard = await resolveActiveScopeGuard();
+        if (!scopeGuard.pozoNames.length) {
+            throw new Error('El contrato activo no tiene pozos configurados para preparar la subida.');
+        }
+
         const { data: records, error } = await supabase
             .from('field_journey_records')
             .select('*')
             .eq('journey_id', normalizedJourneyId)
+            .in('pozo', scopeGuard.pozoNames)
             .order('report_time', { ascending: true })
             .order('pozo', { ascending: true });
 
@@ -1573,14 +1711,23 @@ export async function publishAdminFieldJourneyToDashboard(journeyId) {
     }
 
     try {
+        const scopeGuard = await resolveActiveScopeGuard();
+        if (!scopeGuard.pozoNames.length) {
+            throw new Error('El contrato activo no tiene pozos configurados para publicar la jornada.');
+        }
+
         const { data: records, error } = await supabase
             .from('field_journey_records')
             .select('*')
             .eq('journey_id', normalizedJourneyId)
+            .in('pozo', scopeGuard.pozoNames)
             .order('report_time', { ascending: true })
             .order('pozo', { ascending: true });
 
         if (error) throw error;
+        if (!records?.length) {
+            throw new Error('La jornada no tiene pozos del contrato activo para publicar.');
+        }
 
         const inheritedRecords = await inheritWorkflowRecordsProductionMeasures(records || []);
         const monitoringRecords = inheritedRecords.map(mapWorkflowRecordToMonitoringRecord);

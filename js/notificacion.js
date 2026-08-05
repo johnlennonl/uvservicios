@@ -1,10 +1,16 @@
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
 import { getMonitoringDailyActivity, getRecentTechnicalMeasurements, getRecentWellBESProfiles } from './data-service.js';
+import { getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
 
 const MONITORING_LIMIT = 12;
 const TECHNICAL_LIMIT = 8;
 const BES_LIMIT = 8;
 let monitoringGroups = [];
+let activeScopePozoNames = [];
+
+function normalizePozoName(value) {
+    return String(value || '').trim().toUpperCase();
+}
 
 function getRoleLabel(profile) {
     if (profile?.isFieldOperator) return 'Perfil activo: Campo';
@@ -342,10 +348,21 @@ async function loadNotificationCenter() {
     setRefreshLoadingState(true);
 
     try {
+        if (!activeScopePozoNames.length) {
+            const emptyActivity = { supported: true, records: [], total: 0, uniquePozos: 0, pozoCounts: [] };
+            renderSummary(emptyActivity, [], []);
+            renderMonitoringFeed(emptyActivity);
+            renderTechnicalFeed([]);
+            renderBESFeed([]);
+            renderLastEventPanel(emptyActivity, [], []);
+            setLastRefreshLabel();
+            return;
+        }
+
         const [monitoringActivity, technicalRows, besRows] = await Promise.all([
-            getMonitoringDailyActivity(MONITORING_LIMIT),
-            getRecentTechnicalMeasurements(TECHNICAL_LIMIT),
-            getRecentWellBESProfiles(BES_LIMIT)
+            getMonitoringDailyActivity(MONITORING_LIMIT, new Date(), activeScopePozoNames),
+            getRecentTechnicalMeasurements(TECHNICAL_LIMIT, activeScopePozoNames),
+            getRecentWellBESProfiles(BES_LIMIT, activeScopePozoNames)
         ]);
 
         renderSummary(monitoringActivity, technicalRows || [], besRows || []);
@@ -380,6 +397,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     applyNotificationAccessProfile(accessProfile);
+
+    const operationalScopeContext = await initOperationalScopeContext(session, accessProfile);
+    renderOperationalScopeSwitcher(document.getElementById('notification-operational-scope-switcher'), operationalScopeContext, {
+        onChange: () => window.location.reload()
+    });
+    activeScopePozoNames = [...new Set((await getActiveOperationalScopeWellNames().catch(error => {
+        console.warn('No se pudieron cargar pozos del contrato activo en Notificaciones:', error);
+        return [];
+    })).map(normalizePozoName).filter(Boolean))];
 
     const rolePill = document.getElementById('notification-role-pill');
     if (rolePill) {

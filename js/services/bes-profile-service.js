@@ -47,6 +47,13 @@ function normalizeOptionalText(value) {
     return normalized || null;
 }
 
+function normalizePozoFilter(pozos = []) {
+    return [...new Set((Array.isArray(pozos) ? pozos : [pozos])
+        .map(value => String(value || '').trim().toUpperCase())
+        .filter(Boolean)
+        .filter(value => value !== 'TODAS'))];
+}
+
 export async function getWellBESProfile(pozoName) {
     if (!pozoName || pozoName === 'Todas') return null;
     await ensureMonitoringReadAccess();
@@ -70,16 +77,21 @@ export async function getWellBESProfile(pozoName) {
     }
 }
 
-export async function getRecentWellBESProfiles(limit = 10) {
+export async function getRecentWellBESProfiles(limit = 10, pozos = []) {
     await ensureMonitoringReadAccess();
     const safeLimit = Number.isFinite(Number(limit)) ? Number(limit) : 10;
+    const pozoFilter = normalizePozoFilter(pozos);
 
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('well_bes_profile')
             .select('*')
             .order('updated_at', { ascending: false })
             .limit(safeLimit);
+
+        if (pozoFilter.length) query = query.in('pozo_name', pozoFilter);
+
+        const { data, error } = await query;
 
         if (error) throw error;
         return data || [];
@@ -96,6 +108,7 @@ export async function upsertWellBESProfile(data) {
     await ensureMonitoringWriteAccess();
     const normalized = {
         pozo_name: String(data?.pozo_name || '').trim(),
+        operational_scope: String(data?.operational_scope || '').trim().toLowerCase() || null,
         pump_type: String(data?.pump_type || data?.multiphase_pump || data?.pump_model || '').trim(),
         installed_at: String(data?.installed_at || '').trim() || null,
         updated_at: new Date().toISOString()

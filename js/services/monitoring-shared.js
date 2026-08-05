@@ -127,7 +127,7 @@ export function buildMonitoringRecordKey(record = {}) {
 export async function fetchExistingMonitoringRecordsForSync(fechas = []) {
     const sortedDates = (Array.isArray(fechas) ? fechas : []).filter(Boolean).sort();
 
-    return fetchAllRows('monitoreo_pozos', 'id, pozo_name, campo, fecha, hora, frecuencia, corriente_motor, presion_thp, presion_chp, presion_lf, pip, tm, vsd_a, vsd_b, vsd_c, sentido_giro, estatus, observaciones', (query) => {
+    return fetchAllRows('monitoreo_pozos', 'id, operational_scope, pozo_name, campo, fecha, hora, frecuencia, corriente_motor, presion_thp, presion_chp, presion_lf, pip, tm, vsd_a, vsd_b, vsd_c, sentido_giro, estatus, observaciones', (query) => {
         let configured = query;
         if (sortedDates[0]) configured = configured.gte('fecha', sortedDates[0]);
         if (sortedDates[sortedDates.length - 1]) configured = configured.lte('fecha', sortedDates[sortedDates.length - 1]);

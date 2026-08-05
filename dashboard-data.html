@@ -137,8 +137,13 @@
     </div>
 
             <header class="page-hero">
-                <h1>Gestión de Datos BES</h1>
-                <p>Control y administración del sistema.</p>
+                <div class="page-hero-copy">
+                    <h1>Gestión de Datos BES</h1>
+                    <p>Control y administración del sistema.</p>
+                </div>
+                <div class="page-hero-actions">
+                    <div id="gestion-operational-scope-switcher"></div>
+                </div>
             </header>
             <div class="management-layout">
                 <div class="top-row">
@@ -840,10 +845,14 @@
     <script type="module">
         import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession } from './js/auth.js';
         import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, previewMonitoringSync, saveTechnicalMeasurement, syncTechnicalMeasurements, previewTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile, buildMonitoringRecordKey } from './js/data-service.js';
+        import { getActiveOperationalScope, getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from './js/services/operational-scope-context.js';
         import { previewManualMonitoringIntoConsolidated, upsertManualMonitoringIntoConsolidated } from './js/services/consolidado-service.js';
 
         let isEditing = false;
         let knownPozos = new Set();
+        let activeOperationalScope = 'ceiba_tomoporo';
+        let activeScopePozoNames = [];
+        let activeScopePozoSet = new Set();
         let activeRecentHistoryMode = 'operational';
         const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
         const MANAGEMENT_POZO_SELECTORS = [
@@ -902,6 +911,24 @@
 
         function getSortedKnownPozos() {
             return [...knownPozos].sort((a, b) => a.localeCompare(b));
+        }
+
+        function normalizePozoName(value) {
+            return String(value || '').trim().toUpperCase();
+        }
+
+        function setActiveScopePozoNames(pozoNames = []) {
+            activeScopePozoNames = [...new Set((Array.isArray(pozoNames) ? pozoNames : [pozoNames]).map(normalizePozoName).filter(Boolean))];
+            activeScopePozoSet = new Set(activeScopePozoNames);
+        }
+
+        function isPozoAllowedByActiveScope(pozoName) {
+            return activeScopePozoSet.has(normalizePozoName(pozoName));
+        }
+
+        function filterRowsByActiveScope(rows = [], pozoFieldName = 'pozo_name') {
+            if (!activeScopePozoSet.size) return [];
+            return (Array.isArray(rows) ? rows : []).filter(row => isPozoAllowedByActiveScope(row?.[pozoFieldName] || row?.pozo));
         }
 
         function escapeHtml(value) {
@@ -1065,6 +1092,18 @@
                 window.location.href = getDefaultRouteForAccessProfile(accessProfile);
                 return;
             }
+            const operationalScopeContext = await initOperationalScopeContext(session, accessProfile);
+            renderOperationalScopeSwitcher(document.getElementById('gestion-operational-scope-switcher'), operationalScopeContext, {
+                onChange: () => {
+                    sessionStorage.removeItem(ACTIVE_POZO_STORAGE_KEY);
+                    window.location.reload();
+                }
+            });
+            activeOperationalScope = getActiveOperationalScope();
+            setActiveScopePozoNames(await getActiveOperationalScopeWellNames().catch(error => {
+                console.warn('No se pudieron cargar pozos del contrato activo en Gestion:', error);
+                return [];
+            }));
             initApp();
         });
 
@@ -1179,8 +1218,7 @@
 
         // Refresca el catalogo comun de pozos para los tres selectores personalizados.
         async function refreshPozoLists() {
-            const pozos = (await getUniquePozos()).sort((a, b) => a.localeCompare(b));
-            knownPozos = new Set(pozos.map(pozo => pozo.trim().toUpperCase()));
+            knownPozos = new Set(activeScopePozoNames);
 
             MANAGEMENT_POZO_SELECTORS.forEach(config => renderManagementPozoMenu(config, true));
         }
@@ -1189,6 +1227,11 @@
         async function ensureKnownPozo(pozoName, campoName = '') {
             const normalizedPozo = pozoName.trim().toUpperCase();
             if (!normalizedPozo || knownPozos.has(normalizedPozo)) return true;
+
+            if (!isPozoAllowedByActiveScope(normalizedPozo)) {
+                Swal.fire({ icon: 'warning', title: 'Pozo fuera del contrato', text: `El pozo ${normalizedPozo} no pertenece al contrato activo.` });
+                return false;
+            }
 
             const result = await Swal.fire({
                 icon: 'question',
@@ -1277,7 +1320,7 @@
                 };
 
                 if (activeRecentHistoryMode === 'technical') {
-                    const technicalData = await getRecentTechnicalMeasurements(10);
+                    const technicalData = filterRowsByActiveScope(await getRecentTechnicalMeasurements(50)).slice(0, 10);
                     historyBody.innerHTML = '';
 
                     if (technicalData && technicalData.length > 0) {
@@ -1306,7 +1349,7 @@
                     return;
                 }
 
-                const data = await getMonitoringData();
+                const data = activeScopePozoNames.length > 0 ? await getMonitoringData(activeScopePozoNames) : [];
                 const latestByPozo = [];
                 const seenPozos = new Set();
 
@@ -1583,6 +1626,7 @@
             const getOptionalTelemetryValue = (fieldId) => roundNumericValue(document.getElementById(fieldId).value);
 
             const record = {
+                operational_scope: activeOperationalScope,
                 pozo_name: document.getElementById('pozo_name').value,
                 campo: document.getElementById('campo').value,
                 fecha: document.getElementById('fecha').value,
@@ -1603,6 +1647,10 @@
             };
 
             try {
+                if (!isPozoAllowedByActiveScope(record.pozo_name)) {
+                    throw new Error(`El pozo ${record.pozo_name || '--'} no pertenece al contrato activo.`);
+                }
+
                 if (!isEditing) {
                     const canContinue = await ensureKnownPozo(record.pozo_name, record.campo);
                     if (!canContinue) return;
@@ -1637,6 +1685,7 @@
 
             try {
                 const techData = {
+                    operational_scope: activeOperationalScope,
                     pozo_name: document.getElementById('tech_pozo_name').value.trim(),
                     campo_name: document.getElementById('tech_campo_name').value.trim(),
                     ef: document.getElementById('ef_tech').value.trim(),
@@ -1647,6 +1696,10 @@
                     bnpd: parseFloat(document.getElementById('bnpd_tech').value) || 0,
                     cat_number: parseInt(document.getElementById('cat_tech').value) || 1
                 };
+
+                if (!isPozoAllowedByActiveScope(techData.pozo_name)) {
+                    throw new Error(`El pozo ${techData.pozo_name || '--'} no pertenece al contrato activo.`);
+                }
 
                 await saveTechnicalMeasurement(techData);
                 setTechnicalFormVisibility(false);
@@ -1675,8 +1728,13 @@
                     payload[fieldName] = document.getElementById(fieldName)?.value.trim() || '';
                     return payload;
                 }, {
+                    operational_scope: activeOperationalScope,
                     pozo_name: document.getElementById('pump_pozo_name').value.trim()
                 });
+
+                if (!isPozoAllowedByActiveScope(profile.pozo_name)) {
+                    throw new Error(`El pozo ${profile.pozo_name || '--'} no pertenece al contrato activo.`);
+                }
 
                 await upsertWellBESProfile(profile);
                 await refreshPozoLists();
@@ -2967,13 +3025,17 @@
 
             try {
                 const parsedRows = await parseTabularFile(file);
-                const rows = parsedRows
+                const allRows = parsedRows
                     .map(mapTechnicalCsvRow)
                     .filter(row => row && row.pozo_name);
+                const rows = filterRowsByActiveScope(allRows);
+                const omittedByScopeCount = allRows.length - rows.length;
 
                 if (rows.length === 0) {
                     techStatusDiv.style.display = 'block';
-                    techStatusText.textContent = 'No se encontraron filas válidas para Producción Técnica.';
+                    techStatusText.textContent = omittedByScopeCount > 0
+                        ? 'El archivo no contiene pozos del contrato activo.'
+                        : 'No se encontraron filas válidas para Producción Técnica.';
                     return;
                 }
 
@@ -3073,7 +3135,8 @@
 
                 const telemetryCandidates = cleanData.filter(hasDailyTelemetryData);
                 const invalidStatusRows = telemetryCandidates.filter(row => !row.estatus);
-                const telemetryRows = telemetryCandidates.filter(row => row.estatus);
+                const telemetryRows = telemetryCandidates.filter(row => row.estatus && isPozoAllowedByActiveScope(row.pozo_name));
+                const omittedByScopeCount = telemetryCandidates.filter(row => row.estatus && !isPozoAllowedByActiveScope(row.pozo_name)).length;
 
                 if (telemetryCandidates.length === 0) {
                     const looksTechnicalFile = cleanData.some(row => row.ef || row.potencial !== undefined || row.bbpd !== undefined || row.ays !== undefined || row.bnpd !== undefined || row.cat !== undefined || row.cat_number !== undefined);
@@ -3096,6 +3159,10 @@
                 const invalidStatusWarning = invalidStatusRows.length > 0
                     ? `${invalidStatusRows.length} fila(s) se omitieron porque no tienen ESTATUS operativo interpretable.`
                     : '';
+
+                if (telemetryRows.length === 0 && omittedByScopeCount > 0) {
+                    throw new Error(`El archivo contiene ${omittedByScopeCount} registro(s), pero ninguno pertenece al contrato activo.`);
+                }
 
                 const telemetryColumns = ['pozo_name', 'campo', 'fecha', 'hora', 'frecuencia', 'corriente_motor', 'presion_thp', 'presion_chp', 'presion_lf', 'pip', 'tm', 'vsd_a', 'vsd_b', 'vsd_c', 'sentido_giro', 'estatus', 'observaciones', 'user_id'];
 
@@ -3135,7 +3202,7 @@
                     detailText: 'Se sincronizarán los registros diarios válidos detectados en el archivo antes de guardarlos en la plataforma.',
                     previewResult,
                     consolidatedPreview,
-                    omittedCount: invalidStatusRows.length,
+                    omittedCount: invalidStatusRows.length + omittedByScopeCount,
                     kind: 'operational'
                 });
 
@@ -3154,6 +3221,9 @@
                 const recordsToSync = importMode === 'insert-only'
                     ? (previewResult?.recordsToInsert || [])
                     : telemetryData;
+                recordsToSync.forEach(record => {
+                    record.operational_scope = activeOperationalScope;
+                });
                 const shouldSyncOperationalRecords = recordsToSync.length > 0;
 
                 beginImportSession({
@@ -3207,6 +3277,7 @@
 
                     if (latest.potencial !== undefined || latest.bbpd !== undefined || latest.ef !== undefined) {
                         const techData = {
+                            operational_scope: activeOperationalScope,
                             pozo_name: latest.pozo_name,
                             campo_name: latest.campo || latest.campo_name,
                             ef: latest.ef || 'N/A',

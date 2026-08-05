@@ -141,6 +141,15 @@ body.is-role-base-datos a[href="base-datos.html"] {
     font-weight: 600;
 }
 
+.notification-meta-row .operational-scope-switcher {
+    min-height: 40px;
+    padding: 6px 10px;
+}
+
+.notification-meta-row .operational-scope-switcher select {
+    min-width: 190px;
+}
+
 .notification-refresh-btn {
     min-width: 132px;
 }

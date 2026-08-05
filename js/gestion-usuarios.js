@@ -2,18 +2,59 @@ import { supabase } from './supabaseClient.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 import { CONFIG } from './config.js';
 import { getSession, logout, getAccessProfile } from './auth.js';
+import {
+    DEFAULT_OPERATIONAL_SCOPE,
+    deleteFieldWell,
+    getFieldTechniciansByScope,
+    getFieldWellRecordStatus,
+    getFieldWellsByScope,
+    getOperationalContracts,
+    getUserOperationalScopes,
+    setUserOperationalScopes,
+    upsertFieldTechnician,
+    upsertFieldWell
+} from './services/operational-contracts-service.js';
 
 // DOM elements
 const activeUserNameEl = document.getElementById('active-user-name');
 const statTotalUsersEl = document.getElementById('stat-total-users');
 const statActiveSessionsEl = document.getElementById('stat-active-sessions');
-const statActiveRolesEl = document.getElementById('stat-active-roles');
+const statActiveContractsEl = document.getElementById('stat-active-roles');
 const formCreateUser = document.getElementById('form-create-user');
 const btnSubmitUser = document.getElementById('btn-submit-user');
 const usersTableBody = document.getElementById('users-table-body');
 const tableShimmerLoader = document.getElementById('table-shimmer-loader');
 const searchUsersInput = document.getElementById('search-users');
 const btnLogout = document.getElementById('logout-btn');
+const contractsStatusEl = document.getElementById('contracts-status');
+const contractsListEl = document.getElementById('contracts-list');
+const contractTechniciansListEl = document.getElementById('contract-technicians-list');
+const contractWellsListEl = document.getElementById('contract-wells-list');
+const selectedContractTitleEl = document.getElementById('selected-contract-title');
+const selectedContractMetaEl = document.getElementById('selected-contract-meta');
+const selectedContractPillEl = document.getElementById('selected-contract-pill');
+const formContractTechnician = document.getElementById('form-contract-technician');
+const formContractWell = document.getElementById('form-contract-well');
+const selectOperationalScope = document.getElementById('select-operational-scope');
+const editOperationalScope = document.getElementById('edit-operational-scope');
+
+const CONTRACT_PLACEHOLDERS = Object.freeze({
+    ceiba_tomoporo: {
+        technician: 'Ej: Juan Perez',
+        pozo: 'Ej: CEI0003 / TOM0010',
+        campo: 'LA CEIBA / TOMOPORO'
+    },
+    bmm: {
+        technician: 'Ej: Tecnico BMM',
+        pozo: 'Ej: BAR-001 / MOT-001 / MG-001',
+        campo: 'BARUA / MOTATAN / MENE GRANDE'
+    }
+});
+
+const CONTRACT_FIELD_OPTIONS = Object.freeze({
+    ceiba_tomoporo: ['LA CEIBA', 'TOMOPORO'],
+    bmm: ['BARUA', 'MOTATAN', 'MENE GRANDE']
+});
 
 // Modal Elements
 const modalOverlay = document.getElementById('user-management-modal');
@@ -43,6 +84,9 @@ const logsTimelineLoader = document.getElementById('logs-timeline-loader');
 const logsEmptyMessage = document.getElementById('logs-empty-message');
 
 let allProfiles = [];
+let operationalContracts = [];
+let operationalContractStats = new Map();
+let selectedOperationalScope = DEFAULT_OPERATIONAL_SCOPE;
 let currentSortCol = null;
 let isAscending = true;
 
@@ -55,6 +99,515 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function getContractLabel(scopeKey) {
+    const contract = operationalContracts.find(item => item.scope_key === scopeKey);
+    return contract?.display_name || scopeKey || 'Contrato';
+}
+
+function getSelectedContract() {
+    return operationalContracts.find(contract => contract.scope_key === selectedOperationalScope) || null;
+}
+
+function getContractStats(scopeKey) {
+    return operationalContractStats.get(scopeKey) || { technicians: 0, wells: 0 };
+}
+
+function getSelectedContractPlaceholders() {
+    return CONTRACT_PLACEHOLDERS[selectedOperationalScope] || CONTRACT_PLACEHOLDERS.ceiba_tomoporo;
+}
+
+function updateContractInputPlaceholders() {
+    const placeholders = getSelectedContractPlaceholders();
+    const technicianInput = document.getElementById('contract-technician-name');
+    const wellInput = document.getElementById('contract-well-name');
+    const fieldInput = document.getElementById('contract-well-field');
+
+    if (technicianInput) technicianInput.placeholder = placeholders.technician;
+    if (wellInput) wellInput.placeholder = placeholders.pozo;
+    if (fieldInput) fieldInput.placeholder = placeholders.campo;
+    syncContractFieldControl();
+}
+
+function normalizePozoIdentity(value) {
+    return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function inferFieldFromPozo(pozoName, scopeKey = selectedOperationalScope) {
+    const rawPozo = String(pozoName || '').trim().toUpperCase();
+    const compactPozo = normalizePozoIdentity(rawPozo);
+    if (!rawPozo) return '';
+
+    if (scopeKey === 'bmm') {
+        if (compactPozo.startsWith('MG') || rawPozo.includes('MENE')) return 'MENE GRANDE';
+        if (compactPozo.startsWith('MOT') || rawPozo.includes('MOTATAN')) return 'MOTATAN';
+        if (compactPozo.startsWith('BAR') || rawPozo.includes('BARUA')) return 'BARUA';
+        return '';
+    }
+
+    if (compactPozo.startsWith('CEI')) return 'LA CEIBA';
+    if (compactPozo.startsWith('TOM')) return 'TOMOPORO';
+    return '';
+}
+
+function buildFieldOptionsMarkup(scopeKey, selectedValue = '') {
+    const options = CONTRACT_FIELD_OPTIONS[scopeKey] || [];
+    const normalizedSelected = String(selectedValue || '').trim().toUpperCase();
+    return [
+        '<option value="">Selecciona campo</option>',
+        ...options.map(option => `<option value="${escapeHtml(option)}" ${option === normalizedSelected ? 'selected' : ''}>${escapeHtml(option)}</option>`)
+    ].join('');
+}
+
+function syncContractFieldControl() {
+    const currentField = document.getElementById('contract-well-field');
+    if (!currentField) return;
+
+    const wrapper = currentField.parentElement;
+    const currentValue = currentField.value || '';
+    const placeholders = getSelectedContractPlaceholders();
+
+    if (CONTRACT_FIELD_OPTIONS[selectedOperationalScope]?.length) {
+        if (currentField.tagName !== 'SELECT') {
+            const select = document.createElement('select');
+            select.id = 'contract-well-field';
+            select.name = currentField.name || 'contract-well-field';
+            select.required = currentField.required;
+            select.className = currentField.className;
+            select.innerHTML = buildFieldOptionsMarkup(selectedOperationalScope, currentValue);
+            wrapper.replaceChild(select, currentField);
+        } else {
+            currentField.innerHTML = buildFieldOptionsMarkup(selectedOperationalScope, currentValue);
+        }
+        return;
+    }
+
+    if (currentField.tagName === 'SELECT') {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'contract-well-field';
+        input.name = currentField.name || 'contract-well-field';
+        input.value = currentValue;
+        input.placeholder = placeholders.campo;
+        input.required = currentField.required;
+        input.className = currentField.className;
+        wrapper.replaceChild(input, currentField);
+    }
+}
+
+function syncFieldFromWellName() {
+    const pozoInput = document.getElementById('contract-well-name');
+    const campoInput = document.getElementById('contract-well-field');
+    if (!pozoInput || !campoInput) return;
+
+    const inferredField = inferFieldFromPozo(pozoInput.value);
+    if (inferredField) campoInput.value = inferredField;
+}
+
+async function refreshOperationalContractStats() {
+    const pairs = await Promise.all(operationalContracts.map(async contract => {
+        const [technicians, wells] = await Promise.all([
+            getFieldTechniciansByScope(contract.scope_key, { includeInactive: true }).catch(() => []),
+            getFieldWellsByScope(contract.scope_key, { includeInactive: true }).catch(() => [])
+        ]);
+
+        return [contract.scope_key, { technicians: technicians.length, wells: wells.length }];
+    }));
+
+    operationalContractStats = new Map(pairs);
+}
+
+function renderOperationalScopeOptions(selectEl, selectedScope = DEFAULT_OPERATIONAL_SCOPE) {
+    if (!selectEl) return;
+
+    const contracts = operationalContracts.length > 0
+        ? operationalContracts
+        : [
+            { scope_key: 'ceiba_tomoporo', display_name: 'Ceiba / Tomoporo' },
+            { scope_key: 'bmm', display_name: 'Barua / Motatan / Mene Grande' }
+        ];
+
+    selectEl.innerHTML = contracts.map(contract => `
+        <option value="${escapeHtml(contract.scope_key)}" ${contract.scope_key === selectedScope ? 'selected' : ''}>
+            ${escapeHtml(contract.display_name)}
+        </option>
+    `).join('');
+}
+
+async function loadOperationalControlData() {
+    if (!contractsStatusEl) return;
+
+    contractsStatusEl.textContent = 'Cargando contratos...';
+    try {
+        operationalContracts = await getOperationalContracts({ includeInactive: true });
+        if (operationalContracts.length === 0) {
+            contractsStatusEl.textContent = 'Sin contratos configurados.';
+        } else {
+            selectedOperationalScope = operationalContracts.some(contract => contract.scope_key === selectedOperationalScope)
+                ? selectedOperationalScope
+                : operationalContracts[0].scope_key;
+            contractsStatusEl.textContent = `${operationalContracts.length} contratos configurados.`;
+        }
+
+        await refreshOperationalContractStats();
+        updateActiveContractsStat();
+
+        renderOperationalScopeOptions(selectOperationalScope, selectedOperationalScope);
+        renderOperationalScopeOptions(editOperationalScope, selectedOperationalScope);
+        await renderOperationalContractsControl();
+    } catch (error) {
+        console.error('Error loading operational contracts:', error);
+        contractsStatusEl.textContent = error.message || 'No se pudieron cargar los contratos.';
+        renderOperationalScopeOptions(selectOperationalScope, DEFAULT_OPERATIONAL_SCOPE);
+        renderOperationalScopeOptions(editOperationalScope, DEFAULT_OPERATIONAL_SCOPE);
+    }
+}
+
+async function renderOperationalContractsControl() {
+    if (!contractsListEl) return;
+
+    if (operationalContracts.length === 0) {
+        contractsListEl.innerHTML = '<div class="contract-empty-state">Ejecuta el script de contratos para iniciar el catalogo.</div>';
+        contractTechniciansListEl.innerHTML = '';
+        contractWellsListEl.innerHTML = '';
+        if (selectedContractTitleEl) selectedContractTitleEl.textContent = 'Sin contratos configurados';
+        if (selectedContractMetaEl) selectedContractMetaEl.textContent = 'Ejecuta el script SQL y recarga esta pagina.';
+        if (selectedContractPillEl) selectedContractPillEl.textContent = 'Pendiente';
+        return;
+    }
+
+    contractsListEl.innerHTML = operationalContracts.map(contract => `
+        <button type="button" class="contract-option-btn ${contract.scope_key === selectedOperationalScope ? 'active' : ''}" data-scope="${escapeHtml(contract.scope_key)}">
+            <div class="contract-option-top">
+                <div class="contract-option-title">
+                    <strong>${escapeHtml(contract.display_name)}</strong>
+                    <span>${escapeHtml(contract.short_name || contract.scope_key)} · ${contract.active ? 'Activo' : 'Inactivo'}</span>
+                </div>
+                <div class="contract-option-badge">${escapeHtml(contract.short_name || contract.scope_key.slice(0, 3).toUpperCase())}</div>
+            </div>
+            <div class="contract-option-metrics">
+                <div class="contract-option-metric">
+                    <span>Tecnicos</span>
+                    <strong>${getContractStats(contract.scope_key).technicians}</strong>
+                </div>
+                <div class="contract-option-metric">
+                    <span>Pozos</span>
+                    <strong>${getContractStats(contract.scope_key).wells}</strong>
+                </div>
+            </div>
+        </button>
+    `).join('');
+
+    contractsListEl.querySelectorAll('[data-scope]').forEach(button => {
+        button.addEventListener('click', async () => {
+            selectedOperationalScope = button.dataset.scope || DEFAULT_OPERATIONAL_SCOPE;
+            await renderOperationalContractsControl();
+        });
+    });
+
+    await renderSelectedContractCatalogs();
+}
+
+function renderSelectedContractSummary(technicians = [], wells = []) {
+    const contract = getSelectedContract();
+    if (!contract) return;
+
+    const uniqueFields = [...new Set(wells.map(well => String(well.campo_name || '').trim()).filter(Boolean))];
+    if (selectedContractTitleEl) selectedContractTitleEl.textContent = contract.display_name;
+    if (selectedContractMetaEl) {
+        selectedContractMetaEl.textContent = `${technicians.length} tecnicos · ${wells.length} pozos${uniqueFields.length ? ` · Campos: ${uniqueFields.join(', ')}` : ''}`;
+    }
+    if (selectedContractPillEl) selectedContractPillEl.textContent = contract.active ? 'Contrato activo' : 'Contrato inactivo';
+    updateContractInputPlaceholders();
+}
+
+function renderCatalogRows(container, rows, emptyMessage, renderRow) {
+    if (!container) return;
+    if (!rows.length) {
+        container.innerHTML = `<div class="contract-empty-state">${escapeHtml(emptyMessage)}</div>`;
+        return;
+    }
+
+    container.innerHTML = rows.map(renderRow).join('');
+}
+
+async function renderSelectedContractCatalogs() {
+    if (!selectedOperationalScope) return;
+
+    try {
+        const [technicians, wells] = await Promise.all([
+            getFieldTechniciansByScope(selectedOperationalScope, { includeInactive: true }),
+            getFieldWellsByScope(selectedOperationalScope, { includeInactive: true })
+        ]);
+        const recordStatusByPozo = await getFieldWellRecordStatus(wells.map(well => well.pozo_name)).catch(() => new Map());
+
+        operationalContractStats.set(selectedOperationalScope, { technicians: technicians.length, wells: wells.length });
+        renderSelectedContractSummary(technicians, wells);
+
+        renderCatalogRows(
+            contractTechniciansListEl,
+            technicians,
+            'No hay tecnicos cargados para este contrato.',
+            technician => `
+                <div class="contract-item-row">
+                    <span>${escapeHtml(technician.full_name)}</span>
+                    <div class="contract-item-actions">
+                        <small>${technician.active ? 'Activo' : 'Inactivo'}</small>
+                        <button type="button" class="contract-manage-btn" data-technician-id="${escapeHtml(technician.id)}">Gestionar</button>
+                    </div>
+                </div>
+            `
+        );
+
+        renderCatalogRows(
+            contractWellsListEl,
+            wells,
+            'No hay pozos cargados para este contrato.',
+            well => {
+                const status = recordStatusByPozo.get(String(well.pozo_name || '').trim().toUpperCase()) || {};
+                const recordLabel = status.hasMonitoringRecords
+                    ? 'Con registros'
+                    : status.hasTechnicalRecord
+                        ? 'Solo ficha tecnica'
+                        : 'Sin registros';
+                return `
+                <div class="contract-item-row">
+                    <span>${escapeHtml(well.pozo_name)}</span>
+                    <div class="contract-item-actions">
+                        <small>${escapeHtml(well.campo_name)} · ${recordLabel} · ${well.active ? 'Activo' : 'Inactivo'}</small>
+                        <button type="button" class="contract-manage-btn" data-well-id="${escapeHtml(well.id)}">Gestionar</button>
+                        <button type="button" class="contract-delete-btn" data-delete-well-id="${escapeHtml(well.id)}">Eliminar</button>
+                    </div>
+                </div>
+            `;
+            }
+        );
+
+        contractTechniciansListEl?.querySelectorAll('[data-technician-id]').forEach(button => {
+            button.addEventListener('click', () => {
+                const technician = technicians.find(item => item.id === button.dataset.technicianId);
+                if (technician) openTechnicianManager(technician);
+            });
+        });
+
+        contractWellsListEl?.querySelectorAll('[data-well-id]').forEach(button => {
+            button.addEventListener('click', () => {
+                const well = wells.find(item => item.id === button.dataset.wellId);
+                if (well) openWellManager(well);
+            });
+        });
+
+        contractWellsListEl?.querySelectorAll('[data-delete-well-id]').forEach(button => {
+            button.addEventListener('click', () => {
+                const well = wells.find(item => item.id === button.dataset.deleteWellId);
+                if (well) confirmDeleteWell(well);
+            });
+        });
+    } catch (error) {
+        console.error('Error rendering selected contract catalogs:', error);
+        if (contractTechniciansListEl) contractTechniciansListEl.innerHTML = `<div class="contract-status-text">${escapeHtml(error.message)}</div>`;
+        if (contractWellsListEl) contractWellsListEl.innerHTML = '';
+    }
+}
+
+async function confirmDeleteWell(well) {
+    const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Eliminar pozo del catalogo',
+        html: `
+            <div style="text-align:left; line-height:1.5;">
+                <p>Vas a eliminar <strong>${escapeHtml(well.pozo_name)}</strong> del catalogo de <strong>${escapeHtml(getContractLabel(well.operational_scope))}</strong>.</p>
+                <p>Los registros historicos no se borran, pero este pozo dejara de aparecer en Campo, Gestion, Dashboard y Estadisticas hasta que lo vuelvas a agregar.</p>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Si, eliminar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        await deleteFieldWell(well.id);
+        await refreshOperationalManager();
+        if (contractsStatusEl) contractsStatusEl.textContent = `Pozo ${well.pozo_name} eliminado del catalogo.`;
+        Swal.fire({ icon: 'success', title: 'Pozo eliminado', timer: 1500, showConfirmButton: false });
+    } catch (error) {
+        Swal.fire({ icon: 'error', title: 'No se pudo eliminar el pozo', text: error.message, confirmButtonColor: '#ef4444' });
+    }
+}
+
+function buildContractOptionsMarkup(selectedScope) {
+    return operationalContracts.map(contract => `
+        <option value="${escapeHtml(contract.scope_key)}" ${contract.scope_key === selectedScope ? 'selected' : ''}>
+            ${escapeHtml(contract.display_name)}
+        </option>
+    `).join('');
+}
+
+function buildWellFieldControlMarkup(scopeKey, selectedValue = '') {
+    if (CONTRACT_FIELD_OPTIONS[scopeKey]?.length) {
+        return `
+            <select id="swal-well-field" class="swal2-select" style="margin:0; width:100%; box-sizing:border-box;">
+                ${buildFieldOptionsMarkup(scopeKey, selectedValue)}
+            </select>
+        `;
+    }
+
+    return `<input id="swal-well-field" class="swal2-input" value="${escapeHtml(selectedValue)}" style="margin:0; width:100%; box-sizing:border-box;">`;
+}
+
+async function refreshOperationalManager() {
+    await refreshOperationalContractStats();
+    await renderOperationalContractsControl();
+}
+
+async function openTechnicianManager(technician) {
+    const result = await Swal.fire({
+        title: 'Gestionar tecnico',
+        html: `
+            <div style="display:grid; gap:12px; text-align:left;">
+                <label class="input-group-manager">
+                    <span>Nombre</span>
+                    <input id="swal-technician-name" class="swal2-input" value="${escapeHtml(technician.full_name)}" style="margin:0; width:100%; box-sizing:border-box;">
+                </label>
+                <label class="input-group-manager">
+                    <span>Contrato</span>
+                    <select id="swal-technician-scope" class="swal2-select" style="margin:0; width:100%; box-sizing:border-box;">
+                        ${buildContractOptionsMarkup(technician.operational_scope)}
+                    </select>
+                </label>
+            </div>
+        `,
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: 'Guardar cambios',
+        denyButtonText: technician.active ? 'Desactivar' : 'Activar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2563eb',
+        denyButtonColor: technician.active ? '#ef4444' : '#10b981',
+        preConfirm: () => ({
+            fullName: document.getElementById('swal-technician-name')?.value || '',
+            operationalScope: document.getElementById('swal-technician-scope')?.value || technician.operational_scope
+        })
+    });
+
+    if (result.isConfirmed) {
+        await upsertFieldTechnician({
+            id: technician.id,
+            fullName: result.value.fullName,
+            operationalScope: result.value.operationalScope,
+            active: technician.active
+        });
+        selectedOperationalScope = result.value.operationalScope;
+        await refreshOperationalManager();
+    }
+
+    if (result.isDenied) {
+        await upsertFieldTechnician({
+            id: technician.id,
+            fullName: technician.full_name,
+            operationalScope: technician.operational_scope,
+            active: !technician.active
+        });
+        await refreshOperationalManager();
+    }
+}
+
+async function openWellManager(well) {
+    const result = await Swal.fire({
+        title: 'Gestionar pozo',
+        html: `
+            <div style="display:grid; gap:12px; text-align:left;">
+                <label class="input-group-manager">
+                    <span>Pozo</span>
+                    <input id="swal-well-name" class="swal2-input" value="${escapeHtml(well.pozo_name)}" style="margin:0; width:100%; box-sizing:border-box;">
+                </label>
+                <label class="input-group-manager">
+                    <span>Campo</span>
+                    ${buildWellFieldControlMarkup(well.operational_scope, well.campo_name)}
+                </label>
+                <label class="input-group-manager">
+                    <span>Contrato</span>
+                    <select id="swal-well-scope" class="swal2-select" style="margin:0; width:100%; box-sizing:border-box;">
+                        ${buildContractOptionsMarkup(well.operational_scope)}
+                    </select>
+                </label>
+            </div>
+        `,
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: 'Guardar cambios',
+        denyButtonText: well.active ? 'Desactivar' : 'Activar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2563eb',
+        denyButtonColor: well.active ? '#ef4444' : '#10b981',
+        didOpen: () => {
+            const pozoField = document.getElementById('swal-well-name');
+            const scopeField = document.getElementById('swal-well-scope');
+            const syncModalField = () => {
+                const inferredField = inferFieldFromPozo(pozoField?.value || '', scopeField?.value || well.operational_scope);
+                const fieldControl = document.getElementById('swal-well-field');
+                if (fieldControl && inferredField) fieldControl.value = inferredField;
+            };
+
+            pozoField?.addEventListener('input', syncModalField);
+            scopeField?.addEventListener('change', () => {
+                const fieldLabel = document.getElementById('swal-well-field')?.closest('label');
+                const fieldControl = document.getElementById('swal-well-field');
+                if (!fieldLabel || !fieldControl) return;
+
+                const nextControl = document.createElement('div');
+                nextControl.innerHTML = buildWellFieldControlMarkup(scopeField.value, fieldControl.value).trim();
+                fieldControl.replaceWith(nextControl.firstElementChild);
+                syncModalField();
+            });
+        },
+        preConfirm: () => ({
+            pozoName: document.getElementById('swal-well-name')?.value || '',
+            campoName: document.getElementById('swal-well-field')?.value || '',
+            operationalScope: document.getElementById('swal-well-scope')?.value || well.operational_scope
+        })
+    });
+
+    if (result.isConfirmed) {
+        await upsertFieldWell({
+            id: well.id,
+            pozoName: result.value.pozoName,
+            campoName: result.value.campoName,
+            operationalScope: result.value.operationalScope,
+            active: well.active
+        });
+        selectedOperationalScope = result.value.operationalScope;
+        await refreshOperationalManager();
+    }
+
+    if (result.isDenied) {
+        await upsertFieldWell({
+            id: well.id,
+            pozoName: well.pozo_name,
+            campoName: well.campo_name,
+            operationalScope: well.operational_scope,
+            active: !well.active
+        });
+        await refreshOperationalManager();
+    }
+}
+
+async function loadUserScopeIntoModal(userId) {
+    if (!editOperationalScope || !userId) return;
+
+    try {
+        const scopes = await getUserOperationalScopes(userId);
+        const defaultScope = scopes.find(scope => scope.is_default)?.operational_scope || scopes[0]?.operational_scope || DEFAULT_OPERATIONAL_SCOPE;
+        renderOperationalScopeOptions(editOperationalScope, defaultScope);
+    } catch (error) {
+        console.warn('Could not load user operational scope:', error);
+        renderOperationalScopeOptions(editOperationalScope, DEFAULT_OPERATIONAL_SCOPE);
+    }
 }
 
 // 1. Session Verification
@@ -236,10 +789,14 @@ function updateStats(profiles) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const activeCount = profiles.filter(p => p.last_login_at && new Date(p.last_login_at) > thirtyDaysAgo).length;
     statActiveSessionsEl.textContent = String(activeCount);
-    
-    // Distinct roles count
-    const roles = new Set(profiles.map(p => p.role).filter(Boolean));
-    statActiveRolesEl.textContent = String(roles.size);
+
+    updateActiveContractsStat();
+}
+
+function updateActiveContractsStat() {
+    if (!statActiveContractsEl) return;
+    const activeContracts = operationalContracts.filter(contract => contract.active !== false).length;
+    statActiveContractsEl.textContent = String(activeContracts);
 }
 
 function getRoleLabel(role) {
@@ -267,7 +824,7 @@ function getRoleBadgeClass(role) {
 }
 
 // 3. User Onboarding (using temporary client to bypass local session override)
-async function createUser(email, password, nombre, apellido, empresa, role) {
+async function createUser(email, password, nombre, apellido, empresa, role, operationalScope = DEFAULT_OPERATIONAL_SCOPE) {
     // Initialize temporary non-persist client
     const tempClient = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
         auth: {
@@ -305,12 +862,15 @@ async function createUser(email, password, nombre, apellido, empresa, role) {
             apellido: apellido.trim(),
             empresa: empresa.trim(),
             role: role,
+            operational_scope: operationalScope,
             clave_plana: password
         }]);
 
     if (profileError) {
         console.warn('Profile direct insert failed, relying on DB trigger:', profileError);
     }
+
+    return newUser;
 }
 
 // 4. Modal management functions
@@ -325,6 +885,8 @@ function openUserModal(profile) {
     document.getElementById('edit-apellido').value = profile.apellido || '';
     document.getElementById('edit-empresa').value = profile.empresa || 'UV Servicios';
     document.getElementById('edit-role').value = profile.role || 'cliente_view';
+    renderOperationalScopeOptions(editOperationalScope, profile.operational_scope || DEFAULT_OPERATIONAL_SCOPE);
+    loadUserScopeIntoModal(profile.id);
     
     detailLastLogin.textContent = profile.last_login_at
         ? new Date(profile.last_login_at).toLocaleString('es-VE', { hour12: true })
@@ -411,7 +973,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     const session = await checkAuth();
     if (!session) return;
 
+    await loadOperationalControlData();
     await loadUsers();
+
+    formContractTechnician?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const input = document.getElementById('contract-technician-name');
+        const fullName = input?.value || '';
+
+        try {
+            await upsertFieldTechnician({ fullName, operationalScope: selectedOperationalScope });
+            input.value = '';
+            await refreshOperationalContractStats();
+            await renderOperationalContractsControl();
+            contractsStatusEl.textContent = `Tecnico agregado a ${getContractLabel(selectedOperationalScope)}.`;
+        } catch (error) {
+            Swal.fire({ icon: 'error', title: 'No se pudo guardar el tecnico', text: error.message, confirmButtonColor: '#ef4444' });
+        }
+    });
+
+    formContractWell?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const pozoInput = document.getElementById('contract-well-name');
+        const campoInput = document.getElementById('contract-well-field');
+        const inferredField = inferFieldFromPozo(pozoInput?.value || '');
+        if (campoInput && inferredField) campoInput.value = inferredField;
+
+        try {
+            await upsertFieldWell({
+                pozoName: pozoInput?.value || '',
+                campoName: campoInput?.value || '',
+                operationalScope: selectedOperationalScope
+            });
+            pozoInput.value = '';
+            campoInput.value = '';
+            await refreshOperationalContractStats();
+            await renderOperationalContractsControl();
+            contractsStatusEl.textContent = `Pozo agregado a ${getContractLabel(selectedOperationalScope)}.`;
+        } catch (error) {
+            Swal.fire({ icon: 'error', title: 'No se pudo guardar el pozo', text: error.message, confirmButtonColor: '#ef4444' });
+        }
+    });
+
+    formContractWell?.addEventListener('input', (event) => {
+        if (event.target?.id === 'contract-well-name') syncFieldFromWellName();
+    });
 
     // Table Header Sorting listeners
     document.querySelectorAll('th[data-sort]').forEach(th => {
@@ -608,6 +1214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const apellido = document.getElementById('edit-apellido').value.trim();
             const empresa = document.getElementById('edit-empresa').value.trim();
             const role = document.getElementById('edit-role').value;
+            const operationalScope = editOperationalScope?.value || DEFAULT_OPERATIONAL_SCOPE;
             
             btnSubmitEditProfile.disabled = true;
             btnSubmitEditProfile.textContent = 'Guardando...';
@@ -622,6 +1229,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 
                 if (error) throw error;
+
+                await setUserOperationalScopes(userId, [operationalScope], {
+                    defaultScope: operationalScope,
+                    canSwitch: false
+                }).catch(error => console.warn('Could not update user operational scope:', error));
                 
                 Swal.fire({
                     icon: 'success',
@@ -821,12 +1433,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const password = document.getElementById('input-password').value;
         const empresa = document.getElementById('input-empresa').value.trim();
         const role = document.getElementById('select-role').value;
+        const operationalScope = selectOperationalScope?.value || DEFAULT_OPERATIONAL_SCOPE;
 
         try {
             btnSubmitUser.disabled = true;
             btnSubmitUser.textContent = 'Procesando registro...';
 
-            await createUser(email, password, nombre, apellido, empresa, role);
+            const newUser = await createUser(email, password, nombre, apellido, empresa, role, operationalScope);
+            await setUserOperationalScopes(newUser.id, [operationalScope], {
+                defaultScope: operationalScope,
+                canSwitch: false
+            }).catch(error => console.warn('Could not assign user operational scope:', error));
 
             const accessLink = 'https://uvservicios.vercel.app/';
             const welcomeMessage = `🔑 *Acceso Plataforma UV Servicios* 🔑

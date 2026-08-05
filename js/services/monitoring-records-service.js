@@ -11,6 +11,7 @@ import {
 } from './monitoring-shared.js';
 
 const MONITORING_FIELDS_TO_COMPARE = [
+    'operational_scope',
     'pozo_name',
     'campo',
     'fecha',
@@ -33,6 +34,7 @@ const MONITORING_FIELDS_TO_COMPARE = [
 function normalizeMonitoringRecord(record = {}) {
     return {
         ...record,
+        operational_scope: String(record.operational_scope || '').trim().toLowerCase() || null,
         pozo_name: String(record.pozo_name || '').trim(),
         campo: String(record.campo || '').trim(),
         fecha: record.fecha || null,
@@ -59,6 +61,13 @@ function getChangedMonitoringFields(nextRecord = {}, currentRecord = {}) {
             previousValue: currentRecord?.[fieldName] ?? null,
             nextValue: nextRecord?.[fieldName] ?? null
         }));
+}
+
+function normalizePozoFilter(pozos = []) {
+    return [...new Set((Array.isArray(pozos) ? pozos : [pozos])
+        .map(value => String(value || '').trim().toUpperCase())
+        .filter(Boolean)
+        .filter(value => value !== 'TODAS'))];
 }
 
 export async function getMonitoringData(pozos = [], startDate = null, endDate = null) {
@@ -123,8 +132,9 @@ export async function getLatestMonitoringSnapshot() {
         .sort((left, right) => left.pozo_name.localeCompare(right.pozo_name));
 }
 
-export async function getMonitoringDailyActivity(limit = 12, referenceDate = new Date()) {
+export async function getMonitoringDailyActivity(limit = 12, referenceDate = new Date(), pozos = []) {
     const safeLimit = Number.isFinite(Number(limit)) ? Number(limit) : 12;
+    const pozoFilter = normalizePozoFilter(pozos);
     const baseDate = referenceDate instanceof Date && !Number.isNaN(referenceDate.getTime())
         ? referenceDate
         : new Date();
@@ -135,16 +145,26 @@ export async function getMonitoringDailyActivity(limit = 12, referenceDate = new
 
     try {
         const [allDayRows, detailedDayRows] = await Promise.all([
-            fetchAllRows('monitoreo_pozos', 'pozo_name, created_at', (query) => query
-                .gte('created_at', dayStart.toISOString())
-                .lt('created_at', nextDayStart.toISOString())),
+            fetchAllRows('monitoreo_pozos', 'pozo_name, created_at', (query) => {
+                let scopedQuery = query
+                    .gte('created_at', dayStart.toISOString())
+                    .lt('created_at', nextDayStart.toISOString());
+
+                if (pozoFilter.length) scopedQuery = scopedQuery.in('pozo_name', pozoFilter);
+                return scopedQuery;
+            }),
             fetchAllRows(
                 'monitoreo_pozos',
                 'id, pozo_name, fecha, hora, estatus, created_at, frecuencia, corriente_motor, pip, tm, presion_thp, presion_chp, presion_lf, vsd_a, vsd_b, vsd_c, sentido_giro, observaciones',
-                (query) => query
-                    .gte('created_at', dayStart.toISOString())
-                    .lt('created_at', nextDayStart.toISOString())
-                    .order('created_at', { ascending: false })
+                (query) => {
+                    let scopedQuery = query
+                        .gte('created_at', dayStart.toISOString())
+                        .lt('created_at', nextDayStart.toISOString())
+                        .order('created_at', { ascending: false });
+
+                    if (pozoFilter.length) scopedQuery = scopedQuery.in('pozo_name', pozoFilter);
+                    return scopedQuery;
+                }
             )
         ]);
 

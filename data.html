@@ -136,6 +136,9 @@
                     <h1>Base de Datos Histórica</h1>
                     <p>Explorador maestro de registros técnicos por pozo.</p>
                 </div>
+                <div class="page-hero-actions">
+                    <div id="data-operational-scope-switcher"></div>
+                </div>
             </header>
 
             <section class="report-export-header" id="report-export-header" aria-hidden="true">
@@ -536,6 +539,7 @@
     <script type="module">
         import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } from './js/auth.js';
         import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord, getWellBESProfile } from './js/data-service.js';
+        import { getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from './js/services/operational-scope-context.js';
         import { supabase } from './js/supabaseClient.js';
 
         let activePozo = null;
@@ -545,7 +549,22 @@
         let pozoSummaries = [];
         let activeHistoryMode = 'operational';
         let activeDataView = 'history';
+        let activeScopePozoNames = [];
+        let activeScopePozoSet = new Set();
         let currentAccessProfile = { isReadOnly: false, canViewManagement: true, canEditData: true };
+
+        function normalizePozoName(value) {
+            return String(value || '').trim().toUpperCase();
+        }
+
+        function setActiveScopePozoNames(pozoNames = []) {
+            activeScopePozoNames = [...new Set((Array.isArray(pozoNames) ? pozoNames : [pozoNames]).map(normalizePozoName).filter(Boolean))];
+            activeScopePozoSet = new Set(activeScopePozoNames);
+        }
+
+        function isPozoAllowedByActiveScope(pozoName) {
+            return activeScopePozoSet.has(normalizePozoName(pozoName));
+        }
 
         function getSelectedTicketShift() {
             return document.getElementById('ticket-shift')?.value === 'night' ? 'night' : 'day';
@@ -1016,7 +1035,9 @@
 
             try {
                 const nextDate = addDaysToIsoDate(ticketDate, 1);
-                const data = await getMonitoringData([], ticketDate, nextDate);
+                const data = activeScopePozoNames.length > 0
+                    ? await getMonitoringData(activeScopePozoNames, ticketDate, nextDate)
+                    : [];
                 const operationalRecords = filterRecordsByOperationalDate(data, ticketDate);
                 const selectedShiftGroup = getSelectedTicketShiftGroup(operationalRecords);
                 currentRecordData = selectedShiftGroup.records;
@@ -1161,6 +1182,15 @@
                 window.location.href = 'jornada-history.html';
                 return;
             }
+            const operationalScopeContext = await initOperationalScopeContext(session, currentAccessProfile);
+            renderOperationalScopeSwitcher(document.getElementById('data-operational-scope-switcher'), operationalScopeContext, {
+                onChange: () => window.location.reload()
+            });
+            setActiveScopePozoNames(await getActiveOperationalScopeWellNames().catch(error => {
+                console.warn('No se pudieron cargar pozos del contrato activo en Data:', error);
+                return [];
+            }));
+
             applyDataAccessProfile();
             renderHistoryHead();
             document.getElementById('logout-btn').addEventListener('click', logout);
@@ -1181,11 +1211,12 @@
 
         async function initPozos() {
             try {
-                pozoSummaries = await getPozosHistorySummary();
+                const summaries = await getPozosHistorySummary();
+                pozoSummaries = (summaries || []).filter(item => isPozoAllowedByActiveScope(item.pozo_name));
                 renderPozoOptions();
 
                 if (!pozoSummaries || pozoSummaries.length === 0) {
-                    document.getElementById('pozo-selector-menu').innerHTML = '<div class="pozo-selector-empty">No hay pozos registrados en la base de datos.</div>';
+                    document.getElementById('pozo-selector-menu').innerHTML = '<div class="pozo-selector-empty">No hay pozos registrados para el contrato activo.</div>';
                     return;
                 }
             } catch (err) {
@@ -1317,6 +1348,10 @@
 
         async function selectPozo(pozo) {
             if (activeDataView !== 'history') return;
+            if (!isPozoAllowedByActiveScope(pozo)) {
+                Swal.fire({ icon: 'warning', title: 'Pozo fuera del contrato', text: 'Ese pozo no pertenece al contrato activo.' });
+                return;
+            }
             activePozo = pozo;
             document.getElementById('pozo-selector-input').value = pozo;
             document.getElementById('pozo-selector-menu').classList.remove('active');

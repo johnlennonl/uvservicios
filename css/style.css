@@ -28,6 +28,68 @@ body.is-role-base-datos a[href="base-datos.html"] {
     --radius-md: 12px;
     --font-main: 'Inter', -apple-system, sans-serif;
     --font-title: 'Outfit', var(--font-main);
+    --scope-accent: #2563eb;
+    --scope-accent-strong: #1d4ed8;
+    --scope-accent-soft: rgba(37, 99, 235, 0.1);
+}
+
+body.operational-scope-ct {
+    --scope-accent: #2563eb;
+    --scope-accent-strong: #1d4ed8;
+    --scope-accent-soft: rgba(37, 99, 235, 0.1);
+}
+
+body.operational-scope-bmm {
+    --scope-accent: #0f766e;
+    --scope-accent-strong: #115e59;
+    --scope-accent-soft: rgba(15, 118, 110, 0.11);
+}
+
+.operational-scope-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 8px 12px;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--scope-accent) 30%, #e2e8f0);
+    background: linear-gradient(135deg, #ffffff 0%, var(--scope-accent-soft) 100%);
+    color: #0f172a;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07);
+}
+
+.operational-scope-label {
+    color: var(--scope-accent-strong);
+    font-size: 0.68rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.operational-scope-switcher select {
+    min-width: 210px;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #0f172a;
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.operational-scope-switcher strong {
+    color: #0f172a;
+    font-size: 0.84rem;
+    font-weight: 800;
+}
+
+.operational-scope-switcher.scope-bmm {
+    border-color: rgba(15, 118, 110, 0.28);
+}
+
+.operational-scope-switcher.scope-ct {
+    border-color: rgba(37, 99, 235, 0.28);
 }
 
 /* 🔄 RESET & BASE */

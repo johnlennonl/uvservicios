@@ -571,45 +571,72 @@ async function deleteOperationalRowsForConsolidatedRows(rows = []) {
     return { deleted, missed, attempted: keys.size };
 }
 
-async function countConsolidatedRowsBySource(sourceType) {
-    const { count, error } = await supabase
+function normalizePozoNamesFilter(pozoNames = []) {
+    return [...new Set((Array.isArray(pozoNames) ? pozoNames : [pozoNames])
+        .map(value => String(value || '').trim().toUpperCase())
+        .filter(Boolean))];
+}
+
+function applyPozoNamesFilter(query, pozoNames = []) {
+    const normalizedPozoNames = normalizePozoNamesFilter(pozoNames);
+    return normalizedPozoNames.length > 0 ? query.in('pozo', normalizedPozoNames) : query;
+}
+
+async function countConsolidatedRowsBySource(sourceType, { pozoNames = [] } = {}) {
+    let query = supabase
         .from(CONSOLIDATED_TABLE)
         .select('id', { count: 'exact', head: true })
         .eq('source_type', sourceType);
 
+    query = applyPozoNamesFilter(query, pozoNames);
+
+    const { count, error } = await query;
+
     if (error) throw buildConsolidadoDatabaseError(error);
     return count || 0;
 }
 
-async function countRowsFromTable(tableName) {
-    const { count, error } = await supabase
+async function countRowsFromTable(tableName, { pozoNames = [] } = {}) {
+    let query = supabase
         .from(tableName)
         .select('id', { count: 'exact', head: true });
 
+    query = applyPozoNamesFilter(query, pozoNames);
+
+    const { count, error } = await query;
+
     if (error) throw buildConsolidadoDatabaseError(error);
     return count || 0;
 }
 
-export async function getConsolidatedDashboardSummary() {
+export async function getConsolidatedDashboardSummary({ pozoNames = [] } = {}) {
     await ensureConsolidadoReadAccess();
 
-    const { count, error } = await supabase
+    let totalQuery = supabase
         .from(CONSOLIDATED_TABLE)
         .select('id', { count: 'exact', head: true });
+
+    totalQuery = applyPozoNamesFilter(totalQuery, pozoNames);
+
+    const { count, error } = await totalQuery;
 
     if (error) throw buildConsolidadoDatabaseError(error);
 
     const [legacyCount, fieldJourneyCount, manualCount] = await Promise.all([
-        countConsolidatedRowsBySource('legacy_excel'),
-        countRowsFromTable(CONSOLIDATED_OPERATIONAL_TABLE),
-        countConsolidatedRowsBySource('manual_adjustment')
+        countConsolidatedRowsBySource('legacy_excel', { pozoNames }),
+        countRowsFromTable(CONSOLIDATED_OPERATIONAL_TABLE, { pozoNames }),
+        countConsolidatedRowsBySource('manual_adjustment', { pozoNames })
     ]);
 
-    const { data: latestRows, error: latestError } = await supabase
+    let latestQuery = supabase
         .from(CONSOLIDATED_TABLE)
         .select('source_type, source_file_name, source_sheet_name, created_at')
         .order('created_at', { ascending: false })
         .limit(1);
+
+    latestQuery = applyPozoNamesFilter(latestQuery, pozoNames);
+
+    const { data: latestRows, error: latestError } = await latestQuery;
 
     if (latestError) throw buildConsolidadoDatabaseError(latestError);
 
@@ -622,12 +649,12 @@ export async function getConsolidatedDashboardSummary() {
     };
 }
 
-export async function getConsolidatedDashboardFilterOptions() {
+export async function getConsolidatedDashboardFilterOptions({ pozoNames = [] } = {}) {
     await ensureConsolidadoReadAccess();
 
     const rows = [
-        ...await fetchConsolidatedRowsPage(CONSOLIDATED_TABLE, { select: 'pozo, report_date', sourceType: 'legacy_excel' }),
-        ...await fetchConsolidatedRowsPage(CONSOLIDATED_OPERATIONAL_TABLE, { select: 'pozo, report_date' })
+        ...await fetchConsolidatedRowsPage(CONSOLIDATED_TABLE, { select: 'pozo, report_date', sourceType: 'legacy_excel', pozoNames }),
+        ...await fetchConsolidatedRowsPage(CONSOLIDATED_OPERATIONAL_TABLE, { select: 'pozo, report_date', pozoNames })
     ];
 
     const pozos = [...new Set(rows
@@ -647,7 +674,7 @@ export async function getConsolidatedDashboardFilterOptions() {
     };
 }
 
-async function fetchConsolidatedRowsPage(tableName, { limit = 10000, pozo = '', startDate = '', endDate = '', select = 'source_type, source_file_name, source_sheet_name, source_row_number, pozo, campo, ef, report_date, report_time, row_data, column_labels, created_at, updated_at', sourceType = '' } = {}) {
+async function fetchConsolidatedRowsPage(tableName, { limit = 10000, pozo = '', pozoNames = [], startDate = '', endDate = '', select = 'source_type, source_file_name, source_sheet_name, source_row_number, pozo, campo, ef, report_date, report_time, row_data, column_labels, created_at, updated_at', sourceType = '' } = {}) {
     const pageSize = 1000;
     const rows = [];
     const normalizedPozo = String(pozo || '').trim().toUpperCase();
@@ -661,6 +688,7 @@ async function fetchConsolidatedRowsPage(tableName, { limit = 10000, pozo = '', 
 
         if (sourceType) query = query.eq('source_type', sourceType);
         if (normalizedPozo) query = query.eq('pozo', normalizedPozo);
+        if (!normalizedPozo) query = applyPozoNamesFilter(query, pozoNames);
         if (startDate) query = query.gte('report_date', startDate);
         if (endDate) query = query.lte('report_date', endDate);
 
@@ -675,17 +703,17 @@ async function fetchConsolidatedRowsPage(tableName, { limit = 10000, pozo = '', 
     return rows;
 }
 
-export async function fetchConsolidatedDashboardRows({ limit = 10000, pozo = '', startDate = '', endDate = '', source = 'base' } = {}) {
+export async function fetchConsolidatedDashboardRows({ limit = 10000, pozo = '', pozoNames = [], startDate = '', endDate = '', source = 'base' } = {}) {
     await ensureConsolidadoReadAccess();
 
     const rows = [];
 
     if (source === 'base' || source === 'completo') {
-        rows.push(...await fetchConsolidatedRowsPage(CONSOLIDATED_TABLE, { limit, pozo, startDate, endDate, sourceType: 'legacy_excel' }));
+        rows.push(...await fetchConsolidatedRowsPage(CONSOLIDATED_TABLE, { limit, pozo, pozoNames, startDate, endDate, sourceType: 'legacy_excel' }));
     }
 
     if (source === 'operativo' || source === 'completo') {
-        rows.push(...await fetchConsolidatedRowsPage(CONSOLIDATED_OPERATIONAL_TABLE, { limit, pozo, startDate, endDate }));
+        rows.push(...await fetchConsolidatedRowsPage(CONSOLIDATED_OPERATIONAL_TABLE, { limit, pozo, pozoNames, startDate, endDate }));
     }
 
     return dedupeConsolidatedRowsForExport(rows).sort(sortConsolidatedRows);
@@ -1229,14 +1257,18 @@ export async function syncBESProfilesFromConsolidated({ limit = 10000 } = {}) {
     return syncBESProfilesFromConsolidatedRows(consolidatedRows);
 }
 
-export async function fetchFieldJourneyConsolidatedRows({ limit = 200 } = {}) {
+export async function fetchFieldJourneyConsolidatedRows({ limit = 200, pozoNames = [] } = {}) {
     await ensureConsolidadoReadAccess();
 
-    const { data, error } = await supabase
+    let query = supabase
         .from(CONSOLIDATED_OPERATIONAL_TABLE)
         .select('id, source_journey_id, source_record_id, pozo, campo, ef, report_date, report_time, row_data, created_at')
         .order('created_at', { ascending: true })
         .limit(limit);
+
+    query = applyPozoNamesFilter(query, pozoNames);
+
+    const { data, error } = await query;
 
     if (error) throw buildConsolidadoDatabaseError(error);
     return data || [];

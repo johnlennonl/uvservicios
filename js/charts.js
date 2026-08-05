@@ -6,6 +6,8 @@
 import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } from './auth.js';
 import { getMonitoringData, getLatestDate, getLatestMonitoringRecords, getNeighborRecords, getPozoRecordDates, getPozosHistorySummary, getWellRibbonData } from './data-service.js';
 import { fetchConsolidatedDashboardRows } from './services/consolidado-service.js';
+import { getFieldWellsByScope } from './services/operational-contracts-service.js';
+import { getActiveOperationalScope, initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
 import { hideFullLoader, showFullLoader } from './ui.js';
 
 let charts = {};
@@ -137,6 +139,36 @@ function setStoredSelectedPozo(pozoName) {
     }
 }
 
+async function filterPozoSummariesByActiveScope(summaries = []) {
+    const activeScope = getActiveOperationalScope();
+    try {
+        const wells = await getFieldWellsByScope(activeScope);
+        const catalogPozos = (wells || [])
+            .map(well => String(well.pozo_name || '').trim().toUpperCase())
+            .filter(Boolean);
+        const allowedPozos = new Set(catalogPozos);
+        if (allowedPozos.size === 0) return [];
+
+        const summaryByPozo = new Map((summaries || []).map(item => [
+            String(item.pozo_name || '').trim().toUpperCase(),
+            item
+        ]));
+
+        return catalogPozos
+            .map(pozoName => summaryByPozo.get(pozoName) || {
+                pozo_name: pozoName,
+                latest_fecha: null,
+                latest_hora: null,
+                latest_estatus: null,
+                has_records: false
+            })
+            .sort((a, b) => String(a.pozo_name || '').localeCompare(String(b.pozo_name || '')));
+    } catch (error) {
+        console.warn('No se pudo filtrar dashboard por contrato operativo:', error);
+        return summaries;
+    }
+}
+
 function getPozoSummary(pozoName) {
     return pozoSummaries.find(item => item.pozo_name === pozoName) || null;
 }
@@ -153,35 +185,6 @@ function applyDashboardAccessProfile(accessProfile) {
         badge.textContent = 'Panel de Visualizacion';
         heroCopy.appendChild(badge);
     }
-}
-
-function initializeDashboardConnectionClock() {
-    const statusLabel = document.getElementById('dashboard-connection-status');
-    const dateTimeLabel = document.getElementById('dashboard-live-datetime');
-    if (!statusLabel && !dateTimeLabel) return;
-
-    const dateTimeFormatter = new Intl.DateTimeFormat('es-MX', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    });
-
-    const renderConnectionClock = () => {
-        if (statusLabel) {
-            statusLabel.textContent = 'SISTEMA ONLINE';
-        }
-
-        if (dateTimeLabel) {
-            dateTimeLabel.textContent = dateTimeFormatter.format(new Date());
-        }
-    };
-
-    renderConnectionClock();
-    window.setInterval(renderConnectionClock, 1000);
 }
 
 // Renderiza el selector personalizado del pozo y conserva el estado de cada opcion.
@@ -547,7 +550,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     applyDashboardAccessProfile(accessProfile);
-    initializeDashboardConnectionClock();
+    const operationalScopeContext = await initOperationalScopeContext(session, accessProfile);
+    renderOperationalScopeSwitcher(document.getElementById('dashboard-operational-scope-switcher'), operationalScopeContext, {
+        onChange: () => {
+            sessionStorage.removeItem(ACTIVE_POZO_STORAGE_KEY);
+            window.location.reload();
+        }
+    });
 
     const isFirstEntry = !sessionStorage.getItem('dashboard-visited');
 
@@ -580,7 +589,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Carga el catalogo de pozos y deja listos los filtros principales.
     try {
-        pozoSummaries = await getPozosHistorySummary();
+        pozoSummaries = await filterPozoSummariesByActiveScope(await getPozosHistorySummary());
         const pozos = pozoSummaries.map(item => item.pozo_name);
         const pozoFilter = document.getElementById('filter-pozo');
         const pozoFilterDisplay = document.getElementById('filter-pozo-display');

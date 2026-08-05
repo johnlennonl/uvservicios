@@ -27,6 +27,7 @@ function normalizeTechnicalRecord(record = {}) {
     return {
         pozo_name: String(record?.pozo_name || '').trim(),
         campo_name: String(record?.campo_name || '').trim(),
+        operational_scope: String(record?.operational_scope || '').trim().toLowerCase() || null,
         ef: String(record?.ef || '').trim(),
         fecha: record?.fecha || null,
         potencial: record?.potencial ?? 0,
@@ -47,6 +48,13 @@ function areEquivalentTechnicalRecords(left = {}, right = {}) {
 
 function normalizeWellLookupKey(value) {
     return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function normalizePozoFilter(pozos = []) {
+    return [...new Set((Array.isArray(pozos) ? pozos : [pozos])
+        .map(value => String(value || '').trim().toUpperCase())
+        .filter(Boolean)
+        .filter(value => value !== 'TODAS'))];
 }
 
 export async function getWellTechnicalData(pozoName) {
@@ -99,17 +107,22 @@ export async function getLatestTechnicalSnapshot() {
         .sort((left, right) => left.pozo_name.localeCompare(right.pozo_name));
 }
 
-export async function getRecentTechnicalMeasurements(limit = 10) {
+export async function getRecentTechnicalMeasurements(limit = 10, pozos = []) {
     await ensureMonitoringReadAccess();
     const safeLimit = Number.isFinite(Number(limit)) ? Number(limit) : 10;
+    const pozoFilter = normalizePozoFilter(pozos);
 
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('well_production_history')
             .select('*')
             .order('fecha', { ascending: false })
             .order('created_at', { ascending: false })
             .limit(safeLimit);
+
+        if (pozoFilter.length) query = query.in('pozo_name', pozoFilter);
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
@@ -117,22 +130,30 @@ export async function getRecentTechnicalMeasurements(limit = 10) {
             return data;
         }
 
-        const fallback = await supabase
+        let fallbackQuery = supabase
             .from('well_production')
             .select('*')
             .order('fecha', { ascending: false })
             .limit(safeLimit);
+
+        if (pozoFilter.length) fallbackQuery = fallbackQuery.in('pozo_name', pozoFilter);
+
+        const fallback = await fallbackQuery;
 
         if (fallback.error) throw fallback.error;
         return fallback.data || [];
     } catch (error) {
         const message = String(error?.message || error || '');
         if (/well_production_history/i.test(message)) {
-            const fallback = await supabase
+            let fallbackQuery = supabase
                 .from('well_production')
                 .select('*')
                 .order('fecha', { ascending: false })
                 .limit(safeLimit);
+
+            if (pozoFilter.length) fallbackQuery = fallbackQuery.in('pozo_name', pozoFilter);
+
+            const fallback = await fallbackQuery;
 
             if (fallback.error) throw fallback.error;
             return fallback.data || [];
@@ -256,7 +277,7 @@ export async function syncTechnicalMeasurements(records = []) {
     try {
         let existingQuery = supabase
             .from('well_production_history')
-            .select('id, pozo_name, campo_name, ef, fecha, potencial, bbpd, ays_percentage, bnpd, cat_number')
+            .select('id, pozo_name, campo_name, operational_scope, ef, fecha, potencial, bbpd, ays_percentage, bnpd, cat_number')
             .in('pozo_name', pozoNames);
 
         if (fechas[0]) existingQuery = existingQuery.gte('fecha', fechas[0]);

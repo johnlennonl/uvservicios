@@ -22,6 +22,9 @@
     <!-- Librerías Externas CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -106,6 +109,10 @@
         .btn-export-pdf:hover {
             transform: translateY(-1px);
             box-shadow: 0 6px 18px rgba(0, 82, 204, 0.35);
+        }
+        #btn-export-pdf,
+        .btn-export-pdf[hidden] {
+            display: none !important;
         }
 
         /* KPI Cards Grid */
@@ -517,6 +524,9 @@
                     <h1>Estadísticas de Monitoreo</h1>
                     <p style="color: #64748B;">Resumen y analítica mensual de la actividad operativa e incidencias técnicas de los campos.</p>
                 </div>
+                <div class="page-hero-actions">
+                    <div id="stats-operational-scope-switcher"></div>
+                </div>
             </header>
 
             <!-- Barra de Pestañas -->
@@ -559,14 +569,12 @@
                             <span style="font-size: 0.72rem; font-weight: 800; color: #64748B; text-transform: uppercase;">Campo Operativo</span>
                             <select id="select-field-report" class="filter-select">
                                 <option value="TODOS">TODOS LOS CAMPOS</option>
-                                <option value="TOMOPORO">TOMOPORO</option>
-                                <option value="LA CEIBA">LA CEIBA</option>
                             </select>
                         </label>
                     </div>
-                    <button type="button" id="btn-export-pdf" class="btn-export-pdf" style="display: none;">
+                    <button type="button" id="btn-export-pdf" class="btn-export-pdf" hidden aria-hidden="true">
                         <i class="fa-solid fa-file-pdf"></i>
-                        <span>🖨️ Exportar Reporte PQQ en PDF</span>
+                        <span>Exportar Reporte Mensual PDF</span>
                     </button>
                 </div>
 
@@ -603,6 +611,48 @@
                         </div>
                     </header>
 
+                    <!-- Ficha corporativa estilo informe mensual -->
+                    <section class="corp-card monthly-report-brief">
+                        <div class="monthly-report-title-row">
+                            <div>
+                                <span class="monthly-report-kicker">Resumen de Actividades</span>
+                                <h2 id="monthly-report-title">Resumen mensual</h2>
+                            </div>
+                            <span id="monthly-report-contract" class="monthly-report-contract">Contrato activo</span>
+                        </div>
+                        <div class="monthly-report-table-grid">
+                            <div class="monthly-report-table">
+                                <h3>Información básica</h3>
+                                <dl>
+                                    <div><dt>Empresa</dt><dd>UV SERVICIOS</dd></div>
+                                    <div><dt>Campo</dt><dd id="brief-campo">TODOS LOS CAMPOS</dd></div>
+                                    <div><dt>Estado del pozo</dt><dd id="brief-estado-pozo">OPERANDO / PARADO</dd></div>
+                                    <div><dt>Tipo de sistema</dt><dd>BES</dd></div>
+                                    <div><dt>Tipo de servicio</dt><dd>MONITOREO</dd></div>
+                                    <div><dt>Fecha</dt><dd id="brief-periodo">--</dd></div>
+                                    <div><dt>Responsable</dt><dd>UV SERVICIOS</dd></div>
+                                </dl>
+                            </div>
+                            <div class="monthly-report-table">
+                                <h3>Recorrido</h3>
+                                <dl>
+                                    <div><dt>Recorrido total</dt><dd id="brief-recorrido-total">0</dd></div>
+                                    <div><dt>Diurno</dt><dd id="brief-diurno">0</dd></div>
+                                    <div><dt>Nocturno</dt><dd id="brief-nocturno">0</dd></div>
+                                    <div><dt>Pozos</dt><dd id="brief-pozos">0</dd></div>
+                                    <div><dt>Actividad</dt><dd id="brief-actividad">TOMA DE PARAMETROS OPERATIVOS</dd></div>
+                                    <div><dt>Visitas de pozos</dt><dd id="brief-visitas">0</dd></div>
+                                </dl>
+                            </div>
+                        </div>
+                        <div class="monthly-report-points">
+                            <h3>Puntos de interés</h3>
+                            <ul id="brief-puntos-interes">
+                                <li>Sin eventos críticos registrados en el período seleccionado.</li>
+                            </ul>
+                        </div>
+                    </section>
+
                     <!-- Ficha de Resumen Ejecutivo (KPI Cards) -->
                     <div class="kpi-grid">
                         <article class="kpi-card">
@@ -620,7 +670,7 @@
                                 <i class="fa-solid fa-circle-check"></i>
                             </div>
                             <div class="kpi-content">
-                                <span class="kpi-label">Operación Normal / Sin Falla</span>
+                                <span class="kpi-label">Pozos Sin Falla</span>
                                 <strong id="kpi-normal-ops" class="kpi-val">0%</strong>
                             </div>
                         </article>
@@ -640,7 +690,7 @@
                                 <i class="fa-solid fa-arrows-spin"></i>
                             </div>
                             <div class="kpi-content">
-                                <span class="kpi-label">Visitas por Pozo (Prom)</span>
+                                <span class="kpi-label">Niveles Ejecutados</span>
                                 <strong id="kpi-visitas-prom" class="kpi-val">0.0</strong>
                             </div>
                         </article>
@@ -648,47 +698,94 @@
 
                     <!-- SECCIÓN: ANALÍTICA OPERATIVA -->
                     <div class="charts-grid" style="margin-top: 24px;">
-                        <!-- 1: Estado por Campo (OFF / RUN) -->
+                        <!-- 1: Total de visitas por campo -->
                         <div class="corp-card chart-card" id="status-field-section">
                             <div class="chart-header">
-                                <h3>Estado por Campo (OFF / RUN)</h3>
-                                <p>Distribución de registros OFF y RUN por campo.</p>
+                                <h3>Gráfico 1. Total de Visitas por Campo</h3>
+                                <p>Distribución mensual de visitas entre los campos del contrato activo.</p>
                             </div>
                             <div class="chart-body">
-                                <canvas id="chart-status-field"></canvas>
+                                <canvas id="chart-visitas-campo"></canvas>
                             </div>
                         </div>
 
-                        <!-- 2: Actividad Diaria del Mes -->
+                        <!-- 2: Motivo de visita -->
                         <div class="corp-card chart-card" id="actividad-diaria-section">
                             <div class="chart-header">
-                                <h3>Actividad Diaria del Mes</h3>
-                                <p>Registros de monitoreo por día — detecta días sin actividad.</p>
+                                <h3 id="chart-motivo-visita-title">Gráfico 2. Modo de Operación</h3>
+                                <p>Distribución real del modo de operación capturado en jornada: frecuencia, corriente u otros modos.</p>
                             </div>
                             <div class="chart-body">
-                                <canvas id="chart-actividad-diaria"></canvas>
+                                <canvas id="chart-motivo-visita"></canvas>
                             </div>
                         </div>
 
-                        <!-- 3: Ranking de Pozos por Visitas -->
+                        <!-- 3: Cantidad de niveles por pozo -->
                         <div class="corp-card chart-card" id="visitas-pozo-section">
                             <div class="chart-header">
-                                <h3>Visitas por Pozo</h3>
-                                <p>Frecuencia de inspección — identifica pozos con más o menos cobertura.</p>
+                                <h3>Gráfico 3. Cantidad de Niveles por Pozo</h3>
+                                <p>Pozo con más niveles ejecutados resaltado en naranja.</p>
                             </div>
                             <div class="chart-body">
-                                <canvas id="chart-visitas-pozo"></canvas>
+                                <canvas id="chart-niveles-pozo"></canvas>
                             </div>
                         </div>
 
-                        <!-- 4: Distribución Global OFF/RUN -->
+                        <!-- 4: Diagnóstico de fallas -->
                         <div class="corp-card chart-card" id="status-global-section">
                             <div class="chart-header">
-                                <h3>Distribución Global de Estado</h3>
-                                <p>Proporción total de registros OFF vs RUN en el mes.</p>
+                                <h3 id="chart-diagnostico-title">Gráfico 4. Puntos de Interés / Diagnóstico</h3>
+                                <p>Desglose porcentual de fallas y pozos sin falla según jornadas aprobadas.</p>
                             </div>
                             <div class="chart-body">
-                                <canvas id="chart-status-global"></canvas>
+                                <canvas id="chart-diagnosticos"></canvas>
+                            </div>
+                            <div id="diagnosticos-resumen" class="diagnostic-summary-list"></div>
+                        </div>
+
+                        <!-- Comparativas por campo -->
+                        <div class="corp-card chart-card" id="modo-operacion-campo-section">
+                            <div class="chart-header">
+                                <h3>Modo de Operación por Campo</h3>
+                                <p>Comparativo de frecuencia, corriente y registros sin modo capturado por campo.</p>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chart-modo-operacion-campo"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="corp-card chart-card" id="diagnostico-campo-section">
+                            <div class="chart-header">
+                                <h3>Diagnóstico Operativo por Campo</h3>
+                                <p>RUN/sin falla, pérdida de señal, falla eléctrica y otros diagnósticos por campo.</p>
+                            </div>
+                            <div class="chart-body">
+                                <canvas id="chart-diagnostico-campo"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="corp-card field-detail-summary-card" id="field-detail-summary-section">
+                            <div class="chart-header">
+                                <h3>Detalle Ejecutivo por Campo</h3>
+                                <p>Resumen tabular para lectura rápida antes de exportar el informe.</p>
+                            </div>
+                            <div class="alertas-table-wrap">
+                                <table class="stats-table alertas-table field-detail-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Campo</th>
+                                            <th>Visitas</th>
+                                            <th>RUN / Sin Falla</th>
+                                            <th>OFF</th>
+                                            <th>Niveles</th>
+                                            <th>Modo Principal</th>
+                                            <th>Diagnóstico Principal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="field-detail-summary-body">
+                                        <!-- rows inserted via JS -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -778,7 +875,7 @@
                         </div>
 
                         <!-- 5: Historial de Observaciones (full width) -->
-                        <div class="corp-card chart-card" id="alertas-operativas-section">
+                        <div class="corp-card chart-card" id="alertas-operativas-section" data-html2pdf-ignore>
                             <div class="chart-header">
                                 <h3>Historial de Observaciones de Campo</h3>
                                 <p>Todas las observaciones registradas durante las visitas del mes.</p>
@@ -829,38 +926,28 @@
                         </div>
                     </div>
 
-                    <!-- SECCIÓN 2: MEDIDAS DE FONDO Y SIMULACIONES -->
-                    <div class="charts-grid" style="margin-top: 24px;" data-html2pdf-ignore>
-                        <!-- Gráfico 5: Niveles Echometer -->
-                        <div class="corp-card chart-card disabled-card">
-                            <div class="overlay-empty-state">
-                                <i class="fa-solid fa-database overlay-icon"></i>
-                                <span class="overlay-title">Niveles Echometer</span>
-                                <p class="overlay-copy">Módulo preparado: En espera de mayor densidad de registros acumulados para proyectar tendencias históricas de Echometer y Simulaciones.</p>
+                    <!-- SECCIÓN 2: ECHOMETER Y ADJUNTOS DE CAMPO -->
+                    <div class="corp-card field-attachments-report" style="margin-top: 24px;" data-html2pdf-ignore>
+                        <div class="chart-header">
+                            <h3>Echometer y Adjuntos de Campo</h3>
+                            <p>Mediciones acústicas y volcados VSD efectivamente ejecutados/subidos por operadores. No incluye niveles estáticos, dinámicos teóricos ni simulaciones.</p>
+                        </div>
+                        <div class="attachments-kpi-row">
+                            <div>
+                                <span>Echometer ejecutados</span>
+                                <strong id="kpi-echometer-ejecutados">0</strong>
                             </div>
-                            <div class="chart-header">
-                                <h3>Niveles de Fluido (Echometer)</h3>
-                                <p>Tendencias e histórico de niveles dinámicos.</p>
+                            <div>
+                                <span>Volcados VSD subidos</span>
+                                <strong id="kpi-vsd-adjuntos">0</strong>
                             </div>
-                            <div class="chart-body">
-                                <canvas id="chart-disabled-echometer"></canvas>
+                            <div>
+                                <span>Soportes fotográficos</span>
+                                <strong id="kpi-soportes-adjuntos">0</strong>
                             </div>
                         </div>
-
-                        <!-- Gráfico 6: Simulaciones PQQ -->
-                        <div class="corp-card chart-card disabled-card">
-                            <div class="overlay-empty-state">
-                                <i class="fa-solid fa-chart-line overlay-icon"></i>
-                                <span class="overlay-title">Simulaciones PQQ</span>
-                                <p class="overlay-copy">Módulo preparado: En espera de mayor densidad de registros acumulados para proyectar tendencias históricas de Echometer y Simulaciones.</p>
-                            </div>
-                            <div class="chart-header">
-                                <h3>Simulaciones de Curvas PQQ</h3>
-                                <p>Eficiencias operativas y producción simulada.</p>
-                            </div>
-                            <div class="chart-body">
-                                <canvas id="chart-disabled-pqq"></canvas>
-                            </div>
+                        <div id="field-attachments-summary-list" class="attachments-summary-list">
+                            <!-- cards inserted via JS -->
                         </div>
                     </div>
 
@@ -1074,7 +1161,7 @@
                                     <input type="text" id="custom-report-title-input" placeholder="Ej: Reporte Ejecutivo Presiones CHP / THP / LF y VSD" style="width:100%; height:46px; border-radius:10px; border:1px solid #cbd5e1; padding:0 16px; font-size:0.9rem; font-weight:600; color:#0f172a; background:#ffffff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);">
                                 </label>
 
-                                <button type="submit" id="btn-generate-custom-report" class="btn-generate-report" style="height:46px; padding:0 28px; font-weight:800; font-size:0.95rem; border-radius:10px; background:linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color:#ffffff; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:10px; box-shadow:0 4px 14px rgba(37,99,235,0.3); transition:all 0.2s;">
+                                <button type="submit" id="btn-generate-custom-report" class="btn-generate-report" hidden aria-hidden="true" style="height:46px; padding:0 28px; font-weight:800; font-size:0.95rem; border-radius:10px; background:linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color:#ffffff; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:10px; box-shadow:0 4px 14px rgba(37,99,235,0.3); transition:all 0.2s;">
                                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                                     <span>Generar Reporte Gerencial</span>
                                 </button>

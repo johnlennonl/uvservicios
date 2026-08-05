@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient.js';
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
+import { initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
 import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, deleteAdminFieldJourneyRecord, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo } from './services/field-journey-service.js';
 import { exportFieldJourneyToExcel, openFieldJourneyPdf, exportHistoricalFieldReportsToExcel } from './services/field-journey-export.js';
 import { validateFieldReport } from './modules/field/field-validation.js';
@@ -3279,6 +3280,15 @@ async function bootstrap() {
         window.location.href = getDefaultRouteForAccessProfile(accessProfile);
         return;
     }
+
+    const operationalScopeContext = await initOperationalScopeContext(session, accessProfile);
+    renderOperationalScopeSwitcher(document.getElementById('campo-admin-operational-scope-switcher'), operationalScopeContext, {
+        onChange: () => {
+            state.selectedJourneyId = '';
+            state.currentDetail = null;
+            loadJourneys();
+        }
+    });
 
     if (accessProfile?.isReadOnly) {
         state.filterKey = 'drafts';

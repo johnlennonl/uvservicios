@@ -261,6 +261,305 @@
             background: var(--bg-header);
         }
 
+        .contracts-control-card {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px solid #dbeafe;
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 24px;
+            display: grid;
+            gap: 20px;
+        }
+
+        .contracts-control-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 16px;
+        }
+
+        .contracts-control-grid {
+            display: grid;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .contracts-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 14px;
+        }
+
+        .contract-option-btn {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #dbeafe;
+            background: #ffffff;
+            color: #0f172a;
+            border-radius: 16px;
+            padding: 18px;
+            text-align: left;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+            min-height: 140px;
+            display: grid;
+            align-content: space-between;
+            gap: 14px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .contract-option-btn::after {
+            content: '';
+            position: absolute;
+            inset: auto -24px -38px auto;
+            width: 118px;
+            height: 118px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.08);
+            pointer-events: none;
+        }
+
+        .contract-option-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .contract-option-title {
+            display: grid;
+            gap: 5px;
+        }
+
+        .contract-option-title strong {
+            font-size: 1rem;
+            line-height: 1.15;
+            color: #0f172a;
+            font-weight: 700;
+        }
+
+        .contract-option-title span,
+        .contract-option-status {
+            color: #64748b;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .contract-option-badge {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.86rem;
+            font-weight: 700;
+            border: 1px solid #bfdbfe;
+            flex-shrink: 0;
+        }
+
+        .contract-option-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .contract-option-metric {
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 8px 10px;
+        }
+
+        .contract-option-metric span {
+            display: block;
+            color: #64748b;
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .contract-option-metric strong {
+            display: block;
+            color: #0f172a;
+            font-size: 1.05rem;
+            line-height: 1.1;
+            margin-top: 2px;
+            font-weight: 700;
+        }
+
+        .contract-option-btn.active,
+        .contract-option-btn:hover {
+            background: linear-gradient(135deg, #eff6ff 0%, #ffffff 54%, #ecfdf5 100%);
+            border-color: #2563eb;
+            box-shadow: 0 16px 34px rgba(37, 99, 235, 0.16);
+            transform: translateY(-2px);
+        }
+
+        .contract-active-summary {
+            border: 1px solid #dbeafe;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+        }
+
+        .contract-active-summary h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .contract-active-summary p {
+            margin: 4px 0 0 0;
+            color: #64748b;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .contract-active-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 8px 12px;
+            background: #ecfdf5;
+            color: #047857;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .contract-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .contract-detail-panel {
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 18px;
+            display: grid;
+            gap: 14px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+        }
+
+        .contract-mini-form {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .contract-mini-form.contract-well-form {
+            grid-template-columns: 1fr 1fr auto;
+        }
+
+        .contract-item-list {
+            display: grid;
+            gap: 8px;
+            max-height: 260px;
+            overflow: auto;
+        }
+
+        .contract-item-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+            color: var(--text-body);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .contract-item-actions {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .contract-manage-btn {
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .contract-manage-btn:hover {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+        }
+
+        .contract-delete-btn {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #b91c1c;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .contract-delete-btn:hover {
+            background: #dc2626;
+            color: #ffffff;
+            border-color: #dc2626;
+        }
+
+        .contract-empty-state {
+            border: 1px dashed #cbd5e1;
+            background: #f8fafc;
+            border-radius: 14px;
+            padding: 18px;
+            color: #64748b;
+            font-size: 0.82rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .contract-item-row small {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .contract-status-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
         .role-badge-premium {
             display: inline-block;
             padding: 4px 10px;
@@ -603,6 +902,14 @@
                 min-width: 0 !important;
                 width: 100% !important;
             }
+            .contracts-control-grid,
+            .contract-detail-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .contract-mini-form,
+            .contract-mini-form.contract-well-form {
+                grid-template-columns: 1fr !important;
+            }
             .form-user-creation-card,
             .users-table-list-card {
                 min-width: 0 !important;
@@ -832,8 +1139,62 @@
                         </svg>
                     </div>
                     <div class="stat-card-info">
-                        <span class="stat-card-label">Roles Activos</span>
+                        <span class="stat-card-label">Contratos Activos</span>
                         <span id="stat-active-roles" class="stat-card-value">0</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="contracts-control-card" aria-label="Gestion de contratos operativos">
+                <div class="contracts-control-header">
+                    <div class="section-card-title-block" style="border-bottom: none; padding-bottom: 0;">
+                        <h2 class="section-card-title">Contratos Operativos</h2>
+                        <p class="section-card-subtitle">Controla tecnicos, pozos y usuarios asignados por contrato.</p>
+                    </div>
+                    <span id="contracts-status" class="contract-status-text">Cargando contratos...</span>
+                </div>
+                <div class="contracts-control-grid">
+                    <div id="contracts-list" class="contracts-list"></div>
+                    <div class="contract-active-summary">
+                        <div>
+                            <h3 id="selected-contract-title">Selecciona un contrato</h3>
+                            <p id="selected-contract-meta">Los tecnicos y pozos se cargaran segun el contrato activo.</p>
+                        </div>
+                        <span id="selected-contract-pill" class="contract-active-pill">Activo</span>
+                    </div>
+                    <div class="contract-detail-grid">
+                        <article class="contract-detail-panel">
+                            <div class="section-card-title-block" style="border-bottom: none; padding-bottom: 0;">
+                                <h3 class="section-card-title" style="font-size: 0.98rem;">Tecnicos</h3>
+                                <p class="section-card-subtitle">Cuadrilla disponible para el contrato seleccionado.</p>
+                            </div>
+                            <form id="form-contract-technician" class="contract-mini-form">
+                                <label class="input-group-manager">
+                                    <span>Nombre del tecnico</span>
+                                    <input type="text" id="contract-technician-name" placeholder="Nombre completo">
+                                </label>
+                                <button type="submit" class="btn-submit-manager" style="width: auto; min-width: 120px;">Agregar</button>
+                            </form>
+                            <div id="contract-technicians-list" class="contract-item-list"></div>
+                        </article>
+                        <article class="contract-detail-panel">
+                            <div class="section-card-title-block" style="border-bottom: none; padding-bottom: 0;">
+                                <h3 class="section-card-title" style="font-size: 0.98rem;">Pozos</h3>
+                                <p class="section-card-subtitle">Catalogo base para la captura de Campo.</p>
+                            </div>
+                            <form id="form-contract-well" class="contract-mini-form contract-well-form">
+                                <label class="input-group-manager">
+                                    <span>Pozo</span>
+                                    <input type="text" id="contract-well-name" placeholder="Ej: MG-001">
+                                </label>
+                                <label class="input-group-manager">
+                                    <span>Campo</span>
+                                    <input type="text" id="contract-well-field" placeholder="BARUA / MOTATAN / MENE GRANDE">
+                                </label>
+                                <button type="submit" class="btn-submit-manager" style="width: auto; min-width: 120px;">Agregar</button>
+                            </form>
+                            <div id="contract-wells-list" class="contract-item-list"></div>
+                        </article>
                     </div>
                 </div>
             </section>
@@ -891,6 +1252,14 @@
                                 <option value="gestor_usuarios">Gestor de Accesos</option>
                                 <option value="admin">Administrador del Sistema</option>
                             </select>
+                        </label>
+                        <label class="input-group-manager">
+                            <span>Contrato principal</span>
+                            <select id="select-operational-scope" required>
+                                <option value="ceiba_tomoporo">Ceiba / Tomoporo</option>
+                                <option value="bmm">Barua / Motatan / Mene Grande</option>
+                            </select>
+                            <small>Para Campo, este contrato define tecnicos, pozos y locaciones visibles.</small>
                         </label>
 
                         <button type="submit" id="btn-submit-user" class="btn-submit-manager">
@@ -993,6 +1362,13 @@
                                 <option value="base_datos">Administrador Base de Datos</option>
                                 <option value="gestor_usuarios">Gestor de Accesos</option>
                                 <option value="admin">Administrador del Sistema</option>
+                            </select>
+                        </label>
+                        <label class="input-group-manager">
+                            <span>Contrato principal</span>
+                            <select id="edit-operational-scope" required>
+                                <option value="ceiba_tomoporo">Ceiba / Tomoporo</option>
+                                <option value="bmm">Barua / Motatan / Mene Grande</option>
                             </select>
                         </label>
 

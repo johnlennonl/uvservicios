@@ -1,5 +1,6 @@
 import { logout, getSession, getAccessProfile, getDefaultRouteForAccessProfile, applyNavigationAccessProfile } from './auth.js';
 import { supabase } from './supabaseClient.js';
+import { getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
 import { REPORT_COLUMNS, EXCEL_EXPORT_COLUMNS, EXCEL_GROUP_COLORS } from './services/field-journey-export.js';
 import {
     deleteAllFieldJourneyConsolidatedRows,
@@ -147,6 +148,7 @@ let activeSheetIndex = 0;
 let activeDashboardRows = [];
 let consolidatedSummary = null;
 let filterOptions = { pozos: [], minDate: '', maxDate: '' };
+let activeOperationalScopePozos = [];
 let isBusy = false;
 
 function hasSwal() {
@@ -942,8 +944,8 @@ async function refreshDatabaseSummary({ silent = false } = {}) {
         }
 
         [consolidatedSummary, filterOptions] = await Promise.all([
-            getConsolidatedDashboardSummary(),
-            getConsolidatedDashboardFilterOptions()
+            getConsolidatedDashboardSummary({ pozoNames: activeOperationalScopePozos }),
+            getConsolidatedDashboardFilterOptions({ pozoNames: activeOperationalScopePozos })
         ]);
         renderTemplate();
 
@@ -1640,7 +1642,7 @@ async function exportDashboardGeneralFromDatabase() {
             return;
         }
 
-        const storedRows = await fetchConsolidatedDashboardRows(filters);
+        const storedRows = await fetchConsolidatedDashboardRows({ ...filters, pozoNames: activeOperationalScopePozos });
         if (!storedRows.length) {
             throw new Error('No hay filas guardadas que coincidan con los filtros seleccionados.');
         }
@@ -1678,8 +1680,8 @@ async function exportDashboardGeneralSplitFromDatabase(filters, isClientVersion 
     updateLoadingModal('Consultando base histórica y nuevo histórico...', 'Preparando hojas separadas para el exportable.');
 
     const [baseRows, nuevoRows] = await Promise.all([
-        fetchConsolidatedDashboardRows({ ...filters, source: 'base' }),
-        fetchConsolidatedDashboardRows({ ...filters, source: 'operativo' })
+        fetchConsolidatedDashboardRows({ ...filters, source: 'base', pozoNames: activeOperationalScopePozos }),
+        fetchConsolidatedDashboardRows({ ...filters, source: 'operativo', pozoNames: activeOperationalScopePozos })
     ]);
 
     if (!baseRows.length && !nuevoRows.length) {
@@ -1726,7 +1728,7 @@ async function openFieldJourneyDeleteSelector() {
     try {
         setBusyState(true);
         showLoadingModal('Cargando filas Campo Admin', 'Buscando registros publicados desde Campo Admin.', 'La selección puede borrar Consolidado y Data operativa.');
-        const rows = await fetchFieldJourneyConsolidatedRows();
+        const rows = await fetchFieldJourneyConsolidatedRows({ pozoNames: activeOperationalScopePozos });
         closeLoadingModal();
 
         if (!rows.length) {
@@ -2497,13 +2499,21 @@ async function checkOrphanRowsDiagnostic() {
 
 async function init() {
     if (!(await ensureAccess())) return;
+    const session = await getSession();
+    const accessProfile = getAccessProfile(session);
+    const scopeContext = await initOperationalScopeContext(session, accessProfile);
+    renderOperationalScopeSwitcher(document.getElementById('consolidado-operational-scope-switcher'), scopeContext, {
+        onChange: () => window.location.reload()
+    });
+    activeOperationalScopePozos = await getActiveOperationalScopeWellNames().catch(error => {
+        console.warn('No se pudieron cargar pozos del contrato activo para Consolidado:', error);
+        return [];
+    });
+
     bindEvents();
     activeTemplate = loadStoredTemplate();
     renderTemplate();
     refreshDatabaseSummary({ silent: true });
-
-    const session = await getSession();
-    const accessProfile = getAccessProfile(session);
 
     if (accessProfile?.isReadOnly || !accessProfile?.canModifyConsolidadoBase) {
         // Ocultar tarjeta de Estructura de Excel Base y menú de configuración para usuarios de visualización

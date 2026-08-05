@@ -1,4 +1,5 @@
 import { getMonitoringData, getPozosHistorySummary } from './data-service.js';
+import { getActiveOperationalScopeWellNames } from './services/operational-scope-context.js';
 
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
@@ -13,6 +14,11 @@ function escapeHtml(str) {
 let customChartsInstances = [];
 let selectedCustomWells = [];
 let availableCustomPozos = [];
+let activeCustomScopePozos = [];
+
+function normalizePozoName(value) {
+    return String(value || '').trim().toUpperCase();
+}
 
 const VARIABLE_CONFIG = {
     presion_chp: { label: 'Presión CHP', unit: 'psi', color: '#2563EB', key: 'presion_chp' },
@@ -93,8 +99,10 @@ function setupQuickDaysPresets() {
 
 async function setupCustomWellSelector() {
     try {
+        activeCustomScopePozos = [...new Set((await getActiveOperationalScopeWellNames()).map(normalizePozoName).filter(Boolean))];
         const summaries = await getPozosHistorySummary();
-        availableCustomPozos = summaries || [];
+        const scopeSet = new Set(activeCustomScopePozos);
+        availableCustomPozos = (summaries || []).filter(item => scopeSet.has(normalizePozoName(item.pozo_name)));
         renderCustomWellDropdown('');
     } catch (err) {
         console.error('Error cargando pozos para selector:', err);
@@ -295,7 +303,12 @@ async function generateCustomReport() {
     }
 
     try {
-        const rows = await getMonitoringData(selectedCustomWells, startIso, endIso);
+        const scopedSelectedWells = selectedCustomWells.filter(pozo => activeCustomScopePozos.includes(normalizePozoName(pozo)));
+        if (!scopedSelectedWells.length) {
+            alert('Los pozos seleccionados no pertenecen al contrato activo. Selecciona pozos de este contrato.');
+            return;
+        }
+        const rows = await getMonitoringData(scopedSelectedWells, startIso, endIso);
         const sortedRows = (rows || []).sort((a, b) => {
             const dA = `${a.fecha || ''} ${a.hora || ''}`;
             const dB = `${b.fecha || ''} ${b.hora || ''}`;
