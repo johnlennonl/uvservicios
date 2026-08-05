@@ -828,12 +828,7 @@ function renderCharts() {
     // ====================================================
     // GRÁFICO 3: Cantidad de niveles por pozo — Barras verticales
     // ====================================================
-    const nivelesPozoMap = new Map();
-    const executedLevelPozos = getExecutedLevelPozoNames();
-    state.records
-        .filter(record => executedLevelPozos.has(normalizePozoName(record.pozo_name)))
-        .forEach(record => incrementMap(nivelesPozoMap, record.pozo_name));
-    const pozosEntries = mapToSortedEntries(nivelesPozoMap);
+    const pozosEntries = mapToSortedEntries(getExecutedLevelCountsByPozo());
     const maxNiveles = Math.max(...pozosEntries.map(([, value]) => value), 0);
     const barColors = pozosEntries.map(([, value]) => value === maxNiveles && value > 0 ? PALETTE.orange : PALETTE.blue);
 
@@ -1032,7 +1027,7 @@ function buildFieldDetailRows(fields = getReportFieldOrder()) {
             total: records.length,
             runCount: records.filter(record => classifyDiagnostico(record) === 'POZOS EN RUN / SIN FALLA').length,
             offCount: records.filter(record => ['OFF', 'PARADAMANUAL'].includes(normalizeStatus(record.estatus))).length,
-            levelCount: records.filter(record => executedLevelPozos.has(normalizePozoName(record.pozo_name))).length,
+            levelCount: new Set(records.map(record => normalizePozoName(record.pozo_name)).filter(pozo => executedLevelPozos.has(pozo))).size,
             mainMode: getTopEntry(records, classifyModeForChart),
             mainDiagnostic: getTopEntry(records, classifyDiagnostico)
         };
@@ -1071,20 +1066,26 @@ function getDocumentsByPozoAndCategory() {
 }
 
 function getExecutedLevelPozoNames() {
+    return new Set(mapToSortedEntries(getExecutedLevelCountsByPozo()).map(([pozo]) => pozo));
+}
+
+function getExecutedLevelCountsByPozo() {
     const documentsMap = getDocumentsByPozoAndCategory();
-    const pozos = new Set();
+    const counts = new Map();
 
     state.records.forEach(record => {
         const pozo = normalizePozoName(record.pozo_name);
-        if (!pozo) return;
-
-        const hasEchometerDoc = (documentsMap.get(`${pozo}|REGISTROS_ECHOMETER`) || 0) > 0;
-        if (hasExecutedLevel(record) || hasEchometerDoc) {
-            pozos.add(pozo);
-        }
+        if (!pozo || !hasExecutedLevel(record)) return;
+        counts.set(pozo, (counts.get(pozo) || 0) + 1);
     });
 
-    return pozos;
+    documentsMap.forEach((count, key) => {
+        const [pozo, category] = String(key || '').split('|');
+        if (category !== 'REGISTROS_ECHOMETER' || !pozo) return;
+        counts.set(pozo, Math.max(counts.get(pozo) || 0, Number(count) || 0));
+    });
+
+    return counts;
 }
 
 function renderAttachmentsSummary() {
@@ -1995,11 +1996,7 @@ function exportNativeMonthlyPdf(filename) {
         incrementMap(map, classifyModeForChart(record));
         return map;
     }, new Map()));
-    const executedLevelPozos = getExecutedLevelPozoNames();
-    const nivelesEntries = mapToSortedEntries(state.records.filter(record => executedLevelPozos.has(normalizePozoName(record.pozo_name))).reduce((map, record) => {
-        incrementMap(map, record.pozo_name);
-        return map;
-    }, new Map()));
+    const nivelesEntries = mapToSortedEntries(getExecutedLevelCountsByPozo());
     const diagnosticEntries = buildDiagnosticEntries();
     drawNativeBarChart(pdf, 'Visitas por Campo', campoEntries, 12, 45, 88, 70, PDF_THEME.blue);
     drawNativeBarChart(pdf, 'Modo de Operacion', modeEntries, 110, 45, 88, 70, PDF_THEME.green);
