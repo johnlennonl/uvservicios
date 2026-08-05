@@ -18,7 +18,8 @@ function escapeHtml(value) {
 }
 
 function canUseAllContracts(accessProfile) {
-    return ['admin', 'supervisor', 'gestor_usuarios', 'base_datos'].includes(accessProfile?.role);
+    return accessProfile?.isReadOnly
+        || ['admin', 'supervisor', 'gestor_usuarios', 'base_datos'].includes(accessProfile?.role);
 }
 
 function applyOperationalScopeTheme(scopeKey) {
