@@ -2916,7 +2916,8 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                                 pozoName: item.pozoName,
                                 category: item.category,
                                 description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${item.pozoName}`,
-                                uploadedBy: 'Técnico de Campo'
+                                uploadedBy: 'Técnico de Campo',
+                                operationalScope: currentOperationalScope
                             });
                             item.inputEl.value = '';
                         }
@@ -3041,7 +3042,8 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                         pozoName: pozoName,
                         category: category,
                         description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${pozoName}`,
-                        uploadedBy: 'Técnico de Campo'
+                        uploadedBy: 'Técnico de Campo',
+                        operationalScope: currentOperationalScope
                     });
                 }
 
@@ -3185,7 +3187,8 @@ async function processAndExecuteJourneySubmission(reports) {
                     pozoName: item.pozoName,
                     category: item.category,
                     description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${item.pozoName}`,
-                    uploadedBy: 'Técnico de Campo'
+                    uploadedBy: 'Técnico de Campo',
+                    operationalScope: currentOperationalScope
                 });
             }
         } catch (uploadErr) {

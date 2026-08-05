@@ -1278,6 +1278,17 @@ function buildStatusClass(status) {
     return `campo-admin-status-pill status-${normalized}`;
 }
 
+function buildOperationalStatusClass(status) {
+    const normalized = String(status || '').replace(/[^A-Z]/gi, '').toUpperCase();
+    if (['OFF', 'PARADAMANUAL', 'PARADO', 'PARADA', 'DETENIDO', 'INACTIVO'].includes(normalized)) {
+        return 'campo-admin-operational-status is-off';
+    }
+    if (['RUN', 'RUNNING', 'OPERANDO', 'OPERATIVO', 'ACTIVO'].includes(normalized)) {
+        return 'campo-admin-operational-status is-run';
+    }
+    return 'campo-admin-operational-status is-unknown';
+}
+
 function summarizeJourneyWindow(journey) {
     const start = formatTime(journey.first_report_time);
     const end = formatTime(journey.last_report_time);
@@ -2588,6 +2599,7 @@ async function renderDetail(detail) {
             const summary = getRecordSummary(record);
             const review = reviewSummary.byRecord.get(record.id) || { tone: 'warning', label: 'Con alerta' };
             const recordPosition = `${index + 1} de ${records.length}`;
+            const recordStatus = getRecordField(record, 'estatus') || 'Sin estatus';
 
             const rowActionsMarkup = (isDraftJourney || state.accessProfile?.isReadOnly)
                 ? `
@@ -2614,7 +2626,7 @@ async function renderDetail(detail) {
                             </div>
                             <div class="campo-admin-record-row-side">
                                 <span class="campo-admin-tag">${escapeHtml(summary.hora)}</span>
-                                <span class="campo-admin-tag campo-admin-tag-soft">${escapeHtml(getRecordField(record, 'estatus') || 'Sin estatus')}</span>
+                                <span class="${buildOperationalStatusClass(recordStatus)}">${escapeHtml(recordStatus)}</span>
                                 <span class="${getReviewToneClass(review.tone)}">${escapeHtml(review.label)}</span>
                             </div>
                         </div>

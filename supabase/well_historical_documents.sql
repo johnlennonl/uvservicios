@@ -6,6 +6,7 @@
 -- 1. Crear tabla de documentos históricos por pozo
 CREATE TABLE IF NOT EXISTS public.well_historical_documents (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    operational_scope TEXT REFERENCES public.operational_contracts(scope_key) ON UPDATE CASCADE,
     pozo_name TEXT NOT NULL,
     categoria TEXT NOT NULL, -- 'SIMULACIONES', 'INFORMES_TECNICOS', 'PRUEBAS_PRODUCCION', 'FICHAS_BES'
     nombre_archivo TEXT NOT NULL,
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.well_historical_documents (
 CREATE INDEX IF NOT EXISTS idx_well_docs_pozo ON public.well_historical_documents(pozo_name);
 CREATE INDEX IF NOT EXISTS idx_well_docs_categoria ON public.well_historical_documents(categoria);
 CREATE INDEX IF NOT EXISTS idx_well_docs_pozo_cat ON public.well_historical_documents(pozo_name, categoria);
+CREATE INDEX IF NOT EXISTS idx_well_docs_scope_pozo_cat ON public.well_historical_documents(operational_scope, pozo_name, categoria);
 
 -- 3. Habilitar RLS (Row Level Security) con acceso amplio para lectura/escritura autenticada
 ALTER TABLE public.well_historical_documents ENABLE ROW LEVEL SECURITY;

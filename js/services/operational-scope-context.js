@@ -18,8 +18,7 @@ function escapeHtml(value) {
 }
 
 function canUseAllContracts(accessProfile) {
-    return accessProfile?.isReadOnly
-        || ['admin', 'supervisor', 'gestor_usuarios', 'base_datos'].includes(accessProfile?.role);
+    return ['admin', 'supervisor', 'gestor_usuarios', 'base_datos'].includes(accessProfile?.role);
 }
 
 function applyOperationalScopeTheme(scopeKey) {
@@ -96,27 +95,61 @@ export async function initOperationalScopeContext(session, accessProfile = {}) {
     };
 }
 
-export function renderOperationalScopeSwitcher(container, context, { onChange = null } = {}) {
+function renderMobileOperationalScopeMirror(target, context, onChange) {
+    if (!target?.id || target.id.includes('-mobile-')) return;
+
+    if (document.querySelector('.mobile-operational-scope-bar')) {
+        document.body.classList.add('has-mobile-operational-scope');
+        return;
+    }
+
+    const topBar = document.querySelector('.mobile-top-app-bar');
+    if (!topBar) return;
+
+    const mobileBar = document.createElement('div');
+    mobileBar.className = 'mobile-operational-scope-bar';
+    mobileBar.innerHTML = `<div id="${escapeHtml(target.id)}-mobile"></div>`;
+    topBar.insertAdjacentElement('afterend', mobileBar);
+    document.body.classList.add('has-mobile-operational-scope');
+    renderOperationalScopeSwitcher(mobileBar.firstElementChild, context, { onChange, renderMobileMirror: false });
+}
+
+export function renderOperationalScopeSwitcher(container, context, { onChange = null, renderMobileMirror = true } = {}) {
     const target = typeof container === 'string' ? document.getElementById(container) : container;
     if (!target || !context?.contracts?.length) return;
+    target.classList.add('operational-scope-switcher-host');
 
     const activeContract = context.contracts.find(contract => contract.scope_key === context.activeScope) || context.contracts[0];
     const isBmm = activeContract?.scope_key === 'bmm';
+    const selectId = `${target.id || 'operational-scope'}-global-select`;
 
     if (!context.canSwitch) {
         target.innerHTML = `
             <div class="operational-scope-switcher ${isBmm ? 'scope-bmm' : 'scope-ct'} is-locked">
+                <span class="operational-scope-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 21s7-4.35 7-11a7 7 0 0 0-14 0c0 6.65 7 11 7 11z"></path>
+                        <circle cx="12" cy="10" r="2.5"></circle>
+                    </svg>
+                </span>
                 <span class="operational-scope-label">Contrato</span>
                 <strong>${escapeHtml(activeContract.display_name)}</strong>
             </div>
         `;
+        if (renderMobileMirror) renderMobileOperationalScopeMirror(target, context, onChange);
         return;
     }
 
     target.innerHTML = `
         <label class="operational-scope-switcher ${isBmm ? 'scope-bmm' : 'scope-ct'}">
+            <span class="operational-scope-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 21s7-4.35 7-11a7 7 0 0 0-14 0c0 6.65 7 11 7 11z"></path>
+                    <circle cx="12" cy="10" r="2.5"></circle>
+                </svg>
+            </span>
             <span class="operational-scope-label">Contrato</span>
-            <select id="operational-scope-global-select" aria-label="Cambiar contrato operativo">
+            <select id="${escapeHtml(selectId)}" aria-label="Cambiar contrato operativo">
                 ${context.contracts.map(contract => `
                     <option value="${escapeHtml(contract.scope_key)}" ${contract.scope_key === context.activeScope ? 'selected' : ''}>
                         ${escapeHtml(contract.display_name)}
@@ -130,4 +163,6 @@ export function renderOperationalScopeSwitcher(container, context, { onChange = 
         const nextScope = setActiveOperationalScope(event.target.value);
         if (typeof onChange === 'function') onChange(nextScope);
     });
+
+    if (renderMobileMirror) renderMobileOperationalScopeMirror(target, context, onChange);
 }

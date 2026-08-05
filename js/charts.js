@@ -551,11 +551,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     applyDashboardAccessProfile(accessProfile);
     const operationalScopeContext = await initOperationalScopeContext(session, accessProfile);
+    const handleScopeChange = () => {
+        sessionStorage.removeItem(ACTIVE_POZO_STORAGE_KEY);
+        window.location.reload();
+    };
     renderOperationalScopeSwitcher(document.getElementById('dashboard-operational-scope-switcher'), operationalScopeContext, {
-        onChange: () => {
-            sessionStorage.removeItem(ACTIVE_POZO_STORAGE_KEY);
-            window.location.reload();
-        }
+        onChange: handleScopeChange
+    });
+    renderOperationalScopeSwitcher(document.getElementById('dashboard-mobile-operational-scope-switcher'), operationalScopeContext, {
+        onChange: handleScopeChange
     });
 
     const isFirstEntry = !sessionStorage.getItem('dashboard-visited');

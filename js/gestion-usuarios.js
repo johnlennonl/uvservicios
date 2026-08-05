@@ -37,6 +37,10 @@ const formContractTechnician = document.getElementById('form-contract-technician
 const formContractWell = document.getElementById('form-contract-well');
 const selectOperationalScope = document.getElementById('select-operational-scope');
 const editOperationalScope = document.getElementById('edit-operational-scope');
+const selectRole = document.getElementById('select-role');
+const editRole = document.getElementById('edit-role');
+const selectOperationalScopeHelp = document.getElementById('select-operational-scope-help');
+const editOperationalScopeHelp = document.getElementById('edit-operational-scope-help');
 
 const CONTRACT_PLACEHOLDERS = Object.freeze({
     ceiba_tomoporo: {
@@ -55,6 +59,8 @@ const CONTRACT_FIELD_OPTIONS = Object.freeze({
     ceiba_tomoporo: ['LA CEIBA', 'TOMOPORO'],
     bmm: ['BARUA', 'MOTATAN', 'MENE GRANDE']
 });
+
+const ALL_OPERATIONAL_SCOPES_VALUE = '__all_contracts__';
 
 // Modal Elements
 const modalOverlay = document.getElementById('user-management-modal');
@@ -221,6 +227,10 @@ async function refreshOperationalContractStats() {
 function renderOperationalScopeOptions(selectEl, selectedScope = DEFAULT_OPERATIONAL_SCOPE) {
     if (!selectEl) return;
 
+    const selectedScopes = new Set((Array.isArray(selectedScope) ? selectedScope : [selectedScope])
+        .map(scope => String(scope || '').trim())
+        .filter(Boolean));
+
     const contracts = operationalContracts.length > 0
         ? operationalContracts
         : [
@@ -229,10 +239,76 @@ function renderOperationalScopeOptions(selectEl, selectedScope = DEFAULT_OPERATI
         ];
 
     selectEl.innerHTML = contracts.map(contract => `
-        <option value="${escapeHtml(contract.scope_key)}" ${contract.scope_key === selectedScope ? 'selected' : ''}>
+        <option value="${escapeHtml(contract.scope_key)}" ${selectedScopes.has(contract.scope_key) ? 'selected' : ''}>
             ${escapeHtml(contract.display_name)}
         </option>
     `).join('');
+}
+
+function getAvailableOperationalContracts() {
+    return operationalContracts.length > 0
+        ? operationalContracts
+        : [
+            { scope_key: 'ceiba_tomoporo', display_name: 'Ceiba / Tomoporo' },
+            { scope_key: 'bmm', display_name: 'Mene Grande / Barua / Motatan' }
+        ];
+}
+
+function getContractDisplayName(contract = {}) {
+    if (contract.scope_key === 'bmm') return 'Mene Grande / Barua / Motatan';
+    return contract.display_name || contract.scope_key || 'Contrato';
+}
+
+function getSelectedOperationalScopes(selectEl) {
+    if (!selectEl) return [DEFAULT_OPERATIONAL_SCOPE];
+    const selected = Array.from(selectEl.selectedOptions || [])
+        .map(option => option.value)
+        .filter(Boolean);
+    const values = selected.length > 0 ? selected : [selectEl.value || DEFAULT_OPERATIONAL_SCOPE];
+    if (values.includes(ALL_OPERATIONAL_SCOPES_VALUE)) {
+        return getAvailableOperationalContracts().map(contract => contract.scope_key);
+    }
+    return values.filter(value => value !== ALL_OPERATIONAL_SCOPES_VALUE);
+}
+
+function syncUserScopeSelectMode(roleSelect, scopeSelect, helpEl) {
+    if (!roleSelect || !scopeSelect) return;
+    const allowAllContractsOption = roleSelect.value === 'cliente_view';
+    let selectedScopes = getSelectedOperationalScopes(scopeSelect);
+    if (scopeSelect.dataset.selectedScopes) {
+        try {
+            const parsedScopes = JSON.parse(scopeSelect.dataset.selectedScopes);
+            if (Array.isArray(parsedScopes) && parsedScopes.length > 0) {
+                selectedScopes = parsedScopes;
+            }
+        } catch (error) {
+            selectedScopes = getSelectedOperationalScopes(scopeSelect);
+        }
+        delete scopeSelect.dataset.selectedScopes;
+    }
+    const contracts = getAvailableOperationalContracts();
+    const allContractsSelected = contracts.length > 1
+        && contracts.every(contract => selectedScopes.includes(contract.scope_key));
+
+    scopeSelect.multiple = false;
+    scopeSelect.size = 1;
+    scopeSelect.innerHTML = contracts.map(contract => `
+        <option value="${escapeHtml(contract.scope_key)}" ${!allContractsSelected && selectedScopes[0] === contract.scope_key ? 'selected' : ''}>
+            ${escapeHtml(getContractDisplayName(contract))}
+        </option>
+    `).join('') + (allowAllContractsOption && contracts.length > 1 ? `
+        <option value="${ALL_OPERATIONAL_SCOPES_VALUE}" ${allContractsSelected ? 'selected' : ''}>Ambos</option>
+    ` : '');
+
+    if (!allowAllContractsOption && allContractsSelected && scopeSelect.options.length > 0) {
+        scopeSelect.options[0].selected = true;
+    }
+
+    if (helpEl) {
+        helpEl.textContent = allowAllContractsOption
+            ? 'Cliente de visualización: elige Ceiba / Tomoporo, Mene Grande / Barua / Motatan o Ambos. Con Ambos podrá cambiar desde el selector superior.'
+            : 'Este rol queda asociado a un contrato principal y no tendrá opción Ambos.';
+    }
 }
 
 async function loadOperationalControlData() {
@@ -255,12 +331,16 @@ async function loadOperationalControlData() {
 
         renderOperationalScopeOptions(selectOperationalScope, selectedOperationalScope);
         renderOperationalScopeOptions(editOperationalScope, selectedOperationalScope);
+        syncUserScopeSelectMode(selectRole, selectOperationalScope, selectOperationalScopeHelp);
+        syncUserScopeSelectMode(editRole, editOperationalScope, editOperationalScopeHelp);
         await renderOperationalContractsControl();
     } catch (error) {
         console.error('Error loading operational contracts:', error);
         contractsStatusEl.textContent = error.message || 'No se pudieron cargar los contratos.';
         renderOperationalScopeOptions(selectOperationalScope, DEFAULT_OPERATIONAL_SCOPE);
         renderOperationalScopeOptions(editOperationalScope, DEFAULT_OPERATIONAL_SCOPE);
+        syncUserScopeSelectMode(selectRole, selectOperationalScope, selectOperationalScopeHelp);
+        syncUserScopeSelectMode(editRole, editOperationalScope, editOperationalScopeHelp);
     }
 }
 
@@ -603,10 +683,14 @@ async function loadUserScopeIntoModal(userId) {
     try {
         const scopes = await getUserOperationalScopes(userId);
         const defaultScope = scopes.find(scope => scope.is_default)?.operational_scope || scopes[0]?.operational_scope || DEFAULT_OPERATIONAL_SCOPE;
-        renderOperationalScopeOptions(editOperationalScope, defaultScope);
+        const scopeKeys = scopes.length > 0 ? scopes.map(scope => scope.operational_scope) : [defaultScope];
+        renderOperationalScopeOptions(editOperationalScope, scopeKeys);
+        editOperationalScope.dataset.selectedScopes = JSON.stringify(scopeKeys);
+        syncUserScopeSelectMode(editRole, editOperationalScope, editOperationalScopeHelp);
     } catch (error) {
         console.warn('Could not load user operational scope:', error);
         renderOperationalScopeOptions(editOperationalScope, DEFAULT_OPERATIONAL_SCOPE);
+        syncUserScopeSelectMode(editRole, editOperationalScope, editOperationalScopeHelp);
     }
 }
 
@@ -976,6 +1060,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadOperationalControlData();
     await loadUsers();
 
+    selectRole?.addEventListener('change', () => syncUserScopeSelectMode(selectRole, selectOperationalScope, selectOperationalScopeHelp));
+    editRole?.addEventListener('change', () => syncUserScopeSelectMode(editRole, editOperationalScope, editOperationalScopeHelp));
+
     formContractTechnician?.addEventListener('submit', async (event) => {
         event.preventDefault();
         const input = document.getElementById('contract-technician-name');
@@ -1214,7 +1301,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const apellido = document.getElementById('edit-apellido').value.trim();
             const empresa = document.getElementById('edit-empresa').value.trim();
             const role = document.getElementById('edit-role').value;
-            const operationalScope = editOperationalScope?.value || DEFAULT_OPERATIONAL_SCOPE;
+            const operationalScopes = getSelectedOperationalScopes(editOperationalScope);
+            const operationalScope = operationalScopes[0] || DEFAULT_OPERATIONAL_SCOPE;
             
             btnSubmitEditProfile.disabled = true;
             btnSubmitEditProfile.textContent = 'Guardando...';
@@ -1230,9 +1318,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 if (error) throw error;
 
-                await setUserOperationalScopes(userId, [operationalScope], {
+                await setUserOperationalScopes(userId, operationalScopes, {
                     defaultScope: operationalScope,
-                    canSwitch: false
+                    canSwitch: role === 'cliente_view' && operationalScopes.length > 1
                 }).catch(error => console.warn('Could not update user operational scope:', error));
                 
                 Swal.fire({
@@ -1433,16 +1521,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const password = document.getElementById('input-password').value;
         const empresa = document.getElementById('input-empresa').value.trim();
         const role = document.getElementById('select-role').value;
-        const operationalScope = selectOperationalScope?.value || DEFAULT_OPERATIONAL_SCOPE;
+        const operationalScopes = getSelectedOperationalScopes(selectOperationalScope);
+        const operationalScope = operationalScopes[0] || DEFAULT_OPERATIONAL_SCOPE;
 
         try {
             btnSubmitUser.disabled = true;
             btnSubmitUser.textContent = 'Procesando registro...';
 
             const newUser = await createUser(email, password, nombre, apellido, empresa, role, operationalScope);
-            await setUserOperationalScopes(newUser.id, [operationalScope], {
+            await setUserOperationalScopes(newUser.id, operationalScopes, {
                 defaultScope: operationalScope,
-                canSwitch: false
+                canSwitch: role === 'cliente_view' && operationalScopes.length > 1
             }).catch(error => console.warn('Could not assign user operational scope:', error));
 
             const accessLink = 'https://uvservicios.vercel.app/';
@@ -1503,6 +1592,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             formCreateUser.reset();
+            syncUserScopeSelectMode(selectRole, selectOperationalScope, selectOperationalScopeHelp);
             if (inputPassword) {
                 inputPassword.type = 'password';
                 toggleCreatePasswordBtn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px; pointer-events: none;">

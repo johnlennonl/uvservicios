@@ -8,6 +8,7 @@
  */
 
 import { supabase } from '../supabaseClient.js';
+import { getActiveOperationalScope } from './operational-scope-context.js';
 
 // Nombre constante del Bucket en Supabase Storage
 const BUCKET_NAME = 'expedientes-pozos';
@@ -24,6 +25,15 @@ function sanitizeFileName(fileName = '') {
         .replace(/[^a-zA-Z0-9._-]/g, '_'); // Reemplaza símbolos extraños por guiones bajos
 }
 
+function normalizeOperationalScopeValue(value = '') {
+    return String(value || getActiveOperationalScope() || 'ceiba_tomoporo').trim().toLowerCase() || 'ceiba_tomoporo';
+}
+
+function isMissingOperationalScopeColumn(error) {
+    const message = String(error?.message || error || '');
+    return /operational_scope/i.test(message) && /column|schema|cache|could not find/i.test(message);
+}
+
 /**
  * Consulta la lista de documentos de un pozo con filtros opcionales por categoría, fecha y texto.
  * 
@@ -35,12 +45,17 @@ function sanitizeFileName(fileName = '') {
  * @param {string} [options.searchKeyword] - Texto a buscar en el nombre del archivo o descripción.
  * @returns {Promise<Array>} Lista de registros documentales.
  */
-export async function getWellDocuments({ pozoName = '', category = null, startDate = null, endDate = null, searchKeyword = '' } = {}) {
+export async function getWellDocuments({ pozoName = '', category = null, startDate = null, endDate = null, searchKeyword = '', operationalScope = null } = {}) {
     try {
+        const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope);
         let query = supabase
             .from('well_historical_documents')
             .select('*')
             .order('created_at', { ascending: false });
+
+        if (normalizedOperationalScope) {
+            query = query.or(`operational_scope.eq.${normalizedOperationalScope},operational_scope.is.null`);
+        }
 
         // Filtrar por pozo específico si se indica
         if (pozoName && pozoName !== 'TODOS') {
@@ -60,7 +75,31 @@ export async function getWellDocuments({ pozoName = '', category = null, startDa
             query = query.lte('created_at', `${endDate}T23:59:59.999Z`);
         }
 
-        const { data, error } = await query;
+        let { data, error } = await query;
+        if (error && isMissingOperationalScopeColumn(error)) {
+            console.warn('[well-documents-service] La columna operational_scope no existe aun; usando consulta legacy de documentos.');
+            let legacyQuery = supabase
+                .from('well_historical_documents')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (pozoName && pozoName !== 'TODOS') {
+                legacyQuery = legacyQuery.eq('pozo_name', pozoName.trim().toUpperCase());
+            }
+            if (category && category !== 'TODAS') {
+                legacyQuery = legacyQuery.eq('categoria', category.trim().toUpperCase());
+            }
+            if (startDate) {
+                legacyQuery = legacyQuery.gte('created_at', `${startDate}T00:00:00.000Z`);
+            }
+            if (endDate) {
+                legacyQuery = legacyQuery.lte('created_at', `${endDate}T23:59:59.999Z`);
+            }
+
+            const legacyResult = await legacyQuery;
+            data = legacyResult.data;
+            error = legacyResult.error;
+        }
         if (error) throw error;
 
         let results = data || [];
@@ -88,11 +127,26 @@ export async function getWellDocuments({ pozoName = '', category = null, startDa
  * Útil para mostrar contadores en las tarjetas de la vista principal.
  * @returns {Promise<Object>} Objeto estructurado { pozoName: { total: N, categorias: { SIMULACIONES: X, ... } } }
  */
-export async function getWellDocumentSummaryCounts() {
+export async function getWellDocumentSummaryCounts({ operationalScope = null } = {}) {
     try {
-        const { data, error } = await supabase
+        const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope);
+        let query = supabase
             .from('well_historical_documents')
-            .select('pozo_name, categoria');
+            .select('pozo_name, categoria, operational_scope');
+
+        if (normalizedOperationalScope) {
+            query = query.or(`operational_scope.eq.${normalizedOperationalScope},operational_scope.is.null`);
+        }
+
+        let { data, error } = await query;
+        if (error && isMissingOperationalScopeColumn(error)) {
+            console.warn('[well-documents-service] La columna operational_scope no existe aun; usando conteo legacy de documentos.');
+            const legacyResult = await supabase
+                .from('well_historical_documents')
+                .select('pozo_name, categoria');
+            data = legacyResult.data;
+            error = legacyResult.error;
+        }
 
         if (error) throw error;
 
@@ -125,18 +179,19 @@ export async function getWellDocumentSummaryCounts() {
  * @param {string} [params.uploadedBy] - Nombre del usuario/técnico que realiza la carga.
  * @returns {Promise<Object>} Registro del documento recién creado.
  */
-export async function uploadWellDocument({ file, pozoName, category, description = '', uploadedBy = 'Sistema' }) {
+export async function uploadWellDocument({ file, pozoName, category, description = '', uploadedBy = 'Sistema', operationalScope = null }) {
     if (!file) throw new Error('Debes seleccionar un archivo para cargar.');
     if (!pozoName) throw new Error('El nombre del pozo es obligatorio.');
     if (!category) throw new Error('Debes seleccionar una categoría temática.');
 
     const cleanPozo = String(pozoName).trim().toUpperCase();
     const cleanCategory = String(category).trim().toUpperCase();
+    const cleanOperationalScope = normalizeOperationalScopeValue(operationalScope);
     const sanitizedName = sanitizeFileName(file.name);
     const timeStamp = Date.now();
     
-    // Generar ruta única en el Bucket de Storage: pozo/categoria/timestamp_nombre.ext
-    const filePath = `${cleanPozo}/${cleanCategory}/${timeStamp}_${sanitizedName}`;
+    // Generar ruta única en el Bucket de Storage: contrato/pozo/categoria/timestamp_nombre.ext
+    const filePath = `${cleanOperationalScope}/${cleanPozo}/${cleanCategory}/${timeStamp}_${sanitizedName}`;
 
     try {
         // 1. Subir archivo a Supabase Storage Bucket
@@ -157,20 +212,36 @@ export async function uploadWellDocument({ file, pozoName, category, description
         const fileExt = file.name.split('.').pop()?.toLowerCase() || 'doc';
 
         // 2. Insertar metadata en la tabla well_historical_documents
-        const { data: dbData, error: dbError } = await supabase
+        const documentPayload = {
+            operational_scope: cleanOperationalScope,
+            pozo_name: cleanPozo,
+            categoria: cleanCategory,
+            nombre_archivo: file.name,
+            file_path: filePath,
+            file_size: file.size || 0,
+            file_type: fileExt,
+            descripcion: String(description || '').trim(),
+            uploaded_by: String(uploadedBy || 'Administrador').trim()
+        };
+
+        let { data: dbData, error: dbError } = await supabase
             .from('well_historical_documents')
-            .insert([{
-                pozo_name: cleanPozo,
-                categoria: cleanCategory,
-                nombre_archivo: file.name,
-                file_path: filePath,
-                file_size: file.size || 0,
-                file_type: fileExt,
-                descripcion: String(description || '').trim(),
-                uploaded_by: String(uploadedBy || 'Administrador').trim()
-            }])
+            .insert([documentPayload])
             .select()
             .single();
+
+        if (dbError && isMissingOperationalScopeColumn(dbError)) {
+            console.warn('[well-documents-service] La columna operational_scope no existe aun; registrando metadata legacy.');
+            const legacyPayload = { ...documentPayload };
+            delete legacyPayload.operational_scope;
+            const legacyResult = await supabase
+                .from('well_historical_documents')
+                .insert([legacyPayload])
+                .select()
+                .single();
+            dbData = legacyResult.data;
+            dbError = legacyResult.error;
+        }
 
         if (dbError) {
             console.error('[well-documents-service] Error registrando metadata en base de datos:', dbError);

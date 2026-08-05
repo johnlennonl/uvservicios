@@ -7,8 +7,10 @@
  * los filtros en tiempo real y la subida/descarga de archivos con Supabase Storage.
  */
 
-import { getSession, logout, applyNavigationAccessProfile } from '../../auth.js';
+import { getSession, logout, applyNavigationAccessProfile, getAccessProfile } from '../../auth.js';
 import { getUniquePozos } from '../../services/monitoring-service.js';
+import { getFieldWellsByScope, normalizeOperationalScope } from '../../services/operational-contracts-service.js';
+import { initOperationalScopeContext, renderOperationalScopeSwitcher } from '../../services/operational-scope-context.js';
 import {
     getWellDocuments,
     getWellDocumentSummaryCounts,
@@ -85,6 +87,8 @@ const DOCUMENT_CATEGORIES = [
 const state = {
     userSession: null,
     isPinVerified: false,
+    operationalScopeContext: null,
+    activeOperationalScope: 'ceiba_tomoporo',
     pozosList: [],
     summaryCounts: {},
     activePozo: null,
@@ -109,7 +113,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 2. Cargar perfil de usuario
         state.userSession = await getSession();
         if (state.userSession) {
-            applyNavigationAccessProfile(state.userSession.accessProfile);
+            const accessProfile = getAccessProfile(state.userSession);
+            applyNavigationAccessProfile(accessProfile);
+            state.operationalScopeContext = await initOperationalScopeContext(state.userSession, accessProfile);
+            state.activeOperationalScope = normalizeOperationalScope(state.operationalScopeContext.activeScope);
+            renderOperationalScopeSwitcher(document.getElementById('database-operational-scope-switcher'), state.operationalScopeContext, {
+                onChange: () => window.location.reload()
+            });
         }
 
         // 3. Inicializar navegación instantánea y carga en segundo plano
@@ -150,8 +160,17 @@ document.addEventListener('DOMContentLoaded', async () => {
  */
 async function loadDatabaseModule() {
     try {
-        // Cargar pozos desde el servicio de monitoreo
-        const rawPozos = await getUniquePozos();
+        // Cargar pozos desde el catálogo del contrato activo. Si el catálogo no responde,
+        // se conserva el fallback legacy para no bloquear la consulta de expedientes.
+        let rawPozos = [];
+        try {
+            const scopedWells = await getFieldWellsByScope(state.activeOperationalScope);
+            rawPozos = (scopedWells || []).map(well => well.pozo_name);
+        } catch (scopeError) {
+            console.warn('[database-controller] No se pudo cargar catálogo por contrato, usando pozos globales:', scopeError);
+            rawPozos = await getUniquePozos();
+        }
+
         state.pozosList = (rawPozos || [])
             .map(p => String(p || '').trim().toUpperCase())
             .filter(Boolean)
@@ -164,14 +183,19 @@ async function loadDatabaseModule() {
         renderWellsView();
 
         // Cargar contadores de documentos en segundo plano para no bloquear la pantalla
-        getWellDocumentSummaryCounts().then(counts => {
-            state.summaryCounts = counts || {};
+        getWellDocumentSummaryCounts({ operationalScope: state.activeOperationalScope }).then(counts => {
+            state.summaryCounts = filterSummaryCountsByActivePozos(counts || {});
             updateWellBadgesLive();
         }).catch(err => console.warn('Error cargando conteos en segundo plano:', err));
 
     } catch (err) {
         console.error('[database-controller] Error cargando datos del módulo:', err);
     }
+}
+
+function filterSummaryCountsByActivePozos(counts = {}) {
+    const allowedPozos = new Set(state.pozosList);
+    return Object.fromEntries(Object.entries(counts).filter(([pozo]) => allowedPozos.has(String(pozo || '').trim().toUpperCase())));
 }
 
 /**
@@ -370,7 +394,8 @@ async function fetchAndRenderFiles() {
             category: state.activeCategory,
             startDate,
             endDate,
-            searchKeyword
+            searchKeyword,
+            operationalScope: state.activeOperationalScope
         });
 
         if (state.activeDocuments.length === 0) {
@@ -378,7 +403,7 @@ async function fetchAndRenderFiles() {
                 <div class="empty-panel" style="padding:32px;">
                     <i class="fa-regular fa-folder-open" style="font-size:2.5rem; color:#94a3b8; margin-bottom:10px;"></i>
                     <strong>No hay documentos registrados en esta carpeta</strong>
-                    <span>Utiliza el botón "Cargar Documento" para agregar archivos a esta categoría.</span>
+                    <span>Utiliza el botón "Cargar Documento" para agregar archivos a esta categoría del contrato activo.</span>
                 </div>
             `;
             return;
@@ -485,7 +510,7 @@ async function fetchAndRenderFiles() {
                         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
                         await deleteWellDocument(docId, filePath);
                         showSuccessToast('¡Documento Eliminado!', `El archivo "${docName}" fue borrado de Supabase Storage.`);
-                        state.summaryCounts = await getWellDocumentSummaryCounts();
+                        state.summaryCounts = filterSummaryCountsByActivePozos(await getWellDocumentSummaryCounts({ operationalScope: state.activeOperationalScope }));
                         fetchAndRenderFiles();
                     } catch (err) {
                         showSuccessToast('Error al Eliminar', err.message);
@@ -775,7 +800,8 @@ function initUploadModal() {
                     pozoName,
                     category,
                     description,
-                    uploadedBy: uploaderName
+                    uploadedBy: uploaderName,
+                    operationalScope: state.activeOperationalScope
                 });
 
                 showSuccessToast('¡Documento Cargado con Éxito!', `El archivo "${file.name}" se guardó correctamente en el expediente.`);
@@ -787,7 +813,7 @@ function initUploadModal() {
                 if (fileBadge) fileBadge.hidden = true;
 
                 // Recargar contadores y vista si aplica
-                state.summaryCounts = await getWellDocumentSummaryCounts();
+                state.summaryCounts = filterSummaryCountsByActivePozos(await getWellDocumentSummaryCounts({ operationalScope: state.activeOperationalScope }));
                 if (state.activeCategory) {
                     fetchAndRenderFiles();
                 } else if (state.activePozo) {

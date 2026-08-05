@@ -82,8 +82,12 @@ async function init() {
     }
 
     const operationalScopeContext = await initOperationalScopeContext(session, accessProfile);
+    const handleOperationalScopeChange = () => window.location.reload();
     renderOperationalScopeSwitcher(document.getElementById('stats-operational-scope-switcher'), operationalScopeContext, {
-        onChange: () => window.location.reload()
+        onChange: handleOperationalScopeChange
+    });
+    renderOperationalScopeSwitcher(document.getElementById('stats-mobile-operational-scope-switcher'), operationalScopeContext, {
+        onChange: handleOperationalScopeChange
     });
     state.activeOperationalScope = getActiveOperationalScope();
     const activeScopeWells = await getFieldWellsByScope(state.activeOperationalScope).catch(error => {
@@ -496,6 +500,13 @@ function classifyOperationMode(record = {}) {
 
 function classifyModeForChart(record = {}) {
     return classifyOperationMode(record);
+}
+
+function classifyOperationalStatusForChart(record = {}) {
+    const status = normalizeStatus(record.estatus);
+    if (['OFF', 'PARADAMANUAL', 'PARADO', 'PARADA', 'DETENIDO', 'INACTIVO'].includes(status)) return 'OFF';
+    if (['RUN', 'RUNATENCIONALCLIENTE', 'RUNNING', 'OPERANDO', 'OPERATIVO', 'ACTIVO'].includes(status)) return 'RUN';
+    return 'SIN ESTATUS / OTRO';
 }
 
 function classifyDiagnostico(record = {}) {
@@ -937,8 +948,10 @@ function renderModeByFieldChart(fields = []) {
     const ctx = document.getElementById('chart-modo-operacion-campo')?.getContext('2d');
     if (!ctx) return;
 
-    const categories = collectOrderedCategories(fields, classifyModeForChart);
-    const datasets = buildStackedFieldDatasets(fields, categories, classifyModeForChart, [PALETTE.blue, PALETTE.green, PALETTE.orange, '#64748B']);
+    const orderedStatuses = ['RUN', 'OFF', 'SIN ESTATUS / OTRO'];
+    const availableStatuses = new Set(collectOrderedCategories(fields, classifyOperationalStatusForChart));
+    const categories = orderedStatuses.filter(status => availableStatuses.has(status));
+    const datasets = buildStackedFieldDatasets(fields, categories, classifyOperationalStatusForChart, ['#10B981', '#DC2626', '#64748B']);
 
     state.charts.modoCampo = new Chart(ctx, {
         type: 'bar',
@@ -1696,7 +1709,7 @@ function buildMonthlyPdfDocument() {
                 <h2>Detalle ejecutivo operativo</h2>
             </div>
             <div class="monthly-pdf-chart-grid monthly-pdf-chart-grid-compact">
-                ${renderPdfChartCard('Modo de Operacion por Campo', 'Comparativo de frecuencia, corriente y registros sin modo.', 'modoCampo')}
+                ${renderPdfChartCard('Estado Operativo por Campo', 'Comparativo de pozos en RUN y OFF por campo.', 'modoCampo')}
                 ${renderPdfChartCard('Diagnostico Operativo por Campo', 'RUN/sin falla, perdida de senal y otros diagnosticos.', 'diagnosticoCampo')}
             </div>
             <div class="monthly-pdf-field-grid">

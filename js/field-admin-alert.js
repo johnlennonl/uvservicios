@@ -50,6 +50,13 @@ function ensureFieldAdminToastStyles() {
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
             overflow: hidden;
             animation: field-toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            touch-action: pan-y;
+        }
+
+        .field-admin-toast.is-dismissing {
+            transition: transform 0.18s ease, opacity 0.18s ease;
+            transform: translateX(120%) scale(0.96);
+            opacity: 0;
         }
 
         .field-admin-toast-container {
@@ -136,7 +143,7 @@ function ensureFieldAdminToastStyles() {
             justify-content: center;
             width: 24px;
             height: 24px;
-            color: #475569;
+            color: #CBD5E1;
             font-size: 16px;
             border-radius: 4px;
             top: 12px;
@@ -149,7 +156,27 @@ function ensureFieldAdminToastStyles() {
 
         .field-admin-toast .swal2-close:hover {
             color: #F8FAFC;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        @media (max-width: 640px) {
+            .field-admin-toast.swal2-popup.swal2-toast {
+                width: calc(100vw - 24px);
+                padding: 14px;
+            }
+
+            .field-admin-toast-card-v2 {
+                gap: 10px;
+            }
+
+            .field-admin-toast-logo-container {
+                width: 48px;
+                height: 48px;
+            }
+
+            .field-admin-toast-content {
+                padding-right: 28px;
+            }
         }
 
         .field-admin-toast .swal2-timer-progress-bar {
@@ -193,6 +220,62 @@ function saveAlertState(session, state) {
     } catch (error) {
         console.warn('No se pudo guardar el estado local de alertas de Campo:', error);
     }
+}
+
+function markJourneysAsDismissed(session, journeys) {
+    if (!session?.user || !Array.isArray(journeys) || !journeys.length) return;
+
+    const state = loadAlertState(session);
+    journeys.forEach(journey => {
+        const journeyId = String(journey?.id || '').trim();
+        if (!journeyId) return;
+
+        const version = createJourneyAlertVersion(journey);
+        state.seenVersions[journeyId] = version;
+        state.notifiedVersions[journeyId] = version;
+    });
+    saveAlertState(session, state);
+
+    const remainingUnseen = latestPendingJourneys.filter(journey => {
+        const journeyId = String(journey?.id || '').trim();
+        return journeyId && state.seenVersions[journeyId] !== createJourneyAlertVersion(journey);
+    });
+    paintFieldAdminAlert(remainingUnseen.length);
+}
+
+function attachDismissGesture(toast, dismissToast) {
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    const begin = (clientX, clientY) => {
+        startX = clientX;
+        startY = clientY;
+        tracking = true;
+    };
+
+    const end = (clientX, clientY) => {
+        if (!tracking) return;
+        tracking = false;
+
+        const deltaX = clientX - startX;
+        const deltaY = clientY - startY;
+        if (Math.abs(deltaX) < 72 || Math.abs(deltaX) < Math.abs(deltaY) * 1.4) return;
+
+        toast.dataset.swipeDismissed = 'true';
+        dismissToast();
+    };
+
+    toast.addEventListener('pointerdown', event => begin(event.clientX, event.clientY));
+    toast.addEventListener('pointerup', event => end(event.clientX, event.clientY));
+    toast.addEventListener('touchstart', event => {
+        const touch = event.changedTouches?.[0];
+        if (touch) begin(touch.clientX, touch.clientY);
+    }, { passive: true });
+    toast.addEventListener('touchend', event => {
+        const touch = event.changedTouches?.[0];
+        if (touch) end(touch.clientX, touch.clientY);
+    }, { passive: true });
 }
 
 function showNewJourneyToast(journeysOrCount) {
@@ -259,14 +342,27 @@ function showNewJourneyToast(journeysOrCount) {
             popup: 'field-admin-toast'
         },
         didOpen: (toast) => {
+            let dismissedByUser = false;
+            const dismissToast = async () => {
+                dismissedByUser = true;
+                toast.classList.add('is-dismissing');
+                const session = await getSession().catch(() => null);
+                markJourneysAsDismissed(session, journeys);
+                window.setTimeout(() => window.Swal.close(), 120);
+            };
+
             toast.addEventListener('mouseenter', window.Swal.stopTimer);
             toast.addEventListener('mouseleave', window.Swal.resumeTimer);
             toast.style.cursor = 'pointer';
+            attachDismissGesture(toast, dismissToast);
             toast.addEventListener('click', (e) => {
                 if (e.target.closest('.swal2-close')) {
-                    window.Swal.close();
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dismissToast();
                     return;
                 }
+                if (dismissedByUser || toast.dataset.swipeDismissed === 'true') return;
                 window.location.href = 'campo-admin.html';
             });
         }
