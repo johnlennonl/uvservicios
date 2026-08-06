@@ -8,6 +8,7 @@ import { getMonitoringData, getLatestDate, getLatestMonitoringRecords, getNeighb
 import { fetchConsolidatedDashboardRows } from './services/consolidado-service.js';
 import { getFieldWellsByScope } from './services/operational-contracts-service.js';
 import { getActiveOperationalScope, initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
+import { buildMonitoringAnnotationKey, deleteMonitoringPointAnnotation, getMonitoringPointAnnotations, getMonitoringPointAnnotationsPage, upsertMonitoringPointAnnotation } from './services/monitoring-annotations-service.js';
 import { hideFullLoader, showFullLoader } from './ui.js';
 
 let charts = {};
@@ -19,6 +20,17 @@ let latestKpiSnapshot = null;
 let latestStatusSnapshot = [];
 let latestStatusRecordSnapshot = null;
 let statusDonutMode = 'latest';
+let dashboardAccessProfile = null;
+let trendAnnotations = [];
+let trendAnnotationPanelReady = false;
+let trendAnnotationPanelState = {
+    items: [],
+    page: 1,
+    pageSize: 8,
+    total: 0,
+    isLoading: false,
+    error: null
+};
 const FOCUSED_TREND_RECORD_COUNT = 15;
 const MONITORING_RECORD_WINDOW = 30;
 const TREND_WINDOW_STORAGE_KEY = 'uv-trend-window-mode';
@@ -27,6 +39,8 @@ const TREND_WINDOW_MODES = {
     latest15: 'latest-15',
     latest30: 'latest-30'
 };
+const TREND_INTERACTION_STORAGE_KEY = 'uv-trend-interaction-enabled';
+const TREND_CHART_IDS = ['chart-frecuencia', 'chart-pip', 'chart-tm', 'chart-superficie', 'chart-motor-curr', 'chart-vsd-triphase'];
 let trendWindowMode = (() => {
     const storedMode = sessionStorage.getItem(TREND_WINDOW_STORAGE_KEY);
     if (Object.values(TREND_WINDOW_MODES).includes(storedMode)) {
@@ -39,6 +53,7 @@ let trendWindowMode = (() => {
     if (legacyFifteenRaw === null || legacyFifteenRaw === '1') return TREND_WINDOW_MODES.latest15;
     return TREND_WINDOW_MODES.latest1;
 })();
+let trendChartInteractionEnabled = sessionStorage.getItem(TREND_INTERACTION_STORAGE_KEY) === '1';
 const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
 const TREND_AXIS_BASES = {
     frecuencia: { min: 0, max: 60, step: 5, decimals: 1 },
@@ -56,6 +71,468 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function canManageChartAnnotations() {
+    return Boolean(dashboardAccessProfile?.canViewManagement && !dashboardAccessProfile?.isReadOnly && !dashboardAccessProfile?.isFieldOperator);
+}
+
+function buildTrendPointAnnotationKey(pointMeta = {}) {
+    return buildMonitoringAnnotationKey({
+        operational_scope: pointMeta.operationalScope || getActiveOperationalScope(),
+        pozo_name: pointMeta.pozoName,
+        chart_key: pointMeta.chartKey,
+        variable_key: pointMeta.variableKey,
+        point_fecha: pointMeta.fecha,
+        point_hora: pointMeta.hora
+    });
+}
+
+function getAnnotationByPointMeta(pointMeta = {}) {
+    const key = buildTrendPointAnnotationKey(pointMeta);
+    return trendAnnotations.find(annotation => buildMonitoringAnnotationKey(annotation) === key) || null;
+}
+
+function getTrendPointMetaFromApex(opts = {}) {
+    return opts?.w?.config?.series?.[opts.seriesIndex]?.data?.[opts.dataPointIndex]?.meta || null;
+}
+
+function formatAnnotationDateTime(fecha, hora) {
+    const date = new Date(`${fecha}T${hora || '00:00:00'}`);
+    if (Number.isNaN(date.getTime())) return `${fecha || '--'} ${hora || ''}`.trim();
+    return date.toLocaleString('es-VE', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function formatAnnotationAuditDate(value) {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return date.toLocaleString('es-VE', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function annotationToPointMeta(annotation = {}) {
+    return {
+        operationalScope: annotation.operational_scope,
+        pozoName: annotation.pozo_name,
+        chartKey: annotation.chart_key,
+        variableKey: annotation.variable_key,
+        variableLabel: annotation.variable_label,
+        fecha: annotation.point_fecha,
+        hora: annotation.point_hora,
+        value: annotation.point_value,
+        unit: getAnnotationUnit(annotation.variable_key)
+    };
+}
+
+function getAnnotationUnit(variableKey = '') {
+    if (variableKey === 'frecuencia') return 'Hz';
+    if (variableKey === 'tm') return '°F';
+    if (['pip', 'presion_thp', 'presion_chp', 'presion_lf'].includes(variableKey)) return 'PSI';
+    return 'Amp';
+}
+
+function syncTrendAnnotationCount(count = trendAnnotations.length || 0) {
+    const countBadge = document.getElementById('trend-annotations-count');
+    if (countBadge) countBadge.textContent = String(count);
+}
+
+function getTrendAnnotationPanelFilters() {
+    const selectedPozo = document.getElementById('filter-pozo')?.value || '';
+    return {
+        operationalScope: getActiveOperationalScope(),
+        pozoNames: selectedPozo ? [selectedPozo] : []
+    };
+}
+
+async function loadTrendAnnotationPanelPage(page = 1) {
+    trendAnnotationPanelState = {
+        ...trendAnnotationPanelState,
+        page: Math.max(1, Number(page || 1)),
+        isLoading: true,
+        error: null
+    };
+    renderTrendAnnotationPanelList();
+
+    try {
+        const result = await getMonitoringPointAnnotationsPage({
+            ...getTrendAnnotationPanelFilters(),
+            page: trendAnnotationPanelState.page,
+            pageSize: trendAnnotationPanelState.pageSize
+        });
+
+        trendAnnotationPanelState = {
+            ...trendAnnotationPanelState,
+            items: result.data,
+            page: result.page,
+            pageSize: result.pageSize,
+            total: result.count,
+            isLoading: false,
+            error: null
+        };
+        syncTrendAnnotationCount(result.count);
+    } catch (error) {
+        trendAnnotationPanelState = {
+            ...trendAnnotationPanelState,
+            items: [],
+            total: 0,
+            isLoading: false,
+            error: error?.message || 'No se pudieron cargar las anotaciones.'
+        };
+    }
+
+    renderTrendAnnotationPanelList();
+}
+
+async function loadTrendAnnotations(pozoNames = [], timeline = []) {
+    const fechas = (Array.isArray(timeline) ? timeline : [])
+        .map(record => String(record?.fecha || '').slice(0, 10))
+        .filter(Boolean)
+        .sort();
+
+    try {
+        trendAnnotations = await getMonitoringPointAnnotations({
+            operationalScope: getActiveOperationalScope(),
+            pozoNames,
+            startDate: fechas[0] || null,
+            endDate: fechas[fechas.length - 1] || null
+        });
+    } catch (error) {
+        console.warn('Anotaciones de ingeniería no disponibles:', error?.message || error);
+        trendAnnotations = [];
+    }
+
+    syncTrendAnnotationCount();
+
+    return trendAnnotations;
+}
+
+async function openTrendAnnotationModal(pointMeta = {}) {
+    if (!pointMeta?.pozoName || !pointMeta?.chartKey || !pointMeta?.variableKey) return;
+
+    if (!canManageChartAnnotations()) {
+        if (window.Swal) {
+            await window.Swal.fire({
+                icon: 'info',
+                title: 'Anotación de ingeniería',
+                text: 'Solo Administración o Supervisión puede crear anotaciones sobre puntos de gráficas.'
+            });
+        }
+        return;
+    }
+
+    const existingAnnotation = getAnnotationByPointMeta(pointMeta);
+    const currentComment = existingAnnotation?.comment || '';
+    const pointLabel = `${pointMeta.variableLabel || pointMeta.variableKey}: ${pointMeta.value ?? '--'}${pointMeta.unit || ''}`;
+
+    if (!window.Swal) {
+        const fallbackComment = window.prompt('Comentario técnico para este punto:', currentComment);
+        if (!fallbackComment) return;
+        await upsertMonitoringPointAnnotation(pointMeta, fallbackComment);
+        await updateDashboard();
+        return;
+    }
+
+    const result = await window.Swal.fire({
+        title: existingAnnotation ? 'Actualizar anotación operativa' : 'Anotar punto operativo',
+        html: `
+            <div class="trend-annotation-modal">
+                <div class="trend-annotation-context">
+                    <div class="trend-annotation-chip">
+                        <small>Pozo</small>
+                        <strong>${escapeHtml(pointMeta.pozoName)}</strong>
+                    </div>
+                    <div class="trend-annotation-chip">
+                        <small>Variable</small>
+                        <strong>${escapeHtml(pointLabel)}</strong>
+                    </div>
+                </div>
+                <div class="trend-annotation-time">
+                    ${escapeHtml(formatAnnotationDateTime(pointMeta.fecha, pointMeta.hora))}
+                </div>
+                <label class="trend-annotation-field">
+                    <span>Comentario técnico</span>
+                    <textarea id="trend-annotation-comment" placeholder="Ej: Bajada por ajuste de frecuencia, condición de arranque, prueba operativa...">${escapeHtml(currentComment)}</textarea>
+                </label>
+            </div>
+        `,
+        customClass: {
+            popup: 'trend-annotation-popup',
+            title: 'trend-annotation-title',
+            htmlContainer: 'trend-annotation-html',
+            actions: 'trend-annotation-actions',
+            confirmButton: 'trend-annotation-confirm',
+            cancelButton: 'trend-annotation-cancel'
+        },
+        buttonsStyling: false,
+        showCancelButton: true,
+        confirmButtonText: existingAnnotation ? 'Actualizar anotación' : 'Guardar anotación',
+        cancelButtonText: 'Cancelar',
+        focusConfirm: false,
+        preConfirm: () => {
+            const value = document.getElementById('trend-annotation-comment')?.value?.trim() || '';
+            if (!value) {
+                window.Swal.showValidationMessage('Escribe un comentario técnico.');
+                return false;
+            }
+            return value;
+        }
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    try {
+        await upsertMonitoringPointAnnotation(pointMeta, result.value);
+        await window.Swal.fire({ icon: 'success', title: 'Anotación guardada', timer: 1600, showConfirmButton: false });
+        await updateDashboard();
+    } catch (error) {
+        await window.Swal.fire({ icon: 'error', title: 'No se pudo guardar', text: error?.message || 'Error guardando la anotación.' });
+    }
+}
+
+function ensureTrendAnnotationPanel() {
+    if (trendAnnotationPanelReady) return;
+
+    const panel = document.createElement('aside');
+    panel.id = 'trend-annotation-panel';
+    panel.className = 'trend-annotation-panel';
+    panel.setAttribute('aria-hidden', 'true');
+    panel.innerHTML = `
+        <div class="trend-annotation-panel-backdrop" data-annotation-close></div>
+        <section class="trend-annotation-drawer" role="dialog" aria-modal="true" aria-labelledby="trend-annotation-panel-title">
+            <header class="trend-annotation-drawer-header">
+                <div>
+                    <span>Anotaciones de ingeniería</span>
+                    <h2 id="trend-annotation-panel-title">Revisión operativa</h2>
+                </div>
+                <button type="button" class="trend-annotation-close" data-annotation-close aria-label="Cerrar panel">
+                    <i class="fas fa-times"></i>
+                </button>
+            </header>
+            <div id="trend-annotation-panel-list" class="trend-annotation-panel-list"></div>
+        </section>
+    `;
+
+    document.body.appendChild(panel);
+    panel.addEventListener('click', handleTrendAnnotationPanelClick);
+    trendAnnotationPanelReady = true;
+}
+
+function setTrendAnnotationPanelOpen(isOpen) {
+    ensureTrendAnnotationPanel();
+    const panel = document.getElementById('trend-annotation-panel');
+    if (!panel) return;
+
+    panel.classList.toggle('is-open', isOpen);
+    panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    document.body.classList.toggle('trend-annotation-panel-open', isOpen);
+
+    if (isOpen) loadTrendAnnotationPanelPage(trendAnnotationPanelState.page || 1);
+}
+
+function renderTrendAnnotationPanelList() {
+    ensureTrendAnnotationPanel();
+    const list = document.getElementById('trend-annotation-panel-list');
+    if (!list) return;
+
+    if (trendAnnotationPanelState.isLoading) {
+        list.innerHTML = `
+            <div class="trend-annotation-empty is-loading">
+                <i class="trend-annotation-empty-icon" aria-hidden="true"></i>
+                <strong>Cargando anotaciones</strong>
+                <p>Consultando el historial operativo paginado.</p>
+            </div>
+        `;
+        return;
+    }
+
+    if (trendAnnotationPanelState.error) {
+        list.innerHTML = `
+            <div class="trend-annotation-empty is-error">
+                <i class="trend-annotation-empty-icon" aria-hidden="true"></i>
+                <strong>No se pudo cargar el historial</strong>
+                <p>${escapeHtml(trendAnnotationPanelState.error)}</p>
+            </div>
+        `;
+        return;
+    }
+
+    const panelAnnotations = trendAnnotationPanelState.items || [];
+    const totalPages = Math.max(1, Math.ceil((trendAnnotationPanelState.total || 0) / trendAnnotationPanelState.pageSize));
+
+    if (!panelAnnotations.length) {
+        list.innerHTML = `
+            <div class="trend-annotation-empty">
+                <i class="trend-annotation-empty-icon" aria-hidden="true"></i>
+                <strong>Sin anotaciones registradas</strong>
+                <p>Haz click sobre un punto de las gráficas para documentar una variación operativa.</p>
+            </div>
+        `;
+        return;
+    }
+
+    const listMarkup = panelAnnotations.map(annotation => {
+        const author = annotation.updated_by_email || annotation.created_by_email || 'Ingeniería';
+        const auditDate = annotation.updated_at || annotation.created_at;
+        const pointValue = annotation.point_value === null || annotation.point_value === undefined
+            ? '--'
+            : `${Number(annotation.point_value).toLocaleString('es-VE')}${getAnnotationUnit(annotation.variable_key)}`;
+
+        return `
+            <article class="trend-annotation-item" data-annotation-id="${escapeHtml(annotation.id)}">
+                <div class="trend-annotation-item-top">
+                    <div>
+                        <span>${escapeHtml(annotation.pozo_name || '--')}</span>
+                        <h3>${escapeHtml(annotation.variable_label || annotation.variable_key || '--')}: ${escapeHtml(pointValue)}</h3>
+                    </div>
+                    <small>${escapeHtml(formatAnnotationDateTime(annotation.point_fecha, annotation.point_hora))}</small>
+                </div>
+                <p>${escapeHtml(annotation.comment)}</p>
+                <footer>
+                    <div>
+                        <b>${escapeHtml(author)}</b>
+                        <small>${escapeHtml(formatAnnotationAuditDate(auditDate))}</small>
+                    </div>
+                    ${canManageChartAnnotations() ? `
+                        <div class="trend-annotation-item-actions">
+                            <button type="button" data-annotation-edit="${escapeHtml(annotation.id)}">Editar</button>
+                            <button type="button" class="is-danger" data-annotation-delete="${escapeHtml(annotation.id)}">Eliminar</button>
+                        </div>
+                    ` : ''}
+                </footer>
+            </article>
+        `;
+    }).join('');
+
+    const paginationMarkup = `
+        <nav class="trend-annotation-pagination" aria-label="Paginación de anotaciones">
+            <button type="button" data-annotation-page="${trendAnnotationPanelState.page - 1}" ${trendAnnotationPanelState.page <= 1 ? 'disabled' : ''}>Anterior</button>
+            <span>Página ${trendAnnotationPanelState.page} de ${totalPages} · ${trendAnnotationPanelState.total} anotaciones</span>
+            <button type="button" data-annotation-page="${trendAnnotationPanelState.page + 1}" ${trendAnnotationPanelState.page >= totalPages ? 'disabled' : ''}>Siguiente</button>
+        </nav>
+    `;
+
+    list.innerHTML = `${paginationMarkup}${listMarkup}${paginationMarkup}`;
+}
+
+async function handleTrendAnnotationPanelClick(event) {
+    const closeTarget = event.target.closest('[data-annotation-close]');
+    if (closeTarget) {
+        setTrendAnnotationPanelOpen(false);
+        return;
+    }
+
+    const editTarget = event.target.closest('[data-annotation-edit]');
+    if (editTarget) {
+        const annotation = trendAnnotationPanelState.items.find(item => item.id === editTarget.dataset.annotationEdit)
+            || trendAnnotations.find(item => item.id === editTarget.dataset.annotationEdit);
+        if (!annotation) return;
+        setTrendAnnotationPanelOpen(false);
+        await openTrendAnnotationModal(annotationToPointMeta(annotation));
+        return;
+    }
+
+    const deleteTarget = event.target.closest('[data-annotation-delete]');
+    if (deleteTarget) {
+        await confirmDeleteTrendAnnotation(deleteTarget.dataset.annotationDelete);
+        return;
+    }
+
+    const pageTarget = event.target.closest('[data-annotation-page]');
+    if (pageTarget && !pageTarget.disabled) {
+        await loadTrendAnnotationPanelPage(pageTarget.dataset.annotationPage);
+    }
+}
+
+async function confirmDeleteTrendAnnotation(annotationId) {
+    const annotation = trendAnnotationPanelState.items.find(item => item.id === annotationId)
+        || trendAnnotations.find(item => item.id === annotationId);
+    if (!annotation || !canManageChartAnnotations()) return;
+
+    const result = await window.Swal.fire({
+        title: 'Eliminar anotación',
+        html: `
+            <div class="trend-annotation-delete-modal">
+                <p>Esta anotación dejará de verse en el dashboard, pero quedará registrada con auditoría.</p>
+                <strong>${escapeHtml(annotation.pozo_name)} · ${escapeHtml(annotation.variable_label || annotation.variable_key)}</strong>
+                <textarea id="trend-annotation-delete-reason" placeholder="Motivo opcional de eliminación"></textarea>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Eliminar anotación',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc2626',
+        preConfirm: () => document.getElementById('trend-annotation-delete-reason')?.value?.trim() || ''
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        await deleteMonitoringPointAnnotation(annotation.id, result.value);
+        trendAnnotations = trendAnnotations.filter(item => item.id !== annotation.id);
+        syncTrendAnnotationCount();
+        await loadTrendAnnotationPanelPage(trendAnnotationPanelState.page);
+        await updateDashboard();
+        setTrendAnnotationPanelOpen(true);
+    } catch (error) {
+        await window.Swal.fire({ icon: 'error', title: 'No se pudo eliminar', text: error?.message || 'Error eliminando la anotación.' });
+    }
+}
+
+function buildTrendAnnotationMarkers(series = []) {
+    const markers = [];
+
+    series.forEach((serie, seriesIndex) => {
+        (serie.data || []).forEach((point, dataPointIndex) => {
+            if (!point?.meta || !getAnnotationByPointMeta(point.meta)) return;
+            markers.push({
+                seriesIndex,
+                dataPointIndex,
+                fillColor: '#f59e0b',
+                strokeColor: '#0f172a',
+                size: 8,
+                shape: 'circle'
+            });
+        });
+    });
+
+    return markers;
+}
+
+function buildTrendAnnotationTooltip({ series, seriesIndex, dataPointIndex, w }) {
+    const serie = w?.config?.series?.[seriesIndex];
+    const point = serie?.data?.[dataPointIndex];
+    const pointMeta = point?.meta || null;
+    if (!pointMeta) return '';
+
+    const annotation = getAnnotationByPointMeta(pointMeta);
+    const value = series?.[seriesIndex]?.[dataPointIndex] ?? point.y ?? '--';
+
+    return `
+        <div class="dashboard-annotation-tooltip">
+            <strong>${escapeHtml(formatAnnotationDateTime(pointMeta.fecha, pointMeta.hora))}</strong>
+            <span>${escapeHtml(serie?.name || pointMeta.variableLabel || 'Variable')}: ${escapeHtml(value)}${escapeHtml(pointMeta.unit || '')}</span>
+            ${annotation ? `
+                <div>
+                    <b>Anotación</b>
+                    <p>${escapeHtml(annotation.comment)}</p>
+                    <small>${escapeHtml(annotation.updated_by_email || annotation.created_by_email || 'Ingeniería')}</small>
+                </div>
+            ` : canManageChartAnnotations() ? '<em>Click en el punto para agregar anotación.</em>' : ''}
+        </div>
+    `;
 }
 
 function getTrendWindowRecordCount() {
@@ -89,6 +566,36 @@ function setTrendWindowMode(mode, syncControl = true) {
         const pozoName = document.getElementById('filter-pozo')?.value || '';
         syncTrendWindowControl(Boolean(pozoName));
     }
+}
+
+function getTrendInteractionChartOptions() {
+    return {
+        chart: {
+            toolbar: { show: trendChartInteractionEnabled },
+            zoom: { enabled: trendChartInteractionEnabled },
+            selection: { enabled: trendChartInteractionEnabled }
+        }
+    };
+}
+
+function syncTrendInteractionControl() {
+    const button = document.getElementById('trend-interaction-toggle');
+    if (!button) return;
+
+    button.classList.toggle('is-active', trendChartInteractionEnabled);
+    button.setAttribute('aria-pressed', trendChartInteractionEnabled ? 'true' : 'false');
+    const label = button.querySelector('span');
+    if (label) label.textContent = trendChartInteractionEnabled ? 'Explorar grafica' : 'Scroll seguro';
+}
+
+function setTrendChartInteractionEnabled(isEnabled) {
+    trendChartInteractionEnabled = Boolean(isEnabled);
+    sessionStorage.setItem(TREND_INTERACTION_STORAGE_KEY, trendChartInteractionEnabled ? '1' : '0');
+    syncTrendInteractionControl();
+
+    TREND_CHART_IDS.forEach(id => {
+        if (charts[id]) charts[id].updateOptions(getTrendInteractionChartOptions(), false, false, false);
+    });
 }
 
 async function applyFocusedMonitoringRange(pozoName, latestDateOverride = null) {
@@ -544,6 +1051,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const accessProfile = getAccessProfile(session);
+    dashboardAccessProfile = accessProfile;
     if (accessProfile.isFieldOperator) {
         window.location.href = 'field.html';
         return;
@@ -780,6 +1288,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         syncTrendWindowControl(Boolean(document.getElementById('filter-pozo')?.value));
     }
 
+    const trendAnnotationsBtn = document.getElementById('trend-annotations-btn');
+    if (trendAnnotationsBtn) {
+        trendAnnotationsBtn.addEventListener('click', () => setTrendAnnotationPanelOpen(true));
+        syncTrendAnnotationCount();
+    }
+
+    const trendInteractionToggle = document.getElementById('trend-interaction-toggle');
+    if (trendInteractionToggle) {
+        trendInteractionToggle.addEventListener('click', () => setTrendChartInteractionEnabled(!trendChartInteractionEnabled));
+        syncTrendInteractionControl();
+    }
+
     // Permite moverse entre registros historicos del pozo activo.
     const shiftDate = (delta) => {
         const currentValue = getSelectedHistoricalRecordValue();
@@ -944,6 +1464,7 @@ async function updateDashboard() {
 
         renderKPIs(activeRecord);
         renderStatusDonut(data, activeRecord);
+        await loadTrendAnnotations(selectedPozos, timelineData);
         renderCoreTrends(timelineData, selectedPozos, {
             latestRecordsOnly: shouldUseFocusedTrendData,
             latestRecordCount: requestedRecordCount
@@ -1287,11 +1808,21 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
         chart: {
             type: 'area',
             height: 220,
-            toolbar: { show: true },
-            zoom: { enabled: true },
+            toolbar: { show: trendChartInteractionEnabled },
+            zoom: { enabled: trendChartInteractionEnabled },
+            selection: { enabled: trendChartInteractionEnabled },
             animations: { enabled: true, easing: 'easeinout', speed: 800 },
             background: 'transparent',
-            fontFamily: 'Outfit, Inter, sans-serif'
+            fontFamily: 'Outfit, Inter, sans-serif',
+            events: {
+                dataPointMouseEnter: (event) => {
+                    if (event?.target?.style) event.target.style.cursor = 'pointer';
+                },
+                dataPointSelection: async (_event, _chartContext, config) => {
+                    const pointMeta = getTrendPointMetaFromApex(config);
+                    if (pointMeta) await openTrendAnnotationModal(pointMeta);
+                }
+            }
         },
         theme: { mode: effectiveMode },
         stroke: { curve: latestRecordsOnly ? 'straight' : 'smooth', width: 4, connectNulls: true },
@@ -1348,8 +1879,9 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             }
         },
         tooltip: {
-            shared: true,
-            intersect: false,
+            shared: false,
+            intersect: true,
+            custom: buildTrendAnnotationTooltip,
             x: {
                 formatter: (value) => {
                     const date = new Date(value);
@@ -1406,7 +1938,7 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
         })()
     });
 
-    const makeSeries = (nameSuffix, field, pozo) => ({
+    const makeSeries = (nameSuffix, field, pozo, chartKey, unit) => ({
         name: isComparison ? `${pozo} (${nameSuffix})` : nameSuffix,
         data: scopedTimeline
             .filter(d => d.pozo_name === pozo)
@@ -1427,87 +1959,72 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
 
                 return {
                     x: pointTimestamp,
-                    y: Number.isFinite(numericValue) ? numericValue : null
+                    y: Number.isFinite(numericValue) ? numericValue : null,
+                    meta: {
+                        operationalScope: getActiveOperationalScope(),
+                        pozoName: pozo,
+                        chartKey,
+                        variableKey: field,
+                        variableLabel: nameSuffix,
+                        fecha: d.fecha,
+                        hora: d.hora,
+                        value: Number.isFinite(numericValue) ? numericValue : null,
+                        unit
+                    }
                 };
             })
             .filter(Boolean)
     });
 
+    const renderTrendChart = (id, title, colors, unit, axisBase, series) => {
+        const baseOptions = getBaseOptions(title, colors, unit, axisBase);
+        renderOrUpdate(id, {
+            ...baseOptions,
+            markers: {
+                ...baseOptions.markers,
+                discrete: buildTrendAnnotationMarkers(series)
+            },
+            yaxis: {
+                ...baseOptions.yaxis,
+                ...getExpandedAxisConfig(axisBase, series)
+            },
+            series
+        });
+    };
+
     // 1. FRECUENCIA
-    const freqSeries = pozosPresentes.map(p => makeSeries('Hz', 'frecuencia', p));
-    renderOrUpdate('chart-frecuencia', {
-        ...getBaseOptions('Frecuencia (Hz)', REPSOL_ORANGE, 'Hz', TREND_AXIS_BASES.frecuencia),
-        yaxis: {
-            ...getBaseOptions('Frecuencia (Hz)', REPSOL_ORANGE, 'Hz', TREND_AXIS_BASES.frecuencia).yaxis,
-            ...getExpandedAxisConfig(TREND_AXIS_BASES.frecuencia, freqSeries)
-        },
-        series: freqSeries
-    });
+    const freqSeries = pozosPresentes.map(p => makeSeries('Hz', 'frecuencia', p, 'chart-frecuencia', 'Hz'));
+    renderTrendChart('chart-frecuencia', 'Frecuencia (Hz)', REPSOL_ORANGE, 'Hz', TREND_AXIS_BASES.frecuencia, freqSeries);
 
     // 2. PIP (FONDO)
-    const pipSeries = pozosPresentes.map(p => makeSeries('PSI', 'pip', p));
-    renderOrUpdate('chart-pip', {
-        ...getBaseOptions('Presión PIP (PSI)', REPSOL_RED, 'PSI', TREND_AXIS_BASES.pip),
-        yaxis: {
-            ...getBaseOptions('Presión PIP (PSI)', REPSOL_RED, 'PSI', TREND_AXIS_BASES.pip).yaxis,
-            ...getExpandedAxisConfig(TREND_AXIS_BASES.pip, pipSeries)
-        },
-        series: pipSeries
-    });
+    const pipSeries = pozosPresentes.map(p => makeSeries('PSI', 'pip', p, 'chart-pip', 'PSI'));
+    renderTrendChart('chart-pip', 'Presión PIP (PSI)', REPSOL_RED, 'PSI', TREND_AXIS_BASES.pip, pipSeries);
 
     // 3. TM (MOTOR)
-    const tmSeries = pozosPresentes.map(p => makeSeries('°F', 'tm', p));
-    renderOrUpdate('chart-tm', {
-        ...getBaseOptions('Temperatura Motor (°F)', TECH_PURPLE, '°F', TREND_AXIS_BASES.tm),
-        yaxis: {
-            ...getBaseOptions('Temperatura Motor (°F)', TECH_PURPLE, '°F', TREND_AXIS_BASES.tm).yaxis,
-            ...getExpandedAxisConfig(TREND_AXIS_BASES.tm, tmSeries)
-        },
-        series: tmSeries
-    });
+    const tmSeries = pozosPresentes.map(p => makeSeries('°F', 'tm', p, 'chart-tm', '°F'));
+    renderTrendChart('chart-tm', 'Temperatura Motor (°F)', TECH_PURPLE, '°F', TREND_AXIS_BASES.tm, tmSeries);
 
     // 4. SUPERFICIE (THP / CHP / LF)
     const surfSeries = [];
     pozosPresentes.forEach(p => {
-        surfSeries.push(makeSeries('THP', 'presion_thp', p));
-        surfSeries.push(makeSeries('CHP', 'presion_chp', p));
-        surfSeries.push(makeSeries('LF', 'presion_lf', p));
+        surfSeries.push(makeSeries('THP', 'presion_thp', p, 'chart-superficie', 'PSI'));
+        surfSeries.push(makeSeries('CHP', 'presion_chp', p, 'chart-superficie', 'PSI'));
+        surfSeries.push(makeSeries('LF', 'presion_lf', p, 'chart-superficie', 'PSI'));
     });
-    renderOrUpdate('chart-superficie', {
-        ...getBaseOptions('Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN, '#0F766E'], 'PSI', TREND_AXIS_BASES.superficie),
-        yaxis: {
-            ...getBaseOptions('Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN, '#0F766E'], 'PSI', TREND_AXIS_BASES.superficie).yaxis,
-            ...getExpandedAxisConfig(TREND_AXIS_BASES.superficie, surfSeries)
-        },
-        series: surfSeries
-    });
+    renderTrendChart('chart-superficie', 'Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN, '#0F766E'], 'PSI', TREND_AXIS_BASES.superficie, surfSeries);
 
     // 5. CORRIENTE MOTOR
-    const currSeries = pozosPresentes.map(p => makeSeries('Amp', 'corriente_motor', p));
-    renderOrUpdate('chart-motor-curr', {
-        ...getBaseOptions('Corriente Motor (Amp)', TECH_BLUE, 'Amp', TREND_AXIS_BASES.corrienteMotor),
-        yaxis: {
-            ...getBaseOptions('Corriente Motor (Amp)', TECH_BLUE, 'Amp', TREND_AXIS_BASES.corrienteMotor).yaxis,
-            ...getExpandedAxisConfig(TREND_AXIS_BASES.corrienteMotor, currSeries)
-        },
-        series: currSeries
-    });
+    const currSeries = pozosPresentes.map(p => makeSeries('Amp', 'corriente_motor', p, 'chart-motor-curr', 'Amp'));
+    renderTrendChart('chart-motor-curr', 'Corriente Motor (Amp)', TECH_BLUE, 'Amp', TREND_AXIS_BASES.corrienteMotor, currSeries);
 
     // 6. VSD TRÍFASICO (A / B / C)
     const vsdSeries = [];
     pozosPresentes.forEach(p => {
-        vsdSeries.push(makeSeries('VSD A', 'vsd_a', p));
-        vsdSeries.push(makeSeries('VSD B', 'vsd_b', p));
-        vsdSeries.push(makeSeries('VSD C', 'vsd_c', p));
+        vsdSeries.push(makeSeries('VSD A', 'vsd_a', p, 'chart-vsd-triphase', 'Amp'));
+        vsdSeries.push(makeSeries('VSD B', 'vsd_b', p, 'chart-vsd-triphase', 'Amp'));
+        vsdSeries.push(makeSeries('VSD C', 'vsd_c', p, 'chart-vsd-triphase', 'Amp'));
     });
-    renderOrUpdate('chart-vsd-triphase', {
-        ...getBaseOptions('Corriente VSD (Amp)', ['#6366F1', '#EC4899', '#F43F5E'], 'Amp', TREND_AXIS_BASES.vsd),
-        yaxis: {
-            ...getBaseOptions('Corriente VSD (Amp)', ['#6366F1', '#EC4899', '#F43F5E'], 'Amp', TREND_AXIS_BASES.vsd).yaxis,
-            ...getExpandedAxisConfig(TREND_AXIS_BASES.vsd, vsdSeries)
-        },
-        series: vsdSeries
-    });
+    renderTrendChart('chart-vsd-triphase', 'Corriente VSD (Amp)', ['#6366F1', '#EC4899', '#F43F5E'], 'Amp', TREND_AXIS_BASES.vsd, vsdSeries);
 }
 
 function getLatestTrendWindow(timeline, latestRecordCount) {

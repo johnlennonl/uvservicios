@@ -92,6 +92,73 @@ export function redirectToDashboard(targetPath = 'dashboard.html') {
     window.location.href = targetPath;
 }
 
+function parseAnimatedNumber(value) {
+    const normalized = String(value ?? '').replace(/[^\d.-]/g, '');
+    const number = Number(normalized);
+    return Number.isFinite(number) ? number : 0;
+}
+
+function formatAnimatedNumber(value, options = {}) {
+    const roundedValue = Math.round(Number(value) || 0);
+    return options.locale === false
+        ? String(roundedValue)
+        : roundedValue.toLocaleString(options.locale || 'es-VE');
+}
+
+export function animateNumber(element, nextValue, options = {}) {
+    if (!element) return;
+
+    if (element._uvNumberAnimationFrame) {
+        cancelAnimationFrame(element._uvNumberAnimationFrame);
+        element._uvNumberAnimationFrame = '';
+    }
+    element.classList.remove('uv-number-animating');
+
+    const numericValue = Number(nextValue);
+    if (!Number.isFinite(numericValue)) {
+        element.textContent = String(nextValue ?? '');
+        element.dataset.currentValue = '';
+        return;
+    }
+
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const fromValue = element.dataset.currentValue !== undefined
+        ? parseAnimatedNumber(element.dataset.currentValue)
+        : parseAnimatedNumber(element.textContent);
+    const toValue = numericValue;
+    const suffix = options.suffix || '';
+
+    if (prefersReducedMotion || options.duration === 0 || fromValue === toValue) {
+        element.textContent = `${formatAnimatedNumber(toValue, options)}${suffix}`;
+        element.dataset.currentValue = String(toValue);
+        return;
+    }
+
+    const duration = Math.max(180, Number(options.duration || 650));
+    const startedAt = performance.now();
+    const easeOutCubic = progress => 1 - Math.pow(1 - progress, 3);
+    element.classList.add('uv-number-animating');
+
+    const tick = now => {
+        const progress = Math.min(1, (now - startedAt) / duration);
+        const eased = easeOutCubic(progress);
+        const currentValue = fromValue + (toValue - fromValue) * eased;
+        element.textContent = `${formatAnimatedNumber(currentValue, options)}${suffix}`;
+
+        if (progress < 1) {
+            element._uvNumberAnimationFrame = requestAnimationFrame(tick);
+            return;
+        }
+
+        element.textContent = `${formatAnimatedNumber(toValue, options)}${suffix}`;
+        element.dataset.currentValue = String(toValue);
+        element._uvNumberAnimationFrame = '';
+        element.classList.remove('uv-number-animating');
+    };
+
+    element._uvNumberAnimationFrame = requestAnimationFrame(tick);
+}
+
 // Global styles for JS-driven animations
 const style = document.createElement('style');
 style.textContent = `
@@ -99,6 +166,24 @@ style.textContent = `
         0%, 100% { transform: translateX(0); }
         25% { transform: translateX(-4px); }
         75% { transform: translateX(4px); }
+    }
+
+    .uv-number-animating {
+        display: inline-block;
+        animation: uvNumberLift 0.65s ease both;
+        will-change: transform;
+    }
+
+    @keyframes uvNumberLift {
+        0% { transform: translateY(2px); filter: saturate(0.95); }
+        45% { transform: translateY(-1px); filter: saturate(1.08); }
+        100% { transform: translateY(0); filter: saturate(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .uv-number-animating {
+            animation: none;
+        }
     }
 `;
 document.head.appendChild(style);

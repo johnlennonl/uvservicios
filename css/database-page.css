@@ -374,6 +374,40 @@
 .doc-type-img { background: #fef3c7; color: #d97706; }
 .doc-type-other { background: #f1f5f9; color: #475569; }
 
+.database-document-note {
+  display: grid;
+  gap: 3px;
+  min-width: 210px;
+  color: #475569;
+  line-height: 1.35;
+}
+
+.database-document-note span {
+  width: max-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.database-document-note strong {
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.database-document-note p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .btn-download-doc {
   display: inline-flex;
   align-items: center;

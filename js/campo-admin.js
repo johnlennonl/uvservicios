@@ -1,9 +1,10 @@
 import { supabase } from './supabaseClient.js';
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
 import { initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
-import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, deleteAdminFieldJourneyRecord, saveAdminFieldJourneyReview, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo } from './services/field-journey-service.js';
+import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, deleteAdminFieldJourneyRecord, saveAdminFieldJourneyReview, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo, mergeAdminFieldJourneys } from './services/field-journey-service.js';
 import { exportFieldJourneyToExcel, openFieldJourneyPdf, exportHistoricalFieldReportsToExcel } from './services/field-journey-export.js';
 import { validateFieldReport } from './modules/field/field-validation.js';
+import { animateNumber } from './ui.js';
 
 const STATUS_FILTERS = {
     pending: ['submitted', 'under_review'],
@@ -23,6 +24,26 @@ const STATUS_LABELS = {
     rejected: 'Rechazada',
     archived: 'Archivada'
 };
+
+const MERGE_SAFE_STATUSES = ['submitted', 'under_review', 'rejected'];
+
+const KPI_ALERT_CONFIG_STORAGE_KEY = 'campoAdminKpiAverageAlertRules';
+
+const DEFAULT_KPI_AVERAGE_ALERT_RULES = {
+    frecuencia: { reviewAbs: 1, alertAbs: 2 },
+    pip: { reviewAbs: 75, alertAbs: 150, reviewPct: 5, alertPct: 10 },
+    iMotor: { reviewAbs: 3, alertAbs: 6, reviewPct: 5, alertPct: 10 },
+    thp: { reviewAbs: 50, alertAbs: 100, reviewPct: 10, alertPct: 20 },
+    tm: { reviewAbs: 5, alertAbs: 10 }
+};
+
+const KPI_ALERT_CONFIG_FIELDS = [
+    { key: 'frecuencia', label: 'FREC', unit: 'Hz', help: 'Frecuencia de operación reportada.' },
+    { key: 'pip', label: 'PIP', unit: 'psi', help: 'Presión de entrada de bomba.' },
+    { key: 'iMotor', label: 'I MOTOR', unit: 'A', help: 'Corriente del motor.' },
+    { key: 'thp', label: 'THP', unit: 'psi', help: 'Presión de tubing en cabezal.' },
+    { key: 'tm', label: 'TM', unit: 'F', help: 'Temperatura de motor.' }
+];
 
 const FILTER_EMPTY_COPY = {
     pending: {
@@ -491,6 +512,7 @@ const state = {
 
 const elements = {
     refreshButton: document.getElementById('campo-admin-refresh-btn'),
+    alertConfigButton: document.getElementById('campo-admin-alert-config-btn'),
     searchInput: document.getElementById('campo-admin-search'),
     historicalExportButton: document.getElementById('campo-admin-historical-export-btn'),
     historicalAuditButton: document.getElementById('campo-admin-historical-audit-btn'),
@@ -516,6 +538,8 @@ const elements = {
     historicalModalBody: document.getElementById('campo-admin-historical-modal-body'),
     historicalAuditModal: document.getElementById('campo-admin-historical-audit-modal'),
     historicalAuditModalBody: document.getElementById('campo-admin-historical-audit-modal-body'),
+    alertConfigModal: document.getElementById('campo-admin-alert-config-modal'),
+    alertConfigModalBody: document.getElementById('campo-admin-alert-config-modal-body'),
     logoutButton: document.getElementById('logout-btn'),
     mobileLogoutButton: document.getElementById('mobile-logout-btn')
 };
@@ -581,18 +605,115 @@ function buildAdminTicketMarkup(ticket, index) {
     `;
 }
 
+let campoAdminModalScrollY = 0;
+
+function getCampoAdminModals() {
+    return [
+        elements.recordModal,
+        elements.incidentModal,
+        elements.historicalModal,
+        elements.historicalAuditModal,
+        elements.alertConfigModal
+    ].filter(Boolean);
+}
+
+function hasOpenCampoAdminModal() {
+    return getCampoAdminModals().some(modal => !modal.hidden);
+}
+
+function syncCampoAdminModalScrollLock() {
+    const shouldLock = hasOpenCampoAdminModal();
+    const isLocked = document.body.classList.contains('campo-admin-modal-open');
+
+    if (shouldLock && !isLocked) {
+        campoAdminModalScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+        document.body.style.top = `-${campoAdminModalScrollY}px`;
+        document.body.classList.add('campo-admin-modal-open');
+        return;
+    }
+
+    if (!shouldLock && isLocked) {
+        document.body.classList.remove('campo-admin-modal-open');
+        document.body.style.top = '';
+        window.scrollTo(0, campoAdminModalScrollY);
+    }
+}
+
+function openCampoAdminModal(modal) {
+    if (!modal) return;
+    modal.hidden = false;
+    syncCampoAdminModalScrollLock();
+}
+
+function closeCampoAdminModal(modal) {
+    if (!modal) return;
+    modal.hidden = true;
+    syncCampoAdminModalScrollLock();
+}
+
 function closeIncidentModal() {
     state.selectedIncidentIndex = -1;
-    if (elements.incidentModal) elements.incidentModal.hidden = true;
+    closeCampoAdminModal(elements.incidentModal);
     if (elements.incidentModalBody) elements.incidentModalBody.innerHTML = '';
 }
 
 function closeHistoricalModal() {
-    if (elements.historicalModal) elements.historicalModal.hidden = true;
+    closeCampoAdminModal(elements.historicalModal);
 }
 
 function closeHistoricalAuditModal() {
-    if (elements.historicalAuditModal) elements.historicalAuditModal.hidden = true;
+    closeCampoAdminModal(elements.historicalAuditModal);
+}
+
+function closeAlertConfigModal() {
+    closeCampoAdminModal(elements.alertConfigModal);
+    if (elements.alertConfigModalBody) elements.alertConfigModalBody.innerHTML = '';
+}
+
+function normalizeAlertRuleNumber(value) {
+    if (value === '' || value === null || value === undefined) return null;
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) && numericValue >= 0 ? numericValue : null;
+}
+
+function normalizeAlertRules(rules = {}) {
+    return Object.fromEntries(KPI_ALERT_CONFIG_FIELDS.map(field => {
+        const fallback = DEFAULT_KPI_AVERAGE_ALERT_RULES[field.key] || {};
+        const source = rules?.[field.key] && typeof rules[field.key] === 'object' ? rules[field.key] : {};
+        const normalizedRule = {};
+
+        ['reviewAbs', 'alertAbs', 'reviewPct', 'alertPct'].forEach(ruleKey => {
+            const value = normalizeAlertRuleNumber(source[ruleKey]);
+            const fallbackValue = normalizeAlertRuleNumber(fallback[ruleKey]);
+            if (value !== null) {
+                normalizedRule[ruleKey] = value;
+            } else if (fallbackValue !== null) {
+                normalizedRule[ruleKey] = fallbackValue;
+            }
+        });
+
+        return [field.key, normalizedRule];
+    }));
+}
+
+function loadAlertRules() {
+    try {
+        const stored = JSON.parse(window.localStorage?.getItem(KPI_ALERT_CONFIG_STORAGE_KEY) || 'null');
+        return normalizeAlertRules(stored || DEFAULT_KPI_AVERAGE_ALERT_RULES);
+    } catch (error) {
+        console.warn('No se pudo cargar la configuración de alertas KPI:', error);
+        return normalizeAlertRules(DEFAULT_KPI_AVERAGE_ALERT_RULES);
+    }
+}
+
+function saveAlertRules(rules = {}) {
+    const normalizedRules = normalizeAlertRules(rules);
+    window.localStorage?.setItem(KPI_ALERT_CONFIG_STORAGE_KEY, JSON.stringify(normalizedRules));
+    return normalizedRules;
+}
+
+function getKpiAverageAlertRules() {
+    return loadAlertRules();
 }
 
 function formatAuditUserSummary(emails = []) {
@@ -765,7 +886,7 @@ async function loadHistoricalAudit() {
 
 async function openHistoricalAuditModal() {
     if (!elements.historicalAuditModal || !elements.historicalAuditModalBody) return;
-    elements.historicalAuditModal.hidden = false;
+    openCampoAdminModal(elements.historicalAuditModal);
     renderHistoricalAuditModal();
     await loadHistoricalAudit();
 }
@@ -1083,7 +1204,7 @@ function buildHistoricalModalMarkup() {
 
 function openHistoricalModal() {
     if (!elements.historicalModal || !elements.historicalModalBody) return;
-    elements.historicalModal.hidden = false;
+    openCampoAdminModal(elements.historicalModal);
     elements.historicalModalBody.innerHTML = buildHistoricalModalMarkup();
     const form = elements.historicalModalBody.querySelector('#campo-admin-historical-form');
 
@@ -1182,7 +1303,7 @@ function renderIncidentModal() {
         }).join('')
         : '<div class="campo-admin-empty"><strong>Sin adjuntos</strong><p>Esta incidencia no incluye imágenes o archivos.</p></div>';
 
-    elements.incidentModal.hidden = false;
+    openCampoAdminModal(elements.incidentModal);
     elements.incidentModalBody.innerHTML = `
         <div class="campo-admin-modal-head">
             <div>
@@ -1355,6 +1476,49 @@ function getSubmitterLabel(email) {
     return `Ing: ${email}`;
 }
 
+function getAuditActorLabel(email) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const profile = state.profilesMap[cleanEmail];
+    if (profile) {
+        const roleLabel = profile.role === 'campo' ? 'Téc.' : profile.role === 'admin' ? 'Admin' : 'Ing.';
+        const nameLabel = `${profile.nombre || ''} ${profile.apellido || ''}`.trim() || profile.email || cleanEmail;
+        return `${roleLabel} ${nameLabel}`;
+    }
+
+    return cleanEmail ? `Ing. ${cleanEmail.split('@')[0]}` : 'Usuario no identificado';
+}
+
+function buildReviewLogDetailMarkup(item = {}) {
+    const metadata = item.metadata && typeof item.metadata === 'object' ? item.metadata : {};
+    const changes = Array.isArray(metadata.changes) ? metadata.changes : [];
+    const pozo = metadata.pozo || metadata.updated_pozo || '';
+    const actor = getAuditActorLabel(item.performed_by_email || item.created_by_email || item.created_by || '');
+    const actionLabel = metadata.action === 'update_record' ? 'Actualizado por' : 'Registrado por';
+    const changedLabels = [...new Set(changes.map(change => change.label || change.field).filter(Boolean))];
+
+    if (!changes.length && !pozo) {
+        return `<small>${escapeHtml(actionLabel)} ${escapeHtml(actor)}</small>`;
+    }
+
+    return `
+        <div class="campo-admin-log-detail">
+            <span>${escapeHtml(actionLabel)} ${escapeHtml(actor)}${pozo ? ` · Pozo ${escapeHtml(pozo)}` : ''}</span>
+            ${changes.length ? `
+                <div class="campo-admin-log-changed-fields">
+                    <strong>Parámetros modificados</strong>
+                    <p>${escapeHtml(changedLabels.join(', '))}</p>
+                </div>
+                <ul>
+                    ${changes.slice(0, 8).map(change => `
+                        <li><strong>${escapeHtml(change.label || change.field || 'Campo')}</strong>: ${escapeHtml(change.previous || '--')} → ${escapeHtml(change.next || '--')}</li>
+                    `).join('')}
+                </ul>
+                ${changes.length > 8 ? `<em>+${escapeHtml(String(changes.length - 8))} cambio(s) adicional(es)</em>` : ''}
+            ` : ''}
+        </div>
+    `;
+}
+
 function buildTechnicianTags(technicians = {}) {
     const tags = [
         ['Técnico 1', technicians.tecnico1],
@@ -1380,6 +1544,8 @@ function getRecordSummary(record) {
         diagnostico: getRecordField(record, 'diagnostico') || 'Sin diagnostico registrado.',
         frecuencia: getRecordField(record, 'frecuencia', 'hz'),
         thp: getRecordField(record, 'thp_psi', 'thp'),
+        iMotor: getRecordField(record, 'i_motor', 'corriente_motor'),
+        tm: getRecordField(record, 'tm_f', 'tm'),
         lf: getRecordField(record, 'lf_psi', 'lf'),
         pip: getRecordField(record, 'pip_psi'),
         pd: getRecordField(record, 'pd_psi')
@@ -1536,13 +1702,269 @@ function formatFieldValue(value, suffix = '') {
     return `${value}${suffix}`;
 }
 
-function buildCompactMetric(label, value) {
+function normalizeMetricNumber(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const normalizedValue = typeof value === 'string' ? value.replace(',', '.') : value;
+    const numericValue = Number(normalizedValue);
+    return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function formatAverageValue(metric = {}, suffix = '') {
+    const value = metric?.value;
+    if (value === undefined || value === null || value === '') return '--';
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return `${value}${suffix}`;
+
+    const roundedValue = Math.round(numericValue * 10) / 10;
+    return `${roundedValue}${suffix}`;
+}
+
+function formatDeltaValue(delta, suffix = '') {
+    if (!Number.isFinite(delta)) return '';
+    const roundedDelta = Math.round(delta * 10) / 10;
+    const sign = roundedDelta > 0 ? '+' : '';
+    return `${sign}${roundedDelta}${suffix}`;
+}
+
+function resolveAverageTone(currentValue, metric = {}, rule = {}) {
+    const currentNumber = normalizeMetricNumber(currentValue);
+    const averageNumber = normalizeMetricNumber(metric?.value);
+
+    if (currentNumber === null || averageNumber === null) {
+        return { tone: 'muted', label: 'Sin comparacion', deltaLabel: '' };
+    }
+
+    const delta = currentNumber - averageNumber;
+    const absoluteDelta = Math.abs(delta);
+    const pctDelta = averageNumber !== 0 ? (absoluteDelta / Math.abs(averageNumber)) * 100 : null;
+    const isAlert = absoluteDelta >= (rule.alertAbs ?? Infinity) || (pctDelta !== null && pctDelta >= (rule.alertPct ?? Infinity));
+    const isReview = absoluteDelta >= (rule.reviewAbs ?? Infinity) || (pctDelta !== null && pctDelta >= (rule.reviewPct ?? Infinity));
+
+    if (isAlert) return { tone: 'alert', label: 'Alerta', deltaLabel: formatDeltaValue(delta) };
+    if (isReview) return { tone: 'review', label: 'Revisar', deltaLabel: formatDeltaValue(delta) };
+    return { tone: 'ok', label: 'Normal', deltaLabel: formatDeltaValue(delta) };
+}
+
+function buildAverageHint(currentValue, metric = {}, suffix = '', rule = {}) {
+    const count = Number(metric?.count || 0);
+    if (!Number.isFinite(count) || count <= 0) {
+        return {
+            label: 'Promedio publicado',
+            value: '--',
+            countLabel: 'Sin data publicada',
+            tone: 'muted'
+        };
+    }
+
+    const comparison = resolveAverageTone(currentValue, metric, rule);
+    const deltaLabel = comparison.deltaLabel ? ` · Dif. ${comparison.deltaLabel}${suffix}` : '';
+
+    return {
+        label: 'Promedio publicado',
+        value: formatAverageValue(metric, suffix),
+        countLabel: `${count} reg${deltaLabel} · ${comparison.label}`,
+        tone: comparison.tone
+    };
+}
+
+const RECORD_OPERATIONAL_KPI_FIELDS = [
+    { key: 'frecuencia', label: 'FREC', valueKey: 'frecuencia', suffix: ' Hz' },
+    { key: 'pip', label: 'PIP', valueKey: 'pip', suffix: ' psi' },
+    { key: 'iMotor', label: 'I MOTOR', valueKey: 'iMotor', suffix: ' A' },
+    { key: 'thp', label: 'THP', valueKey: 'thp', suffix: ' psi' },
+    { key: 'tm', label: 'TM', valueKey: 'tm', suffix: ' F' }
+];
+
+function getRecordOperationalKpiComparisons(summary = {}) {
+    const averagesByPozo = state.currentDetail?.publishedAveragesByPozo || {};
+    const publishedAverages = averagesByPozo[summary.pozo]?.metrics || {};
+    const alertRules = getKpiAverageAlertRules();
+
+    return RECORD_OPERATIONAL_KPI_FIELDS.map(field => {
+        const currentValue = summary[field.valueKey];
+        const average = buildAverageHint(currentValue, publishedAverages[field.key], field.suffix, alertRules[field.key]);
+
+        return {
+            ...field,
+            currentValue,
+            currentLabel: formatFieldValue(currentValue, field.suffix),
+            average
+        };
+    });
+}
+
+function buildRecordOperationalAverageAlertList(comparisons = []) {
+    return comparisons
+        .filter(item => ['alert', 'review'].includes(item.average?.tone))
+        .map(item => `${item.label}: ${item.currentLabel} contra promedio ${item.average.value}. ${item.average.countLabel}.`);
+}
+
+function buildRecordOperationalAveragesMarkup(comparisons = []) {
+    return `
+        <details class="campo-admin-modal-section campo-admin-record-operational-panel" open>
+            <summary>Promedios operativos</summary>
+            <div class="campo-admin-record-operational-grid">
+                ${comparisons.map(item => `
+                    <article class="campo-admin-record-operational-card is-${escapeHtml(item.average?.tone || 'muted')}">
+                        <span>${escapeHtml(item.label)}</span>
+                        <strong>${escapeHtml(item.currentLabel)}</strong>
+                        <div>
+                            <small>Promedio publicado</small>
+                            <b>${escapeHtml(item.average?.value || '--')}</b>
+                        </div>
+                        <em>${escapeHtml(item.average?.countLabel || 'Sin data publicada')}</em>
+                    </article>
+                `).join('')}
+            </div>
+        </details>
+    `;
+}
+
+function buildCompactMetric(label, value, average = null) {
     return `
         <div class="campo-admin-record-compact-metric">
-            <span>${escapeHtml(label)}</span>
+            <span class="campo-admin-record-compact-metric-label">${escapeHtml(label)}</span>
             <strong>${escapeHtml(value)}</strong>
+            ${average ? `
+                <div class="campo-admin-record-compact-metric-average is-${escapeHtml(average.tone || 'ok')}">
+                    <span>${escapeHtml(average.label)}</span>
+                    <b>${escapeHtml(average.value)}</b>
+                    <small>${escapeHtml(average.countLabel)}</small>
+                </div>
+            ` : ''}
         </div>
     `;
+}
+
+function formatConfigValue(value) {
+    return value === undefined || value === null || value === '' ? '' : String(value);
+}
+
+function buildAlertConfigModalMarkup() {
+    const rules = getKpiAverageAlertRules();
+
+    return `
+        <div class="campo-admin-modal-head">
+            <div>
+                <span class="campo-admin-tag campo-admin-tag-soft">Matriz operativa</span>
+                <h3 id="campo-admin-alert-config-modal-title">Ingeniería de alertas por pozo</h3>
+                <p>Define cuándo una lectura de Campo se mantiene normal, pasa a revisión o exige alerta frente al promedio publicado del mismo pozo.</p>
+            </div>
+            <button type="button" class="campo-admin-modal-close" data-alert-config-close aria-label="Cerrar configuración">×</button>
+        </div>
+
+        <form id="campo-admin-alert-config-form" class="campo-admin-alert-config-form">
+            <div class="campo-admin-alert-config-ops">
+                <article>
+                    <span>Referencia</span>
+                    <strong>Promedio publicado</strong>
+                    <p>Últimos registros válidos en Data para el mismo pozo.</p>
+                </article>
+                <article>
+                    <span>Nivel amarillo</span>
+                    <strong>Revisar</strong>
+                    <p>La desviación amerita criterio técnico antes de publicar.</p>
+                </article>
+                <article>
+                    <span>Nivel rojo</span>
+                    <strong>Alerta</strong>
+                    <p>La desviación debe quedar visible para decisión operativa.</p>
+                </article>
+            </div>
+            <div class="campo-admin-alert-config-grid">
+                ${KPI_ALERT_CONFIG_FIELDS.map(field => {
+                    const rule = rules[field.key] || {};
+                    return `
+                        <article class="campo-admin-alert-config-card">
+                            <div class="campo-admin-alert-config-card-head">
+                                <span class="campo-admin-alert-config-code">${escapeHtml(field.label)}</span>
+                                <div>
+                                    <strong>${escapeHtml(field.help)}</strong>
+                                    <small>Unidad base: ${escapeHtml(field.unit)}</small>
+                                </div>
+                            </div>
+                            <div class="campo-admin-alert-config-inputs">
+                                <div class="campo-admin-alert-config-threshold-row is-review">
+                                    <span>Revisión</span>
+                                    <label>
+                                        <small>Diferencia ${escapeHtml(field.unit)}</small>
+                                        <input type="number" min="0" step="0.1" name="${escapeHtml(field.key)}__reviewAbs" value="${escapeHtml(formatConfigValue(rule.reviewAbs))}">
+                                    </label>
+                                    <label>
+                                        <small>Diferencia %</small>
+                                        <input type="number" min="0" step="0.1" name="${escapeHtml(field.key)}__reviewPct" value="${escapeHtml(formatConfigValue(rule.reviewPct))}" placeholder="Opcional">
+                                    </label>
+                                </div>
+                                <div class="campo-admin-alert-config-threshold-row is-alert">
+                                    <span>Alerta</span>
+                                    <label>
+                                        <small>Diferencia ${escapeHtml(field.unit)}</small>
+                                        <input type="number" min="0" step="0.1" name="${escapeHtml(field.key)}__alertAbs" value="${escapeHtml(formatConfigValue(rule.alertAbs))}">
+                                    </label>
+                                    <label>
+                                        <small>Diferencia %</small>
+                                        <input type="number" min="0" step="0.1" name="${escapeHtml(field.key)}__alertPct" value="${escapeHtml(formatConfigValue(rule.alertPct))}" placeholder="Opcional">
+                                    </label>
+                                </div>
+                            </div>
+                        </article>
+                    `;
+                }).join('')}
+            </div>
+            <div class="campo-admin-modal-actions campo-admin-alert-config-actions">
+                <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-alert-config-reset>Restaurar valores iniciales</button>
+                <button type="button" class="campo-admin-action-btn campo-admin-action-btn-secondary" data-alert-config-close>Cancelar</button>
+                <button type="submit" class="campo-admin-action-btn campo-admin-action-btn-primary">Guardar configuración</button>
+            </div>
+        </form>
+    `;
+}
+
+function collectAlertConfigFormValues(form) {
+    const formData = new FormData(form);
+    const nextRules = {};
+
+    KPI_ALERT_CONFIG_FIELDS.forEach(field => {
+        nextRules[field.key] = {};
+        ['reviewAbs', 'alertAbs', 'reviewPct', 'alertPct'].forEach(ruleKey => {
+            const value = normalizeAlertRuleNumber(formData.get(`${field.key}__${ruleKey}`));
+            if (value !== null) nextRules[field.key][ruleKey] = value;
+        });
+    });
+
+    return nextRules;
+}
+
+function bindAlertConfigModalEvents() {
+    if (!elements.alertConfigModalBody) return;
+
+    elements.alertConfigModalBody.querySelectorAll('[data-alert-config-close]').forEach(button => {
+        button.addEventListener('click', closeAlertConfigModal);
+    });
+
+    elements.alertConfigModalBody.querySelector('[data-alert-config-reset]')?.addEventListener('click', async () => {
+        saveAlertRules(DEFAULT_KPI_AVERAGE_ALERT_RULES);
+        elements.alertConfigModalBody.innerHTML = buildAlertConfigModalMarkup();
+        bindAlertConfigModalEvents();
+        if (state.currentDetail) await renderDetail(state.currentDetail);
+        await notify('Alertas restauradas a los valores iniciales.', 'success');
+    });
+
+    elements.alertConfigModalBody.querySelector('#campo-admin-alert-config-form')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        saveAlertRules(collectAlertConfigFormValues(event.currentTarget));
+        closeAlertConfigModal();
+        if (state.currentDetail) await renderDetail(state.currentDetail);
+        await notify('Configuración de alertas actualizada.', 'success');
+    });
+}
+
+function openAlertConfigModal() {
+    if (!elements.alertConfigModal || !elements.alertConfigModalBody) return;
+    openCampoAdminModal(elements.alertConfigModal);
+    elements.alertConfigModalBody.innerHTML = buildAlertConfigModalMarkup();
+    bindAlertConfigModalEvents();
 }
 
 function buildRecordDiagnosticBadge(record) {
@@ -1855,6 +2277,111 @@ async function promptJourneyDateEdit(journey) {
     return result.isConfirmed ? result.value : '';
 }
 
+function isMergeSafeStatus(status) {
+    return MERGE_SAFE_STATUSES.includes(String(status || '').trim().toLowerCase());
+}
+
+function isMergeCandidateJourney(targetJourney = {}, candidateJourney = {}) {
+    if (!candidateJourney?.id || candidateJourney.id === targetJourney.id) return false;
+    if (!isMergeSafeStatus(candidateJourney.status)) return false;
+
+    const targetDate = String(targetJourney.journey_date || '').slice(0, 10);
+    const candidateDate = String(candidateJourney.journey_date || '').slice(0, 10);
+    const targetTurn = String(targetJourney.jornada || '').trim();
+    const candidateTurn = String(candidateJourney.jornada || '').trim();
+
+    return targetDate === candidateDate && targetTurn === candidateTurn;
+}
+
+function buildMergeCandidateMarkup(candidate) {
+    const pozos = Array.isArray(candidate.pozoNames) && candidate.pozoNames.length
+        ? candidate.pozoNames.slice(0, 8).join(', ')
+        : 'Sin pozos visibles';
+
+    return `
+        <article style="border:1px solid #e2e8f0;border-radius:14px;padding:12px;background:#ffffff;display:grid;gap:6px;">
+            <strong style="color:#0f172a;font-size:0.92rem;">${escapeHtml(candidate.locacion_jornada || 'Jornada sin locación')}</strong>
+            <span style="color:#475569;font-size:0.82rem;font-weight:700;">${escapeHtml(normalizeStatusLabel(candidate.status))} · ${escapeHtml(String(candidate.total_reports || 0))} pozo(s) · ${escapeHtml(candidate.equipo_guardia || 'Sin equipo')}</span>
+            <small style="color:#64748b;line-height:1.4;">${escapeHtml(pozos)}</small>
+        </article>
+    `;
+}
+
+async function promptJourneyMergeSource(targetJourney) {
+    const candidates = (await getAdminFieldJourneys({
+        statuses: MERGE_SAFE_STATUSES,
+        limit: 160
+    })).filter(candidate => isMergeCandidateJourney(targetJourney, candidate));
+
+    if (!candidates.length) {
+        await notify('No encontré otra jornada pendiente del mismo día y turno para fusionar con esta.', 'info');
+        return null;
+    }
+
+    if (!window.Swal) {
+        const selectedId = window.prompt(`ID de jornada origen para fusionar:\n\n${candidates.map(item => `${item.id} - ${item.locacion_jornada || 'Sin locación'} (${item.total_reports || 0} pozos)`).join('\n')}`);
+        return candidates.find(item => item.id === String(selectedId || '').trim()) || null;
+    }
+
+    const optionsMarkup = candidates.map((candidate, index) => `
+        <option value="${escapeHtml(candidate.id)}" ${index === 0 ? 'selected' : ''}>
+            ${escapeHtml(candidate.locacion_jornada || 'Sin locación')} · ${escapeHtml(String(candidate.total_reports || 0))} pozo(s) · ${escapeHtml(normalizeStatusLabel(candidate.status))}
+        </option>
+    `).join('');
+
+    const result = await window.Swal.fire({
+        icon: 'question',
+        title: 'Fusionar jornada dividida',
+        html: `
+            <div style="text-align:left;display:grid;gap:14px;">
+                <div style="border:1px solid #bfdbfe;background:#eff6ff;border-radius:14px;padding:12px;color:#1e3a8a;font-weight:700;line-height:1.45;">
+                    Destino: ${escapeHtml(targetJourney.locacion_jornada || 'Jornada seleccionada')} · ${escapeHtml(String(targetJourney.total_reports || 0))} pozo(s)
+                </div>
+                <label style="display:grid;gap:8px;color:#0f172a;font-weight:800;">
+                    Jornada origen a fusionar
+                    <select id="campo-admin-merge-source" class="swal2-select" style="width:100%;margin:0;">
+                        ${optionsMarkup}
+                    </select>
+                </label>
+                <div style="display:grid;gap:8px;max-height:260px;overflow:auto;padding-right:4px;">
+                    ${candidates.map(buildMergeCandidateMarkup).join('')}
+                </div>
+                <p style="margin:0;color:#64748b;font-size:0.84rem;line-height:1.45;">
+                    Se moverán solo pozos que no estén duplicados en el destino. Si hay duplicados, la jornada origen quedará en revisión para resolverlos manualmente.
+                </p>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Revisar fusión',
+        cancelButtonText: 'Cancelar',
+        focusConfirm: false,
+        preConfirm: () => document.getElementById('campo-admin-merge-source')?.value || ''
+    });
+
+    if (!result.isConfirmed || !result.value) return null;
+    return candidates.find(item => item.id === result.value) || null;
+}
+
+async function confirmJourneyMerge(targetJourney, sourceJourney) {
+    const text = `Se moverán los pozos no duplicados desde "${sourceJourney.locacion_jornada || 'jornada origen'}" hacia "${targetJourney.locacion_jornada || 'jornada destino'}". La jornada origen se archivará si no quedan conflictos.`;
+
+    if (!window.Swal) {
+        return window.confirm(text);
+    }
+
+    const result = await window.Swal.fire({
+        icon: 'warning',
+        title: 'Confirmar fusión segura',
+        text,
+        showCancelButton: true,
+        confirmButtonText: 'Fusionar jornadas',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#0f766e'
+    });
+
+    return result.isConfirmed;
+}
+
 async function confirmPublicationPreview(preview, reviewSummary) {
     const lines = [
         `Insertará: ${preview.inserted || 0}`,
@@ -1896,9 +2423,9 @@ function renderStats() {
     const inReview = state.journeys.filter(journey => String(journey.status).toLowerCase() === 'under_review').length;
     const reports = state.journeys.reduce((sum, journey) => sum + Number(journey.total_reports || 0), 0);
 
-    elements.visibleCount.textContent = String(total);
-    elements.reviewCount.textContent = String(inReview);
-    elements.reportCount.textContent = String(reports);
+    animateNumber(elements.visibleCount, total, { duration: 620, locale: false });
+    animateNumber(elements.reviewCount, inReview, { duration: 620, locale: false });
+    animateNumber(elements.reportCount, reports, { duration: 720, locale: false });
     elements.listCount.textContent = `${total} jornada${total === 1 ? '' : 's'}`;
 }
 
@@ -2141,7 +2668,7 @@ function closeRecordModal() {
     state.recordSaving = false;
 
     if (elements.recordModal) {
-        elements.recordModal.hidden = true;
+        closeCampoAdminModal(elements.recordModal);
     }
 
     if (elements.recordModalBody) {
@@ -2270,9 +2797,17 @@ function renderRecordModal() {
     const recordPayload = getEditableRecord(record);
     const review = analyzeRecordForReview(recordPayload, state.currentDetail?.records || [], state.currentDetail?.journey || {}, record.id);
     const summary = getRecordSummary(record);
+    const operationalKpiComparisons = getRecordOperationalKpiComparisons(summary);
+    const operationalKpiAlerts = buildRecordOperationalAverageAlertList(operationalKpiComparisons);
+    const modalReview = {
+        ...review,
+        warnings: [...review.warnings, ...operationalKpiAlerts],
+        tone: review.tone === 'blocked' ? 'blocked' : operationalKpiAlerts.length || review.warnings.length ? 'warning' : review.tone,
+        label: review.tone === 'blocked' ? review.label : operationalKpiAlerts.length || review.warnings.length ? 'Con alerta' : review.label
+    };
     const isEditing = state.recordPanelMode === 'edit';
 
-    elements.recordModal.hidden = false;
+    openCampoAdminModal(elements.recordModal);
     elements.recordModalBody.innerHTML = `
         <div class="campo-admin-modal-head">
             <div>
@@ -2283,18 +2818,18 @@ function renderRecordModal() {
             <button type="button" class="campo-admin-modal-close" data-record-modal-close aria-label="Cerrar detalle de pozo">×</button>
         </div>
         <div class="campo-admin-modal-review-strip">
-            <span class="${getReviewToneClass(review.tone)}">${escapeHtml(review.label)}</span>
+            <span class="${getReviewToneClass(modalReview.tone)}">${escapeHtml(modalReview.label)}</span>
             <span class="campo-admin-tag">${escapeHtml(getRecordField(record, 'actividad') || 'Sin actividad')}</span>
             <span class="campo-admin-tag">${escapeHtml(getRecordField(record, 'estatus') || 'Sin estatus')}</span>
         </div>
         <section class="campo-admin-modal-review-panel">
             <article>
                 <strong>Bloqueos</strong>
-                <ul>${buildReviewIssueList(review.critical)}</ul>
+                <ul>${buildReviewIssueList(modalReview.critical)}</ul>
             </article>
             <article>
                 <strong>Alertas</strong>
-                <ul>${buildReviewIssueList(review.warnings)}</ul>
+                <ul>${buildReviewIssueList(modalReview.warnings)}</ul>
             </article>
         </section>
         ${isEditing ? `
@@ -2306,6 +2841,7 @@ function renderRecordModal() {
                 </div>
             </form>
         ` : `
+            ${buildRecordOperationalAveragesMarkup(operationalKpiComparisons)}
             <div class="campo-admin-modal-sections">${buildRecordPreviewSections(recordPayload)}</div>
             <div class="campo-admin-modal-actions">
                 <button type="button" class="campo-admin-action-btn campo-admin-action-btn-ghost" data-record-modal-close>Cerrar</button>
@@ -2380,8 +2916,7 @@ async function handleRecordFormSubmit(event) {
         state.recordSaving = true;
         renderRecordModal();
         await updateAdminFieldJourneyRecord(savedRecordId, payload, {
-            reviewAction: 'under_review',
-            reviewComment: `Pozo ${payload.pozo || 'sin nombre'} revisado y actualizado desde Admin Campo.`
+            reviewAction: 'under_review'
         });
 
         await loadJourneys();
@@ -2578,7 +3113,7 @@ async function renderDetail(detail) {
     closeRecordModal();
     closeIncidentModal();
 
-    const { journey, records, reviewLog } = detail;
+    const { journey, records, reviewLog, publishedAveragesByPozo = {} } = detail;
     const [serverTickets, localTickets] = await Promise.all([
         getFieldTicketsByJourney(journey.id),
         Promise.resolve(getLocalFieldTicketsByJourney(journey.id))
@@ -2594,9 +3129,11 @@ async function renderDetail(detail) {
     const isDraftJourney = journey.status === 'draft';
     const technicians = getJourneyTechnicians(journey, records);
     const reviewSummary = summarizeJourneyReview(records, journey);
+    const alertRules = getKpiAverageAlertRules();
     const recordsMarkup = records.length > 0
         ? records.map((record, index) => {
             const summary = getRecordSummary(record);
+            const publishedAverages = publishedAveragesByPozo[summary.pozo]?.metrics || {};
             const review = reviewSummary.byRecord.get(record.id) || { tone: 'warning', label: 'Con alerta' };
             const recordPosition = `${index + 1} de ${records.length}`;
             const recordStatus = getRecordField(record, 'estatus') || 'Sin estatus';
@@ -2631,11 +3168,11 @@ async function renderDetail(detail) {
                             </div>
                         </div>
                         <div class="campo-admin-record-row-metrics">
-                            ${buildCompactMetric('Frecuencia', formatFieldValue(summary.frecuencia, ' Hz'))}
-                            ${buildCompactMetric('THP', formatFieldValue(summary.thp, ' psi'))}
-                            ${buildCompactMetric('LF', formatFieldValue(summary.lf, ' psi'))}
-                            ${buildCompactMetric('PIP', formatFieldValue(summary.pip, ' psi'))}
-                            ${buildCompactMetric('PD', formatFieldValue(summary.pd, ' psi'))}
+                            ${buildCompactMetric('FREC', formatFieldValue(summary.frecuencia, ' Hz'), buildAverageHint(summary.frecuencia, publishedAverages.frecuencia, ' Hz', alertRules.frecuencia))}
+                            ${buildCompactMetric('PIP', formatFieldValue(summary.pip, ' psi'), buildAverageHint(summary.pip, publishedAverages.pip, ' psi', alertRules.pip))}
+                            ${buildCompactMetric('I MOTOR', formatFieldValue(summary.iMotor, ' A'), buildAverageHint(summary.iMotor, publishedAverages.iMotor, ' A', alertRules.iMotor))}
+                            ${buildCompactMetric('THP', formatFieldValue(summary.thp, ' psi'), buildAverageHint(summary.thp, publishedAverages.thp, ' psi', alertRules.thp))}
+                            ${buildCompactMetric('TM', formatFieldValue(summary.tm, ' F'), buildAverageHint(summary.tm, publishedAverages.tm, ' F', alertRules.tm))}
                         </div>
                     </div>
                     <div class="campo-admin-record-row-actions">
@@ -2660,7 +3197,7 @@ async function renderDetail(detail) {
                 </div>
                 <h4>${escapeHtml(item.action_label || normalizeReviewActionLabel(item.action))}</h4>
                 <p>${escapeHtml(item.comment || item.notes || 'Sin observación registrada.')}</p>
-                <small>${escapeHtml(item.performed_by_email || item.created_by_email || item.created_by || 'Usuario no identificado')}</small>
+                ${buildReviewLogDetailMarkup(item)}
             </article>
         `).join('')
         : `
@@ -2718,6 +3255,17 @@ async function renderDetail(detail) {
                             </svg>
                         </div>
                         <div class="action-card-label-v2">PDF consolidado</div>
+                    </button>
+                    <button type="button" class="campo-admin-action-card-btn-v2" data-detail-action="merge-journey">
+                        <div class="action-card-icon-v2 merge-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h6a4 4 0 0 1 4 4v6"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m14 14 3 3 3-3"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 7h-6a4 4 0 0 0-4 4v6"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m10 14-3 3-3-3"></path>
+                            </svg>
+                        </div>
+                        <div class="action-card-label-v2">Fusionar jornadas</div>
                     </button>
                     <button type="button" class="campo-admin-action-card-btn-v2 action-danger-v2" data-detail-action="delete">
                         <div class="action-card-icon-v2 delete-icon">
@@ -2805,30 +3353,6 @@ async function renderDetail(detail) {
                 <div class="campo-admin-detail-sections campo-admin-detail-sections-compact">${recordsMarkup}</div>
             </div>
         </section>
-
-        <details class="campo-admin-panel campo-admin-drawer-panel">
-            <summary class="campo-admin-drawer-summary">
-                <span class="campo-admin-drawer-label">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"></path>
-                    </svg>
-                    Historial de revisión
-                </span>
-                <span class="campo-admin-drawer-summary-side">
-                    <span class="campo-admin-count-badge">${escapeHtml(String(reviewLog.length))} evento(s)</span>
-                    <span class="campo-admin-drawer-arrow" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"></path>
-                        </svg>
-                    </span>
-                </span>
-            </summary>
-            <div class="campo-admin-drawer-content campo-admin-drawer-content-panel">
-                <p class="campo-admin-drawer-copy">Bitácora asociada a esta jornada.</p>
-                <div class="campo-admin-log-list">${reviewLogMarkup}</div>
-            </div>
-        </details>
     `;
 
     let echometerDocs = [];
@@ -2883,11 +3407,15 @@ async function renderDetail(detail) {
         const vsdListEl = document.getElementById('campo-admin-sidebar-vsd-list');
         const soportesCountEl = document.getElementById('campo-admin-sidebar-soportes-count');
         const soportesListEl = document.getElementById('campo-admin-sidebar-soportes-list');
+        const sidebarReviewCountEl = document.getElementById('campo-admin-sidebar-review-count');
+        const sidebarReviewListEl = document.getElementById('campo-admin-sidebar-review-list');
 
         if (echometerCountEl) echometerCountEl.textContent = String(echometerDocs.length);
         if (sensorCountEl) sensorCountEl.textContent = String(sensorDocs.length);
         if (vsdCountEl) vsdCountEl.textContent = String(vsdDocs.length);
         if (soportesCountEl) soportesCountEl.textContent = String(soportesDocs.length);
+        if (sidebarReviewCountEl) sidebarReviewCountEl.textContent = `${escapeHtml(String(reviewLog.length))} evento(s)`;
+        if (sidebarReviewListEl) sidebarReviewListEl.innerHTML = reviewLogMarkup;
 
         if (echometerListEl) {
             echometerListEl.innerHTML = echometerDocs.length > 0 ? echometerDocs.map(doc => `
@@ -3297,6 +3825,31 @@ async function handleDetailAction(action) {
             return;
         }
 
+        if (action === 'merge-journey') {
+            if (!isMergeSafeStatus(journey.status)) {
+                await notify('Esta jornada no está en un estado seguro para fusionar. Solo aplica a pendientes, en revisión o rechazadas.', 'error');
+                return;
+            }
+
+            const sourceJourney = await promptJourneyMergeSource(journey);
+            if (!sourceJourney) return;
+
+            const confirmed = await confirmJourneyMerge(journey, sourceJourney);
+            if (!confirmed) return;
+
+            setActionButtonsBusy(true);
+            const result = await mergeAdminFieldJourneys(journey.id, sourceJourney.id);
+            state.selectedJourneyId = journey.id;
+            await loadJourneys();
+            await selectJourney(journey.id, { keepList: true });
+
+            const conflictText = result.conflictCount
+                ? ` Quedaron ${result.conflictCount} pozo(s) duplicado(s) en revisión.`
+                : '';
+            await notify(`Se fusionaron ${result.movedCount} pozo(s) en la jornada principal.${conflictText}`, 'success');
+            return;
+        }
+
         if (action === 'delete') {
             const confirmed = await confirmDeleteJourney(journey);
             if (!confirmed) return;
@@ -3391,6 +3944,7 @@ async function bootstrap() {
     elements.logoutButton?.addEventListener('click', logout);
     elements.mobileLogoutButton?.addEventListener('click', logout);
     elements.refreshButton?.addEventListener('click', loadJourneys);
+    elements.alertConfigButton?.addEventListener('click', openAlertConfigModal);
     elements.historicalExportButton?.addEventListener('click', openHistoricalModal);
     elements.historicalAuditButton?.addEventListener('click', openHistoricalAuditModal);
     elements.searchInput?.addEventListener('input', handleSearchInput);
@@ -3413,6 +3967,11 @@ async function bootstrap() {
     elements.historicalAuditModal?.addEventListener('click', event => {
         if (event.target === elements.historicalAuditModal) {
             closeHistoricalAuditModal();
+        }
+    });
+    elements.alertConfigModal?.addEventListener('click', event => {
+        if (event.target === elements.alertConfigModal) {
+            closeAlertConfigModal();
         }
     });
 

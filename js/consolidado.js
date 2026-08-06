@@ -12,6 +12,7 @@ import {
     saveLegacyDashboardGeneralRows,
     syncTechnicalMeasurementsFromConsolidated
 } from './services/consolidado-service.js';
+import { animateNumber } from './ui.js';
 
 const TEMPLATE_STORAGE_KEY = 'uv-consolidado-template-v1';
 const DASHBOARD_GENERAL_SHEET_NAME = 'DASHBOARD GENERAL';
@@ -821,10 +822,10 @@ function renderDatabaseSummary() {
         return;
     }
 
-    if (statTotal) statTotal.textContent = Number(consolidatedSummary.total || 0).toLocaleString();
-    if (statBase) statBase.textContent = Number(consolidatedSummary.legacyCount || 0).toLocaleString();
-    if (statField) statField.textContent = Number(consolidatedSummary.fieldJourneyCount || 0).toLocaleString();
-    if (statPozos) statPozos.textContent = Number((filterOptions.pozos || []).length).toLocaleString();
+    animateNumber(statTotal, Number(consolidatedSummary.total || 0), { duration: 720 });
+    animateNumber(statBase, Number(consolidatedSummary.legacyCount || 0), { duration: 680 });
+    animateNumber(statField, Number(consolidatedSummary.fieldJourneyCount || 0), { duration: 680 });
+    animateNumber(statPozos, Number((filterOptions.pozos || []).length), { duration: 620 });
 
     if (elements.dbSummary) {
         elements.dbSummary.innerHTML = `

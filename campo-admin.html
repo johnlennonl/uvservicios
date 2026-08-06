@@ -39,6 +39,12 @@
             display: none !important;
         }
 
+        body.campo-admin-modal-open {
+            position: fixed;
+            width: 100%;
+            overflow: hidden;
+        }
+
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
         }
@@ -475,11 +481,70 @@
         }
 
         .campo-admin-toolbar {
-            padding: 14px 16px;
+            padding: 18px;
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: minmax(320px, 0.72fr) minmax(280px, 0.28fr);
+            gap: 16px;
+            align-items: stretch;
+            justify-content: stretch;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.98));
+        }
+
+        .campo-admin-toolbar-primary {
+            display: grid;
+            align-content: start;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .campo-admin-toolbar-actions {
+            display: grid;
+            grid-template-columns: 44px minmax(0, 1fr);
+            align-items: stretch;
+            justify-content: stretch;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .campo-admin-toolbar-label {
+            color: #64748b;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            line-height: 1;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-toolbar-search-card,
+        .campo-admin-toolbar-alert-card,
+        .campo-admin-toolbar-filter-card {
+            border: 1px solid rgba(226, 232, 240, 0.96);
+            background: rgba(255, 255, 255, 0.86);
+            border-radius: 16px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+        }
+
+        .campo-admin-toolbar-search-card {
+            display: grid;
+            gap: 9px;
+            padding: 12px;
+        }
+
+        .campo-admin-toolbar-alert-card {
+            display: grid;
+            gap: 8px;
+            padding: 12px;
+            background: linear-gradient(135deg, rgba(240, 253, 250, 0.98), rgba(255, 255, 255, 0.96));
+            border-color: rgba(20, 184, 166, 0.22);
+        }
+
+        .campo-admin-toolbar-filter-card {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
             gap: 12px;
             align-items: center;
+            padding: 10px 12px;
         }
 
         .campo-admin-export-strip {
@@ -595,7 +660,7 @@
             gap: 10px;
             align-items: start;
             padding: 12px 14px;
-            border-radius: 16px;
+            border-radius: 12px;
             border: 1px solid rgba(251, 191, 36, 0.34);
             background: linear-gradient(135deg, rgba(255, 251, 235, 0.98), rgba(255, 255, 255, 0.98));
         }
@@ -787,19 +852,56 @@
         .campo-admin-search {
             width: 100%;
             box-sizing: border-box;
-            border: 1px solid rgba(148, 163, 184, 0.18);
-            border-radius: 14px;
-            padding: 13px 15px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 16px;
+            padding: 13px 15px 13px 42px;
             font: inherit;
             color: var(--text-title);
-            background: #f8fafc;
+            background: #ffffff;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .campo-admin-search:focus {
+            outline: none;
+            border-color: rgba(15, 118, 110, 0.42);
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.12), 0 12px 26px rgba(15, 23, 42, 0.06);
         }
 
         .campo-admin-search-wrapper {
+            position: relative;
             display: flex;
             align-items: center;
-            gap: 8px;
             width: 100%;
+            max-width: 640px;
+            min-width: 0;
+        }
+
+        .campo-admin-search-wrapper::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #64748b;
+            border-radius: 50%;
+            box-sizing: border-box;
+            pointer-events: none;
+            opacity: 0.72;
+        }
+
+        .campo-admin-search-wrapper::after {
+            content: '';
+            position: absolute;
+            left: 29px;
+            width: 7px;
+            height: 2px;
+            border-radius: 999px;
+            background: #64748b;
+            transform: rotate(45deg) translate(3px, 7px);
+            pointer-events: none;
+            opacity: 0.72;
         }
 
         .campo-admin-refresh-btn-icon {
@@ -845,6 +947,38 @@
             animation: campo-admin-spin 1s linear infinite;
         }
 
+        .campo-admin-alert-config-trigger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 44px;
+            padding: 0 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(20, 184, 166, 0.24);
+            background: #ffffff;
+            color: #0f766e;
+            font-family: inherit;
+            font-size: 0.76rem;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(15, 118, 110, 0.08);
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .campo-admin-alert-config-trigger:hover {
+            border-color: rgba(15, 118, 110, 0.44);
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px rgba(15, 118, 110, 0.12);
+        }
+
+        .campo-admin-alert-config-trigger svg {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 auto;
+        }
+
         @keyframes campo-admin-spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
@@ -852,27 +986,43 @@
 
         .campo-admin-filter-group {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            flex-wrap: nowrap;
+            gap: 4px;
             justify-content: flex-end;
+            min-width: 0;
+            padding: 4px;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            border-radius: 14px;
+            background: #f8fafc;
+            overflow-x: auto;
+            scrollbar-width: thin;
         }
 
         .campo-admin-filter-chip {
-            border: 1px solid rgba(148, 163, 184, 0.18);
-            border-radius: 999px;
-            padding: 9px 13px;
-            background: #f8fafc;
-            color: #334155;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            padding: 9px 12px;
+            background: transparent;
+            color: #475569;
             font: inherit;
-            font-size: 0.8rem;
-            font-weight: 700;
+            font-size: 0.74rem;
+            font-weight: 900;
             cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.18s ease;
+        }
+
+        .campo-admin-filter-chip:hover {
+            background: #ffffff;
+            border-color: rgba(148, 163, 184, 0.22);
+            color: #0f172a;
         }
 
         .campo-admin-filter-chip.is-active {
-            border-color: rgba(37, 99, 235, 0.35);
-            background: rgba(37, 99, 235, 0.08);
-            color: #1D4ED8;
+            border-color: rgba(15, 118, 110, 0.24);
+            background: #ffffff;
+            color: #0f766e;
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
         }
 
         .campo-admin-count-badge {
@@ -1832,23 +1982,262 @@
 
         .campo-admin-record-row-metrics {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-            gap: 8px;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+            gap: 12px;
             padding-top: 2px;
         }
 
         .campo-admin-record-compact-metric {
-            padding: 10px;
+            min-width: 0;
+            padding: 13px;
             border-radius: 14px;
-            background: rgba(15, 23, 42, 0.03);
-            border: 1px solid rgba(226, 232, 240, 0.95);
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.98));
+            border: 1px solid rgba(20, 184, 166, 0.2);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
             display: grid;
-            gap: 4px;
+            gap: 7px;
+        }
+
+        .campo-admin-record-compact-metric-label {
+            color: #0f766e;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0;
+            text-transform: uppercase;
         }
 
         .campo-admin-record-compact-metric strong {
             color: var(--text-title);
-            font-size: 0.96rem;
+            font-size: 1rem;
+            line-height: 1.1;
+        }
+
+        .campo-admin-record-compact-metric-average {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(max-content, auto);
+            gap: 4px 10px;
+            align-items: center;
+            padding: 8px 9px;
+            border-radius: 10px;
+            background: rgba(20, 184, 166, 0.1);
+            border: 1px solid rgba(20, 184, 166, 0.16);
+            min-width: 0;
+        }
+
+        .campo-admin-record-compact-metric-average.is-ok {
+            background: rgba(20, 184, 166, 0.1);
+            border-color: rgba(20, 184, 166, 0.16);
+        }
+
+        .campo-admin-record-compact-metric-average.is-review {
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.28);
+        }
+
+        .campo-admin-record-compact-metric-average.is-alert {
+            background: rgba(239, 68, 68, 0.11);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .campo-admin-record-compact-metric-average.is-muted {
+            background: rgba(100, 116, 139, 0.08);
+            border-color: rgba(148, 163, 184, 0.2);
+        }
+
+        .campo-admin-record-compact-metric-average span {
+            color: #0f766e;
+            font-size: 0.68rem;
+            font-weight: 800;
+            line-height: 1.08;
+            overflow-wrap: anywhere;
+        }
+
+        .campo-admin-record-compact-metric-average.is-review span,
+        .campo-admin-record-compact-metric-average.is-review b {
+            color: #92400e;
+        }
+
+        .campo-admin-record-compact-metric-average.is-alert span,
+        .campo-admin-record-compact-metric-average.is-alert b {
+            color: #991b1b;
+        }
+
+        .campo-admin-record-compact-metric-average.is-muted span,
+        .campo-admin-record-compact-metric-average.is-muted b {
+            color: #475569;
+        }
+
+        .campo-admin-record-compact-metric-average b {
+            color: #134e4a;
+            font-size: 0.86rem;
+            line-height: 1.1;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .campo-admin-record-compact-metric-average small {
+            grid-column: 1 / -1;
+            color: #64748b;
+            font-size: 0.68rem;
+            font-weight: 700;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+
+        .campo-admin-alert-config-form {
+            display: grid;
+            gap: 18px;
+        }
+
+        .campo-admin-alert-config-ops {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            padding: 12px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, rgba(240, 253, 250, 0.95), rgba(239, 246, 255, 0.9));
+            border: 1px solid rgba(125, 211, 252, 0.32);
+        }
+
+        .campo-admin-alert-config-ops article {
+            display: grid;
+            gap: 4px;
+            padding: 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.84);
+            border: 1px solid rgba(226, 232, 240, 0.88);
+        }
+
+        .campo-admin-alert-config-ops span,
+        .campo-admin-alert-config-threshold-row > span {
+            color: #0f766e;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-alert-config-ops strong {
+            color: var(--text-title);
+            font-size: 0.92rem;
+        }
+
+        .campo-admin-alert-config-ops p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.76rem;
+            line-height: 1.35;
+        }
+
+        .campo-admin-alert-config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .campo-admin-alert-config-card {
+            display: grid;
+            gap: 14px;
+            padding: 16px;
+            border-radius: 16px;
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+        }
+
+        .campo-admin-alert-config-card-head {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .campo-admin-alert-config-card-head strong {
+            color: var(--text-title);
+            display: block;
+            font-size: 0.88rem;
+            line-height: 1.25;
+        }
+
+        .campo-admin-alert-config-card-head small {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            line-height: 1.35;
+        }
+
+        .campo-admin-alert-config-code {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 66px;
+            padding: 9px 10px;
+            border-radius: 12px;
+            background: #0f172a;
+            color: #ffffff;
+            font-size: 0.78rem;
+            font-weight: 900;
+            letter-spacing: 0.03em;
+        }
+
+        .campo-admin-alert-config-inputs {
+            display: grid;
+            gap: 10px;
+        }
+
+        .campo-admin-alert-config-threshold-row {
+            display: grid;
+            grid-template-columns: 86px repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            align-items: end;
+            padding: 10px;
+            border-radius: 14px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: rgba(248, 250, 252, 0.86);
+        }
+
+        .campo-admin-alert-config-threshold-row.is-review {
+            border-color: rgba(245, 158, 11, 0.24);
+            background: rgba(255, 251, 235, 0.7);
+        }
+
+        .campo-admin-alert-config-threshold-row.is-alert {
+            border-color: rgba(239, 68, 68, 0.24);
+            background: rgba(254, 242, 242, 0.72);
+        }
+
+        .campo-admin-alert-config-threshold-row.is-review > span {
+            color: #b45309;
+        }
+
+        .campo-admin-alert-config-threshold-row.is-alert > span {
+            color: #b91c1c;
+        }
+
+        .campo-admin-alert-config-inputs label {
+            display: grid;
+            gap: 5px;
+        }
+
+        .campo-admin-alert-config-inputs label small {
+            color: #475569;
+            font-size: 0.68rem;
+            font-weight: 800;
+            line-height: 1.15;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-alert-config-inputs input {
+            width: 100%;
+            border: 1px solid rgba(148, 163, 184, 0.36);
+            border-radius: 10px;
+            padding: 9px 10px;
+            color: var(--text-title);
+            font-weight: 800;
+            background: #fff;
+        }
+
+        .campo-admin-alert-config-actions {
+            justify-content: flex-end;
+            flex-wrap: wrap;
         }
 
         .campo-admin-inline-btn {
@@ -1923,6 +2312,8 @@
             padding: 24px;
             background: rgba(15, 23, 42, 0.42);
             z-index: 1200;
+            overflow: hidden;
+            overscroll-behavior: contain;
         }
 
         .campo-admin-modal[hidden] {
@@ -1933,6 +2324,9 @@
             width: min(1100px, 100%);
             max-height: calc(100vh - 48px);
             overflow: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-gutter: stable;
             border-radius: 28px;
             background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.98));
             border: 1px solid rgba(226, 232, 240, 0.98);
@@ -2000,6 +2394,159 @@
             padding-left: 18px;
             line-height: 1.55;
             margin: 8px 0 0;
+        }
+
+        .campo-admin-log-detail {
+            display: grid;
+            gap: 8px;
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(248, 250, 252, 0.92);
+            border: 1px solid rgba(226, 232, 240, 0.92);
+        }
+
+        .campo-admin-log-detail span {
+            color: #0f172a;
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+
+        .campo-admin-log-changed-fields {
+            display: grid;
+            gap: 3px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: rgba(20, 184, 166, 0.08);
+            border: 1px solid rgba(20, 184, 166, 0.18);
+        }
+
+        .campo-admin-log-changed-fields strong {
+            color: #0f766e;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-log-changed-fields p {
+            margin: 0;
+            color: #0f172a;
+            font-size: 0.8rem;
+            font-weight: 800;
+            line-height: 1.35;
+        }
+
+        .campo-admin-log-detail ul {
+            display: grid;
+            gap: 5px;
+            margin: 0;
+            padding-left: 18px;
+            color: #475569;
+            font-size: 0.76rem;
+            line-height: 1.35;
+        }
+
+        .campo-admin-log-detail strong {
+            color: #0f766e;
+        }
+
+        .campo-admin-log-detail em {
+            color: #64748b;
+            font-size: 0.74rem;
+            font-style: normal;
+            font-weight: 700;
+        }
+
+        .campo-admin-record-operational-panel {
+            background: linear-gradient(135deg, rgba(240, 253, 250, 0.9), rgba(248, 250, 252, 0.96));
+            border-color: rgba(20, 184, 166, 0.28);
+        }
+
+        .campo-admin-record-operational-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .campo-admin-record-operational-card {
+            display: grid;
+            gap: 8px;
+            min-height: 132px;
+            padding: 12px;
+            border-radius: 15px;
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+        }
+
+        .campo-admin-record-operational-card span {
+            color: #475569;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-record-operational-card strong {
+            color: #0f172a;
+            font-size: 1.08rem;
+            line-height: 1.1;
+        }
+
+        .campo-admin-record-operational-card div {
+            display: grid;
+            gap: 2px;
+            padding: 8px;
+            border-radius: 11px;
+            background: rgba(248, 250, 252, 0.95);
+        }
+
+        .campo-admin-record-operational-card small {
+            color: #64748b;
+            font-size: 0.64rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .campo-admin-record-operational-card b {
+            color: #0f172a;
+            font-size: 0.86rem;
+        }
+
+        .campo-admin-record-operational-card em {
+            color: #64748b;
+            font-size: 0.72rem;
+            font-style: normal;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .campo-admin-record-operational-card.is-ok {
+            border-color: rgba(16, 185, 129, 0.28);
+        }
+
+        .campo-admin-record-operational-card.is-ok div {
+            background: rgba(209, 250, 229, 0.72);
+        }
+
+        .campo-admin-record-operational-card.is-review {
+            border-color: rgba(245, 158, 11, 0.36);
+            background: linear-gradient(180deg, #ffffff, rgba(255, 251, 235, 0.9));
+        }
+
+        .campo-admin-record-operational-card.is-review div {
+            background: rgba(254, 243, 199, 0.82);
+        }
+
+        .campo-admin-record-operational-card.is-alert {
+            border-color: rgba(239, 68, 68, 0.38);
+            background: linear-gradient(180deg, #ffffff, rgba(254, 242, 242, 0.92));
+        }
+
+        .campo-admin-record-operational-card.is-alert div {
+            background: rgba(254, 226, 226, 0.86);
         }
 
         .campo-admin-modal-sections,
@@ -2636,14 +3183,14 @@
 
             .campo-admin-filter-group {
                 display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
+                flex-wrap: nowrap;
+                gap: 4px;
                 width: 100%;
                 justify-content: flex-start;
             }
 
             .campo-admin-filter-chip {
-                min-height: 44px;
+                min-height: 38px;
                 width: auto;
                 justify-content: center;
                 text-align: center;
@@ -2669,7 +3216,6 @@
 
             .campo-admin-ticket-summary-grid,
             .campo-admin-record-grid,
-            .campo-admin-record-row-metrics,
             .campo-admin-review-grid,
             .campo-admin-modal-review-panel,
             .campo-admin-modal-grid,
@@ -2776,6 +3322,63 @@
                 gap: 18px;
             }
 
+            .campo-admin-toolbar {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .campo-admin-toolbar-primary,
+            .campo-admin-toolbar-actions,
+            .campo-admin-toolbar-search-card,
+            .campo-admin-toolbar-alert-card,
+            .campo-admin-toolbar-filter-card,
+            .campo-admin-search-wrapper {
+                width: 100%;
+                max-width: none;
+            }
+
+            .campo-admin-toolbar-actions {
+                grid-template-columns: 46px minmax(0, 1fr);
+            }
+
+            .campo-admin-toolbar-filter-card {
+                grid-template-columns: 1fr;
+            }
+
+            .campo-admin-toolbar-filter-card > .campo-admin-toolbar-label {
+                display: none;
+            }
+
+            .campo-admin-alert-config-trigger {
+                width: 100%;
+            }
+
+            .campo-admin-record-row-metrics {
+                grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+            }
+
+            .campo-admin-record-operational-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .campo-admin-record-compact-metric-average {
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: start;
+            }
+
+            .campo-admin-alert-config-ops {
+                grid-template-columns: 1fr;
+            }
+
+            .campo-admin-alert-config-threshold-row {
+                grid-template-columns: 1fr;
+                align-items: stretch;
+            }
+
+            .campo-admin-record-compact-metric-average b {
+                text-align: right;
+            }
+
             .campo-admin-opsbar,
             .campo-admin-hero-panel,
             .campo-admin-toolbar,
@@ -2803,40 +3406,23 @@
                 padding: 16px;
             }
 
-            /* Symmetrical mobile wrap grid for filter chips */
             .campo-admin-filter-group {
                 display: flex !important;
-                flex-wrap: wrap !important;
-                gap: 8px !important;
+                flex-wrap: nowrap !important;
+                gap: 4px !important;
                 width: 100% !important;
+                overflow-x: auto;
             }
 
             .campo-admin-filter-chip {
-                min-height: 40px;
-                padding: 6px 10px;
-                font-size: 0.78rem;
+                flex: 0 0 auto !important;
+                min-height: 38px;
+                padding: 8px 11px;
+                font-size: 0.74rem;
                 white-space: nowrap;
                 text-align: center;
                 justify-content: center;
-                border-radius: 12px;
-                flex: 1 1 calc(50% - 4px) !important;
-            }
-
-            .campo-admin-filter-chip[data-status-filter="pending"] {
-                order: 1;
-            }
-            .campo-admin-filter-chip[data-status-filter="under_review"] {
-                order: 2;
-            }
-            .campo-admin-filter-chip[data-status-filter="drafts"] {
-                order: 3;
-                flex: 1 1 100% !important; /* Full width for the long 'En vivo' text */
-            }
-            .campo-admin-filter-chip[data-status-filter="approved"] {
-                order: 4;
-            }
-            .campo-admin-filter-chip[data-status-filter="all"] {
-                order: 5;
+                border-radius: 10px;
             }
 
             .campo-admin-stats,
@@ -2844,7 +3430,6 @@
             .campo-admin-ticket-summary-grid,
             .campo-admin-record-grid,
             .campo-admin-record-insights,
-            .campo-admin-record-row-metrics,
             .campo-admin-review-grid,
             .campo-admin-modal-review-panel,
             .campo-admin-modal-grid,
@@ -3004,6 +3589,16 @@
                 width: 100%;
                 justify-content: center;
             }
+
+            .campo-admin-refresh-btn-icon {
+                width: 46px;
+                flex: 0 0 46px;
+            }
+
+            .campo-admin-alert-config-trigger span {
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
         }
 
         @media (max-width: 480px) {
@@ -3056,6 +3651,32 @@
 
             .campo-admin-ticket-open-hint {
                 white-space: normal;
+            }
+
+            .campo-admin-toolbar-actions {
+                display: grid;
+                grid-template-columns: 46px minmax(0, 1fr);
+            }
+
+            .campo-admin-record-row-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .campo-admin-record-compact-metric-average {
+                grid-template-columns: 1fr;
+                align-items: start;
+            }
+
+            .campo-admin-record-compact-metric-average b {
+                text-align: left;
+            }
+
+            .campo-admin-record-compact-metric {
+                padding: 11px;
+            }
+
+            .campo-admin-record-operational-grid {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -3137,6 +3758,11 @@
         .action-card-icon-v2.pdf-icon {
             background: linear-gradient(135deg, #1d4ed8, #3b82f6);
             box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);
+        }
+
+        .action-card-icon-v2.merge-icon {
+            background: linear-gradient(135deg, #0f766e, #0891b2);
+            box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);
         }
 
         .action-card-icon-v2.delete-icon {
@@ -3263,6 +3889,41 @@
         .campo-admin-files-list {
             display: grid;
             gap: 10px;
+        }
+
+        .campo-admin-sidebar-review-panel {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(226, 232, 240, 0.95);
+            display: grid;
+            gap: 12px;
+        }
+
+        .campo-admin-sidebar-review-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .campo-admin-sidebar-review-head h4 {
+            margin: 0;
+            color: var(--text-title);
+            font-size: 0.92rem;
+            font-weight: 800;
+        }
+
+        .campo-admin-sidebar-review-head p {
+            margin: 3px 0 0;
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            line-height: 1.35;
+        }
+
+        .campo-admin-sidebar-review-list {
+            max-height: 360px;
+            overflow: auto;
+            padding-right: 4px;
         }
 
         .campo-admin-file-card {
@@ -3543,20 +4204,39 @@
             </section>
 
             <section class="campo-admin-toolbar" aria-label="Filtros de jornadas de Campo">
-                <div class="campo-admin-search-wrapper">
-                    <input type="search" id="campo-admin-search" class="campo-admin-search" placeholder="Buscar por pozo, locación, equipo o correo...">
-                    <button type="button" id="campo-admin-refresh-btn" class="campo-admin-refresh-btn-icon" aria-label="Actualizar bandeja">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                        </svg>
-                    </button>
+                <div class="campo-admin-toolbar-primary">
+                    <div class="campo-admin-toolbar-search-card">
+                        <span class="campo-admin-toolbar-label">Consulta operativa</span>
+                        <label class="campo-admin-search-wrapper" for="campo-admin-search">
+                            <input type="search" id="campo-admin-search" class="campo-admin-search" placeholder="Buscar pozo, locación, equipo o correo">
+                        </label>
+                    </div>
                 </div>
-                <div class="campo-admin-filter-group" id="campo-admin-filter-group">
-                    <button type="button" class="campo-admin-filter-chip is-active" data-status-filter="pending">Pendientes</button>
-                    <button type="button" class="campo-admin-filter-chip" data-status-filter="drafts">📡 En vivo (Jornada en Curso)</button>
-                    <button type="button" class="campo-admin-filter-chip" data-status-filter="under_review">En revisión</button>
-                    <button type="button" class="campo-admin-filter-chip" data-status-filter="approved">Aprobadas</button>
-                    <button type="button" class="campo-admin-filter-chip" data-status-filter="all">Todas</button>
+                <div class="campo-admin-toolbar-alert-card">
+                    <span class="campo-admin-toolbar-label">Control de revisión</span>
+                    <div class="campo-admin-toolbar-actions">
+                        <button type="button" id="campo-admin-refresh-btn" class="campo-admin-refresh-btn-icon" aria-label="Actualizar bandeja">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            </svg>
+                        </button>
+                        <button type="button" id="campo-admin-alert-config-btn" class="campo-admin-alert-config-trigger" aria-label="Configurar alertas de ingeniería">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 12h9.75M10.5 18h9.75M3.75 6h.008v.008H3.75V6zm0 6h.008v.008H3.75V12zm0 6h.008v.008H3.75V18z" />
+                            </svg>
+                            <span>Configurar alertas</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="campo-admin-toolbar-filter-card">
+                    <span class="campo-admin-toolbar-label">Estado</span>
+                    <div class="campo-admin-filter-group" id="campo-admin-filter-group">
+                        <button type="button" class="campo-admin-filter-chip is-active" data-status-filter="pending">Pendientes</button>
+                        <button type="button" class="campo-admin-filter-chip" data-status-filter="drafts">En vivo</button>
+                        <button type="button" class="campo-admin-filter-chip" data-status-filter="under_review">En revisión</button>
+                        <button type="button" class="campo-admin-filter-chip" data-status-filter="approved">Aprobadas</button>
+                        <button type="button" class="campo-admin-filter-chip" data-status-filter="all">Todas</button>
+                    </div>
                 </div>
             </section>
 
@@ -3630,6 +4310,17 @@
                                 <!-- Soportes (Imágenes) -->
                             </div>
                         </div>
+
+                        <div id="campo-admin-sidebar-review-panel" class="campo-admin-sidebar-review-panel">
+                            <div class="campo-admin-sidebar-review-head">
+                                <div>
+                                    <h4>Historial de revisión</h4>
+                                    <p>Bitácora asociada a esta jornada.</p>
+                                </div>
+                                <span id="campo-admin-sidebar-review-count" class="campo-admin-count-badge">0 evento(s)</span>
+                            </div>
+                            <div id="campo-admin-sidebar-review-list" class="campo-admin-log-list campo-admin-sidebar-review-list"></div>
+                        </div>
                     </div>
                 </section>
 
@@ -3682,6 +4373,12 @@
             <div id="campo-admin-historical-audit-modal" class="campo-admin-modal" hidden>
                 <div class="campo-admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="campo-admin-historical-audit-modal-title">
                     <div id="campo-admin-historical-audit-modal-body" class="campo-admin-modal-body"></div>
+                </div>
+            </div>
+
+            <div id="campo-admin-alert-config-modal" class="campo-admin-modal" hidden>
+                <div class="campo-admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="campo-admin-alert-config-modal-title">
+                    <div id="campo-admin-alert-config-modal-body" class="campo-admin-modal-body"></div>
                 </div>
             </div>
 

@@ -46,6 +46,7 @@ body.operational-scope-bmm {
 }
 
 .operational-scope-switcher {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 10px;
@@ -97,6 +98,103 @@ body.operational-scope-bmm {
     cursor: pointer;
 }
 
+.operational-scope-switcher.is-custom-select {
+    padding-right: 8px;
+}
+
+.operational-scope-trigger {
+    min-width: 210px;
+    max-width: 280px;
+    padding: 6px 4px 6px 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 0;
+    background: transparent;
+    color: #0f172a;
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.operational-scope-trigger span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.operational-scope-trigger svg {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    color: #64748b;
+    transition: transform 0.18s ease;
+}
+
+.operational-scope-switcher.is-open .operational-scope-trigger svg {
+    transform: rotate(180deg);
+}
+
+.operational-scope-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    width: min(320px, calc(100vw - 28px));
+    padding: 6px;
+    display: grid;
+    gap: 4px;
+    border: 1px solid #dbe3ef;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px) scale(0.98);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    backdrop-filter: blur(12px);
+}
+
+.operational-scope-menu.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.operational-scope-menu.opens-up {
+    transform-origin: bottom center;
+}
+
+.operational-scope-option {
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #334155;
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.operational-scope-option:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.operational-scope-option.is-selected {
+    background: var(--scope-accent-soft);
+    color: var(--scope-accent-strong);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--scope-accent) 28%, transparent);
+}
+
 .operational-scope-switcher strong {
     color: #0f172a;
     font-size: 0.84rem;
@@ -139,6 +237,7 @@ body.operational-scope-bmm {
     }
 
     .operational-scope-switcher select,
+    .operational-scope-trigger,
     .operational-scope-switcher strong {
         min-width: 0;
         width: 100%;
@@ -147,6 +246,7 @@ body.operational-scope-bmm {
         white-space: nowrap;
         font-size: 0.8rem;
     }
+
 }
 
 /* 🔄 RESET & BASE */

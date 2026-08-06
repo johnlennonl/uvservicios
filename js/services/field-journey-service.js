@@ -47,6 +47,16 @@ async function ensureFieldAdminReadAccess() {
     }
 }
 
+async function ensureFieldAdminWriteAccess() {
+    const { session, accessProfile } = await ensureFieldSessionAccess();
+
+    if (!accessProfile.canViewManagement || accessProfile.isReadOnly) {
+        throw new Error('Tu usuario no tiene permisos para corregir jornadas administrativas.');
+    }
+
+    return session;
+}
+
 function wrapFieldJourneyError(error) {
     const message = String(error?.message || error || '');
 
@@ -85,6 +95,10 @@ function normalizePozoNames(values = []) {
     return [...new Set((Array.isArray(values) ? values : [values])
         .map(value => String(value || '').trim().toUpperCase())
         .filter(Boolean))];
+}
+
+function normalizePozoKey(value) {
+    return String(value || '').trim().toUpperCase();
 }
 
 async function resolveActiveScopeGuard(options = {}) {
@@ -162,11 +176,97 @@ function normalizeNumber(value) {
     return Number.isFinite(numericValue) ? numericValue : null;
 }
 
+function normalizePublishedMetricNumber(value) {
+    if (value === '' || value === null || value === undefined) return null;
+    const normalizedValue = typeof value === 'string' ? value.replace(',', '.') : value;
+    const numericValue = Number(normalizedValue);
+    return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function averagePublishedMetric(records = [], fieldName) {
+    const values = records
+        .map(record => normalizePublishedMetricNumber(record?.[fieldName]))
+        .filter(value => value !== null);
+
+    if (!values.length) {
+        return { value: null, count: 0 };
+    }
+
+    const total = values.reduce((sum, value) => sum + value, 0);
+    return {
+        value: total / values.length,
+        count: values.length
+    };
+}
+
+function buildPublishedMonitoringAverages(records = []) {
+    return {
+        frecuencia: averagePublishedMetric(records, 'frecuencia'),
+        pip: averagePublishedMetric(records, 'pip'),
+        iMotor: averagePublishedMetric(records, 'corriente_motor'),
+        thp: averagePublishedMetric(records, 'presion_thp'),
+        tm: averagePublishedMetric(records, 'tm')
+    };
+}
+
+async function getPublishedMonitoringAveragesByPozo(pozoNames = [], options = {}) {
+    const scopeGuard = await resolveActiveScopeGuard({
+        operationalScope: options.operationalScope,
+        pozoNames
+    });
+
+    if (!scopeGuard.pozoNames.length) return {};
+
+    const results = await Promise.all(scopeGuard.pozoNames.map(async pozoName => {
+        const query = supabase
+            .from('monitoreo_pozos')
+            .select('pozo_name, fecha, hora, frecuencia, pip, corriente_motor, presion_thp, tm')
+            .eq('pozo_name', pozoName)
+            .or(`operational_scope.eq.${scopeGuard.operationalScope},operational_scope.is.null`)
+            .order('fecha', { ascending: false })
+            .order('hora', { ascending: false })
+            .limit(7);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        return [pozoName, {
+            recordCount: Array.isArray(data) ? data.length : 0,
+            metrics: buildPublishedMonitoringAverages(data || [])
+        }];
+    }));
+
+    return Object.fromEntries(results);
+}
+
 function normalizeTimeValue(value) {
     const normalized = String(value || '').trim();
     if (!normalized) return '00:00:00';
     if (/^\d{2}:\d{2}$/.test(normalized)) return `${normalized}:00`;
     return normalized;
+}
+
+async function deleteMonitoringRowsForJourneyRecords(records = []) {
+    const normalizedRecords = (Array.isArray(records) ? records : [])
+        .map(record => ({
+            operationalScope: normalizeOperationalScopeValue(record?.operational_scope),
+            pozoName: String(record?.pozo || '').trim().toUpperCase(),
+            reportDate: record?.report_date || null,
+            reportTime: normalizeTimeValue(record?.report_time)
+        }))
+        .filter(record => record.pozoName && record.reportDate);
+
+    for (const record of normalizedRecords) {
+        const { error } = await supabase
+            .from('monitoreo_pozos')
+            .delete()
+            .eq('operational_scope', record.operationalScope)
+            .eq('pozo_name', record.pozoName)
+            .eq('fecha', record.reportDate)
+            .eq('hora', record.reportTime);
+
+        if (error) throw error;
+    }
 }
 
 function getMinutesFromTime(value) {
@@ -327,6 +427,100 @@ function sanitizeReviewAction(value) {
     return ['under_review', 'approved', 'rejected', 'published', 'reopened', 'commented'].includes(normalized)
         ? normalized
         : 'commented';
+}
+
+const FIELD_JOURNEY_AUDIT_FIELD_LABELS = {
+    tecnico_1: 'Técnico 1',
+    tecnico_2: 'Técnico 2',
+    equipo_guardia: 'Equipo de guardia',
+    locacion_jornada: 'Locación de la jornada',
+    jornada: 'Jornada',
+    pozo: 'Pozo',
+    fecha: 'Fecha',
+    hora: 'Hora',
+    campo: 'Campo',
+    ef: 'EF',
+    estado: 'Estado',
+    categoria: 'Categoría',
+    potencial: 'Potencial',
+    bruta: 'Bruta',
+    neta: 'Neta',
+    ays_percentage: '% AyS',
+    actividad: 'Actividad',
+    estatus: 'Estatus',
+    frecuencia: 'Frecuencia',
+    modo_operacion: 'Modo de operación',
+    sentido_giro: 'Sentido de giro',
+    i_motor: 'I Motor',
+    v_motor: 'V Motor',
+    out_vsd: 'Out VSD',
+    i_vsd_a: 'I VSD A',
+    i_vsd_b: 'I VSD B',
+    i_vsd_c: 'I VSD C',
+    prom_i_vsd: 'Prom I VSD',
+    desv_fase_a: 'ABS IA Prom VSD',
+    desv_fase_b: 'ABS IB Prom VSD',
+    desv_fase_c: 'ABS IC Prom VSD',
+    max_desviacion_vsd: 'Máximo ABS I VSD',
+    desbalance_corriente_vsd: '% Desbalance corriente VSD',
+    posee_sensor_fondo: 'Posee sensor de fondo',
+    descarga_datas_sensor: 'Descargó data del sensor',
+    pip_psi: 'PIP',
+    pd_psi: 'PD',
+    ti_f: 'Ti',
+    tm_f: 'Tm',
+    vx_g: 'Vx',
+    vy_g: 'Vy',
+    vz_g: 'Vz',
+    amp_nominal_motor: 'Amp nominal motor',
+    volt_nominal_motor: 'Volt nominal motor',
+    frec_max_hz: 'Frec max',
+    frec_min_hz: 'Frec min',
+    thp_psi: 'THP',
+    chp_psi: 'CHP',
+    lf_psi: 'LF',
+    observaciones_pozo: 'Observaciones',
+    diagnostico: 'Diagnóstico'
+};
+
+function normalizeAuditValue(value) {
+    if (value === undefined || value === null) return '';
+    return String(value).trim();
+}
+
+function buildFieldJourneyRecordAuditChanges(existingRecord = {}, report = {}) {
+    const previousPayload = existingRecord.raw_payload && typeof existingRecord.raw_payload === 'object' ? existingRecord.raw_payload : {};
+    return Object.keys(report || {})
+        .filter(fieldName => fieldName !== 'id')
+        .map(fieldName => {
+            const previousValue = fieldName === 'fecha'
+                ? existingRecord.report_date
+                : fieldName === 'hora'
+                    ? normalizeTimeValue(existingRecord.report_time)
+                    : previousPayload[fieldName] ?? existingRecord[fieldName] ?? '';
+            const nextValue = report[fieldName] ?? '';
+
+            return {
+                field: fieldName,
+                label: FIELD_JOURNEY_AUDIT_FIELD_LABELS[fieldName] || fieldName,
+                previous: normalizeAuditValue(previousValue),
+                next: normalizeAuditValue(nextValue)
+            };
+        })
+        .filter(change => change.previous !== change.next);
+}
+
+function buildFieldJourneyRecordReviewComment(pozo, changes = []) {
+    if (!changes.length) {
+        return `Pozo ${pozo || 'sin nombre'} revisado desde Admin Campo sin cambios de valores.`;
+    }
+
+    const changeSummary = changes
+        .slice(0, 5)
+        .map(change => `${change.label}: ${change.previous || '--'} -> ${change.next || '--'}`)
+        .join('; ');
+    const extraCount = changes.length > 5 ? ` y ${changes.length - 5} campo(s) adicional(es)` : '';
+    return `Pozo ${pozo || 'sin nombre'} actualizado desde Admin Campo. Cambios: ${changeSummary}${extraCount}.`;
 }
 
 function buildJourneyKey(report = {}, userEmail = '') {
@@ -907,10 +1101,223 @@ export async function getAdminFieldJourneyDetail(journeyId) {
             throw new Error('La jornada seleccionada no pertenece al contrato activo.');
         }
 
+        const pozoNames = normalizePozoNames(scopedRecords.map(record => record.pozo));
+        const publishedAveragesByPozo = await getPublishedMonitoringAveragesByPozo(pozoNames, {
+            operationalScope: scopeGuard.operationalScope
+        });
+
         return {
             journey: buildJourneyPreviewSummary(journey, scopedRecords),
             records: scopedRecords,
-            reviewLog: reviewLog || []
+            reviewLog: reviewLog || [],
+            publishedAveragesByPozo
+        };
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
+async function refreshAdminJourneyRollup(journeyId) {
+    const normalizedJourneyId = String(journeyId || '').trim();
+    if (!normalizedJourneyId) return;
+
+    const { data: records, error: recordsError } = await supabase
+        .from('field_journey_records')
+        .select('report_time')
+        .eq('journey_id', normalizedJourneyId);
+
+    if (recordsError) throw recordsError;
+
+    const times = (records || [])
+        .map(record => String(record.report_time || '').trim())
+        .filter(Boolean)
+        .sort((left, right) => left.localeCompare(right));
+
+    const { error: updateError } = await supabase
+        .from('field_journeys')
+        .update({
+            total_reports: records?.length || 0,
+            first_report_time: times[0] || null,
+            last_report_time: times[times.length - 1] || null
+        })
+        .eq('id', normalizedJourneyId);
+
+    if (updateError) throw updateError;
+}
+
+function validateAdminJourneyMergePair(targetJourney = {}, sourceJourney = {}) {
+    const targetStatus = normalizeJourneyStatus(targetJourney.status);
+    const sourceStatus = normalizeJourneyStatus(sourceJourney.status);
+    const allowedStatuses = ['submitted', 'under_review', 'rejected'];
+
+    if (!allowedStatuses.includes(targetStatus) || !allowedStatuses.includes(sourceStatus)) {
+        throw new Error('Solo se pueden fusionar jornadas pendientes, en revisión o rechazadas. No se toca nada aprobado, publicado, archivado ni en vivo.');
+    }
+
+    const targetDate = String(targetJourney.journey_date || '').slice(0, 10);
+    const sourceDate = String(sourceJourney.journey_date || '').slice(0, 10);
+    if (targetDate !== sourceDate) {
+        throw new Error('Por seguridad, las jornadas a fusionar deben tener la misma fecha operativa.');
+    }
+
+    if (String(targetJourney.jornada || '').trim() !== String(sourceJourney.jornada || '').trim()) {
+        throw new Error('Por seguridad, las jornadas a fusionar deben pertenecer al mismo turno.');
+    }
+}
+
+export async function mergeAdminFieldJourneys(targetJourneyId, sourceJourneyId, options = {}) {
+    const session = await ensureFieldAdminWriteAccess();
+    const targetId = normalizeUuid(targetJourneyId);
+    const sourceId = normalizeUuid(sourceJourneyId);
+
+    if (!targetId || !sourceId) {
+        throw new Error('Selecciona una jornada origen y una jornada destino válidas para fusionar.');
+    }
+
+    if (targetId === sourceId) {
+        throw new Error('La jornada origen y la jornada destino deben ser diferentes.');
+    }
+
+    try {
+        const scopeGuard = await resolveActiveScopeGuard(options);
+        if (!scopeGuard.pozoNames.length) {
+            throw new Error('El contrato activo no tiene pozos configurados para validar la fusión.');
+        }
+
+        const [{ data: journeys, error: journeysError }, { data: records, error: recordsError }] = await Promise.all([
+            supabase
+                .from('field_journeys')
+                .select('*')
+                .in('id', [targetId, sourceId]),
+            supabase
+                .from('field_journey_records')
+                .select('*')
+                .in('journey_id', [targetId, sourceId])
+                .order('report_time', { ascending: true })
+                .order('pozo', { ascending: true })
+        ]);
+
+        if (journeysError) throw journeysError;
+        if (recordsError) throw recordsError;
+
+        const journeyById = new Map((journeys || []).map(journey => [journey.id, journey]));
+        const targetJourney = journeyById.get(targetId);
+        const sourceJourney = journeyById.get(sourceId);
+
+        if (!targetJourney || !sourceJourney) {
+            throw new Error('No se encontraron ambas jornadas para fusionar.');
+        }
+
+        validateAdminJourneyMergePair(targetJourney, sourceJourney);
+
+        const allRecords = Array.isArray(records) ? records : [];
+        const scopedRecords = filterRecordsByScope(allRecords, scopeGuard);
+        const rawTargetRecords = allRecords.filter(record => record.journey_id === targetId);
+        const rawSourceRecords = allRecords.filter(record => record.journey_id === sourceId);
+        const targetRecords = scopedRecords.filter(record => record.journey_id === targetId);
+        const sourceRecords = scopedRecords.filter(record => record.journey_id === sourceId);
+
+        if (rawTargetRecords.length !== targetRecords.length || rawSourceRecords.length !== sourceRecords.length) {
+            throw new Error('La fusión fue detenida porque una de las jornadas incluye pozos fuera del contrato activo. Revisa el alcance operativo antes de continuar.');
+        }
+
+        if (!targetRecords.length || !sourceRecords.length) {
+            throw new Error('Ambas jornadas deben tener pozos del contrato activo antes de fusionar.');
+        }
+
+        const targetPozoSet = new Set(targetRecords.map(record => normalizePozoKey(record.pozo)).filter(Boolean));
+        const conflicts = sourceRecords
+            .filter(record => targetPozoSet.has(normalizePozoKey(record.pozo)))
+            .map(record => ({
+                id: record.id,
+                pozo: normalizePozoKey(record.pozo),
+                reportDate: record.report_date,
+                reportTime: normalizeTimeValue(record.report_time)
+            }));
+        const conflictIds = new Set(conflicts.map(record => record.id));
+        const recordsToMove = sourceRecords.filter(record => !conflictIds.has(record.id));
+
+        if (!recordsToMove.length) {
+            throw new Error('No hay pozos seguros para mover: todos los registros de la jornada origen ya existen en la jornada destino.');
+        }
+
+        const moveIds = recordsToMove.map(record => record.id);
+        const { error: moveError } = await supabase
+            .from('field_journey_records')
+            .update({ journey_id: targetId })
+            .in('id', moveIds);
+
+        if (moveError) throw moveError;
+
+        await refreshAdminJourneyRollup(targetId);
+        await refreshAdminJourneyRollup(sourceId);
+
+        const sourcePozoNames = recordsToMove.map(record => normalizePozoKey(record.pozo)).filter(Boolean);
+        const conflictPozoNames = conflicts.map(record => record.pozo).filter(Boolean);
+        const sourceNotes = [
+            String(sourceJourney.admin_notes || '').trim(),
+            `Fusionada parcialmente en la jornada ${targetId}. Pozos movidos: ${sourcePozoNames.join(', ')}.`
+        ].filter(Boolean).join('\n');
+
+        const { error: sourceUpdateError } = await supabase
+            .from('field_journeys')
+            .update({
+                status: conflicts.length ? 'under_review' : 'archived',
+                admin_notes: sourceNotes
+            })
+            .eq('id', sourceId);
+
+        if (sourceUpdateError) throw sourceUpdateError;
+
+        await refreshAdminJourneyRollup(sourceId);
+
+        const logRows = [
+            {
+                journey_id: targetId,
+                action: 'commented',
+                comment: `Se fusionaron ${recordsToMove.length} pozo(s) desde una jornada dividida.`,
+                performed_by_user_id: session.user.id,
+                performed_by_email: session.user.email,
+                metadata: {
+                    source: 'campo-admin-journey-merge',
+                    source_journey_id: sourceId,
+                    moved_record_ids: moveIds,
+                    moved_pozos: sourcePozoNames,
+                    conflict_pozos: conflictPozoNames
+                }
+            },
+            {
+                journey_id: sourceId,
+                action: 'commented',
+                comment: conflicts.length
+                    ? `Jornada fusionada parcialmente. Quedó en revisión por ${conflicts.length} pozo(s) duplicado(s).`
+                    : `Jornada archivada tras fusionar ${recordsToMove.length} pozo(s) en la jornada principal.`,
+                performed_by_user_id: session.user.id,
+                performed_by_email: session.user.email,
+                metadata: {
+                    source: 'campo-admin-journey-merge',
+                    target_journey_id: targetId,
+                    moved_record_ids: moveIds,
+                    moved_pozos: sourcePozoNames,
+                    conflict_pozos: conflictPozoNames
+                }
+            }
+        ];
+
+        const { error: logError } = await supabase
+            .from('field_journey_review_log')
+            .insert(logRows);
+
+        if (logError) throw logError;
+
+        return {
+            targetJourneyId: targetId,
+            sourceJourneyId: sourceId,
+            movedCount: recordsToMove.length,
+            movedPozos: sourcePozoNames,
+            conflictCount: conflicts.length,
+            conflicts,
+            sourceArchived: conflicts.length === 0
         };
     } catch (error) {
         throw wrapFieldJourneyError(error);
@@ -1036,11 +1443,20 @@ export async function deleteAdminFieldJourney(journeyId) {
     }
 
     try {
+        const { data: journeyRecords, error: recordsError } = await supabase
+            .from('field_journey_records')
+            .select('id, operational_scope, pozo, report_date, report_time')
+            .eq('journey_id', normalizedJourneyId);
+
+        if (recordsError) throw recordsError;
+
         // Eliminar del consolidado operativo primero para evitar filas huérfanas
         await supabase
             .from(CONSOLIDATED_OPERATIONAL_TABLE)
             .delete()
             .eq('source_journey_id', normalizedJourneyId);
+
+        await deleteMonitoringRowsForJourneyRecords(journeyRecords || []);
 
         const { error } = await supabase
             .from('field_journeys')
@@ -1341,13 +1757,20 @@ export async function updateAdminFieldJourneyRecord(recordId, report = {}, optio
 
         if (updateError) throw updateError;
 
+        const auditChanges = buildFieldJourneyRecordAuditChanges(existingRecord, report);
         const reviewAction = sanitizeReviewAction(options.reviewAction || 'commented');
-        const reviewComment = String(options.reviewComment || `Pozo ${updatedRecord.pozo || existingRecord.pozo} actualizado desde Admin Campo.`).trim();
+        const reviewComment = String(options.reviewComment || buildFieldJourneyRecordReviewComment(updatedRecord.pozo || existingRecord.pozo, auditChanges)).trim();
         const metadata = {
             record_id: updatedRecord.id,
             pozo: updatedRecord.pozo,
             source: 'campo-admin',
-            changed_fields: Object.keys(report || {}).filter(fieldName => fieldName !== 'id')
+            action: 'update_record',
+            changed_fields: auditChanges.map(change => change.field),
+            changes: auditChanges,
+            changed_count: auditChanges.length,
+            previous_pozo: existingRecord.pozo,
+            updated_pozo: updatedRecord.pozo,
+            updated_at_client: new Date().toISOString()
         };
 
         const { error: reviewError } = await supabase

@@ -198,6 +198,52 @@ function filterSummaryCountsByActivePozos(counts = {}) {
     return Object.fromEntries(Object.entries(counts).filter(([pozo]) => allowedPozos.has(String(pozo || '').trim().toUpperCase())));
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getCleanDocumentDescription(description = '') {
+    return String(description || '').trim().replace(/^\[JORNADA_ID:[^\]]+\]\s*/i, '').trim();
+}
+
+function isGenericFieldSupportDescription(description = '') {
+    const normalized = String(description || '').trim().toLowerCase();
+    return !normalized
+        || normalized === 'soporte de campo'
+        || normalized === 'archivo de campo'
+        || normalized.includes('adjunto enviado desde captura');
+}
+
+function renderDocumentDescription(doc = {}) {
+    const rawDescription = String(doc.descripcion || '').trim();
+    const isJourneyDocument = /^\[JORNADA_ID:[^\]]+\]/i.test(rawDescription);
+    const cleanDescription = getCleanDocumentDescription(rawDescription);
+
+    if (!isJourneyDocument) {
+        return cleanDescription ? escapeHtml(cleanDescription) : '--';
+    }
+
+    const uploadDate = doc.created_at
+        ? new Date(doc.created_at).toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })
+        : 'fecha no registrada';
+    const detailText = isGenericFieldSupportDescription(cleanDescription)
+        ? 'Soporte fotografico enviado desde Campo.'
+        : cleanDescription;
+
+    return `
+        <div class="database-document-note">
+            <span>Jornada de campo</span>
+            <strong>${escapeHtml(uploadDate)} · ${escapeHtml(doc.pozo_name || state.activePozo || 'Pozo')}</strong>
+            <p>${escapeHtml(detailText)}</p>
+        </div>
+    `;
+}
+
 /**
  * Actualiza en tiempo real las insignias de conteo de documentos en cada tarjeta de pozo.
  */
@@ -455,25 +501,25 @@ async function fetchAndRenderFiles() {
                                         </span>
                                     </td>
                                     <td>
-                                        <strong style="color:#0f172a; font-size:0.92rem;">${doc.nombre_archivo}</strong>
+                                        <strong style="color:#0f172a; font-size:0.92rem;">${escapeHtml(doc.nombre_archivo || 'Documento sin nombre')}</strong>
                                     </td>
                                     <td style="color:#64748b; font-size:0.85rem; max-width:240px;">
-                                        ${doc.descripcion || '--'}
+                                        ${renderDocumentDescription(doc)}
                                     </td>
                                     <td><span class="stats-muted-cell">${formatFileSize(doc.file_size)}</span></td>
-                                    <td><span class="stats-muted-cell">${doc.uploaded_by || 'Sistema'}</span></td>
+                                    <td><span class="stats-muted-cell">${escapeHtml(doc.uploaded_by || 'Sistema')}</span></td>
                                     <td><span class="stats-date-cell">${uploadDate}</span></td>
                                     <td style="text-align:right;">
                                         <div style="display:inline-flex; align-items:center; justify-content:flex-end; gap:8px;">
-                                            <button type="button" class="btn-preview-doc" data-url="${downloadUrl}" data-name="${doc.nombre_archivo}" data-type="${doc.file_type}" title="Previsualizar documento">
+                                            <button type="button" class="btn-preview-doc" data-url="${escapeHtml(downloadUrl)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" data-type="${escapeHtml(doc.file_type || '')}" title="Previsualizar documento">
                                                 <i class="fa-solid fa-eye"></i>
                                                 <span>VER</span>
                                             </button>
-                                            <a href="${downloadUrl}" target="_blank" download class="btn-download-doc" rel="noopener noreferrer">
+                                            <a href="${escapeHtml(downloadUrl)}" target="_blank" download class="btn-download-doc" rel="noopener noreferrer">
                                                 <i class="fa-solid fa-download"></i>
                                                 <span>DESCARGAR</span>
                                             </a>
-                                            <button type="button" class="btn-delete-doc" data-id="${doc.id}" data-path="${doc.file_path}" data-name="${doc.nombre_archivo}" title="Eliminar documento">
+                                            <button type="button" class="btn-delete-doc" data-id="${escapeHtml(doc.id)}" data-path="${escapeHtml(doc.file_path)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" title="Eliminar documento">
                                                 <i class="fa-solid fa-trash-can"></i>
                                                 <span>ELIMINAR</span>
                                             </button>

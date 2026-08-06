@@ -493,6 +493,19 @@
                         <p>Enfoca los ultimos registros para revisar el comportamiento reciente del pozo.</p>
                     </div>
                     <div class="trend-window-actions">
+                        <div class="trend-window-select-wrap trend-explore-wrap">
+                            <span class="trend-window-select-label">Interacción</span>
+                            <button type="button" id="trend-interaction-toggle" class="trend-explore-btn" aria-pressed="false">
+                                <span>Scroll seguro</span>
+                            </button>
+                        </div>
+                        <div class="trend-window-select-wrap trend-annotations-wrap">
+                            <span class="trend-window-select-label">Anotaciones</span>
+                            <button type="button" id="trend-annotations-btn" class="trend-annotations-btn">
+                                <span>Ver anotaciones</span>
+                                <strong id="trend-annotations-count">0</strong>
+                            </button>
+                        </div>
                         <label class="trend-window-select-wrap" for="trend-window-select">
                             <span class="trend-window-select-label">Vista</span>
                             <select id="trend-window-select" class="trend-window-select" aria-label="Seleccionar ventana de graficas grandes">

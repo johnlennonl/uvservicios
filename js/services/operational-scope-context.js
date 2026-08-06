@@ -121,7 +121,7 @@ export function renderOperationalScopeSwitcher(container, context, { onChange = 
 
     const activeContract = context.contracts.find(contract => contract.scope_key === context.activeScope) || context.contracts[0];
     const isBmm = activeContract?.scope_key === 'bmm';
-    const selectId = `${target.id || 'operational-scope'}-global-select`;
+    const switcherId = `${target.id || 'operational-scope'}-global-menu`;
 
     if (!context.canSwitch) {
         target.innerHTML = `
@@ -140,8 +140,10 @@ export function renderOperationalScopeSwitcher(container, context, { onChange = 
         return;
     }
 
+    document.getElementById(switcherId)?.remove();
+
     target.innerHTML = `
-        <label class="operational-scope-switcher ${isBmm ? 'scope-bmm' : 'scope-ct'}">
+        <div class="operational-scope-switcher ${isBmm ? 'scope-bmm' : 'scope-ct'} is-custom-select">
             <span class="operational-scope-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 21s7-4.35 7-11a7 7 0 0 0-14 0c0 6.65 7 11 7 11z"></path>
@@ -149,20 +151,110 @@ export function renderOperationalScopeSwitcher(container, context, { onChange = 
                 </svg>
             </span>
             <span class="operational-scope-label">Contrato</span>
-            <select id="${escapeHtml(selectId)}" aria-label="Cambiar contrato operativo">
+            <button type="button" class="operational-scope-trigger" aria-label="Cambiar contrato operativo" aria-haspopup="listbox" aria-expanded="false" aria-controls="${escapeHtml(switcherId)}">
+                <span>${escapeHtml(activeContract.display_name)}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m6 9 6 6 6-6"></path>
+                </svg>
+            </button>
+            <div id="${escapeHtml(switcherId)}" class="operational-scope-menu" role="listbox" aria-label="Contratos operativos">
                 ${context.contracts.map(contract => `
-                    <option value="${escapeHtml(contract.scope_key)}" ${contract.scope_key === context.activeScope ? 'selected' : ''}>
+                    <button type="button" class="operational-scope-option${contract.scope_key === context.activeScope ? ' is-selected' : ''}" role="option" aria-selected="${contract.scope_key === context.activeScope ? 'true' : 'false'}" data-scope-key="${escapeHtml(contract.scope_key)}">
                         ${escapeHtml(contract.display_name)}
-                    </option>
+                    </button>
                 `).join('')}
-            </select>
-        </label>
+            </div>
+        </div>
     `;
 
-    target.querySelector('select')?.addEventListener('change', event => {
-        const nextScope = setActiveOperationalScope(event.target.value);
-        if (typeof onChange === 'function') onChange(nextScope);
+    const switcher = target.querySelector('.operational-scope-switcher');
+    const trigger = target.querySelector('.operational-scope-trigger');
+    const triggerLabel = target.querySelector('.operational-scope-trigger span');
+    const menu = target.querySelector('.operational-scope-menu');
+    if (menu) document.body.appendChild(menu);
+
+    const syncSwitcherValue = scopeKey => {
+        const normalizedScope = normalizeOperationalScope(scopeKey);
+        const selectedContract = context.contracts.find(contract => contract.scope_key === normalizedScope) || context.contracts[0];
+        if (!selectedContract) return;
+
+        context.activeScope = selectedContract.scope_key;
+        if (triggerLabel) triggerLabel.textContent = selectedContract.display_name;
+        switcher?.classList.toggle('scope-bmm', selectedContract.scope_key === 'bmm');
+        switcher?.classList.toggle('scope-ct', selectedContract.scope_key !== 'bmm');
+        menu?.querySelectorAll('[data-scope-key]').forEach(option => {
+            const isSelected = option.dataset.scopeKey === selectedContract.scope_key;
+            option.classList.toggle('is-selected', isSelected);
+            option.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+        });
+    };
+
+    const closeMenu = () => {
+        switcher?.classList.remove('is-open');
+        trigger?.setAttribute('aria-expanded', 'false');
+        menu?.classList.remove('is-open');
+        menu?.removeAttribute('style');
+        menu?.classList.remove('opens-up');
+    };
+
+    const positionMenu = () => {
+        if (!switcher || !menu) return;
+        const rect = switcher.getBoundingClientRect();
+        const menuWidth = Math.min(Math.max(rect.width, 280), window.innerWidth - 24);
+        const left = Math.min(Math.max(12, rect.right - menuWidth), window.innerWidth - menuWidth - 12);
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const opensUp = spaceBelow < 150 && rect.top > spaceBelow;
+        const top = opensUp
+            ? Math.max(12, rect.top - menu.offsetHeight - 8)
+            : Math.min(window.innerHeight - 12, rect.bottom + 8);
+
+        menu.classList.toggle('opens-up', opensUp);
+        menu.style.width = `${menuWidth}px`;
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    };
+
+    trigger?.addEventListener('click', event => {
+        event.stopPropagation();
+        const willOpen = !switcher?.classList.contains('is-open');
+        document.querySelectorAll('.operational-scope-switcher.is-open').forEach(openSwitcher => {
+            openSwitcher.classList.remove('is-open');
+            openSwitcher.querySelector('.operational-scope-trigger')?.setAttribute('aria-expanded', 'false');
+        });
+        document.querySelectorAll('.operational-scope-menu.is-open').forEach(openMenu => {
+            openMenu.classList.remove('is-open', 'opens-up');
+            openMenu.removeAttribute('style');
+        });
+        if (willOpen) {
+            positionMenu();
+        }
+        switcher?.classList.toggle('is-open', willOpen);
+        menu?.classList.toggle('is-open', willOpen);
+        trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        if (willOpen) setTimeout(() => document.addEventListener('click', closeMenu, { once: true }), 0);
     });
+
+    menu?.querySelectorAll('[data-scope-key]').forEach(option => {
+        option.addEventListener('click', event => {
+            event.stopPropagation();
+            closeMenu();
+            const nextScope = setActiveOperationalScope(option.dataset.scopeKey);
+            syncSwitcherValue(nextScope);
+            if (typeof onChange === 'function') onChange(nextScope);
+        });
+    });
+
+    window.addEventListener('uv-operational-scope-change', event => {
+        syncSwitcherValue(event.detail?.scopeKey);
+    });
+
+    target.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        closeMenu();
+        trigger?.focus();
+    });
+    window.addEventListener('resize', closeMenu, { passive: true });
+    window.addEventListener('scroll', closeMenu, { passive: true });
 
     if (renderMobileMirror) renderMobileOperationalScopeMirror(target, context, onChange);
 }
