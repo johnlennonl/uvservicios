@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient.js';
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
 import { getActiveOperationalScope, initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
 import { getFieldWellsByScope } from './services/operational-contracts-service.js';
-import { initCustomReportsTab } from './stats-custom-reports.js';
+import { initCustomReportsTab, updateCustomReportWellsContext } from './stats-custom-reports.js';
 
 // Estado del Módulo de Estadísticas
 const state = {
@@ -91,7 +91,8 @@ export async function initEstadisticas() {
         state.activeScopePozoNames = [...new Set(activeScopeWells.map(well => normalizePozoName(well?.pozo_name)).filter(Boolean))];
         state.activeScopeFields = [...new Set(activeScopeWells.map(well => normalizeCampoName(well?.campo_name)).filter(Boolean))].sort();
         populateFieldFilterOptions();
-        await loadReportData();
+        updateCustomReportWellsContext();
+        await loadData();
     };
     renderOperationalScopeSwitcher(document.getElementById('stats-operational-scope-switcher'), operationalScopeContext, {
         onChange: handleOperationalScopeChange

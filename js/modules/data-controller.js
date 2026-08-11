@@ -798,15 +798,20 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             }
         });
         document.getElementById('pozo-activity-filter').addEventListener('change', renderPozoOptions);
-        document.addEventListener('click', (event) => {
+        pozoOutsideClickListener = (event) => {
             const wrapper = document.querySelector('.pozo-selector-input-wrap');
             if (wrapper && !wrapper.contains(event.target)) {
-                document.getElementById('pozo-selector-menu').classList.remove('active');
-                if (activePozo && !document.getElementById('pozo-selector-input').value.trim()) {
-                    document.getElementById('pozo-selector-input').value = activePozo;
+                const menu = document.getElementById('pozo-selector-menu');
+                if (menu) {
+                    menu.classList.remove('active');
+                }
+                const input = document.getElementById('pozo-selector-input');
+                if (activePozo && input && !input.value.trim()) {
+                    input.value = activePozo;
                 }
             }
-        });
+        };
+        document.addEventListener('click', pozoOutsideClickListener);
 
         async function selectPozo(pozo) {
             if (activeDataView !== 'history') return;

@@ -107,6 +107,12 @@ function updateNavigationActiveState(pageName) {
  * @param {boolean} [pushState=true] - Si se debe añadir el registro al historial del navegador.
  */
 export async function navigate(url, pushState = true) {
+    // Cerrar el menú "Más" móvil para evitar que se quede abierto al cambiar de sección
+    const mobileMenu = document.getElementById('mobile-more-menu');
+    if (mobileMenu) {
+        mobileMenu.classList.remove('active');
+    }
+
     const pageName = getPageName(url);
     const route = ROUTES[pageName];
 
@@ -182,6 +188,39 @@ export async function navigate(url, pushState = true) {
         // Esperar a que todas las hojas de estilo nuevas terminen de cargar
         if (linkPromises.length > 0) {
             await Promise.all(linkPromises);
+        }
+
+        // 4.1 Copiar y ejecutar scripts externos (<script src="...">) que no estén ya cargados
+        const currentScripts = Array.from(document.querySelectorAll('script')).map(el => el.getAttribute('src')).filter(Boolean);
+        const scriptPromises = [];
+        
+        doc.querySelectorAll('script').forEach(script => {
+            const src = script.getAttribute('src');
+            if (src && !currentScripts.includes(src)) {
+                const newScript = document.createElement('script');
+                newScript.setAttribute('src', src);
+                newScript.setAttribute('data-spa-script', 'true');
+                newScript.async = false;
+                
+                const type = script.getAttribute('type');
+                if (type) {
+                    newScript.setAttribute('type', type);
+                }
+                
+                const scriptPromise = new Promise(resolve => {
+                    newScript.onload = resolve;
+                    newScript.onerror = () => {
+                        console.warn(`[Router] No se pudo cargar el script: ${src}`);
+                        resolve();
+                    };
+                });
+                scriptPromises.push(scriptPromise);
+                document.head.appendChild(newScript);
+            }
+        });
+
+        if (scriptPromises.length > 0) {
+            await Promise.all(scriptPromises);
         }
 
         // 5. AHORA intercambiar el contenedor <main> en el DOM (CSS ya cargado)

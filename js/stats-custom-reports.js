@@ -948,3 +948,20 @@ function exportTableToCsv(filename) {
     link.click();
     document.body.removeChild(link);
 }
+
+export async function updateCustomReportWellsContext() {
+    try {
+        activeCustomScopePozos = [...new Set((await getActiveOperationalScopeWellNames()).map(normalizePozoName).filter(Boolean))];
+        const summaries = await getPozosHistorySummary();
+        const scopeSet = new Set(activeCustomScopePozos);
+        availableCustomPozos = (summaries || []).filter(item => scopeSet.has(normalizePozoName(item.pozo_name)));
+        
+        // Limpiar pozos seleccionados que ya no pertenezcan al nuevo contrato
+        selectedCustomWells = selectedCustomWells.filter(pozo => scopeSet.has(normalizePozoName(pozo)));
+        
+        renderCustomWellChips();
+        renderCustomWellDropdown('');
+    } catch (err) {
+        console.error('Error actualizando catálogo de pozos en Reporte Gerencial:', err);
+    }
+}

@@ -4201,7 +4201,6 @@ async function bootstrap() {
                 state.profilesMap[String(p.email || '').trim().toLowerCase()] = p;
             });
         }
-        console.log('[DEBUG] Perfiles cargados en Administrador de Campo:', state.profilesMap);
     } catch (err) {
         console.error('Error loading profiles in bootstrap:', err);
     }
