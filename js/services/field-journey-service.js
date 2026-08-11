@@ -1777,6 +1777,7 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
     let wasAlreadyPublishedOrApproved = false;
     let originalStatus = 'submitted';
     let originalPozos = [];
+    let oldRecords = null;
 
     try {
         if (!targetJourneyId && normalizedReports.length > 0) {
@@ -1820,10 +1821,11 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
                 }
 
                 // Capturar el listado original de pozos antes de eliminarlos
-                const { data: oldRecords } = await supabase
+                const { data: fetchedRecords } = await supabase
                     .from('field_journey_records')
                     .select('pozo, frecuencia, i_motor, pip_psi, thp_psi, tm_f, estatus, observaciones_pozo, actividad')
                     .eq('journey_id', targetJourneyId);
+                oldRecords = fetchedRecords;
                 if (oldRecords) {
                     originalPozos = oldRecords.map(r => String(r.pozo || '').trim().toUpperCase()).filter(Boolean);
                 }
