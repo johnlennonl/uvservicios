@@ -95,7 +95,19 @@ create table if not exists public.field_journey_review_log (
     id uuid primary key default gen_random_uuid(),
     journey_id uuid not null references public.field_journeys(id) on delete cascade,
     action text not null
-        check (action in ('submitted', 'under_review', 'approved', 'rejected', 'published', 'reopened', 'commented')),
+        check (action in (
+            'submitted', 
+            'under_review', 
+            'approved', 
+            'rejected', 
+            'published', 
+            'reopened', 
+            'commented', 
+            'updated', 
+            'recovered', 
+            'file_added', 
+            'support_report'
+        )),
     comment text,
     performed_by_user_id uuid references auth.users(id) on delete set null,
     performed_by_email text,
@@ -381,6 +393,23 @@ on public.field_journey_review_log
 for insert
 to authenticated
 with check (public.can_manage_monitoring());
+
+drop policy if exists "field review log insert own" on public.field_journey_review_log;
+create policy "field review log insert own"
+on public.field_journey_review_log
+for insert
+to authenticated
+with check (
+    exists (
+        select 1
+        from public.field_journeys journey
+        where journey.id = field_journey_review_log.journey_id
+          and (
+              auth.uid() = journey.submitted_by_user_id
+              or lower(journey.submitted_by_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+          )
+    )
+);
 
 comment on table public.field_journeys is 'Cabecera de cada jornada enviada desde Campo para revision administrativa.';
 comment on table public.field_journey_records is 'Registros por pozo asociados a una jornada; conserva columnas clave y raw_payload completo.';

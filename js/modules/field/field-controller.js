@@ -479,6 +479,7 @@ let isSubmittingJourney = false;
 let productionPrefillRequestId = 0;
 let isCaptureStarted = localStorage.getItem(CAPTURE_STARTED_STORAGE_KEY) === 'true';
 let messageComposerReports = [];
+let messageComposerSupportReports = [];
 let fieldSubmittedJourneys = [];
 let fieldAdminPreviewRequestId = 0;
 let isAutosavingJourneyDraft = false;
@@ -492,6 +493,31 @@ let supportReports = [];
 
 function getScopedFieldStorageKey(baseKey) {
     return `${baseKey}:${normalizeOperationalScope(currentOperationalScope)}`;
+}
+
+function loadSupportReportsFromStorage() {
+    try {
+        const storedSupport = localStorage.getItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY));
+        if (storedSupport) {
+            const trimmed = storedSupport.trim();
+            if (trimmed.startsWith('[')) {
+                supportReports = JSON.parse(trimmed);
+            } else if (trimmed) {
+                // Conversión de formato anterior (texto plano) al nuevo formato estructurado
+                const now = new Date();
+                const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                supportReports = [{ hora: currentTime, motivo: 'Apoyo', descripcion: trimmed }];
+                localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
+            } else {
+                supportReports = [];
+            }
+        } else {
+            supportReports = [];
+        }
+        if (!Array.isArray(supportReports)) supportReports = [];
+    } catch (e) {
+        supportReports = [];
+    }
 }
 
 function getFieldStorageItem(baseKey) {
@@ -585,13 +611,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await hydrateFieldOperationalContext(session);
     isJourneyStarted = getJourneyStartedFlag();
     restoreDraft();
-    try {
-        const storedSupport = localStorage.getItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY));
-        supportReports = storedSupport ? JSON.parse(storedSupport) : [];
-        if (!Array.isArray(supportReports)) supportReports = [];
-    } catch (e) {
-        supportReports = [];
-    }
+    loadSupportReportsFromStorage();
     sanitizeFieldHeaderForCurrentScope();
     syncJourneyFromTime();
     syncJourneyStartGate();
@@ -2269,18 +2289,26 @@ async function copyJourneyMessageToClipboard() {
 }
 
 async function copySubmittedJourneyMessageToClipboard(journeyId) {
-    const journey = await fetchSubmittedJourneyForField(journeyId);
+    const result = await fetchSubmittedJourneyForField(journeyId);
+    const journey = result?.journey;
     const reports = Array.isArray(journey?.records) ? journey.records : [];
     if (!journey || reports.length === 0) {
         showAlert('No hay registros disponibles para generar el mensaje de esta carga.', 'warning');
         return;
     }
 
-    openJourneyMessageComposer(reports);
+    openJourneyMessageComposer(reports, result.supportReports);
 }
 
-function openJourneyMessageComposer(reports = []) {
+function openJourneyMessageComposer(reports = [], temporarySupportReports = null) {
     messageComposerReports = Array.isArray(reports) ? [...reports] : [];
+    if (temporarySupportReports !== null) {
+        messageComposerSupportReports = temporarySupportReports;
+    } else {
+        loadSupportReportsFromStorage();
+        messageComposerSupportReports = [...supportReports];
+    }
+
     const modal = document.getElementById('field-message-composer-modal');
     if (!modal || messageComposerReports.length === 0) return;
 
@@ -2305,28 +2333,14 @@ function syncJourneyMessageComposerText() {
     const textArea = document.getElementById('field-message-composer-text');
     if (!textArea || messageComposerReports.length === 0) return;
 
-    try {
-        const stored = localStorage.getItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY));
-        supportReports = stored ? JSON.parse(stored) : [];
-        if (!Array.isArray(supportReports)) supportReports = [];
-    } catch (e) {
-        supportReports = [];
-    }
-
     const header = getMessageHeaderFromInputs();
-    textArea.value = buildJourneyShareMessage(messageComposerReports, header);
+    textArea.value = buildJourneyShareMessage(messageComposerReports, header, messageComposerSupportReports);
 }
 
 async function handleAddSupportReport() {
     if (!window.Swal) return;
 
-    try {
-        const stored = localStorage.getItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY));
-        supportReports = stored ? JSON.parse(stored) : [];
-        if (!Array.isArray(supportReports)) supportReports = [];
-    } catch (e) {
-        supportReports = [];
-    }
+    loadSupportReportsFromStorage();
 
     // Construir lista HTML de reportes existentes con diseño responsive premium
     let listHtml = '';
@@ -2609,7 +2623,7 @@ async function copyJourneyTextToClipboard(journeyMessage) {
     }
 }
 
-function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader = DEFAULT_MESSAGE_HEADER) {
+function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader = DEFAULT_MESSAGE_HEADER, customSupportReports = null) {
     const sortedReports = reports
         .map((report, index) => ({ report, index }))
         .sort((left, right) => {
@@ -2646,7 +2660,8 @@ function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader =
     });
 
     // 2. Mapeamos y formateamos los reportes de apoyo
-    const formattedSupports = supportReports.map(rep => {
+    const reportsToUse = customSupportReports !== null ? customSupportReports : supportReports;
+    const formattedSupports = reportsToUse.map(rep => {
         const lines = [
             `Reporte: ${String(rep.motivo || 'Apoyo').trim()}`,
             `Hora ${rep.hora || '--:--'}`,
@@ -4379,37 +4394,32 @@ async function fetchSubmittedJourneyForField(journeyId) {
         const detail = await getFieldSubmittedJourneyDetail(journeyId);
         const records = (detail.records || []).map(normalizeWorkflowRecordForField);
 
-        // Extraer y restaurar los reportes de apoyo si existen en la bitácora
+        // Extraer los reportes de apoyo si existen en la bitácora
         const supportLogs = (detail.reviewLog || [])
             .filter(log => log.action === 'support_report')
             .reverse(); // Revertir para mantener orden cronológico de creación
 
-        if (supportLogs.length > 0) {
-            supportReports = supportLogs.map(log => {
-                const comment = log.comment || '';
-                let motivo = 'Apoyo';
-                let hora = '00:00';
-                let descripcion = comment;
+        const parsedSupportReports = supportLogs.map(log => {
+            const comment = log.comment || '';
+            let motivo = 'Apoyo';
+            let hora = '00:00';
+            let descripcion = comment;
 
-                const matchNew = comment.match(/^⚡ REPORTADO: \[(.*?)\] a las (.*?)\n([\s\S]*)$/);
-                if (matchNew) {
-                    motivo = matchNew[1];
-                    hora = matchNew[2];
-                    descripcion = matchNew[3];
-                } else {
-                    const matchOld = comment.match(/^⚡ APOYO A OTRAS CUADRILLAS \(Pozos fuera de sistema\):\n([\s\S]*)$/);
-                    if (matchOld) {
-                        descripcion = matchOld[1];
-                    }
+            const matchNew = comment.match(/^⚡ REPORTADO: \[(.*?)\] a las (.*?)\n([\s\S]*)$/);
+            if (matchNew) {
+                motivo = matchNew[1];
+                hora = matchNew[2];
+                descripcion = matchNew[3];
+            } else {
+                const matchOld = comment.match(/^⚡ APOYO A OTRAS CUADRILLAS \(Pozos fuera de sistema\):\n([\s\S]*)$/);
+                if (matchOld) {
+                    descripcion = matchOld[1];
                 }
-                return { hora, motivo, descripcion };
-            });
-            localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
-        } else {
-            supportReports = [];
-            localStorage.removeItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY));
-        }
-        return buildSubmittedJourneyRecord({
+            }
+            return { hora, motivo, descripcion };
+        });
+
+        const journeyRecord = buildSubmittedJourneyRecord({
             ...detail.journey,
             id: detail.journey.id,
             fecha: detail.journey.journey_date || '',
@@ -4419,6 +4429,11 @@ async function fetchSubmittedJourneyForField(journeyId) {
             workflowStatus: detail.journey.status,
             records
         });
+
+        return {
+            journey: journeyRecord,
+            supportReports: parsedSupportReports
+        };
     } catch (error) {
         showAlert(error?.message || 'No se pudo abrir la jornada enviada.', 'error');
         return null;
@@ -4426,11 +4441,15 @@ async function fetchSubmittedJourneyForField(journeyId) {
 }
 
 async function restoreSubmittedJourneyToWorkspace(journeyId, reportId = null) {
-    const journey = await fetchSubmittedJourneyForField(journeyId);
-    if (!journey || !Array.isArray(journey.records) || journey.records.length === 0) {
+    const result = await fetchSubmittedJourneyForField(journeyId);
+    if (!result || !result.journey || !Array.isArray(result.journey.records) || result.journey.records.length === 0) {
         showAlert('No se encontró una carga válida para recuperar.', 'error');
         return;
     }
+
+    const journey = result.journey;
+    supportReports = result.supportReports || [];
+    localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
 
     const journeyShift = String(journey.jornada || journey.records[0]?.jornada || '').trim() || 'Diurna';
     const activeShift = document.getElementById('field-jornada')?.value || 'Diurna';

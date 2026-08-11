@@ -1574,7 +1574,11 @@ export async function getFieldSubmittedJourneyDetail(journeyId) {
     }
 
     try {
-        const [{ data: journey, error: journeyError }, { data: records, error: recordsError }] = await Promise.all([
+        const [
+            { data: journey, error: journeyError }, 
+            { data: records, error: recordsError },
+            { data: reviewLog, error: logError }
+        ] = await Promise.all([
             supabase
                 .from('field_journeys')
                 .select('*')
@@ -1586,18 +1590,27 @@ export async function getFieldSubmittedJourneyDetail(journeyId) {
                 .select('*')
                 .eq('journey_id', normalizedJourneyId)
                 .order('report_time', { ascending: true })
-                .order('pozo', { ascending: true })
+                .order('pozo', { ascending: true }),
+            supabase
+                .from('field_journey_review_log')
+                .select('*')
+                .eq('journey_id', normalizedJourneyId)
+                .order('created_at', { ascending: false })
         ]);
 
         if (journeyError) throw journeyError;
         if (recordsError) throw recordsError;
+        if (logError) {
+            console.warn('Could not load review log for journey:', logError);
+        }
         if (!journey) {
             throw new Error('La jornada enviada no existe o no pertenece a tu usuario.');
         }
 
         return {
             journey: buildJourneyPreviewSummary(journey, records || []),
-            records: records || []
+            records: records || [],
+            reviewLog: reviewLog || []
         };
     } catch (error) {
         throw wrapFieldJourneyError(error);
