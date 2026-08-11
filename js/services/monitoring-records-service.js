@@ -40,7 +40,7 @@ function normalizeMonitoringRecord(record = {}) {
         fecha: record.fecha || null,
         hora: normalizeMonitoringTime(record.hora),
         sentido_giro: String(record.sentido_giro || '').trim(),
-        estatus: String(record.estatus || '').trim(),
+        estatus: normalizeOperationalStatus(record.estatus) || null,
         observaciones: String(record.observaciones || '').trim()
     };
 }

@@ -1,0 +1,425 @@
+/**
+ * ====================================================================
+ * UV SERVICIOS - ENRUTADOR HYBRID SPA V.3.0
+ * ====================================================================
+ * Este módulo centraliza la navegación de la plataforma para convertirla
+ * en una aplicación de página única (SPA). Intercepta clics locales,
+ * descarga el HTML de destino, intercambia el contenedor principal en el DOM,
+ * y gestiona el ciclo de vida (init / destroy) de cada controlador.
+ */
+
+// Mapeo de rutas físicas a sus respectivos controladores y funciones de ciclo de vida
+const ROUTES = {
+    'dashboard.html': {
+        load: () => import('../charts.js'),
+        init: (m) => m.initDashboard(),
+        destroy: (m) => m.destroyDashboard()
+    },
+    'campo-admin.html': {
+        load: () => import('../campo-admin.js'),
+        init: (m) => m.initCampoAdmin(),
+        destroy: (m) => m.destroyCampoAdmin()
+    },
+    'data.html': {
+        load: () => import('../modules/data-controller.js'),
+        init: (m) => m.initData(),
+        destroy: (m) => m.destroyData()
+    },
+    'dashboard-data.html': {
+        load: () => import('../modules/dashboard-data-controller.js'),
+        init: (m) => m.initDashboardData(),
+        destroy: (m) => m.destroyDashboardData()
+    },
+    'gestion-usuarios.html': {
+        load: () => import('../gestion-usuarios.js'),
+        init: (m) => m.initGestionUsuarios(),
+        destroy: (m) => m.destroyGestionUsuarios()
+    },
+    'stats.html': {
+        load: () => import('../estadisticas.js'),
+        init: (m) => m.initEstadisticas(),
+        destroy: (m) => m.destroyEstadisticas()
+    },
+    'consolidado.html': {
+        load: () => import('../consolidado.js'),
+        init: (m) => m.initConsolidado(),
+        destroy: (m) => m.destroyConsolidado()
+    }
+};
+
+// Mantiene el estado de la página actual y el módulo cargado en memoria
+let currentPage = null;
+let currentModule = null;
+let lenisInstance = null;
+
+/**
+ * Crea e inyecta la pantalla de carga SPA en el documento si no existe.
+ */
+function ensureLoaderOverlay() {
+    let overlay = document.querySelector('.spa-navigation-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'spa-navigation-overlay';
+        overlay.innerHTML = `
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" class="spa-loader-logo" alt="UV Servicios">
+        `;
+        document.body.appendChild(overlay);
+    }
+}
+
+/**
+ * Obtiene el nombre del archivo HTML desde una URL.
+ * @param {string} url - URL completa o relativa.
+ * @returns {string} Nombre de la página (ej: 'dashboard.html').
+ */
+function getPageName(url) {
+    const parts = url.split('/');
+    const lastPart = parts[parts.length - 1] || '';
+    // Retorna el nombre de la página o el Dashboard por defecto
+    return lastPart.split('?')[0].split('#')[0] || 'dashboard.html';
+}
+
+/**
+ * Actualiza el estado visual "activo" en el menú lateral y barra móvil.
+ * @param {string} pageName - Nombre de la página activa.
+ */
+function updateNavigationActiveState(pageName) {
+    // Buscar todos los enlaces en sidebar y barra móvil
+    const links = document.querySelectorAll('a[href], button[data-href]');
+    links.forEach(link => {
+        const href = link.getAttribute('href') || link.getAttribute('data-href') || '';
+        const linkPage = getPageName(href);
+        const isActive = linkPage === pageName;
+
+        // Alternar clase active según corresponda
+        link.classList.toggle('active', isActive);
+        
+        // Soporte para links dentro del menú "Más" móvil
+        if (link.classList.contains('more-menu-item') || link.classList.contains('mobile-nav-link')) {
+            link.classList.toggle('active', isActive);
+        }
+    });
+}
+
+/**
+ * Realiza la transición de navegación SPA inyectando el nuevo contenido.
+ * @param {string} url - URL de la página a cargar.
+ * @param {boolean} [pushState=true] - Si se debe añadir el registro al historial del navegador.
+ */
+export async function navigate(url, pushState = true) {
+    const pageName = getPageName(url);
+    const route = ROUTES[pageName];
+
+    // FALLBACK HÍBRIDO: Si la página no está registrada en la SPA, navegar de forma física tradicional
+    if (!route) {
+        window.location.href = url;
+        return;
+    }
+
+
+
+    // Iniciar cronómetro de carga y mostrar pantalla de espera inmediatamente
+    const startTime = Date.now();
+    ensureLoaderOverlay();
+    document.body.classList.add('spa-navigating');
+
+    try {
+        // Esperar a que el loader cubra la pantalla (180ms de animación CSS)
+        await new Promise(resolve => setTimeout(resolve, 180));
+
+        // 1. Destrucción de la página anterior para evitar fugas de memoria
+        if (currentPage && ROUTES[currentPage]) {
+            const prevRoute = ROUTES[currentPage];
+            if (prevRoute.destroy && currentModule) {
+                try {
+                    prevRoute.destroy(currentModule);
+                } catch (e) {
+                    console.error(`[Router] Error destruyendo módulo ${currentPage}:`, e);
+                }
+            }
+        }
+
+        // 2. Fetch asíncrono del nuevo código HTML
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const htmlText = await response.text();
+
+        // 3. Parsear el HTML descargado
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, 'text/html');
+
+        // 4. PREPARAR e inyectar nuevos estilos sin remover los viejos aún (evita parpadeo/FOUC)
+        const oldSpaStyles = Array.from(document.querySelectorAll('[data-spa-styles]'));
+
+        // Copiar bloques <style> internos de la nueva página al <head>
+        doc.querySelectorAll('style').forEach(style => {
+            const newStyle = document.createElement('style');
+            newStyle.setAttribute('data-spa-styles', 'true');
+            newStyle.textContent = style.textContent;
+            document.head.appendChild(newStyle);
+        });
+
+        // Copiar hojas de estilo externas <link> y esperar a que carguen
+        const currentLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(el => el.getAttribute('href'));
+        const linkPromises = [];
+        doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && !currentLinks.includes(href)) {
+                const newLink = document.createElement('link');
+                newLink.setAttribute('rel', 'stylesheet');
+                newLink.setAttribute('href', href);
+                newLink.setAttribute('data-spa-styles', 'true');
+                // Esperar a que el CSS termine de cargar antes de mostrar el DOM
+                const loadPromise = new Promise(resolve => {
+                    newLink.onload = resolve;
+                    newLink.onerror = resolve; // No bloquear en caso de fallo
+                });
+                linkPromises.push(loadPromise);
+                document.head.appendChild(newLink);
+            }
+        });
+
+        // Esperar a que todas las hojas de estilo nuevas terminen de cargar
+        if (linkPromises.length > 0) {
+            await Promise.all(linkPromises);
+        }
+
+        // 5. AHORA intercambiar el contenedor <main> en el DOM (CSS ya cargado)
+        const newMain = doc.querySelector('.main-container');
+        const currentMain = document.querySelector('.main-container');
+        if (newMain && currentMain) {
+            currentMain.replaceWith(newMain);
+        } else {
+            throw new Error('No se encontró el contenedor .main-container en la página destino.');
+        }
+
+        // 5.1 Remover los estilos de la SPA anterior una vez que el DOM nuevo ya está en pantalla
+        oldSpaStyles.forEach(el => el.remove());
+
+        // 6. Actualizar el título y metadata
+        document.title = doc.title || 'UV Servicios';
+        
+        // 7. Actualizar las clases del Body, preservando el estado de la transición SPA
+        const wasNavigating = document.body.classList.contains('spa-navigating');
+        document.body.className = doc.body.className;
+        if (wasNavigating) {
+            document.body.classList.add('spa-navigating');
+        }
+
+        // 8. Actualizar el historial del navegador
+        if (pushState) {
+            history.pushState({ page: pageName }, '', url);
+        }
+
+        // 9. Actualizar navegación visual activa
+        updateNavigationActiveState(pageName);
+
+        // 10. Cargar dinámicamente el controlador JS
+        currentPage = pageName;
+        const module = await route.load();
+        currentModule = module;
+
+        // 11. Inicializar la nueva página (se esperan las cargas asíncronas de datos)
+        if (route.init) {
+            await route.init(module);
+        }
+
+        // 12. Ejecutar la animación de desvanecimiento de entrada
+        const duration = Date.now() - startTime;
+        // Garantizar al menos 800ms para una animación fluida sin flash
+        const remainingTime = Math.max(0, 800 - duration);
+        
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+
+        // Ocultar pantalla de espera revelando el contenido completamente cargado
+        document.body.classList.remove('spa-navigating');
+
+        // Hacer scroll al inicio de la página al cambiar de sección
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    } catch (error) {
+        console.error('[Router] Transición fallida, ejecutando navegación de respaldo:', error);
+        document.body.classList.remove('spa-navigating');
+        window.location.href = url;
+    }
+}
+
+/**
+ * Crea e inyecta el botón flotante "Volver Arriba" en la página si no existe.
+ */
+function ensureScrollToTopButton() {
+    let btn = document.getElementById('scroll-to-top-btn');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'scroll-to-top-btn';
+        btn.className = 'scroll-to-top-btn';
+        btn.setAttribute('aria-label', 'Volver arriba');
+        btn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="18 15 12 9 6 15"></polyline>
+            </svg>
+        `;
+        document.body.appendChild(btn);
+        
+        btn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 400) {
+                btn.classList.add('visible');
+            } else {
+                btn.classList.remove('visible');
+            }
+        });
+    }
+}
+
+/**
+ * Inicializa el motor de scroll inercial suave Lenis.
+ */
+function initLenis() {
+    if (typeof Lenis === 'undefined') {
+        console.warn('[Router] La librería Lenis no está disponible globalmente.');
+        return;
+    }
+
+    if (lenisInstance) {
+        lenisInstance.destroy();
+    }
+
+    lenisInstance = new Lenis({
+        duration: 1.2,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Curva expoOut premium
+        orientation: 'vertical',
+        gestureOrientation: 'vertical',
+        smoothWheel: true,
+        wheelMultiplier: 1,
+        touchMultiplier: 1.5,
+        infinite: false,
+    });
+
+    // Bucle de actualización (RequestAnimationFrame)
+    function raf(time) {
+        if (lenisInstance) {
+            lenisInstance.raf(time);
+            requestAnimationFrame(raf);
+        }
+    }
+    requestAnimationFrame(raf);
+}
+
+// Mapa para almacenar los estados de animación activa de contenedores internos
+const activeScrollAnimations = new Map();
+
+/**
+ * Intercepta y suaviza el desplazamiento con rueda de mouse en contenedores internos protegidos.
+ */
+function initNestedSmoothScroll() {
+    document.addEventListener('wheel', (e) => {
+        // Encontrar el contenedor más cercano con la directiva prevent
+        const container = e.target.closest('[data-lenis-prevent]');
+        if (!container) return;
+
+        // Validar si el contenedor tiene desbordamiento vertical y es scrollable
+        const hasScroll = container.scrollHeight > container.clientHeight;
+        if (!hasScroll) return;
+
+        // Evitar el desplazamiento instantáneo del navegador
+        e.preventDefault();
+
+        // Obtener o crear el estado de animación para este contenedor
+        let state = activeScrollAnimations.get(container);
+        if (!state) {
+            state = {
+                target: container.scrollTop,
+                current: container.scrollTop,
+                frameId: null
+            };
+            activeScrollAnimations.set(container, state);
+        }
+
+        // Calcular nuevo objetivo de desplazamiento
+        const maxScroll = container.scrollHeight - container.clientHeight;
+        state.target = Math.max(0, Math.min(maxScroll, state.target + e.deltaY));
+
+        // Iniciar bucle de interpolación si no está activo
+        if (!state.frameId) {
+            const animate = () => {
+                const diff = state.target - state.current;
+                if (Math.abs(diff) > 0.5) {
+                    state.current += diff * 0.12; // Factor de amortiguación suave (0.12)
+                    container.scrollTop = state.current;
+                    state.frameId = requestAnimationFrame(animate);
+                } else {
+                    container.scrollTop = state.target;
+                    state.current = state.target;
+                    state.frameId = null;
+                    activeScrollAnimations.delete(container);
+                }
+            };
+            state.frameId = requestAnimationFrame(animate);
+        }
+    }, { passive: false });
+}
+
+/**
+ * Inicializa el enrutador en la carga inicial de la página física.
+ */
+function initRouter() {
+    const pageName = getPageName(window.location.pathname);
+
+    // Registrar escuchador del botón de retroceso/adelante del navegador
+    window.addEventListener('popstate', (event) => {
+        navigate(window.location.pathname, false);
+    });
+
+    // Interceptar clics globales en la página (Delegación de eventos)
+    document.addEventListener('click', (event) => {
+        // Encontrar si el clic fue en un enlace <a> o dentro de él
+        const anchor = event.target.closest('a');
+        if (!anchor) return;
+
+        const href = anchor.getAttribute('href');
+        
+        // Ignorar enlaces vacíos, externos, de javascript o anclas internas
+        if (!href || href.startsWith('http') || href.startsWith('javascript:') || href.startsWith('#')) {
+            return;
+        }
+
+        // Cancelar el comportamiento estándar de recarga del navegador
+        event.preventDefault();
+        
+        // Navegar mediante SPA asíncrono
+        navigate(href);
+    });
+
+    // Autodetectar e inicializar la página física actual
+    const route = ROUTES[pageName];
+    if (route) {
+        currentPage = pageName;
+        route.load().then(module => {
+            currentModule = module;
+            if (route.init) {
+                route.init(module);
+            }
+        }).catch(err => {
+            console.error(`[Router] Error cargando módulo inicial: ${pageName}`, err);
+        });
+    }
+    
+    // Sincronizar el estado visual del sidebar al iniciar
+    updateNavigationActiveState(pageName);
+
+    // Inicializar el botón global de volver arriba
+    ensureScrollToTopButton();
+
+    // Inicializar el motor de scroll inercial suave Lenis
+    initLenis();
+
+    // Inicializar el suavizado de scroll en contenedores internos protegidos
+    initNestedSmoothScroll();
+}
+
+// Arrancar el enrutador al cargarse el script
+initRouter();

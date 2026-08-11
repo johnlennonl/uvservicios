@@ -2,7 +2,7 @@ import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile }
 import { getUniquePozos } from '../../services/monitoring-service.js';
 import { DEFAULT_OPERATIONAL_SCOPE, getFieldTechniciansByScope, getFieldWellsByScope, getUserOperationalScopes, normalizeOperationalScope } from '../../services/operational-contracts-service.js';
 import { getActiveOperationalScope, initOperationalScopeContext, renderOperationalScopeSwitcher } from '../../services/operational-scope-context.js';
-import { autosaveFieldJourneyDraft, submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney, getFieldSubmittedJourneys, getFieldSubmittedJourneyDetail, getLatestFieldJourneyDraft } from '../../services/field-journey-service.js';
+import { autosaveFieldJourneyDraft, submitFieldJourneyWorkflow, submitFieldTicket, getFieldTicketsByJourney, getFieldSubmittedJourneys, getFieldSubmittedJourneyDetail, getLatestFieldJourneyDraft, logFieldJourneyAudit } from '../../services/field-journey-service.js';
 import { getWellRibbonData } from '../../services/technical-measurements-service.js';
 import { uploadWellDocument, deleteWellDocument, getWellDocuments, updateWellDocumentDescription, getDocumentDownloadUrl } from '../../services/well-documents-service.js';
 import { validateFieldJourneyForSubmission, validateFieldReport, validateSectionParameters } from './field-validation.js';
@@ -487,6 +487,9 @@ let isJourneyStarted = false;
 let isBesConfigEditEnabled = false;
 let isSurfaceFixedEditEnabled = false;
 
+const SUPPORT_REPORT_STORAGE_KEY = 'uv-field-support-report-v1';
+let supportReports = [];
+
 function getScopedFieldStorageKey(baseKey) {
     return `${baseKey}:${normalizeOperationalScope(currentOperationalScope)}`;
 }
@@ -582,6 +585,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await hydrateFieldOperationalContext(session);
     isJourneyStarted = getJourneyStartedFlag();
     restoreDraft();
+    try {
+        const storedSupport = localStorage.getItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY));
+        supportReports = storedSupport ? JSON.parse(storedSupport) : [];
+        if (!Array.isArray(supportReports)) supportReports = [];
+    } catch (e) {
+        supportReports = [];
+    }
     sanitizeFieldHeaderForCurrentScope();
     syncJourneyFromTime();
     syncJourneyStartGate();
@@ -832,6 +842,8 @@ function bindStaticActions() {
     document.getElementById('field-message-composer-close')?.addEventListener('click', closeJourneyMessageComposer);
     document.getElementById('field-message-composer-copy')?.addEventListener('click', copyJourneyMessageFromComposer);
     document.getElementById('field-message-composer-refresh')?.addEventListener('click', syncJourneyMessageComposerText);
+    document.getElementById('field-message-composer-add-support')?.addEventListener('click', handleAddSupportReport);
+    document.getElementById('field-open-support-btn')?.addEventListener('click', handleAddSupportReport);
     document.getElementById('field-message-composer-modal')?.addEventListener('click', event => {
         if (event.target?.id === 'field-message-composer-modal') closeJourneyMessageComposer();
     });
@@ -2168,7 +2180,7 @@ function syncQuickActionButtons(reports = getJourneyReports()) {
 function updateEditingContext(reports = getJourneyReports()) {
     const banner = document.getElementById('field-editing-context');
     const captureCard = document.querySelector('.field-form-card');
-    
+
     const draftJourneyId = currentEditingJourneyId || getDraftJourneyKey();
     const isEditingSubmitted = Boolean(draftJourneyId);
     const submitBtn = document.getElementById('field-submit-journey-btn');
@@ -2183,7 +2195,12 @@ function updateEditingContext(reports = getJourneyReports()) {
     }
 
     if (exitBtn) {
-        exitBtn.hidden = !isEditingSubmitted;
+        const hasWorkingData = reports.length > 0 || Boolean(currentEditingReportId) || Boolean(getFieldStorageItem(DRAFT_STORAGE_KEY));
+        exitBtn.hidden = !(isEditingSubmitted || isJourneyStarted || hasWorkingData);
+        const span = exitBtn.querySelector('span');
+        if (span) {
+            span.textContent = isEditingSubmitted ? 'Salir de la Jornada' : 'Descartar Borrador';
+        }
     }
 
     if (!banner) return;
@@ -2288,8 +2305,248 @@ function syncJourneyMessageComposerText() {
     const textArea = document.getElementById('field-message-composer-text');
     if (!textArea || messageComposerReports.length === 0) return;
 
+    try {
+        const stored = localStorage.getItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY));
+        supportReports = stored ? JSON.parse(stored) : [];
+        if (!Array.isArray(supportReports)) supportReports = [];
+    } catch (e) {
+        supportReports = [];
+    }
+
     const header = getMessageHeaderFromInputs();
     textArea.value = buildJourneyShareMessage(messageComposerReports, header);
+}
+
+async function handleAddSupportReport() {
+    if (!window.Swal) return;
+
+    try {
+        const stored = localStorage.getItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY));
+        supportReports = stored ? JSON.parse(stored) : [];
+        if (!Array.isArray(supportReports)) supportReports = [];
+    } catch (e) {
+        supportReports = [];
+    }
+
+    // Construir lista HTML de reportes existentes con diseño responsive premium
+    let listHtml = '';
+    if (supportReports.length === 0) {
+        listHtml = `
+            <div style="padding: 28px 16px; text-align: center; color: #64748b; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 16px; margin: 4px 0;">
+                <i class="fa-solid fa-clipboard-list" style="font-size: 2.2rem; color: #94a3b8; margin-bottom: 10px; display: block;"></i>
+                <span style="font-size: 0.92rem; font-weight: 500; font-family: 'Outfit', sans-serif;">No hay reportes cargados para esta jornada.</span>
+            </div>
+        `;
+    } else {
+        listHtml = `<div style="max-height: 290px; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 10px;" data-lenis-prevent>`;
+        supportReports.forEach((rep, idx) => {
+            listHtml += `
+                <div class="swal-support-card" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; gap: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: border-color 0.2s;">
+                    <div style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; overflow: hidden; flex: 1; min-width: 0;">
+                        <span style="background: #ecfdf5; color: #047857; padding: 2px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 800; margin-bottom: 4px; display: inline-block; letter-spacing: 0.02em;">${rep.hora}</span>
+                        <span style="font-weight: 800; font-size: 0.9rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-family: 'Outfit', sans-serif;">${escapeHtml(rep.motivo)}</span>
+                        <span style="font-size: 0.8rem; color: #64748b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; line-height: 1.4; font-family: 'Outfit', sans-serif;">${escapeHtml(rep.descripcion)}</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-shrink: 0; align-items: center;">
+                        <button type="button" class="swal-edit-btn" data-index="${idx}" style="background: #2563eb; color: white; border: none; width: 36px; height: 36px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.2s; outline: none;" title="Editar"><i class="fa-solid fa-pen" style="font-size: 0.82rem;"></i></button>
+                        <button type="button" class="swal-delete-btn" data-index="${idx}" style="background: #ef4444; color: white; border: none; width: 36px; height: 36px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.2s; outline: none;" title="Eliminar"><i class="fa-solid fa-trash" style="font-size: 0.82rem;"></i></button>
+                    </div>
+                </div>
+            `;
+        });
+        listHtml += `</div>`;
+    }
+
+    const htmlBody = `
+        <div style="font-family: 'Outfit', sans-serif; padding: 4px 2px;">
+            ${listHtml}
+            <button type="button" id="swal-add-new-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; border: none; border-radius: 16px; font-weight: 800; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); transition: transform 0.1s; font-family: 'Outfit', sans-serif; outline: none;"><i class="fa-solid fa-plus" style="font-size: 0.88rem;"></i> Agregar nuevo reporte</button>
+        </div>
+    `;
+
+    await window.Swal.fire({
+        title: 'Reportes de la Jornada',
+        html: htmlBody,
+        showConfirmButton: false,
+        showCancelButton: true,
+        cancelButtonText: 'Cerrar',
+        cancelButtonColor: '#64748b',
+        width: '420px',
+        customClass: {
+            popup: 'swal-support-popup-custom'
+        },
+        didOpen: (popup) => {
+            popup.querySelector('#swal-add-new-btn')?.addEventListener('click', () => {
+                window.Swal.close();
+                handleAddNewReportFlow();
+            });
+            popup.querySelectorAll('.swal-edit-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    window.Swal.close();
+                    handleEditReportFlow(parseInt(btn.dataset.index, 10));
+                });
+            });
+            popup.querySelectorAll('.swal-delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    window.Swal.close();
+                    handleDeleteReportFlow(parseInt(btn.dataset.index, 10));
+                });
+            });
+        }
+    });
+}
+
+// Estilos de los formularios reutilizables
+const formStyle = 'display: flex; flex-direction: column; gap: 14px; text-align: left; font-family: \'Outfit\', sans-serif; padding: 4px 2px;';
+const labelStyle = 'display: flex; flex-direction: column; gap: 5px; font-weight: 800; font-size: 0.76rem; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;';
+const inputStyle = 'margin: 0; width: 100%; height: 46px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 0.95rem; font-family: inherit; box-sizing: border-box; outline: none; background: #ffffff; transition: border-color 0.2s, box-shadow 0.2s;';
+const textareaStyle = 'margin: 0; width: 100%; height: 130px; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 0.95rem; font-family: inherit; box-sizing: border-box; resize: vertical; outline: none; background: #ffffff; transition: border-color 0.2s, box-shadow 0.2s;';
+
+async function handleAddNewReportFlow() {
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const htmlForm = `
+        <div style="${formStyle}">
+            <label style="${labelStyle}">
+                <span>Hora del reporte</span>
+                <input type="time" id="swal-support-time" style="${inputStyle}" value="${currentTime}">
+            </label>
+            <label style="${labelStyle}">
+                <span>Motivo</span>
+                <input type="text" id="swal-support-reason" style="${inputStyle}" placeholder="Ej: Apoyo, Novedad, Incidencia" value="Apoyo">
+            </label>
+            <label style="${labelStyle}">
+                <span>Detalle del reporte</span>
+                <textarea id="swal-support-desc" style="${textareaStyle}" placeholder="Escribe el detalle del reporte aquí..."></textarea>
+            </label>
+        </div>
+    `;
+
+    const { value: formValues } = await window.Swal.fire({
+        title: 'Nuevo Reporte',
+        html: htmlForm,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Guardar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#64748b',
+        width: '420px',
+        preConfirm: () => {
+            const hora = document.getElementById('swal-support-time').value;
+            const motivo = document.getElementById('swal-support-reason').value.trim();
+            const descripcion = document.getElementById('swal-support-desc').value.trim();
+            if (!hora) {
+                window.Swal.showValidationMessage('La hora es requerida');
+                return false;
+            }
+            if (!motivo) {
+                window.Swal.showValidationMessage('El motivo es requerido');
+                return false;
+            }
+            if (!descripcion) {
+                window.Swal.showValidationMessage('El detalle del reporte es requerido');
+                return false;
+            }
+            return { hora, motivo, descripcion };
+        }
+    });
+
+    if (formValues) {
+        supportReports.push(formValues);
+        supportReports.sort((a, b) => String(a.hora).localeCompare(String(b.hora)));
+        localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
+        syncJourneyMessageComposerText();
+        updateSummary();
+    }
+    handleAddSupportReport(); // Regresar al menú principal de forma fluida
+}
+
+async function handleEditReportFlow(idx) {
+    const rep = supportReports[idx];
+    if (!rep) return;
+
+    const htmlForm = `
+        <div style="${formStyle}">
+            <label style="${labelStyle}">
+                <span>Hora del reporte</span>
+                <input type="time" id="swal-support-time" style="${inputStyle}" value="${rep.hora}">
+            </label>
+            <label style="${labelStyle}">
+                <span>Motivo</span>
+                <input type="text" id="swal-support-reason" style="${inputStyle}" value="${escapeHtml(rep.motivo)}">
+            </label>
+            <label style="${labelStyle}">
+                <span>Detalle del reporte</span>
+                <textarea id="swal-support-desc" style="${textareaStyle}">${escapeHtml(rep.descripcion)}</textarea>
+            </label>
+        </div>
+    `;
+
+    const { value: formValues } = await window.Swal.fire({
+        title: 'Editar Reporte',
+        html: htmlForm,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Guardar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#64748b',
+        width: '420px',
+        preConfirm: () => {
+            const hora = document.getElementById('swal-support-time').value;
+            const motivo = document.getElementById('swal-support-reason').value.trim();
+            const descripcion = document.getElementById('swal-support-desc').value.trim();
+            if (!hora) {
+                window.Swal.showValidationMessage('La hora es requerida');
+                return false;
+            }
+            if (!motivo) {
+                window.Swal.showValidationMessage('El motivo es requerido');
+                return false;
+            }
+            if (!descripcion) {
+                window.Swal.showValidationMessage('El detalle del reporte es requerido');
+                return false;
+            }
+            return { hora, motivo, descripcion };
+        }
+    });
+
+    if (formValues) {
+        supportReports[idx] = formValues;
+        supportReports.sort((a, b) => String(a.hora).localeCompare(String(b.hora)));
+        localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
+        syncJourneyMessageComposerText();
+        updateSummary();
+    }
+    handleAddSupportReport(); // Regresar al menú principal de forma fluida
+}
+
+async function handleDeleteReportFlow(idx) {
+    const rep = supportReports[idx];
+    if (!rep) return;
+
+    const { isConfirmed } = await window.Swal.fire({
+        title: '¿Eliminar reporte?',
+        text: `Se eliminará permanentemente el reporte de las ${rep.hora}.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        width: '420px'
+    });
+
+    if (isConfirmed) {
+        supportReports.splice(idx, 1);
+        localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
+        syncJourneyMessageComposerText();
+        updateSummary();
+    }
+    handleAddSupportReport(); // Regresar al menú principal de forma fluida
 }
 
 async function copyJourneyMessageFromComposer() {
@@ -2380,8 +2637,36 @@ function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader =
         headerConfig.personal || ''
     ].filter((line, index, lines) => line || lines[index - 1] !== '');
 
-    const wellBlocks = sortedReports.map(buildJourneyWellMessageBlock).filter(Boolean);
-    return `${header.join('\n')}\n\n${wellBlocks.join('\n\n\n')}`;
+    // 1. Mapeamos y formateamos los reportes de pozo
+    const formattedWells = sortedReports.map(report => {
+        return {
+            time: report.hora || '00:00',
+            text: buildJourneyWellMessageBlock(report)
+        };
+    });
+
+    // 2. Mapeamos y formateamos los reportes de apoyo
+    const formattedSupports = supportReports.map(rep => {
+        const lines = [
+            `Reporte: ${String(rep.motivo || 'Apoyo').trim()}`,
+            `Hora ${rep.hora || '--:--'}`,
+            `${rep.descripcion || ''}`
+        ];
+        return {
+            time: rep.hora || '00:00',
+            text: lines.join('\n')
+        };
+    });
+
+    // 3. Combinamos ambos tipos de eventos y los ordenamos cronológicamente
+    const combinedEvents = [...formattedWells, ...formattedSupports]
+        .sort((left, right) => {
+            return String(left.time).localeCompare(String(right.time));
+        });
+
+    // 4. Unimos los bloques con salto de línea doble
+    const eventBlocks = combinedEvents.map(event => event.text).filter(Boolean);
+    return `${header.join('\n')}\n\n${eventBlocks.join('\n\n\n')}`;
 }
 
 function buildJourneyWellMessageBlock(report) {
@@ -2519,8 +2804,8 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
 
     const allReports = Array.isArray(reports) ? reports : [];
 
-    const reportsToDisplay = isManualTrigger 
-        ? [...allReports] 
+    const reportsToDisplay = isManualTrigger
+        ? [...allReports]
         : allReports.filter(report => {
             const estatus = String(report.estatus || '').trim().toUpperCase();
             const estatusNorm = estatus.replace(/[^A-Z]/g, '');
@@ -2569,14 +2854,14 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             existingDocs.forEach(doc => {
                 const pName = String(doc.pozo_name || '').trim().toUpperCase();
                 if (pName && !reportsToDisplay.some(r => String(r.pozo || r.pozo_name || '').trim().toUpperCase() === pName)) {
-                    reportsToDisplay.push({ 
-                        pozo: pName, 
-                        pozo_name: pName, 
-                        echometer: 'SI', 
+                    reportsToDisplay.push({
+                        pozo: pName,
+                        pozo_name: pName,
+                        echometer: 'SI',
                         descarga_datas_sensor: 'SI',
                         descarga_datas_vsd: 'SI',
                         baja_datos: 'SI',
-                        _isExtra: true 
+                        _isExtra: true
                     });
                 }
             });
@@ -2791,10 +3076,10 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             attachedCount += soportesCount;
 
             const isExtraWell = window._modalExtraWells && window._modalExtraWells.has(pozoName);
-            const removeBtnHtml = isExtraWell 
+            const removeBtnHtml = isExtraWell
                 ? `<button type="button" class="btn-remove-extra-well" data-pozo="${escapeHtml(pozoName)}" style="background:rgba(239, 68, 68, 0.08); color:#ef4444; border:none; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; padding:6px 12px; border-radius:8px; transition: background 0.2s; margin-left:8px;">
                      <i class="fa-solid fa-circle-xmark"></i> Quitar Pozo
-                   </button>` 
+                   </button>`
                 : '';
 
             if (!window._expandedPozos) {
@@ -2826,7 +3111,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                             <span class="accordion-arrow" style="font-size: 0.9rem; color: #64748b; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'}; transition: transform 0.2s; display: inline-block;">▶</span>
                         </div>
                     </div>
-                    
+
                     <!-- Contenido de Acordeón -->
                     <div class="well-accordion-content" style="display: ${isExpanded ? 'block' : 'none'}; padding:16px; background:#fff;">
                         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
@@ -2920,6 +3205,11 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                                 operationalScope: currentOperationalScope
                             });
                             item.inputEl.value = '';
+                            await logFieldJourneyAudit(tempJourneyTag, 'file_added', `Archivo adjunto agregado al pozo ${item.pozoName}: ${item.file.name}`, {
+                                pozo: item.pozoName,
+                                file_name: item.file.name,
+                                category: item.category
+                            });
                         }
 
                         modal.style.display = 'none';
@@ -3190,6 +3480,11 @@ async function processAndExecuteJourneySubmission(reports) {
                     uploadedBy: 'Técnico de Campo',
                     operationalScope: currentOperationalScope
                 });
+                await logFieldJourneyAudit(tempJourneyTag, 'file_added', `Archivo adjunto agregado al pozo ${item.pozoName}: ${item.file.name}`, {
+                    pozo: item.pozoName,
+                    file_name: item.file.name,
+                    category: item.category
+                });
             }
         } catch (uploadErr) {
             console.error('Error subiendo adjuntos de campo:', uploadErr);
@@ -3201,7 +3496,41 @@ async function processAndExecuteJourneySubmission(reports) {
 }
 
 async function executeActualJourneySubmission(reports) {
-    const resolvedJourneyId = currentEditingJourneyId || getDraftJourneyKey();
+    const activeDate = document.getElementById('field-fecha')?.value;
+    const activeShift = document.getElementById('field-jornada')?.value || 'Diurna';
+    let resolvedJourneyId = currentEditingJourneyId || getDraftJourneyKey();
+
+    if (!resolvedJourneyId && activeDate && Array.isArray(fieldSubmittedJourneys)) {
+        const duplicate = fieldSubmittedJourneys.find(j =>
+            String(j.journey_date || '').split('T')[0] === activeDate &&
+            String(j.jornada || '').toLowerCase() === activeShift.toLowerCase() &&
+            ['submitted', 'under_review', 'rejected'].includes(j.status)
+        );
+
+        if (duplicate) {
+            const confirmResult = await Swal.fire({
+                icon: 'warning',
+                title: 'Jornada ya existente',
+                html: `
+                    <div style="text-align:left; font-size:0.9rem; line-height:1.5;">
+                        <p>Ya existe una jornada enviada para la fecha <strong>${activeDate}</strong> y turno <strong>${activeShift}</strong>.</p>
+                        <p>Para evitar registros duplicados, los nuevos pozos se combinarán con la jornada existente en el servidor.</p>
+                        <p>¿Deseas proceder con la actualización?</p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Sí, actualizar y enviar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#2563eb',
+                cancelButtonColor: '#64748b'
+            });
+
+            if (!confirmResult.isConfirmed) return;
+            resolvedJourneyId = duplicate.id;
+            currentEditingJourneyId = duplicate.id;
+        }
+    }
+
     if (resolvedJourneyId) {
         currentEditingJourneyId = resolvedJourneyId;
     }
@@ -3230,6 +3559,18 @@ async function executeActualJourneySubmission(reports) {
             journeyId: resolvedJourneyId,
             operationalScope: currentOperationalScope
         });
+
+        // Registrar reportes de apoyo a otras cuadrillas en la bitácora si existen
+        if (supportReports.length > 0 && workflowResult?.journeyId) {
+            for (const rep of supportReports) {
+                await logFieldJourneyAudit(
+                    workflowResult.journeyId,
+                    'support_report',
+                    `⚡ REPORTADO: [${rep.motivo}] a las ${rep.hora}\n${rep.descripcion}`,
+                    { source: 'field-web', hora: rep.hora, motivo: rep.motivo }
+                );
+            }
+        }
         await ensureStepMinDuration(s2, 5000);
 
         setProcessingStep(3, isUpdatingExistingJourney ? 'Finalizando actualizacion de captura' : 'Finalizando y marcando como enviada');
@@ -3282,6 +3623,20 @@ function updateSummary() {
     const lastReport = reports[reports.length - 1] || null;
 
     syncQuickActionButtons(reports);
+
+    // Actualizar el estado visual del botón Reportes principal
+    const mainSupportBtn = document.getElementById('field-open-support-btn');
+    if (mainSupportBtn) {
+        if (supportReports && supportReports.length > 0) {
+            mainSupportBtn.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
+            mainSupportBtn.querySelector('span').textContent = `Reportes (${supportReports.length})`;
+            mainSupportBtn.title = 'Editar reportes existentes o agregar uno nuevo.';
+        } else {
+            mainSupportBtn.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+            mainSupportBtn.querySelector('span').textContent = 'Reportes';
+            mainSupportBtn.title = 'Reportar Apoyo o Novedades de la Jornada';
+        }
+    }
 
     if (copyMessageButton) {
         copyMessageButton.disabled = reports.length === 0;
@@ -4023,6 +4378,37 @@ async function fetchSubmittedJourneyForField(journeyId) {
     try {
         const detail = await getFieldSubmittedJourneyDetail(journeyId);
         const records = (detail.records || []).map(normalizeWorkflowRecordForField);
+
+        // Extraer y restaurar los reportes de apoyo si existen en la bitácora
+        const supportLogs = (detail.reviewLog || [])
+            .filter(log => log.action === 'support_report')
+            .reverse(); // Revertir para mantener orden cronológico de creación
+
+        if (supportLogs.length > 0) {
+            supportReports = supportLogs.map(log => {
+                const comment = log.comment || '';
+                let motivo = 'Apoyo';
+                let hora = '00:00';
+                let descripcion = comment;
+
+                const matchNew = comment.match(/^⚡ REPORTADO: \[(.*?)\] a las (.*?)\n([\s\S]*)$/);
+                if (matchNew) {
+                    motivo = matchNew[1];
+                    hora = matchNew[2];
+                    descripcion = matchNew[3];
+                } else {
+                    const matchOld = comment.match(/^⚡ APOYO A OTRAS CUADRILLAS \(Pozos fuera de sistema\):\n([\s\S]*)$/);
+                    if (matchOld) {
+                        descripcion = matchOld[1];
+                    }
+                }
+                return { hora, motivo, descripcion };
+            });
+            localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
+        } else {
+            supportReports = [];
+            localStorage.removeItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY));
+        }
         return buildSubmittedJourneyRecord({
             ...detail.journey,
             id: detail.journey.id,
@@ -4042,14 +4428,60 @@ async function fetchSubmittedJourneyForField(journeyId) {
 async function restoreSubmittedJourneyToWorkspace(journeyId, reportId = null) {
     const journey = await fetchSubmittedJourneyForField(journeyId);
     if (!journey || !Array.isArray(journey.records) || journey.records.length === 0) {
-        showAlert('No se encontro una carga valida para recuperar.', 'error');
+        showAlert('No se encontró una carga válida para recuperar.', 'error');
         return;
+    }
+
+    const journeyShift = String(journey.jornada || journey.records[0]?.jornada || '').trim() || 'Diurna';
+    const activeShift = document.getElementById('field-jornada')?.value || 'Diurna';
+
+    if (journeyShift.toLowerCase() !== activeShift.toLowerCase()) {
+        const result = await Swal.fire({
+            icon: 'warning',
+            title: 'Diferencia de Turno detectada',
+            html: `
+                <div style="text-align:left; font-size:0.9rem; line-height:1.5;">
+                    <p>La carga que estás recuperando pertenece al turno <strong>${escapeHtml(journeyShift)}</strong>, pero tu captura activa en Campo está en <strong>${escapeHtml(activeShift)}</strong>.</p>
+                    <p>¿Cómo deseas ajustar los registros recuperados?</p>
+                </div>
+            `,
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: `Mantener turno ${journeyShift}`,
+            denyButtonText: `Cambiar registros a ${activeShift}`,
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#2563eb',
+            denyButtonColor: '#10b981',
+            cancelButtonColor: '#64748b'
+        });
+
+        if (result.isDismissed) return;
+
+        if (result.isDenied) {
+            journey.records.forEach(r => { r.jornada = activeShift; });
+        }
     }
 
     setFieldStorageItem(REPORTS_STORAGE_KEY, JSON.stringify(journey.records));
     currentEditingJourneyId = journey.id;
     isJourneyStarted = true;
     setJourneyStartedFlag(true);
+
+    try {
+        const session = await getSession();
+        const userEmail = session?.user?.email || 'operador@uvservicios.com';
+        const pozoNames = journey.records.map(r => String(r.pozo || '').toUpperCase()).filter(Boolean);
+        await logFieldJourneyAudit(journey.id, 'recovered', `Carga recuperada por el operador (${userEmail}) para edición en Campo. Tenía ${pozoNames.length} pozo(s): ${pozoNames.join(', ')}.`, {
+            pozos_originales: pozoNames,
+            total_originales: pozoNames.length,
+            recuperado_por: userEmail,
+            fecha_jornada: journey.fecha || journey.journey_date,
+            turno_jornada: journeyShift
+        });
+    } catch (e) {
+        console.warn('Audit recovery error:', e);
+    }
+
     renderJourneyReports();
     updateSummary();
 
@@ -4237,7 +4669,7 @@ function buildExcelDetailSheet(worksheet, journey, records) {
 
         const startColumn = currentColumn;
         const endColumn = currentColumn + columnsForGroup.length - 1;
-        
+
         if (group.title) {
             worksheet.mergeCells(groupRowIndex, startColumn, groupRowIndex, endColumn);
             const groupCell = worksheet.getCell(groupRowIndex, startColumn);
@@ -4656,6 +5088,9 @@ function resetJourneyWorkspace() {
     isCaptureStarted = false;
     isJourneyStarted = false;
 
+    supportReports = [];
+    localStorage.removeItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY));
+
     preloadDefaults();
     recalculateComputedFields();
     renderJourneyReports();
@@ -4669,28 +5104,71 @@ function resetJourneyWorkspace() {
 }
 
 async function exitJourneyAndClearState() {
-    const isEditingSubmitted = Boolean(currentEditingJourneyId || getDraftJourneyKey());
-    if (!isEditingSubmitted) return;
+    const draftJourneyId = currentEditingJourneyId || getDraftJourneyKey();
+    const hasWorkingData = getJourneyReports().length > 0 || Boolean(currentEditingReportId) || Boolean(getFieldStorageItem(DRAFT_STORAGE_KEY));
+    const isEditingSubmitted = Boolean(draftJourneyId);
+
+    if (!isEditingSubmitted && !hasWorkingData && !isJourneyStarted) return;
 
     if (!window.Swal) {
         resetJourneyWorkspace();
         return;
     }
 
+    let isRealDraft = false;
+    let journeyStatus = 'draft';
+
+    if (draftJourneyId) {
+        try {
+            const { data } = await supabase
+                .from('field_journeys')
+                .select('status')
+                .eq('id', draftJourneyId)
+                .maybeSingle();
+
+            if (data && data.status === 'draft') {
+                isRealDraft = true;
+                journeyStatus = 'draft';
+            } else if (data) {
+                journeyStatus = data.status;
+            }
+        } catch (e) {
+            console.warn('Error checking journey status before exit:', e);
+        }
+    }
+
+    let title = '¿Salir de la edición?';
+    let text = 'Cualquier modificación local no guardada se perderá.';
+    let confirmButtonText = 'Sí, salir';
+
+    if (isRealDraft || (!draftJourneyId && hasWorkingData)) {
+        title = '¿Descartar borrador?';
+        text = 'Se eliminará permanentemente esta jornada en construcción y todos sus pozos asociados.';
+        confirmButtonText = 'Sí, descartar todo';
+    }
+
     const { isConfirmed } = await window.Swal.fire({
-        title: '¿Salir de la jornada?',
-        text: 'Cualquier modificación que hayas hecho se perderá. La jornada seguirá en su estado anterior en la base de datos.',
+        title: title,
+        text: text,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#e11d48',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'Sí, salir y descartar',
+        confirmButtonText: confirmButtonText,
         cancelButtonText: 'Cancelar'
     });
 
     if (isConfirmed) {
+        if (isRealDraft && draftJourneyId) {
+            try {
+                await supabase.from('field_journey_records').delete().eq('journey_id', draftJourneyId);
+                await supabase.from('field_journeys').delete().eq('id', draftJourneyId).eq('status', 'draft');
+            } catch (err) {
+                console.warn('Error deleting draft from database:', err);
+            }
+        }
         resetJourneyWorkspace();
-        updateStatus('Edición cancelada. Espacio de trabajo limpio.', 'info');
+        updateStatus(isRealDraft ? 'Borrador eliminado. Espacio de trabajo limpio.' : 'Edición finalizada. Espacio de trabajo limpio.', 'info');
     }
 }
 

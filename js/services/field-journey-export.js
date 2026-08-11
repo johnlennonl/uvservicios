@@ -285,7 +285,7 @@ export async function exportHistoricalFieldReportsToExcel(records = [], filters 
     );
 }
 
-export function openFieldJourneyPdf(journey, records) {
+export function openFieldJourneyPdf(journey, records, reviewLog = []) {
     const normalizedJourney = normalizeJourney(journey, records);
     const normalizedRecords = sortJourneyRecords(records.map(normalizeRecordForExport));
     if (normalizedRecords.length === 0) {
@@ -317,12 +317,30 @@ export function openFieldJourneyPdf(journey, records) {
         .item strong { display: block; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
         .item span { font-size: 13px; color: #0f172a; line-height: 1.5; white-space: pre-wrap; }
         @media print { body { margin: 12px; background: #ffffff; } .hero, .well { box-shadow: none; } }
+        
+        /* Estilos de la Bitácora (Pulso) */
+        .pulse-section { margin-top: 24px; border: 1px solid #cbd5e1; border-radius: 22px; padding: 22px; background: #ffffff; break-inside: avoid; }
+        .pulse-section h2 { margin: 0 0 6px; font-size: 20px; color: #1e3a8a; }
+        .pulse-section p.subtitle { margin: 0 0 16px; color: #64748b; font-size: 13px; }
+        .pulse-timeline { display: flex; flex-direction: column; gap: 14px; position: relative; padding-left: 20px; border-left: 2px solid #cbd5e1; margin-left: 10px; }
+        .pulse-item { position: relative; margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
+        .pulse-node { position: absolute; left: -27px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; border: 2px solid #ffffff; box-shadow: 0 0 0 2px #cbd5e1; }
+        .pulse-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .pulse-tag { font-weight: 700; text-transform: uppercase; font-size: 11px; padding: 3px 8px; border-radius: 999px; }
+        .pulse-tag.tag-blue { background: #e0f2fe; color: #0369a1; }
+        .pulse-tag.tag-amber { background: #fef3c7; color: #d97706; }
+        .pulse-tag.tag-emerald { background: #d1fae5; color: #059669; }
+        .pulse-tag.tag-purple { background: #f3e8ff; color: #7c3aed; }
+        .pulse-tag.tag-red { background: #fee2e2; color: #dc2626; }
+        .pulse-time { color: #64748b; font-size: 11px; }
+        .pulse-comment { font-weight: 600; color: #0f172a; margin-top: 2px; }
+        .pulse-user { font-size: 11px; color: #64748b; margin-top: 2px; }
     </style>
 </head>
 <body>
     <div class="sheet">
         <section class="hero">
-            <h1>Reporte de acompanamiento pozos con bombas electrosumergibles</h1>
+            <h1>Reporte de acompañamiento pozos con bombas electrosumergibles</h1>
             <p>${escapeHtml(normalizedJourney.locacion_jornada || 'Locacion no definida')} · ${escapeHtml(normalizedJourney.fecha || '--')} · ${escapeHtml(normalizedJourney.jornada || '--')}</p>
             <div class="meta">
                 <span class="tag">Equipo: ${escapeHtml(normalizedJourney.equipo_guardia || '--')}</span>
@@ -331,6 +349,66 @@ export function openFieldJourneyPdf(journey, records) {
             </div>
         </section>
         ${normalizedRecords.map(record => buildPdfWellMarkup(normalizedJourney, record)).join('')}
+        
+        <!-- PULSO DE LA JORNADA (AUDIT TRAIL / BITÁCORA) -->
+        ${reviewLog && reviewLog.length > 0 ? `
+        <section class="pulse-section">
+            <h2>⚡ Pulso de la Jornada (Historial de Auditoría y Trazabilidad)</h2>
+            <p class="subtitle">Trazabilidad oficial de eventos de transmisión, recuperaciones, cargas y modificaciones.</p>
+            <div class="pulse-timeline">
+                ${reviewLog.map(log => {
+                    const action = String(log.action || '').toLowerCase();
+                    let tagClass = 'tag-blue';
+                    let tagLabel = 'EVENTO';
+
+                    if (action === 'submitted') {
+                        tagClass = 'tag-blue';
+                        tagLabel = 'RECEPCIÓN CAMPO';
+                    } else if (action === 'recovered') {
+                        tagClass = 'tag-amber';
+                        tagLabel = 'RECUPERADO';
+                    } else if (action === 'updated') {
+                        tagClass = 'tag-blue';
+                        tagLabel = 'RE-ENVIADO';
+                    } else if (action === 'split' || action === 'merge') {
+                        tagClass = 'tag-purple';
+                        tagLabel = action === 'split' ? 'SEPARACIÓN' : 'FUSIÓN';
+                    } else if (['approved', 'published'].includes(action)) {
+                        tagClass = 'tag-emerald';
+                        tagLabel = action === 'published' ? 'PUBLICADO' : 'APROBADO';
+                    } else if (action === 'rejected') {
+                        tagClass = 'tag-red';
+                        tagLabel = 'RECHAZADO';
+                    } else if (action === 'file_added') {
+                        tagClass = 'tag-purple';
+                        tagLabel = 'ARCHIVO ADJUNTO';
+                    }
+
+                    const dateFormatted = new Date(log.created_at || Date.now()).toLocaleString('es-ES', {
+                        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                    const email = log.performed_by_email || 'Sistema de Auditoría';
+                    return `
+                    <div class="pulse-item">
+                        <div class="pulse-node"></div>
+                        <div class="pulse-header">
+                            <span class="pulse-tag ${tagClass}">
+                                ${tagLabel}
+                            </span>
+                            <span class="pulse-time">${dateFormatted}</span>
+                        </div>
+                        <div class="pulse-comment">
+                            ${escapeHtml(log.comment || 'Sin observación registrada.')}
+                        </div>
+                        <div class="pulse-user">
+                            👤 <strong>Usuario:</strong> ${escapeHtml(email)}
+                        </div>
+                    </div>
+                    `;
+                }).join('')}
+            </div>
+        </section>
+        ` : ''}
     </div>
     <script>window.addEventListener('load', () => window.print());</script>
 </body>

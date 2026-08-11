@@ -82,7 +82,12 @@ insert into public.field_well_catalog (pozo_name, campo_name, operational_scope)
 select distinct on (pozo_name)
     pozo_name,
     coalesce(campo_name, 'SIN CLASIFICAR') as campo_name,
-    'ceiba_tomoporo'
+    case
+        when upper(pozo_name) like 'BAR%' or upper(campo_name) like '%BARUA%' then 'bmm'
+        when upper(pozo_name) like 'MOT%' or upper(campo_name) like '%MOTATAN%' then 'bmm'
+        when upper(pozo_name) like 'MGB%' or upper(pozo_name) like 'MEN%' or upper(pozo_name) like 'MG%' or upper(campo_name) like '%MENE%' then 'bmm'
+        else 'ceiba_tomoporo'
+    end as operational_scope
 from (
     select
         upper(trim(pozo_name)) as pozo_name,

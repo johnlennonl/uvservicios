@@ -800,7 +800,7 @@
         }
 
         .pump-profile-panel {
-            display: none;
+            display: block;
             margin-top: 18px;
         }
 
@@ -1352,7 +1352,7 @@
         }
 
         .technical-form-panel {
-            display: none;
+            display: block;
             margin-top: 4px;
             animation: technicalFormReveal 0.22s ease;
         }
@@ -2021,3 +2021,329 @@
                 appearance: none;
             }
         }
+
+/* 🗂️ GESTIÓN BENTO HERO CARDS & MODALS */
+.gestion-bento-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.gestion-bento-card {
+    background: #ffffff;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    padding: 26px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    position: relative;
+}
+
+.gestion-bento-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    border-color: #cbd5e1;
+}
+
+.gestion-bento-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.gestion-bento-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gestion-bento-icon svg {
+    width: 26px;
+    height: 26px;
+}
+
+.gestion-bento-icon.daily {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.gestion-bento-icon.technical {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+.gestion-bento-icon.pump {
+    background: #faf5ff;
+    color: #9333ea;
+}
+
+.gestion-bento-badge {
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.76rem;
+    font-weight: 700;
+    border: 1px solid #e2e8f0;
+}
+
+.gestion-bento-badge.active-pozo {
+    background: #dbeafe;
+    color: #1e40af;
+    border-color: #bfdbfe;
+}
+
+.gestion-bento-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 8px 0;
+}
+
+.gestion-bento-desc {
+    font-size: 0.84rem;
+    color: #64748b;
+    line-height: 1.5;
+    margin: 0 0 24px 0;
+}
+
+.gestion-bento-btn {
+    width: 100%;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    font-weight: 800;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.gestion-bento-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+}
+
+.gestion-bento-btn.daily {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.gestion-bento-btn.daily:hover {
+    background: #1d4ed8;
+}
+
+.gestion-bento-btn.technical {
+    background: #16a34a;
+    color: #ffffff;
+}
+
+.gestion-bento-btn.technical:hover {
+    background: #15803d;
+}
+
+.gestion-bento-btn.pump {
+    background: #9333ea;
+    color: #ffffff;
+}
+
+.gestion-bento-btn.pump:hover {
+    background: #7e22ce;
+}
+
+/* 🪟 MODALES DE GESTIÓN (Ligero sin Blur pesado para máximo rendimiento) */
+.gestion-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10500;
+    background: rgba(15, 23, 42, 0.55); /* Oscuro sólido ligero sin backdrop-filter */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.gestion-modal-overlay.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.gestion-modal-dialog {
+    background: #ffffff;
+    width: 100%;
+    max-width: 920px;
+    max-height: 90vh;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translateY(16px) scale(0.98);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gestion-modal-overlay.open .gestion-modal-dialog {
+    transform: translateY(0) scale(1);
+}
+
+.gestion-modal-header {
+    padding: 20px 24px;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.gestion-modal-header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.gestion-modal-header-title h3 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+}
+
+.gestion-modal-close-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+
+.gestion-modal-close-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.gestion-modal-body {
+    flex: 1 1 auto;
+    padding: 24px 28px !important;
+    overflow-y: auto !important;
+    max-height: calc(90vh - 80px);
+    box-sizing: border-box !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ❓ BOTÓN DE AYUDA (?) Y TARJETAS INFORMATIVAS DE PARÁMETROS EN MODALES */
+.gestion-info-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1.5px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.85rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.gestion-info-btn:hover {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.gestion-info-card {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 20px;
+    animation: gestionFadeIn 0.25s ease;
+}
+
+.gestion-info-card h4 {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: #1e40af;
+    margin: 0 0 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gestion-info-card p {
+    font-size: 0.82rem;
+    color: #3b82f6;
+    margin: 0 0 10px 0;
+    line-height: 1.45;
+}
+
+.gestion-info-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.gestion-info-tag {
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #1e3a8a;
+    font-size: 0.74rem;
+    font-weight: 700;
+    border: 1px solid #93c5fd;
+    font-family: monospace;
+}
+
+/* Modales Grid Responsivo Limpio */
+.gestion-modal-body .compact-form-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+    gap: 16px 18px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.gestion-modal-body .full-width,
+.gestion-modal-body .section-header {
+    grid-column: 1 / -1 !important;
+}
+
+@media (max-width: 768px) {
+    .gestion-modal-dialog {
+        max-height: 94vh;
+        border-radius: 16px;
+    }
+
+    .gestion-modal-body {
+        padding: 16px 18px !important;
+        max-height: calc(94vh - 70px);
+    }
+}

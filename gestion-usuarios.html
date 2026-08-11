@@ -16,6 +16,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard-page.css">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         h1,
@@ -1182,9 +1183,14 @@
                             <div id="contract-technicians-list" class="contract-item-list"></div>
                         </article>
                         <article class="contract-detail-panel">
-                            <div class="section-card-title-block" style="border-bottom: none; padding-bottom: 0;">
-                                <h3 class="section-card-title" style="font-size: 0.98rem;">Pozos</h3>
-                                <p class="section-card-subtitle">Catalogo base para la captura de Campo.</p>
+                            <div class="section-card-title-block" style="border-bottom: none; padding-bottom: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                                <div>
+                                    <h3 class="section-card-title" style="font-size: 0.98rem;">Pozos</h3>
+                                    <p class="section-card-subtitle">Catalogo base para la captura de Campo.</p>
+                                </div>
+                                <button type="button" id="btn-sync-discovered-wells" class="contract-manage-btn" style="font-size: 0.76rem; padding: 4px 8px; white-space: nowrap;" title="Sincronizar pozos detectados en registros históricos">
+                                    ⚡ Sincronizar Pozos
+                                </button>
                             </div>
                             <form id="form-contract-well" class="contract-mini-form contract-well-form">
                                 <label class="input-group-manager">
@@ -1516,6 +1522,7 @@
         </div>
     </div>
 
+    <script type="module" src="js/services/router.js"></script>
     <script type="module" src="js/gestion-usuarios.js"></script>
 </body>
 

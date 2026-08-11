@@ -115,34 +115,38 @@ const LOGO_PATH = 'img/UV-SERVICES-Logo-vectorial-sin-fondo.webp';
 const EXCEL_LOGO_PATH = 'img/UV-SERVICES-Logo-vectorial-sin-fondo.webp';
 const TABLE_HEADER_ROW_INDEX = 7;
 
-const elements = {
-    logoutButton: document.getElementById('logout-btn'),
-    mobileLogoutButton: document.getElementById('mobile-logout-btn'),
-    fileInput: document.getElementById('consolidado-file-input'),
-    dropZone: document.getElementById('consolidado-drop-zone'),
-    status: document.getElementById('consolidado-status'),
-    configButton: document.getElementById('consolidado-config-btn'),
-    configMenu: document.getElementById('consolidado-config-menu'),
-    openImportButton: document.getElementById('consolidado-open-import-btn'),
-    exportStructureButton: document.getElementById('consolidado-export-structure-btn'),
-    saveDbButton: document.getElementById('consolidado-save-db-btn'),
-    syncTechnicalButton: document.getElementById('consolidado-sync-technical-btn'),
-    exportDbButton: document.getElementById('consolidado-export-db-btn'),
-    refreshDbButton: document.getElementById('consolidado-refresh-db-btn'),
-    selectFieldRowsButton: document.getElementById('consolidado-select-field-rows-btn'),
-    deleteAllFieldButton: document.getElementById('consolidado-delete-all-field-btn'),
-    clearTemplateButton: document.getElementById('consolidado-clear-template-btn'),
-    dbSummary: document.getElementById('consolidado-db-summary'),
-    summary: document.getElementById('consolidado-template-summary'),
-    sheetList: document.getElementById('consolidado-sheet-list'),
-    columnTitle: document.getElementById('consolidado-column-title'),
-    columnList: document.getElementById('consolidado-column-list'),
-    exportModeInputs: document.querySelectorAll('[name="consolidado-export-mode"]'),
-    pozoFilter: document.getElementById('consolidado-pozo-filter'),
-    startDate: document.getElementById('consolidado-start-date'),
-    endDate: document.getElementById('consolidado-end-date'),
-    exportSourceInputs: document.querySelectorAll('[name="consolidado-export-source"]')
-};
+let elements = {};
+
+function _captureDomRefs() {
+    elements = {
+        logoutButton: document.getElementById('logout-btn'),
+        mobileLogoutButton: document.getElementById('mobile-logout-btn'),
+        fileInput: document.getElementById('consolidado-file-input'),
+        dropZone: document.getElementById('consolidado-drop-zone'),
+        status: document.getElementById('consolidado-status'),
+        configButton: document.getElementById('consolidado-config-btn'),
+        configMenu: document.getElementById('consolidado-config-menu'),
+        openImportButton: document.getElementById('consolidado-open-import-btn'),
+        exportStructureButton: document.getElementById('consolidado-export-structure-btn'),
+        saveDbButton: document.getElementById('consolidado-save-db-btn'),
+        syncTechnicalButton: document.getElementById('consolidado-sync-technical-btn'),
+        exportDbButton: document.getElementById('consolidado-export-db-btn'),
+        refreshDbButton: document.getElementById('consolidado-refresh-db-btn'),
+        selectFieldRowsButton: document.getElementById('consolidado-select-field-rows-btn'),
+        deleteAllFieldButton: document.getElementById('consolidado-delete-all-field-btn'),
+        clearTemplateButton: document.getElementById('consolidado-clear-template-btn'),
+        dbSummary: document.getElementById('consolidado-db-summary'),
+        summary: document.getElementById('consolidado-template-summary'),
+        sheetList: document.getElementById('consolidado-sheet-list'),
+        columnTitle: document.getElementById('consolidado-column-title'),
+        columnList: document.getElementById('consolidado-column-list'),
+        exportModeInputs: document.querySelectorAll('[name="consolidado-export-mode"]'),
+        pozoFilter: document.getElementById('consolidado-pozo-filter'),
+        startDate: document.getElementById('consolidado-start-date'),
+        endDate: document.getElementById('consolidado-end-date'),
+        exportSourceInputs: document.querySelectorAll('[name="consolidado-export-source"]')
+    };
+}
 
 let activeTemplate = null;
 let activeSheetIndex = 0;
@@ -2498,13 +2502,17 @@ async function checkOrphanRowsDiagnostic() {
     }
 }
 
-async function init() {
+export async function initConsolidado() {
+    _captureDomRefs();
     if (!(await ensureAccess())) return;
     const session = await getSession();
     const accessProfile = getAccessProfile(session);
     const scopeContext = await initOperationalScopeContext(session, accessProfile);
     renderOperationalScopeSwitcher(document.getElementById('consolidado-operational-scope-switcher'), scopeContext, {
-        onChange: () => window.location.reload()
+        onChange: () => {
+            sessionStorage.removeItem('uv-active-pozo-v1');
+            window.location.reload();
+        }
     });
     activeOperationalScopePozos = await getActiveOperationalScopeWellNames().catch(error => {
         console.warn('No se pudieron cargar pozos del contrato activo para Consolidado:', error);
@@ -2534,4 +2542,7 @@ async function init() {
     }
 }
 
-init();
+export function destroyConsolidado() {
+    document.removeEventListener('click', closeConfigMenu);
+    elements = {};
+}

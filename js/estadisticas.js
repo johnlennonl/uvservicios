@@ -66,7 +66,7 @@ const PALETTE = {
 };
 
 // Inicialización del Módulo
-async function init() {
+export async function initEstadisticas() {
     // 1. Validar Sesión y Control de Acceso
     const session = await getSession();
     if (!session) {
@@ -82,7 +82,17 @@ async function init() {
     }
 
     const operationalScopeContext = await initOperationalScopeContext(session, accessProfile);
-    const handleOperationalScopeChange = () => window.location.reload();
+    const handleOperationalScopeChange = async () => {
+        state.activeOperationalScope = getActiveOperationalScope();
+        const activeScopeWells = await getFieldWellsByScope(state.activeOperationalScope).catch(error => {
+            console.warn('No se pudo cargar el catalogo del contrato activo en Estadisticas:', error);
+            return [];
+        });
+        state.activeScopePozoNames = [...new Set(activeScopeWells.map(well => normalizePozoName(well?.pozo_name)).filter(Boolean))];
+        state.activeScopeFields = [...new Set(activeScopeWells.map(well => normalizeCampoName(well?.campo_name)).filter(Boolean))].sort();
+        populateFieldFilterOptions();
+        await loadReportData();
+    };
     renderOperationalScopeSwitcher(document.getElementById('stats-operational-scope-switcher'), operationalScopeContext, {
         onChange: handleOperationalScopeChange
     });
@@ -2098,5 +2108,13 @@ async function exportarPDF() {
     }
 }
 
-// Arrancar script
-document.addEventListener('DOMContentLoaded', init);
+// Destrucción del Módulo y limpieza de recursos
+export function destroyEstadisticas() {
+    console.log('[Stats] Limpiando gráficos y recursos...');
+    Object.values(state.charts || {}).forEach(chart => {
+        if (chart && typeof chart.destroy === 'function') {
+            chart.destroy();
+        }
+    });
+    state.charts = {};
+}

@@ -15,32 +15,32 @@ import {
     upsertFieldWell
 } from './services/operational-contracts-service.js';
 
-// DOM elements
-const activeUserNameEl = document.getElementById('active-user-name');
-const statTotalUsersEl = document.getElementById('stat-total-users');
-const statActiveSessionsEl = document.getElementById('stat-active-sessions');
-const statActiveContractsEl = document.getElementById('stat-active-roles');
-const formCreateUser = document.getElementById('form-create-user');
-const btnSubmitUser = document.getElementById('btn-submit-user');
-const usersTableBody = document.getElementById('users-table-body');
-const tableShimmerLoader = document.getElementById('table-shimmer-loader');
-const searchUsersInput = document.getElementById('search-users');
-const btnLogout = document.getElementById('logout-btn');
-const contractsStatusEl = document.getElementById('contracts-status');
-const contractsListEl = document.getElementById('contracts-list');
-const contractTechniciansListEl = document.getElementById('contract-technicians-list');
-const contractWellsListEl = document.getElementById('contract-wells-list');
-const selectedContractTitleEl = document.getElementById('selected-contract-title');
-const selectedContractMetaEl = document.getElementById('selected-contract-meta');
-const selectedContractPillEl = document.getElementById('selected-contract-pill');
-const formContractTechnician = document.getElementById('form-contract-technician');
-const formContractWell = document.getElementById('form-contract-well');
-const selectOperationalScope = document.getElementById('select-operational-scope');
-const editOperationalScope = document.getElementById('edit-operational-scope');
-const selectRole = document.getElementById('select-role');
-const editRole = document.getElementById('edit-role');
-const selectOperationalScopeHelp = document.getElementById('select-operational-scope-help');
-const editOperationalScopeHelp = document.getElementById('edit-operational-scope-help');
+// DOM elements — se capturan en initGestionUsuarios() para compatibilidad SPA
+let activeUserNameEl = null;
+let statTotalUsersEl = null;
+let statActiveSessionsEl = null;
+let statActiveContractsEl = null;
+let formCreateUser = null;
+let btnSubmitUser = null;
+let usersTableBody = null;
+let tableShimmerLoader = null;
+let searchUsersInput = null;
+let btnLogout = null;
+let contractsStatusEl = null;
+let contractsListEl = null;
+let contractTechniciansListEl = null;
+let contractWellsListEl = null;
+let selectedContractTitleEl = null;
+let selectedContractMetaEl = null;
+let selectedContractPillEl = null;
+let formContractTechnician = null;
+let formContractWell = null;
+let selectOperationalScope = null;
+let editOperationalScope = null;
+let selectRole = null;
+let editRole = null;
+let selectOperationalScopeHelp = null;
+let editOperationalScopeHelp = null;
 
 const CONTRACT_PLACEHOLDERS = Object.freeze({
     ceiba_tomoporo: {
@@ -62,32 +62,35 @@ const CONTRACT_FIELD_OPTIONS = Object.freeze({
 
 const ALL_OPERATIONAL_SCOPES_VALUE = '__all_contracts__';
 
-// Modal Elements
-const modalOverlay = document.getElementById('user-management-modal');
-const btnCloseModal = document.getElementById('close-modal-btn');
-const modalUserFullName = document.getElementById('modal-user-fullname');
-const modalUserEmail = document.getElementById('modal-user-email');
-const tabButtons = document.querySelectorAll('.modal-tab-btn');
-const tabContents = document.querySelectorAll('.tab-content');
+// Modal Elements — se capturan en initGestionUsuarios()
+let modalOverlay = null;
+let btnCloseModal = null;
+let modalUserFullName = null;
+let modalUserEmail = null;
+let tabButtons = null;
+let tabContents = null;
 
 // Tab details fields
-const detailEmpresa = document.getElementById('detail-empresa');
-const detailRole = document.getElementById('detail-role');
-const detailLastLogin = document.getElementById('detail-last-login');
-const detailCreated = document.getElementById('detail-created');
+let detailEmpresa = null;
+let detailRole = null;
+let detailLastLogin = null;
+let detailCreated = null;
 
 // Password change fields
-const formChangePassword = document.getElementById('form-change-password');
-const changePassUserId = document.getElementById('change-pass-user-id');
-const newPasswordInput = document.getElementById('new-password');
-const confirmPasswordInput = document.getElementById('confirm-password');
-const togglePasswordsVis = document.getElementById('toggle-passwords-vis');
-const btnSubmitChangePass = document.getElementById('btn-submit-change-pass');
+let formChangePassword = null;
+let changePassUserId = null;
+let newPasswordInput = null;
+let confirmPasswordInput = null;
+let togglePasswordsVis = null;
+let btnSubmitChangePass = null;
 
 // Timeline fields
-const logsTimeline = document.getElementById('logs-timeline');
-const logsTimelineLoader = document.getElementById('logs-timeline-loader');
-const logsEmptyMessage = document.getElementById('logs-empty-message');
+let logsTimeline = null;
+let logsTimelineLoader = null;
+let logsEmptyMessage = null;
+
+// Referencia al AbortController para limpiar subscripciones al salir
+let _gestionAbortController = null;
 
 let allProfiles = [];
 let operationalContracts = [];
@@ -1052,8 +1055,82 @@ async function loadAccessLogs(userId) {
     }
 }
 
-// 5. Events binding
-document.addEventListener('DOMContentLoaded', async () => {
+// ====================================================================
+// SPA V3.0 — Ciclo de vida: init / destroy
+// ====================================================================
+
+/**
+ * Captura todos los elementos del DOM del contenido SPA inyectado.
+ * Debe llamarse DESPUÉS de que el router haya insertado el HTML.
+ */
+function _captureDomRefs() {
+    activeUserNameEl        = document.getElementById('active-user-name');
+    statTotalUsersEl        = document.getElementById('stat-total-users');
+    statActiveSessionsEl    = document.getElementById('stat-active-sessions');
+    statActiveContractsEl   = document.getElementById('stat-active-roles');
+    formCreateUser          = document.getElementById('form-create-user');
+    btnSubmitUser           = document.getElementById('btn-submit-user');
+    usersTableBody          = document.getElementById('users-table-body');
+    tableShimmerLoader      = document.getElementById('table-shimmer-loader');
+    searchUsersInput        = document.getElementById('search-users');
+    btnLogout               = document.getElementById('logout-btn');
+    contractsStatusEl       = document.getElementById('contracts-status');
+    contractsListEl         = document.getElementById('contracts-list');
+    contractTechniciansListEl = document.getElementById('contract-technicians-list');
+    contractWellsListEl     = document.getElementById('contract-wells-list');
+    selectedContractTitleEl = document.getElementById('selected-contract-title');
+    selectedContractMetaEl  = document.getElementById('selected-contract-meta');
+    selectedContractPillEl  = document.getElementById('selected-contract-pill');
+    formContractTechnician  = document.getElementById('form-contract-technician');
+    formContractWell        = document.getElementById('form-contract-well');
+    selectOperationalScope  = document.getElementById('select-operational-scope');
+    editOperationalScope    = document.getElementById('edit-operational-scope');
+    selectRole              = document.getElementById('select-role');
+    editRole                = document.getElementById('edit-role');
+    selectOperationalScopeHelp = document.getElementById('select-operational-scope-help');
+    editOperationalScopeHelp   = document.getElementById('edit-operational-scope-help');
+
+    modalOverlay        = document.getElementById('user-management-modal');
+    btnCloseModal       = document.getElementById('close-modal-btn');
+    modalUserFullName   = document.getElementById('modal-user-fullname');
+    modalUserEmail      = document.getElementById('modal-user-email');
+    tabButtons          = document.querySelectorAll('.modal-tab-btn');
+    tabContents         = document.querySelectorAll('.tab-content');
+
+    detailEmpresa   = document.getElementById('detail-empresa');
+    detailRole      = document.getElementById('detail-role');
+    detailLastLogin = document.getElementById('detail-last-login');
+    detailCreated   = document.getElementById('detail-created');
+
+    formChangePassword  = document.getElementById('form-change-password');
+    changePassUserId    = document.getElementById('change-pass-user-id');
+    newPasswordInput    = document.getElementById('new-password');
+    confirmPasswordInput= document.getElementById('confirm-password');
+    togglePasswordsVis  = document.getElementById('toggle-passwords-vis');
+    btnSubmitChangePass = document.getElementById('btn-submit-change-pass');
+
+    logsTimeline        = document.getElementById('logs-timeline');
+    logsTimelineLoader  = document.getElementById('logs-timeline-loader');
+    logsEmptyMessage    = document.getElementById('logs-empty-message');
+}
+
+/**
+ * Punto de entrada SPA para Gestión de Usuarios.
+ * El router llama a esta función después de inyectar el HTML.
+ */
+export async function initGestionUsuarios() {
+    // Resetear estado de sesión anterior
+    allProfiles = [];
+    operationalContracts = [];
+    operationalContractStats = new Map();
+    selectedOperationalScope = DEFAULT_OPERATIONAL_SCOPE;
+    currentSortCol = null;
+    isAscending = true;
+    _gestionAbortController = new AbortController();
+
+    // Capturar referencias al DOM recién inyectado
+    _captureDomRefs();
+
     const session = await checkAuth();
     if (!session) return;
 
@@ -1614,4 +1691,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             btnSubmitUser.textContent = 'Crear Cuenta Confirmada';
         }
     });
-});
+}
+
+/**
+ * Limpieza SPA al salir de Gestión de Usuarios.
+ * El router llama a esta función antes de navegar a otra página.
+ */
+export function destroyGestionUsuarios() {
+    if (_gestionAbortController) {
+        _gestionAbortController.abort();
+        _gestionAbortController = null;
+    }
+    // Nullificar referencias para evitar memory leaks
+    activeUserNameEl = statTotalUsersEl = statActiveSessionsEl = statActiveContractsEl = null;
+    formCreateUser = btnSubmitUser = usersTableBody = tableShimmerLoader = null;
+    searchUsersInput = btnLogout = contractsStatusEl = contractsListEl = null;
+    contractTechniciansListEl = contractWellsListEl = selectedContractTitleEl = null;
+    selectedContractMetaEl = selectedContractPillEl = null;
+    formContractTechnician = formContractWell = null;
+    selectOperationalScope = editOperationalScope = null;
+    selectRole = editRole = null;
+    selectOperationalScopeHelp = editOperationalScopeHelp = null;
+    modalOverlay = btnCloseModal = modalUserFullName = modalUserEmail = null;
+    tabButtons = tabContents = null;
+    detailEmpresa = detailRole = detailLastLogin = detailCreated = null;
+    formChangePassword = changePassUserId = null;
+    newPasswordInput = confirmPasswordInput = togglePasswordsVis = btnSubmitChangePass = null;
+    logsTimeline = logsTimelineLoader = logsEmptyMessage = null;
+}

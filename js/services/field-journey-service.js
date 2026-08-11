@@ -5,6 +5,7 @@ import { getActiveOperationalScope, getActiveOperationalScopeWellNames } from '.
 import { previewMonitoringSync, syncMonitoringRecords } from './monitoring-records-service.js';
 import { getWellTechnicalData } from './technical-measurements-service.js';
 import { REPORT_COLUMNS } from './field-journey-export.js';
+import { normalizeOperationalStatus } from './monitoring-shared.js';
 
 const CONSOLIDATED_OPERATIONAL_TABLE = 'consolidated_dashboard_operational';
 
@@ -485,7 +486,16 @@ const FIELD_JOURNEY_AUDIT_FIELD_LABELS = {
 
 function normalizeAuditValue(value) {
     if (value === undefined || value === null) return '';
-    return String(value).trim();
+    let str = String(value).trim();
+    // Normalizar formato de hora HH:MM:SS a HH:MM
+    if (/^\d{2}:\d{2}:\d{2}$/.test(str)) {
+        return str.substring(0, 5);
+    }
+    // Normalizar números para ignorar decimales sobrantes (ej. 364.00 -> 364)
+    if (str !== '' && !isNaN(Number(str))) {
+        return String(Number(str));
+    }
+    return str;
 }
 
 function buildFieldJourneyRecordAuditChanges(existingRecord = {}, report = {}) {
@@ -970,10 +980,21 @@ export async function getAdminFieldJourneys(options = {}) {
         const journeyList = Array.isArray(journeys) ? journeys : [];
         if (journeyList.length === 0) return [];
 
+        journeyList.sort((a, b) => {
+            const dateComp = String(b.journey_date || '').localeCompare(String(a.journey_date || ''));
+            if (dateComp !== 0) return dateComp;
+            const jA = String(a.jornada || '').toLowerCase() === 'nocturna' ? 2 : 1;
+            const jB = String(b.jornada || '').toLowerCase() === 'nocturna' ? 2 : 1;
+            if (jA !== jB) return jB - jA;
+            const timeA = new Date(a.created_at || 0).getTime();
+            const timeB = new Date(b.created_at || 0).getTime();
+            return timeB - timeA;
+        });
+
         const journeyIds = journeyList.map(journey => journey.id).filter(Boolean);
         const { data: records, error: recordsError } = await supabase
             .from('field_journey_records')
-            .select('journey_id, pozo, report_time')
+            .select('journey_id, pozo, report_time, raw_payload')
             .in('journey_id', journeyIds)
             .in('pozo', scopeGuard.pozoNames)
             .order('report_time', { ascending: true })
@@ -991,7 +1012,23 @@ export async function getAdminFieldJourneys(options = {}) {
         });
 
         return journeyList
-            .map(journey => buildJourneyPreviewSummary(journey, recordsByJourney.get(journey.id) || []))
+            .map(journey => {
+                const jRecords = recordsByJourney.get(journey.id) || [];
+                let recEquipo = '';
+                for (const r of jRecords) {
+                    const raw = (r.raw_payload && typeof r.raw_payload === 'object') ? r.raw_payload : {};
+                    const eq = raw.equipo_guardia || (raw.tecnico_1 ? [raw.tecnico_1, raw.tecnico_2].filter(Boolean).join(', ') : '');
+                    if (eq) {
+                        recEquipo = eq;
+                        break;
+                    }
+                }
+                const summary = buildJourneyPreviewSummary(journey, jRecords);
+                if (recEquipo) {
+                    summary.equipo_guardia = recEquipo;
+                }
+                return summary;
+            })
             .filter(journey => matchesJourneySearch(journey, options.searchTerm));
     } catch (error) {
         throw wrapFieldJourneyError(error);
@@ -1324,6 +1361,139 @@ export async function mergeAdminFieldJourneys(targetJourneyId, sourceJourneyId, 
     }
 }
 
+export async function splitAdminFieldJourney(sourceJourneyId, options = {}) {
+    const session = await ensureFieldAdminWriteAccess();
+    const sourceId = normalizeUuid(sourceJourneyId);
+    const recordIdsToMove = Array.isArray(options.recordIdsToMove) ? options.recordIdsToMove.filter(Boolean) : [];
+
+    if (!sourceId) {
+        throw new Error('Selecciona una jornada de origen válida para separar pozos.');
+    }
+
+    if (!recordIdsToMove.length) {
+        throw new Error('Selecciona al menos un pozo para separar a la nueva jornada.');
+    }
+
+    try {
+        const { data: sourceJourney, error: journeyErr } = await supabase
+            .from('field_journeys')
+            .select('*')
+            .eq('id', sourceId)
+            .single();
+
+        if (journeyErr || !sourceJourney) {
+            throw new Error('No se encontró la jornada de origen para realizar la separación.');
+        }
+
+        const { data: recordsToMove, error: recsErr } = await supabase
+            .from('field_journey_records')
+            .select('*')
+            .in('id', recordIdsToMove);
+
+        if (recsErr || !recordsToMove.length) {
+            throw new Error('No se pudieron obtener los pozos seleccionados para mover.');
+        }
+
+        const newJornada = options.targetJornada || (String(sourceJourney.jornada || '').toLowerCase() === 'diurna' ? 'Nocturna' : 'Diurna');
+        const newDate = options.targetDate || sourceJourney.journey_date;
+        const newLocation = sourceJourney.locacion_jornada;
+
+        let splitEquipo = '';
+        let splitTech1 = null;
+        let splitTech2 = null;
+
+        for (const r of recordsToMove) {
+            const raw = (r.raw_payload && typeof r.raw_payload === 'object') ? r.raw_payload : {};
+            if (raw.equipo_guardia) splitEquipo = raw.equipo_guardia;
+            if (raw.tecnico_1) splitTech1 = raw.tecnico_1;
+            if (raw.tecnico_2) splitTech2 = raw.tecnico_2;
+            if (splitEquipo) break;
+        }
+
+        const newJourneyPayload = {
+            operational_scope: sourceJourney.operational_scope,
+            journey_date: newDate,
+            jornada: newJornada,
+            equipo_guardia: splitEquipo || sourceJourney.equipo_guardia,
+            locacion_jornada: newLocation,
+            submitted_by_user_id: sourceJourney.submitted_by_user_id || session.user.id,
+            submitted_by_email: sourceJourney.submitted_by_email || session.user.email,
+            tecnico_1: splitTech1 || sourceJourney.tecnico_1,
+            tecnico_2: splitTech2 || sourceJourney.tecnico_2,
+            status: 'submitted',
+            admin_notes: `Jornada creada al separar ${recordsToMove.length} pozo(s) de la jornada origen.`
+        };
+
+        const { data: newJourney, error: createErr } = await supabase
+            .from('field_journeys')
+            .insert(newJourneyPayload)
+            .select()
+            .single();
+
+        if (createErr || !newJourney) {
+            throw new Error('No se pudo crear el nuevo ticket de jornada separada: ' + (createErr?.message || ''));
+        }
+
+        const { error: moveErr } = await supabase
+            .from('field_journey_records')
+            .update({
+                journey_id: newJourney.id,
+                report_date: newDate
+            })
+            .in('id', recordIdsToMove);
+
+        if (moveErr) {
+            await supabase.from('field_journeys').delete().eq('id', newJourney.id);
+            throw moveErr;
+        }
+
+        for (const r of recordsToMove) {
+            if (r.raw_payload && typeof r.raw_payload === 'object') {
+                const updatedPayload = {
+                    ...r.raw_payload,
+                    jornada: newJornada,
+                    fecha: newDate,
+                    journey_id: newJourney.id
+                };
+                await supabase
+                    .from('field_journey_records')
+                    .update({ raw_payload: updatedPayload })
+                    .eq('id', r.id);
+            }
+        }
+
+        await refreshAdminJourneyRollup(newJourney.id);
+        await refreshAdminJourneyRollup(sourceId);
+
+        try {
+            await supabase.from('field_journey_review_log').insert([
+                {
+                    journey_id: newJourney.id,
+                    action: 'created',
+                    comment: `Jornada ${newJornada} creada al separar ${recordsToMove.length} pozo(s) de la jornada del ${sourceJourney.journey_date}.`,
+                    performed_by_user_id: session?.user?.id || null,
+                    performed_by_email: session?.user?.email || null,
+                    metadata: { source: 'splitAdminFieldJourney', source_journey_id: sourceId, pozos: recordsToMove.map(r => r.pozo) }
+                },
+                {
+                    journey_id: sourceId,
+                    action: 'split',
+                    comment: `Se extrajeron ${recordsToMove.length} pozo(s) para crear la jornada ${newJornada}.`,
+                    performed_by_user_id: session?.user?.id || null,
+                    performed_by_email: session?.user?.email || null,
+                    metadata: { source: 'splitAdminFieldJourney', new_journey_id: newJourney.id, pozos: recordsToMove.map(r => r.pozo) }
+                }
+            ]);
+        } catch (logErr) {
+            console.warn('Could not insert review log for split journey:', logErr);
+        }
+
+        return { newJourneyId: newJourney.id, movedCount: recordsToMove.length, isFullReassignment: false };
+    } catch (error) {
+        throw wrapFieldJourneyError(error);
+    }
+}
+
 export async function getFieldSubmittedJourneys(options = {}) {
     const { session } = await ensureFieldSessionAccess();
     const limit = Number(options.limit);
@@ -1603,15 +1773,39 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
     normalizedReports = await inheritReportsProductionMeasures(normalizedReports);
 
     const requestedJourneyId = normalizeUuid(options.journeyId);
+    let targetJourneyId = requestedJourneyId;
     let wasAlreadyPublishedOrApproved = false;
     let originalStatus = 'submitted';
+    let originalPozos = [];
 
     try {
-        if (requestedJourneyId) {
+        if (!targetJourneyId && normalizedReports.length > 0) {
+            // Salvaguarda de Auto-Fusión: Buscar si ya existe una jornada para este técnico, fecha y turno en revisión
+            const firstReport = normalizedReports[0];
+            const journeyDate = resolveJourneyStartDate(normalizedReports) || firstReport.fecha;
+            const shift = firstReport.jornada || 'Diurna';
+
+            if (journeyDate) {
+                const { data: duplicate } = await supabase
+                    .from('field_journeys')
+                    .select('id, status')
+                    .eq('submitted_by_user_id', session.user.id)
+                    .eq('journey_date', journeyDate)
+                    .eq('jornada', shift)
+                    .in('status', ['submitted', 'under_review', 'rejected'])
+                    .maybeSingle();
+
+                if (duplicate) {
+                    targetJourneyId = duplicate.id;
+                }
+            }
+        }
+
+        if (targetJourneyId) {
             const { data: existingJourney, error: existingJourneyError } = await supabase
                 .from('field_journeys')
                 .select('id, status, reviewed_at, published_at')
-                .eq('id', requestedJourneyId)
+                .eq('id', targetJourneyId)
                 .maybeSingle();
 
             if (existingJourneyError) throw existingJourneyError;
@@ -1624,12 +1818,21 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
                     wasAlreadyPublishedOrApproved = true;
                     originalStatus = existingJourney.status;
                 }
+
+                // Capturar el listado original de pozos antes de eliminarlos
+                const { data: oldRecords } = await supabase
+                    .from('field_journey_records')
+                    .select('pozo, frecuencia, i_motor, pip_psi, thp_psi, tm_f, estatus, observaciones_pozo, actividad')
+                    .eq('journey_id', targetJourneyId);
+                if (oldRecords) {
+                    originalPozos = oldRecords.map(r => String(r.pozo || '').trim().toUpperCase()).filter(Boolean);
+                }
             }
         }
 
         const operationalScope = normalizeOperationalScopeValue(options.operationalScope);
         normalizedReports = normalizedReports.map(report => ({ ...report, operational_scope: operationalScope }));
-        const journeyRow = buildWorkflowJourneyRow(normalizedReports, session, requestedJourneyId, operationalScope);
+        const journeyRow = buildWorkflowJourneyRow(normalizedReports, session, targetJourneyId, operationalScope);
         if (wasAlreadyPublishedOrApproved) {
             journeyRow.status = originalStatus;
         }
@@ -1668,23 +1871,80 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
             await upsertFieldJourneyIntoConsolidatedDashboard(inheritedRecords, journeyId);
         }
 
-        if (accessProfile.canViewManagement) {
-            const { error: logError } = await supabase
-                .from('field_journey_review_log')
-                .insert({
-                    journey_id: journeyId,
-                    action: 'submitted',
-                    comment: requestedJourneyId ? 'Jornada actualizada desde Campo.' : 'Jornada enviada desde Campo.',
-                    performed_by_user_id: session.user.id,
-                    performed_by_email: session.user.email,
-                    metadata: {
-                        report_count: recordRows.length,
-                        source: 'field-web'
-                    }
-                });
+        // Registrar evento en la bitácora de trazabilidad (Pulso de la Jornada) para todos los usuarios
+        const newPozos = normalizedReports.map(r => String(r.pozo || '').trim().toUpperCase()).filter(Boolean);
+        let auditComment = targetJourneyId 
+            ? 'Jornada re-enviada desde Campo para revisión.' 
+            : 'Jornada enviada desde Campo.';
 
-            if (logError) throw logError;
+        let originalRecords = [];
+        if (targetJourneyId && oldRecords) {
+            originalRecords = oldRecords;
         }
+
+        if (targetJourneyId && originalPozos.length > 0) {
+            const added = newPozos.filter(p => !originalPozos.includes(p));
+            const deleted = originalPozos.filter(p => !newPozos.includes(p));
+            const parts = [];
+            if (added.length > 0) parts.push(`Se agregaron ${added.length} pozo(s): ${added.join(', ')}`);
+            if (deleted.length > 0) parts.push(`Se eliminaron ${deleted.length} pozo(s): ${deleted.join(', ')}`);
+            if (parts.length > 0) {
+                auditComment += ' ' + parts.join('. ') + '.';
+            } else {
+                auditComment += ' Sin cambios en la lista de pozos.';
+            }
+
+            // Edición de parámetros de pozos existentes
+            const oldRecordsMap = new Map(originalRecords.map(r => [String(r.pozo || '').trim().toUpperCase(), r]));
+            const parameterChangesList = [];
+
+            normalizedReports.forEach(rep => {
+                const pozoName = String(rep.pozo || '').trim().toUpperCase();
+                const oldRec = oldRecordsMap.get(pozoName);
+                if (oldRec) {
+                    const changes = [];
+                    const compareNum = (label, oldVal, newVal) => {
+                        const ov = oldVal === null || oldVal === undefined ? '' : Number(oldVal);
+                        const nv = newVal === null || newVal === undefined ? '' : Number(newVal);
+                        if (ov !== nv && (ov !== '' || nv !== '')) {
+                            changes.push(`${label} (${ov || '--'} → ${nv || '--'})`);
+                        }
+                    };
+                    const compareStr = (label, oldVal, newVal) => {
+                        const ov = String(oldVal ?? '').trim();
+                        const nv = String(newVal ?? '').trim();
+                        if (ov !== nv) {
+                            changes.push(`${label} (${ov || '--'} → ${nv || '--'})`);
+                        }
+                    };
+
+                    compareNum('frecuencia', oldRec.frecuencia, rep.frecuencia);
+                    compareNum('i_motor', oldRec.i_motor, rep.i_motor);
+                    compareNum('pip_psi', oldRec.pip_psi, rep.pip_psi);
+                    compareNum('thp_psi', oldRec.thp_psi, rep.thp_psi);
+                    compareNum('tm_f', oldRec.tm_f, rep.tm_f);
+                    compareStr('estatus', oldRec.estatus, rep.estatus);
+                    compareStr('actividad', oldRec.actividad, rep.actividad);
+
+                    if (changes.length > 0) {
+                        parameterChangesList.push(`Pozo ${pozoName}: ${changes.join(', ')}`);
+                    }
+                }
+            });
+
+            if (parameterChangesList.length > 0) {
+                auditComment += ' Modificación de parámetros: ' + parameterChangesList.join('; ') + '.';
+            }
+        } else {
+            auditComment += ` Contiene ${newPozos.length} pozo(s): ${newPozos.join(', ')}.`;
+        }
+
+        await logFieldJourneyAudit(journeyId, targetJourneyId ? 'updated' : 'submitted', auditComment, {
+            pozos: newPozos,
+            report_count: recordRows.length,
+            source: 'field-web',
+            pozos_previos: originalPozos
+        });
 
         return {
             journeyId,
@@ -1966,7 +2226,7 @@ function mapWorkflowRecordToMonitoringRecord(record = {}) {
         vsd_b: normalizeOptionalNumber(record.i_vsd_b ?? payload.i_vsd_b ?? record.vsd_b ?? payload.vsd_b),
         vsd_c: normalizeOptionalNumber(record.i_vsd_c ?? payload.i_vsd_c ?? record.vsd_c ?? payload.vsd_c),
         sentido_giro: String(record.sentido_giro || payload.sentido_giro || '').trim(),
-        estatus: String(record.estatus || payload.estatus || '').trim(),
+        estatus: normalizeOperationalStatus(record.estatus || payload.estatus) || null,
         observaciones: String(record.observaciones_pozo || payload.observaciones_pozo || '').trim()
     };
 }
@@ -2488,5 +2748,29 @@ export async function getFieldTicketsByJourney(journeyKey = null) {
         // on errors (table missing, RLS) return empty and let client fallback to local
         console.warn('getFieldTicketsByJourney error', err?.message || err);
         return [];
+    }
+}
+
+export async function logFieldJourneyAudit(journeyId, action, comment, metadata = {}) {
+    const session = await getSession();
+    const normalizedJourneyId = normalizeUuid(journeyId);
+    if (!normalizedJourneyId) return;
+
+    try {
+        const payload = {
+            journey_id: normalizedJourneyId,
+            action: String(action || 'commented').toLowerCase(),
+            comment: String(comment || '').trim(),
+            performed_by_user_id: session?.user?.id || null,
+            performed_by_email: session?.user?.email || 'operador@uvservicios.com',
+            metadata: {
+                timestamp: new Date().toISOString(),
+                ...metadata
+            }
+        };
+
+        await supabase.from('field_journey_review_log').insert(payload);
+    } catch (err) {
+        console.warn('Could not log field journey audit event:', err);
     }
 }

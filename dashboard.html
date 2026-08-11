@@ -19,6 +19,8 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
     
     <link rel="stylesheet" href="css/dashboard-page.css">
 </head>
@@ -129,7 +131,7 @@
             </button>
         </aside>
 
-        <button id="main-view-toggle" class="btn-report-toggle">
+        <button id="main-view-toggle" class="btn-report-toggle" style="display: none;">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round"
                     d="M9 17v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v8m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -244,7 +246,7 @@
                                 <path d="M6 9l6 6 6-6" />
                             </svg>
                         </button>
-                        <div class="pozo-selector-menu" id="filter-pozo-menu">
+                        <div class="pozo-selector-menu" id="filter-pozo-menu" data-lenis-prevent>
                             <div class="pozo-selector-empty">Cargando pozos...</div>
                         </div>
                     </div>
@@ -280,7 +282,7 @@
                         <input type="date" id="filter-end" hidden>
                         <input type="time" id="filter-time" hidden>
                         <input type="date" id="historical-date-jump" hidden>
-                        <div class="historical-record-menu" id="historical-record-menu"></div>
+                        <div class="historical-record-menu" id="historical-record-menu" data-lenis-prevent></div>
                         
                         <button id="btn-next-day" class="timeline-segment-btn segment-nav-btn" type="button" title="Registro siguiente" aria-label="Registro siguiente">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -512,8 +514,19 @@
                                 <option value="latest-1">Ultimo registro</option>
                                 <option value="latest-15" selected>Ultimos 15 registros</option>
                                 <option value="latest-30">Ultimos 30 registros</option>
+                                <option value="custom-range">Elegir rango de fecha</option>
                             </select>
                         </label>
+                        <div id="trend-date-range-container" style="display: none; align-items: center; gap: 8px;">
+                            <label class="trend-window-select-wrap" for="trend-filter-start" style="margin-left: 0;">
+                                <span class="trend-window-select-label">Desde</span>
+                                <input type="date" id="trend-filter-start" class="trend-window-select" style="width: 130px; padding: 0 8px; font-size: 0.8rem; height: 32px;">
+                            </label>
+                            <label class="trend-window-select-wrap" for="trend-filter-end" style="margin-left: 0;">
+                                <span class="trend-window-select-label">Hasta</span>
+                                <input type="date" id="trend-filter-end" class="trend-window-select" style="width: 130px; padding: 0 8px; font-size: 0.8rem; height: 32px;">
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -565,7 +578,7 @@
                     <div class="card-header-industrial">
                         <h3>Bitácora de Observaciones</h3>
                     </div>
-                    <div style="max-height: 150px; overflow-y: auto;">
+                    <div>
                         <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
                             <tbody id="obs-body"></tbody>
                         </table>
@@ -638,8 +651,8 @@
         </div>
     </div>
 
-    <script type="module" src="js/charts.js"></script>
-    <script type="module" src="js/field-admin-alert.js"></script>
+    <script type="module" src="js/services/router.js"></script>
+    <script type="module" src="js/field-admin-alert.js?v=20260810v3"></script>
     <script>
         const toggleReportMode = (enable) => {
             const body = document.body;

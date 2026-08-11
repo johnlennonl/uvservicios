@@ -185,7 +185,7 @@
                                                     <path d="M6 9l6 6 6-6" />
                                                 </svg>
                                             </button>
-                                            <div class="pozo-selector-menu" id="field-pozo-menu">
+                                            <div class="pozo-selector-menu" id="field-pozo-menu" data-lenis-prevent>
                                                 <div class="pozo-selector-empty">Cargando pozos...</div>
                                             </div>
                                         </div>
@@ -514,9 +514,13 @@
                                 <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
                                 <span>Enviar captura</span>
                             </button>
-                            <button type="button" id="field-open-attachments-btn" class="btn-submit field-ticket-trigger-btn" style="background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color: #ffffff;" title="Reportes y adjuntos de campo">
+                            <button type="button" id="field-open-attachments-btn" class="btn-submit field-ticket-trigger-btn" style="background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color: #ffffff;" title="Adjuntos de campo">
                                 <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
-                                <span>Reportes y adjuntos de campo</span>
+                                <span>Adjuntos de campo</span>
+                            </button>
+                            <button type="button" id="field-open-support-btn" class="btn-submit" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff;" title="Reportar Apoyo o Novedades de la Jornada">
+                                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                                <span>Reportes</span>
                             </button>
                         </div>
                         <p id="field-summary-submit-copy">Cuando la lista esté completa, envía la captura para que administración la reciba como un solo paquete operativo.</p>

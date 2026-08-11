@@ -36,155 +36,8 @@ function normalizeAlertVersionMap(raw) {
 }
 
 function ensureFieldAdminToastStyles() {
-    if (document.getElementById('field-admin-toast-styles')) return;
-
-    const style = document.createElement('style');
-    style.id = 'field-admin-toast-styles';
-    style.textContent = `
-        .field-admin-toast.swal2-popup.swal2-toast {
-            width: min(380px, calc(100vw - 32px));
-            padding: 14px 16px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
-            background: #181a22;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-            overflow: hidden;
-            animation: field-toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            touch-action: pan-y;
-        }
-
-        .field-admin-toast.is-dismissing {
-            transition: transform 0.18s ease, opacity 0.18s ease;
-            transform: translateX(120%) scale(0.96);
-            opacity: 0;
-        }
-
-        .field-admin-toast-container {
-            z-index: 9999 !important;
-        }
-
-        @keyframes field-toast-slide-in {
-            from {
-                transform: translateY(-12px) scale(0.96);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0) scale(1);
-                opacity: 1;
-            }
-        }
-
-        .field-admin-toast .swal2-title,
-        .field-admin-toast .swal2-html-container {
-            margin: 0;
-            padding: 0;
-        }
-
-        .field-admin-toast-card-v2 {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            width: 100%;
-            color: #F8FAFC;
-        }
-
-        .field-admin-toast-logo-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
-            background: #FFFFFF;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            flex-shrink: 0;
-            padding: 1px;
-            box-sizing: border-box;
-            cursor:pointer;
-        }
-
-        .field-admin-toast-logo-v2 {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        .field-admin-toast-content {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            flex-grow: 1;
-            text-align: left;
-            padding-right: 20px;
-            cursor:pointer;
-        }
-
-        .field-admin-toast-title-v2 {
-            font-size: 14px;
-            font-weight: 700;
-            color: #FFFFFF;
-            line-height: 1.3;
-        }
-
-        .field-admin-toast-desc-v2 {
-            font-size: 12px;
-            color: #94A3B8;
-            line-height: 1.4;
-        }
-
-        .field-admin-toast .swal2-icon {
-            display: none !important;
-        }
-
-        .field-admin-toast .swal2-close {
-            position: absolute !important;
-            display: inline-flex !important;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-            color: #CBD5E1;
-            font-size: 16px;
-            border-radius: 4px;
-            top: 12px;
-            right: 12px;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .field-admin-toast .swal2-close:hover {
-            color: #F8FAFC;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        @media (max-width: 640px) {
-            .field-admin-toast.swal2-popup.swal2-toast {
-                width: calc(100vw - 24px);
-                padding: 14px;
-            }
-
-            .field-admin-toast-card-v2 {
-                gap: 10px;
-            }
-
-            .field-admin-toast-logo-container {
-                width: 48px;
-                height: 48px;
-            }
-
-            .field-admin-toast-content {
-                padding-right: 28px;
-            }
-        }
-
-        .field-admin-toast .swal2-timer-progress-bar {
-            background: #3B82F6;
-            height: 2px;
-        }
-    `;
-    document.head.appendChild(style);
+    // Las reglas de estilo de la alerta se cargan de forma estática en css/style.css
+    // para cumplir con las políticas CSP de conexión y estilos en el servidor.
 }
 
 function isCampoAdminPage() {
@@ -494,9 +347,10 @@ async function refreshFieldAdminAlert() {
 
         isFirstCheck = false;
 
-        if (journeysToNotify.length) {
-            showNewJourneyToast(journeysToNotify);
-        }
+        // Se desactivan las alertas emergentes (Toasts) temporariamente por petición del usuario.
+        // if (journeysToNotify.length) {
+        //     showNewJourneyToast(journeysToNotify);
+        // }
 
         unseenJourneys.forEach(journey => {
             const journeyId = String(journey.id || '').trim();

@@ -7,6 +7,7 @@ import {
 } from './operational-contracts-service.js';
 
 const ACTIVE_SCOPE_STORAGE_KEY = 'uv-active-operational-scope';
+const SCOPE_TRANSITION_DELAY_MS = 2000;
 
 function escapeHtml(value) {
     return String(value || '')
@@ -15,6 +16,12 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function formatContractName(name) {
+    return String(name || '')
+        .replace(/\s*\/\s*/g, ' · ')
+        .trim();
 }
 
 function canUseAllContracts(accessProfile) {
@@ -26,6 +33,62 @@ function applyOperationalScopeTheme(scopeKey) {
     document.body.classList.remove('operational-scope-ct', 'operational-scope-bmm');
     document.body.dataset.operationalScope = normalizedScope;
     document.body.classList.add(normalizedScope === 'bmm' ? 'operational-scope-bmm' : 'operational-scope-ct');
+}
+
+function startOperationalScopeTransition(contract = {}) {
+    let overlay = document.querySelector('.spa-navigation-overlay');
+
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'spa-navigation-overlay';
+        overlay.innerHTML = `
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" class="spa-loader-logo" alt="UV Servicios">
+        `;
+        document.body.appendChild(overlay);
+    }
+
+    document.body.classList.remove('spa-navigating');
+    window.requestAnimationFrame(() => {
+        document.body.classList.add('spa-navigating');
+    });
+
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : SCOPE_TRANSITION_DELAY_MS;
+}
+
+function finishOperationalScopeTransition() {
+    document.body.classList.remove('operational-scope-transitioning');
+    document.body.classList.remove('spa-navigating');
+}
+
+function runOperationalScopeChange(onChange, nextScope, transitionDelay) {
+    const minDisplayPromise = new Promise(resolve => window.setTimeout(resolve, 600));
+
+    window.setTimeout(async () => {
+        if (typeof onChange !== 'function') {
+            finishOperationalScopeTransition();
+            return;
+        }
+
+        let didLeavePage = false;
+        const markLeaving = () => { didLeavePage = true; };
+        window.addEventListener('pagehide', markLeaving, { once: true });
+        window.addEventListener('beforeunload', markLeaving, { once: true });
+
+        try {
+            const result = onChange(nextScope);
+            if (result instanceof Promise || (result && typeof result.then === 'function')) {
+                await Promise.all([result, minDisplayPromise]);
+            } else {
+                await minDisplayPromise;
+            }
+        } catch (error) {
+            console.error('Error durante el cambio de contrato:', error);
+        } finally {
+            if (!didLeavePage) {
+                finishOperationalScopeTransition();
+            }
+        }
+    }, transitionDelay);
 }
 
 export function getActiveOperationalScope() {
@@ -133,7 +196,7 @@ export function renderOperationalScopeSwitcher(container, context, { onChange = 
                     </svg>
                 </span>
                 <span class="operational-scope-label">Contrato</span>
-                <strong>${escapeHtml(activeContract.display_name)}</strong>
+                <strong>${escapeHtml(formatContractName(activeContract.display_name))}</strong>
             </div>
         `;
         if (renderMobileMirror) renderMobileOperationalScopeMirror(target, context, onChange);
@@ -152,7 +215,7 @@ export function renderOperationalScopeSwitcher(container, context, { onChange = 
             </span>
             <span class="operational-scope-label">Contrato</span>
             <button type="button" class="operational-scope-trigger" aria-label="Cambiar contrato operativo" aria-haspopup="listbox" aria-expanded="false" aria-controls="${escapeHtml(switcherId)}">
-                <span>${escapeHtml(activeContract.display_name)}</span>
+                <span>${escapeHtml(formatContractName(activeContract.display_name))}</span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="m6 9 6 6 6-6"></path>
                 </svg>
@@ -160,7 +223,7 @@ export function renderOperationalScopeSwitcher(container, context, { onChange = 
             <div id="${escapeHtml(switcherId)}" class="operational-scope-menu" role="listbox" aria-label="Contratos operativos">
                 ${context.contracts.map(contract => `
                     <button type="button" class="operational-scope-option${contract.scope_key === context.activeScope ? ' is-selected' : ''}" role="option" aria-selected="${contract.scope_key === context.activeScope ? 'true' : 'false'}" data-scope-key="${escapeHtml(contract.scope_key)}">
-                        ${escapeHtml(contract.display_name)}
+                        ${escapeHtml(formatContractName(contract.display_name))}
                     </button>
                 `).join('')}
             </div>
@@ -179,7 +242,7 @@ export function renderOperationalScopeSwitcher(container, context, { onChange = 
         if (!selectedContract) return;
 
         context.activeScope = selectedContract.scope_key;
-        if (triggerLabel) triggerLabel.textContent = selectedContract.display_name;
+        if (triggerLabel) triggerLabel.textContent = formatContractName(selectedContract.display_name);
         switcher?.classList.toggle('scope-bmm', selectedContract.scope_key === 'bmm');
         switcher?.classList.toggle('scope-ct', selectedContract.scope_key !== 'bmm');
         menu?.querySelectorAll('[data-scope-key]').forEach(option => {
@@ -240,7 +303,9 @@ export function renderOperationalScopeSwitcher(container, context, { onChange = 
             closeMenu();
             const nextScope = setActiveOperationalScope(option.dataset.scopeKey);
             syncSwitcherValue(nextScope);
-            if (typeof onChange === 'function') onChange(nextScope);
+            const selectedContract = context.contracts.find(contract => contract.scope_key === nextScope) || context.contracts[0];
+            const transitionDelay = startOperationalScopeTransition(selectedContract);
+            runOperationalScopeChange(onChange, nextScope, transitionDelay);
         });
     });
 

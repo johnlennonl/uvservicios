@@ -240,3 +240,88 @@ export async function setUserOperationalScopes(userId, scopeKeys = [], { default
         throw buildOperationalCatalogError(error);
     }
 }
+
+export async function syncDiscoveredWellsToCatalog(targetScope = DEFAULT_OPERATIONAL_SCOPE) {
+    try {
+        const normalizedTargetScope = normalizeOperationalScope(targetScope);
+        
+        const { data: catalogWells, error: catalogError } = await supabase
+            .from(WELLS_TABLE)
+            .select('pozo_name');
+        if (catalogError) throw catalogError;
+        
+        const existingNames = new Set((catalogWells || []).map(w => String(w.pozo_name || '').trim().toUpperCase()).filter(Boolean));
+        
+        const [monitoringRes, productionRes] = await Promise.all([
+            supabase.from('monitoreo_pozos').select('pozo_name, campo_name'),
+            supabase.from('well_production').select('pozo_name, campo_name')
+        ]);
+        
+        const discoveredMap = new Map();
+        
+        (monitoringRes.data || []).forEach(row => {
+            const name = String(row?.pozo_name || '').trim().toUpperCase();
+            if (name && !existingNames.has(name) && !discoveredMap.has(name)) {
+                discoveredMap.set(name, String(row?.campo_name || '').trim().toUpperCase());
+            }
+        });
+        
+        (productionRes.data || []).forEach(row => {
+            const name = String(row?.pozo_name || '').trim().toUpperCase();
+            if (name && !existingNames.has(name) && !discoveredMap.has(name)) {
+                discoveredMap.set(name, String(row?.campo_name || '').trim().toUpperCase());
+            }
+        });
+        
+        if (discoveredMap.size === 0) {
+            return { added: 0, totalDiscovered: 0 };
+        }
+        
+        function inferScopeAndField(pozoName, rawField) {
+            const cleanPozo = String(pozoName).trim().toUpperCase();
+            let scope = normalizedTargetScope;
+            let field = rawField || '';
+            
+            if (cleanPozo.startsWith('MG') || cleanPozo.includes('MENE')) {
+                scope = 'bmm';
+                if (!field) field = 'MENE GRANDE';
+            } else if (cleanPozo.startsWith('MOT') || cleanPozo.includes('MOTATAN')) {
+                scope = 'bmm';
+                if (!field) field = 'MOTATAN';
+            } else if (cleanPozo.startsWith('BAR') || cleanPozo.includes('BARUA')) {
+                scope = 'bmm';
+                if (!field) field = 'BARUA';
+            } else if (cleanPozo.startsWith('CEI') || cleanPozo.includes('CEIBA')) {
+                scope = 'ceiba_tomoporo';
+                if (!field) field = 'LA CEIBA';
+            } else if (cleanPozo.startsWith('TOM') || cleanPozo.includes('TOMOPORO')) {
+                scope = 'ceiba_tomoporo';
+                if (!field) field = 'TOMOPORO';
+            }
+            
+            if (!field) field = scope === 'bmm' ? 'BARUA' : 'LA CEIBA';
+            return { scope, field };
+        }
+        
+        const payload = Array.from(discoveredMap.entries()).map(([pozoName, rawField]) => {
+            const { scope, field } = inferScopeAndField(pozoName, rawField);
+            return {
+                pozo_name: pozoName,
+                campo_name: field,
+                operational_scope: scope,
+                active: true,
+                updated_at: new Date().toISOString()
+            };
+        });
+        
+        const { data: inserted, error: insertError } = await supabase
+            .from(WELLS_TABLE)
+            .upsert(payload, { onConflict: 'pozo_name' })
+            .select('*');
+            
+        if (insertError) throw insertError;
+        return { added: inserted?.length || 0, totalDiscovered: discoveredMap.size };
+    } catch (error) {
+        throw buildOperationalCatalogError(error);
+    }
+}

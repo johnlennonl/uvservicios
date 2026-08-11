@@ -15,6 +15,8 @@ let charts = {};
 let isDarkMode = localStorage.getItem('theme-uv') === 'dark';
 let resizeFrame = null;
 let historicalRecordOptions = [];
+let dashboardResizeHandler = null;
+let dashboardOutsideClickHandler = null;
 let pozoSummaries = [];
 let latestKpiSnapshot = null;
 let latestStatusSnapshot = [];
@@ -37,7 +39,8 @@ const TREND_WINDOW_STORAGE_KEY = 'uv-trend-window-mode';
 const TREND_WINDOW_MODES = {
     latest1: 'latest-1',
     latest15: 'latest-15',
-    latest30: 'latest-30'
+    latest30: 'latest-30',
+    customRange: 'custom-range'
 };
 const TREND_INTERACTION_STORAGE_KEY = 'uv-trend-interaction-enabled';
 const TREND_CHART_IDS = ['chart-frecuencia', 'chart-pip', 'chart-tm', 'chart-superficie', 'chart-motor-curr', 'chart-vsd-triphase'];
@@ -551,6 +554,27 @@ function syncTrendWindowControl(isAvailable) {
 
     select.disabled = !isAvailable;
     select.value = trendWindowMode;
+
+    const rangeContainer = document.getElementById('trend-date-range-container');
+    if (rangeContainer) {
+        if (isAvailable && trendWindowMode === TREND_WINDOW_MODES.customRange) {
+            rangeContainer.style.display = 'inline-flex';
+            
+            const startInput = document.getElementById('trend-filter-start');
+            const endInput = document.getElementById('trend-filter-end');
+            if (startInput && endInput && (!startInput.value || !endInput.value)) {
+                const today = new Date().toISOString().slice(0, 10);
+                const latestDate = historicalRecordOptions[0]?.date || today;
+                endInput.value = latestDate;
+                
+                const endDateObj = new Date(latestDate);
+                endDateObj.setDate(endDateObj.getDate() - 30);
+                startInput.value = endDateObj.toISOString().slice(0, 10);
+            }
+        } else {
+            rangeContainer.style.display = 'none';
+        }
+    }
 }
 
 function setTrendWindowMode(mode, syncControl = true) {
@@ -1043,7 +1067,7 @@ async function syncHistoricalRecordSelector(pozoName, preserveSelection = false)
     renderHistoricalRecordMenu();
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+export async function initDashboard() {
     const session = await getSession();
     if (!session) {
         window.location.href = 'index.html';
@@ -1059,9 +1083,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     applyDashboardAccessProfile(accessProfile);
     const operationalScopeContext = await initOperationalScopeContext(session, accessProfile);
-    const handleScopeChange = () => {
+    const handleScopeChange = async () => {
         sessionStorage.removeItem(ACTIVE_POZO_STORAGE_KEY);
-        window.location.reload();
+        try {
+            const { navigate } = await import('./services/router.js');
+            await navigate('dashboard.html', false);
+        } catch (error) {
+            console.warn('[Dashboard] Fallback a recarga física en cambio de contrato:', error);
+            window.location.reload();
+        }
     };
     renderOperationalScopeSwitcher(document.getElementById('dashboard-operational-scope-switcher'), operationalScopeContext, {
         onChange: handleScopeChange
@@ -1110,8 +1140,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Toma la fecha mas reciente de la base para no abrir el dashboard vacio.
         const latestDate = await getLatestDate();
         if (latestDate) {
-            document.getElementById('filter-start').value = latestDate;
-            document.getElementById('filter-end').value = latestDate;
+            const startInput = document.getElementById('filter-start');
+            const endInput = document.getElementById('filter-end');
+            if (startInput) startInput.value = latestDate;
+            if (endInput) endInput.value = latestDate;
         }
 
         if (pozoFilter) {
@@ -1126,12 +1158,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 pozoFilter.value = storedPozo;
                 if (pozoFilterDisplay) pozoFilterDisplay.value = storedPozo;
                 const pozoDate = getPozoSummary(storedPozo)?.latest_fecha || await getLatestDate(storedPozo);
+                const startInput = document.getElementById('filter-start');
+                const endInput = document.getElementById('filter-end');
                 if (pozoDate) {
-                    document.getElementById('filter-start').value = pozoDate;
-                    document.getElementById('filter-end').value = pozoDate;
+                    if (startInput) startInput.value = pozoDate;
+                    if (endInput) endInput.value = pozoDate;
                 } else {
-                    document.getElementById('filter-start').value = '';
-                    document.getElementById('filter-end').value = '';
+                    if (startInput) startInput.value = '';
+                    if (endInput) endInput.value = '';
                 }
                 await syncHistoricalRecordSelector(storedPozo);
                 if (isFocusedTrendMode()) {
@@ -1146,7 +1180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearDashboard();
 
     if (document.getElementById('filter-pozo')?.value) {
-        updateDashboard();
+        await updateDashboard();
     }
 
     // Oculta el loader solo despues del primer render real del dashboard.
@@ -1244,7 +1278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    document.addEventListener('click', (event) => {
+    dashboardOutsideClickHandler = (event) => {
         const picker = document.querySelector('.historical-record-picker');
         if (picker && !picker.contains(event.target)) {
             closeHistoricalRecordMenu();
@@ -1257,7 +1291,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 pozoFilterDisplay.value = pozoFilter.value;
             }
         }
-    });
+    };
+    document.addEventListener('click', dashboardOutsideClickHandler);
     
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.addEventListener('click', logout);
@@ -1276,6 +1311,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (pozoName) {
                 if (trendWindowMode === TREND_WINDOW_MODES.latest1) {
                     await syncHistoricalRecordSelector(pozoName, false);
+                } else if (trendWindowMode === TREND_WINDOW_MODES.customRange) {
+                    // No sobreescribir con fecha única al seleccionar rango personalizado
                 } else {
                     await applyFocusedMonitoringRange(pozoName, historicalRecordOptions[0]?.date || null);
                 }
@@ -1287,6 +1324,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         syncTrendWindowControl(Boolean(document.getElementById('filter-pozo')?.value));
     }
+
+    const trendStartFilter = document.getElementById('trend-filter-start');
+    if (trendStartFilter) trendStartFilter.addEventListener('change', updateDashboard);
+
+    const trendEndFilter = document.getElementById('trend-filter-end');
+    if (trendEndFilter) trendEndFilter.addEventListener('change', updateDashboard);
 
     const trendAnnotationsBtn = document.getElementById('trend-annotations-btn');
     if (trendAnnotationsBtn) {
@@ -1318,7 +1361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // En moviles el navegador dispara resize al colapsar la barra superior.
     // Aqui solo pedimos un refresh liviano para no duplicar nodos SVG de ApexCharts.
-    window.addEventListener('resize', () => {
+    dashboardResizeHandler = () => {
         if (resizeFrame) cancelAnimationFrame(resizeFrame);
         resizeFrame = requestAnimationFrame(() => {
             Object.values(charts).forEach(chart => {
@@ -1331,10 +1374,44 @@ document.addEventListener('DOMContentLoaded', async () => {
                 renderStatusDonut(latestStatusSnapshot, latestStatusRecordSnapshot);
             }
         });
-    });
+    };
+    window.addEventListener('resize', dashboardResizeHandler);
 
     initializeStatusDonutInteractions();
-});
+
+    // Pre-inicializa el panel de anotaciones para que esté en el DOM y las animaciones funcionen al primer clic
+    ensureTrendAnnotationPanel();
+}
+
+export function destroyDashboard() {
+    console.log('[Dashboard] Limpiando recursos y removiendo listeners...');
+    
+    const panel = document.getElementById('trend-annotation-panel');
+    if (panel) {
+        panel.remove();
+    }
+    trendAnnotationPanelReady = false;
+    
+    if (dashboardResizeHandler) {
+        window.removeEventListener('resize', dashboardResizeHandler);
+        dashboardResizeHandler = null;
+    }
+    if (dashboardOutsideClickHandler) {
+        document.removeEventListener('click', dashboardOutsideClickHandler);
+        dashboardOutsideClickHandler = null;
+    }
+    
+    Object.keys(charts).forEach(id => {
+        if (charts[id] && typeof charts[id].destroy === 'function') {
+            charts[id].destroy();
+        }
+    });
+    charts = {};
+    
+    latestKpiSnapshot = null;
+    latestStatusSnapshot = [];
+    latestStatusRecordSnapshot = null;
+}
 
 async function updateDashboard() {
     const selectedPozos = [];
@@ -1354,8 +1431,15 @@ async function updateDashboard() {
         return;
     }
 
-    const start = document.getElementById('filter-start').value || null;
-    const end = document.getElementById('filter-end').value || null;
+    let start = document.getElementById('filter-start').value || null;
+    let end = document.getElementById('filter-end').value || null;
+
+    if (trendWindowMode === TREND_WINDOW_MODES.customRange) {
+        const customStart = document.getElementById('trend-filter-start')?.value;
+        const customEnd = document.getElementById('trend-filter-end')?.value;
+        if (customStart) start = customStart;
+        if (customEnd) end = customEnd;
+    }
     const selectedRecordValue = getSelectedHistoricalRecordValue();
     syncTrendWindowControl(selectedPozos.length === 1);
     
@@ -1533,11 +1617,15 @@ function renderKPIs(latest) {
     // Actualiza el subtitulo superior con el contexto de analisis actual.
     const title = document.querySelector('.main-container header p');
     if (title) {
+        const startVal = document.getElementById('trend-filter-start')?.value || '';
+        const endVal = document.getElementById('trend-filter-end')?.value || '';
         title.textContent = trendWindowMode === TREND_WINDOW_MODES.latest30
             ? `Analizando Pozo: ${latest.pozo_name} (Ultimos ${MONITORING_RECORD_WINDOW} registros)`
             : trendWindowMode === TREND_WINDOW_MODES.latest15
                 ? `Analizando Pozo: ${latest.pozo_name} (Ultimos ${FOCUSED_TREND_RECORD_COUNT} registros)`
-                : `Analizando Pozo: ${latest.pozo_name} (Último: ${latest.fecha} ${latest.hora})`;
+                : trendWindowMode === TREND_WINDOW_MODES.customRange
+                    ? `Analizando Pozo: ${latest.pozo_name} (Rango: ${startVal} al ${endVal})`
+                    : `Analizando Pozo: ${latest.pozo_name} (Último: ${latest.fecha} ${latest.hora})`;
     }
 }
 
@@ -2071,14 +2159,30 @@ function renderObservations(data) {
     const tbody = document.getElementById('obs-body');
     if (!tbody) return;
     tbody.innerHTML = '';
-    data.slice(0, 15).forEach(record => {
+    data.forEach(record => {
         const observationText = formatObservationText(record.observaciones);
         if (observationText) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td style="padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-body);">
-                <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">${escapeHtml(record.pozo_name)} - ${escapeHtml(record.fecha)} ${escapeHtml(record.hora)}</span>
-                ${escapeHtml(observationText)}
+            tr.className = 'bitacora-row';
+            tr.innerHTML = `<td style="padding: 14px 16px; border-bottom: 1px solid var(--border-color); color: var(--text-body); transition: all 0.2s ease;">
+                <span class="bitacora-meta" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 500;">
+                    <span class="bitacora-pozo" style="color: var(--scope-accent); font-weight: 700;">${escapeHtml(record.pozo_name)}</span> · ${escapeHtml(record.fecha)} ${escapeHtml(record.hora ? record.hora.slice(0, 5) : '00:00')}
+                </span>
+                <span class="bitacora-text" style="font-size: 0.88rem; line-height: 1.4;">${escapeHtml(observationText)}</span>
             </td>`;
+            
+            const pozoName = document.getElementById('filter-pozo')?.value || '';
+            if (pozoName) {
+                tr.addEventListener('click', () => {
+                    const recordValue = `${record.fecha}T${record.hora || '00:00:00'}`;
+                    selectHistoricalRecord(recordValue);
+                    
+                    const targetElement = document.getElementById('data-ribbon-elite') || document.getElementById('chart-frecuencia');
+                    if (targetElement) {
+                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            }
             tbody.appendChild(tr);
         }
     });
@@ -2192,11 +2296,27 @@ function renderOrUpdate(id, options) {
     const el = document.getElementById(id);
     if (!el) return;
 
-    if (charts[id]) {
-        charts[id].updateOptions(options);
-    } else {
+    if (typeof ApexCharts === 'undefined') {
+        console.warn(`[Charts] ApexCharts no está disponible globalmente para renderizar #${id}.`);
+        return;
+    }
+
+    try {
+        if (charts[id]) {
+            const isAttached = el.contains(charts[id].el) || charts[id].el === el;
+            if (isAttached) {
+                charts[id].updateOptions(options);
+                return;
+            }
+            try { charts[id].destroy(); } catch (e) {}
+            delete charts[id];
+        }
+
+        el.innerHTML = '';
         charts[id] = new ApexCharts(el, options);
         charts[id].render();
+    } catch (err) {
+        console.error(`[Charts] Error renderizando gráfica #${id}:`, err);
     }
 }
 

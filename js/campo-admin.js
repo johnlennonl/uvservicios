@@ -1519,6 +1519,183 @@ function buildReviewLogDetailMarkup(item = {}) {
     `;
 }
 
+function buildJourneyPulseTimelineMarkup(journey = {}, records = [], reviewLog = []) {
+    const escapeHtmlLocal = (str) => String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');
+    const timelineItems = [];
+
+    // 1. Eventos de la bitácora oficial (field_journey_review_log)
+    reviewLog.forEach(log => {
+        const action = String(log.action || '').toLowerCase();
+        let nodeClass = 'node-blue';
+        let tagClass = 'tag-blue';
+        let tagLabel = 'EVENTO';
+
+        if (action === 'submitted') {
+            nodeClass = 'node-blue';
+            tagClass = 'tag-blue';
+            tagLabel = 'RECEPCIÓN CAMPO';
+        } else if (action === 'recovered') {
+            nodeClass = 'node-amber';
+            tagClass = 'tag-amber';
+            tagLabel = 'RECUPERADO';
+        } else if (action === 'updated') {
+            nodeClass = 'node-blue';
+            tagClass = 'tag-blue';
+            tagLabel = 'RE-ENVIADO';
+        } else if (action === 'split' || action === 'merge') {
+            nodeClass = 'node-purple';
+            tagClass = 'tag-purple';
+            tagLabel = action === 'split' ? 'SEPARACIÓN' : 'FUSIÓN';
+        } else if (['approved', 'published'].includes(action)) {
+            nodeClass = 'node-emerald';
+            tagClass = 'tag-emerald';
+            tagLabel = action === 'published' ? 'PUBLICADO' : 'APROBADO';
+        } else if (action === 'rejected') {
+            nodeClass = 'node-red';
+            tagClass = 'tag-red';
+            tagLabel = 'RECHAZADO';
+        } else if (action === 'file_added') {
+            nodeClass = 'node-purple';
+            tagClass = 'tag-purple';
+            tagLabel = 'ARCHIVO ADJUNTO';
+        } else if (action === 'commented') {
+            const isRecordUpdate = metadata.action === 'update_record' || (log.comment && log.comment.includes('se modificó'));
+            nodeClass = 'node-purple';
+            tagClass = 'tag-purple';
+            tagLabel = isRecordUpdate ? 'EDICIÓN ADMIN' : 'COMENTARIO';
+        }
+
+        const email = log.performed_by_email || log.created_by_email || '';
+        const actor = getAuditActorLabel(email);
+        const metadataObj = log.metadata || {};
+        const pozos = Array.isArray(metadataObj.pozos) ? metadataObj.pozos : (Array.isArray(metadataObj.pozos_originales) ? metadataObj.pozos_originales : []);
+
+        timelineItems.push({
+            timestamp: new Date(log.created_at || Date.now()).getTime(),
+            timeFormatted: formatDateTime(log.created_at),
+            nodeClass,
+            tagClass,
+            tagLabel,
+            title: log.action_label || normalizeReviewActionLabel(log.action),
+            text: log.comment || 'Sin observación registrada.',
+            user: email ? `${actor} (${email})` : actor,
+            pozos
+        });
+    });
+
+    // 2. Análisis Retrospectivo para jornadas pasadas o discrepancias de registros
+    if (records.length > 0) {
+        const headerTechs = [journey.tecnico_1, journey.tecnico_2, journey.equipo_guardia].filter(Boolean).map(t => String(t).toUpperCase());
+        const recordTechMap = new Map();
+        const nightPozoList = [];
+
+        records.forEach(r => {
+            const raw = r.raw_payload || {};
+            const tech = String(raw.tecnico_1 || raw.tecnico_2 || raw.equipo_guardia || r.tecnico_1 || '').trim();
+            if (tech) {
+                recordTechMap.set(tech, (recordTechMap.get(tech) || 0) + 1);
+            }
+            const timeStr = String(r.report_time || raw.hora || '');
+            const hour = parseInt(timeStr.split(':')[0], 10);
+            if (!isNaN(hour)) {
+                const isNightTime = hour >= 18 || hour < 6;
+                const journeyShift = String(journey.jornada || '').toLowerCase();
+                if (journeyShift.includes('diurna') && isNightTime) {
+                    nightPozoList.push(`${r.pozo} (${timeStr})`);
+                } else if (journeyShift.includes('nocturna') && !isNightTime) {
+                    nightPozoList.push(`${r.pozo} (${timeStr})`);
+                }
+            }
+        });
+
+        const techEntries = Array.from(recordTechMap.entries());
+        const diffTechs = techEntries.filter(([tech]) => headerTechs.length > 0 && !headerTechs.some(ht => ht.includes(tech.toUpperCase()) || tech.toUpperCase().includes(ht)));
+
+        if (diffTechs.length > 0 || nightPozoList.length > 0) {
+            const textLines = [
+                diffTechs.length > 0 ? `• Técnicos detectados en pozos no registrados en la cuadrilla oficial: ${techEntries.map(([t, c]) => `${t} (${c} pozos)`).join(', ')}` : '',
+                nightPozoList.length > 0 ? `• Pozos reportados fuera del turno seleccionado (${journey.jornada}): ${nightPozoList.join(', ')}` : ''
+            ].filter(Boolean);
+
+            timelineItems.push({
+                timestamp: new Date(journey.created_at || Date.now()).getTime() - 500,
+                timeFormatted: 'Auditoría Retrospectiva',
+                nodeClass: 'node-amber',
+                tagClass: 'tag-amber',
+                tagLabel: 'TRAZABILIDAD',
+                title: 'Discrepancias detectadas en registros',
+                text: textLines.join('\n'),
+                user: 'Sistema de Auditoría UV',
+                pozos: []
+            });
+        }
+    }
+
+    // 3. Evento inicial de recepción si no hay submitted en el historial
+    if (timelineItems.length === 0 || !reviewLog.some(l => String(l.action).toLowerCase() === 'submitted')) {
+        const pozoNames = records.map(r => String(r.pozo || '').toUpperCase()).filter(Boolean);
+        timelineItems.push({
+            timestamp: new Date(journey.created_at || Date.now()).getTime() - 1000,
+            timeFormatted: formatDateTime(journey.created_at),
+            nodeClass: 'node-blue',
+            tagClass: 'tag-blue',
+            tagLabel: 'RECEPCIÓN CAMPO',
+            title: 'Jornada recibida en servidor',
+            text: `Jornada recibida con ${records.length} pozo(s) cargados por la cuadrilla.`,
+            user: journey.submitted_by_email || 'Cuadrilla de Campo',
+            pozos: pozoNames
+        });
+    }
+
+    // 4. Creación inicial de la jornada en base de datos
+    if (journey.created_at) {
+        const pozoNames = records.map(r => String(r.pozo || '').toUpperCase()).filter(Boolean);
+        timelineItems.push({
+            timestamp: new Date(journey.created_at).getTime() - 100000,
+            timeFormatted: formatDateTime(journey.created_at),
+            nodeClass: 'node-blue',
+            tagClass: 'tag-blue',
+            tagLabel: 'CREACIÓN JORNADA',
+            title: 'Creación inicial de la Jornada',
+            text: `Registro creado en el sistema para la fecha ${formatDate(journey.journey_date)} y turno ${journey.jornada || 'Diurna'}.`,
+            user: journey.submitted_by_email || 'Cuadrilla de Campo',
+            pozos: pozoNames
+        });
+    }
+
+    // Ordenar cronológicamente descendente (lo más reciente arriba)
+    timelineItems.sort((a, b) => b.timestamp - a.timestamp);
+
+    const itemsMarkup = timelineItems.map(item => `
+        <article class="journey-pulse-item">
+            <div class="journey-pulse-node ${escapeHtmlLocal(item.nodeClass)}"></div>
+            <div class="journey-pulse-card">
+                <div class="journey-pulse-card-head">
+                    <span class="journey-pulse-tag ${escapeHtmlLocal(item.tagClass)}">${escapeHtmlLocal(item.tagLabel)}</span>
+                    <span class="journey-pulse-time">${escapeHtmlLocal(item.timeFormatted)}</span>
+                </div>
+                <h4 class="journey-pulse-title">${escapeHtmlLocal(item.title)}</h4>
+                <p class="journey-pulse-text">${escapeHtmlLocal(item.text).replace(/\n/g, '<br>')}</p>
+                ${item.user ? `<div class="journey-pulse-user">👤 <strong>Usuario:</strong> ${escapeHtmlLocal(item.user)}</div>` : ''}
+                ${item.pozos && item.pozos.length > 0 ? `
+                    <div class="journey-pulse-pozo-list">
+                        ${item.pozos.slice(0, 12).map(p => `<span class="journey-pulse-pozo-pill">${escapeHtmlLocal(p)}</span>`).join('')}
+                        ${item.pozos.length > 12 ? `<span class="journey-pulse-pozo-pill">+${item.pozos.length - 12} más</span>` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        </article>
+    `).join('');
+
+    return `
+        <div class="journey-pulse-container">
+            <div class="journey-pulse-track">
+                ${itemsMarkup}
+            </div>
+        </div>
+    `;
+}
+
 function buildTechnicianTags(technicians = {}) {
     const tags = [
         ['Técnico 1', technicians.tecnico1],
@@ -3279,6 +3456,8 @@ async function renderDetail(detail) {
             </div>
           `;
 
+    const pulseTimelineHtml = buildJourneyPulseTimelineMarkup(journey, records, reviewLog);
+
     elements.detailShell.innerHTML = `
         <section class="campo-admin-panel">
             <div class="campo-admin-detail-head">
@@ -3414,8 +3593,8 @@ async function renderDetail(detail) {
         if (sensorCountEl) sensorCountEl.textContent = String(sensorDocs.length);
         if (vsdCountEl) vsdCountEl.textContent = String(vsdDocs.length);
         if (soportesCountEl) soportesCountEl.textContent = String(soportesDocs.length);
-        if (sidebarReviewCountEl) sidebarReviewCountEl.textContent = `${escapeHtml(String(reviewLog.length))} evento(s)`;
-        if (sidebarReviewListEl) sidebarReviewListEl.innerHTML = reviewLogMarkup;
+        if (sidebarReviewCountEl) sidebarReviewCountEl.textContent = `${escapeHtml(String(reviewLog.length || (records.length ? 1 : 0)))} evento(s)`;
+        if (sidebarReviewListEl) sidebarReviewListEl.innerHTML = pulseTimelineHtml;
 
         if (echometerListEl) {
             echometerListEl.innerHTML = echometerDocs.length > 0 ? echometerDocs.map(doc => `
