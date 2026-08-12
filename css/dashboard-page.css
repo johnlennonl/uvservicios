@@ -1710,6 +1710,20 @@ body.is-role-base-datos a[href="base-datos.html"] {
     touch-action: pan-y;
 }
 
+.chart-space .apexcharts-canvas,
+.trend-space .apexcharts-canvas,
+.trend-space-wide .apexcharts-canvas {
+    overflow: visible !important;
+}
+
+.elite-card.trend-card {
+    overflow: visible !important;
+}
+
+.elite-card.trend-card::after {
+    display: none !important;
+}
+
 #donut-status {
     cursor: pointer;
 }

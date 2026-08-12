@@ -515,25 +515,76 @@ function buildTrendAnnotationMarkers(series = []) {
 }
 
 function buildTrendAnnotationTooltip({ series, seriesIndex, dataPointIndex, w }) {
-    const serie = w?.config?.series?.[seriesIndex];
-    const point = serie?.data?.[dataPointIndex];
-    const pointMeta = point?.meta || null;
+    // Buscar la primera serie activa para extraer los metadatos de ese punto de tiempo
+    const firstActiveSerie = w?.config?.series?.find(s => s?.data?.[dataPointIndex]?.meta);
+    const pointMeta = firstActiveSerie?.data?.[dataPointIndex]?.meta || null;
     if (!pointMeta) return '';
 
+    // Guardar globalmente el punto activo actual para poder reaccionar al click
+    window.activeHoveredTrendPointMeta = pointMeta;
+
     const annotation = getAnnotationByPointMeta(pointMeta);
-    const value = series?.[seriesIndex]?.[dataPointIndex] ?? point.y ?? '--';
+    const isOff = String(pointMeta.estatus || '').trim().toUpperCase() === 'OFF';
+    const fieldObservation = pointMeta.observaciones ? String(pointMeta.observaciones).trim() : '';
+
+    const effectiveMode = (isDarkMode && !document.body.classList.contains('view-mode-report')) ? 'dark' : 'light';
+    const isDarkModeActive = effectiveMode === 'dark';
+    const bg = isDarkModeActive ? '#0f172a' : '#ffffff';
+    const border = isDarkModeActive ? '1px solid #334155' : '1px solid #e2e8f0';
+    const textColor = isDarkModeActive ? '#cbd5e1' : '#334155';
+    const titleColor = isDarkModeActive ? '#94a3b8' : '#64748b';
+    const valueColor = isDarkModeActive ? '#f8fafc' : '#0f172a';
+    const separatorColor = isDarkModeActive ? '#334155' : '#f1f5f9';
+
+    const dateStr = formatAnnotationDateTime(pointMeta.fecha, pointMeta.hora);
+
+    let variablesHtml = '';
+    w.config.series.forEach((s, sIdx) => {
+        const val = s.data[dataPointIndex]?.y;
+        const formattedVal = (val !== null && val !== undefined) ? Number(val).toFixed(1) : '--';
+        const unit = s.unit || s.data[dataPointIndex]?.meta?.unit || '';
+        const color = w.config.colors?.[sIdx] || '#2563eb';
+        
+        variablesHtml += `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin:3px 0; font-size:0.85rem;">
+                <span style="display:flex; align-items:center; gap:6px; color:${titleColor}; font-weight:600;">
+                    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:${color};"></span>
+                    ${escapeHtml(s.name)}
+                </span>
+                <strong style="color:${valueColor}; font-size:0.95rem;">${escapeHtml(formattedVal)} ${escapeHtml(unit)}</strong>
+            </div>
+        `;
+    });
 
     return `
-        <div class="dashboard-annotation-tooltip">
-            <strong>${escapeHtml(formatAnnotationDateTime(pointMeta.fecha, pointMeta.hora))}</strong>
-            <span>${escapeHtml(serie?.name || pointMeta.variableLabel || 'Variable')}: ${escapeHtml(value)}${escapeHtml(pointMeta.unit || '')}</span>
-            ${annotation ? `
-                <div>
-                    <b>Anotación</b>
-                    <p>${escapeHtml(annotation.comment)}</p>
-                    <small>${escapeHtml(annotation.updated_by_email || annotation.created_by_email || 'Ingeniería')}</small>
+        <div style="padding:12px 14px; background:${bg}; border:${border}; border-radius:8px; box-shadow:0 10px 15px -3px rgb(0 0 0 / 0.3); font-family:Inter, sans-serif; min-width:280px; max-width:420px; width:min(420px, calc(100vw - 32px)); color:${textColor}; text-align:left; white-space:normal; word-break:break-word; line-height:1.4;">
+            <div style="font-size:0.78rem; color:${titleColor}; font-weight:700; border-bottom:1px solid ${separatorColor}; padding-bottom:6px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                <span>${escapeHtml(dateStr)}</span>
+                ${isOff ? '<span style="color:#ef4444; font-weight:bold; background:' + (isDarkModeActive ? '#881337' : '#fef2f2') + '; padding:1px 6px; border-radius:4px; font-size:0.7rem;">OFF</span>' : '<span style="color:#10b981; font-weight:bold; background:' + (isDarkModeActive ? '#064e3b' : '#ecfdf5') + '; padding:1px 6px; border-radius:4px; font-size:0.7rem;">RUN</span>'}
+            </div>
+            
+            <div style="margin-bottom:2px;">
+                ${variablesHtml}
+            </div>
+
+            ${fieldObservation ? `
+                <div style="margin-top:8px; padding-top:8px; border-top:1px solid ${separatorColor};">
+                    <b style="font-size:0.75rem; color:${titleColor}; display:block; margin-bottom:2px;">Observación de Campo:</b>
+                    <p style="margin:0; font-size:0.8rem; line-height:1.3; color:${textColor}; font-weight:500;">${escapeHtml(fieldObservation)}</p>
                 </div>
-            ` : canManageChartAnnotations() ? '<em>Click en el punto para agregar anotación.</em>' : ''}
+            ` : ''}
+            
+            ${annotation ? `
+                <div style="margin-top:8px; padding-top:8px; border-top:1px solid ${separatorColor};">
+                    <b style="font-size:0.75rem; color:${titleColor}; display:block; margin-bottom:2px;">Anotación:</b>
+                    <p style="margin:0; font-size:0.8rem; line-height:1.3; color:${textColor}; font-weight:500;">${escapeHtml(annotation.comment)}</p>
+                    <small style="opacity:0.7; display:block; margin-top:2px; font-size:0.7rem;">${escapeHtml(annotation.updated_by_email || annotation.created_by_email || 'Ingeniería')}</small>
+                </div>
+            ` : canManageChartAnnotations() ? `
+                <div style="margin-top:6px; opacity:0.6; font-size:0.7rem; border-top:1px solid ${separatorColor}; padding-top:6px; color:${titleColor};">
+                    <em>Click en el punto para agregar anotación.</em>
+                </div>
+            ` : ''}
         </div>
     `;
 }
@@ -1906,9 +1957,14 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
                 dataPointMouseEnter: (event) => {
                     if (event?.target?.style) event.target.style.cursor = 'pointer';
                 },
-                dataPointSelection: async (_event, _chartContext, config) => {
-                    const pointMeta = getTrendPointMetaFromApex(config);
-                    if (pointMeta) await openTrendAnnotationModal(pointMeta);
+                click: async (event, chartContext, config) => {
+                    // Evitar clicks si se interactúa con la barra de herramientas (toolbar)
+                    const isToolbarClick = event?.target?.closest('.apexcharts-toolbar');
+                    if (isToolbarClick) return;
+
+                    if (window.activeHoveredTrendPointMeta) {
+                        await openTrendAnnotationModal(window.activeHoveredTrendPointMeta);
+                    }
                 }
             }
         },
@@ -1967,8 +2023,8 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             }
         },
         tooltip: {
-            shared: false,
-            intersect: true,
+            shared: true,
+            intersect: false,
             custom: buildTrendAnnotationTooltip,
             x: {
                 formatter: (value) => {
@@ -2032,9 +2088,18 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             .filter(d => d.pozo_name === pozo)
             .map(d => {
                 const rawValue = d[field];
-                const numericValue = rawValue !== null && rawValue !== undefined && rawValue !== ''
-                    ? Number(rawValue)
-                    : null;
+                const status = String(d.normalized_estatus || d.estatus || 'RUN').trim().toUpperCase();
+                const isOff = status === 'OFF';
+
+                // Campos operacionales principales que caen a cero si el pozo está en OFF
+                const zeroOnOffFields = ['frecuencia', 'corriente_motor', 'vsd_a', 'vsd_b', 'vsd_c'];
+
+                let numericValue = null;
+                if (isOff && zeroOnOffFields.includes(field)) {
+                    numericValue = 0;
+                } else if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
+                    numericValue = Number(rawValue);
+                }
 
                 if (useFocusedTrendAxis && !Number.isFinite(numericValue)) {
                     return null;
@@ -2057,7 +2122,9 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
                         fecha: d.fecha,
                         hora: d.hora,
                         value: Number.isFinite(numericValue) ? numericValue : null,
-                        unit
+                        unit,
+                        estatus: status,
+                        observaciones: d.observaciones || ''
                     }
                 };
             })

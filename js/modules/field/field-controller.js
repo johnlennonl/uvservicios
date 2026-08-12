@@ -1958,6 +1958,11 @@ async function restoreRemoteDraftIfNeeded() {
         setFieldStorageItem(REPORTS_STORAGE_KEY, JSON.stringify(records));
         setDraftJourneyKey(draft.journey.id);
         currentEditingJourneyId = draft.journey.id;
+        
+        // Cargar reportes de apoyo del borrador remoto
+        supportReports = draft.supportReports || [];
+        localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
+        
         isJourneyStarted = false;
         setJourneyStartedFlag(false);
         renderJourneyReports();
@@ -1986,7 +1991,8 @@ async function autosaveJourneyDraftRemote() {
     try {
         const result = await autosaveFieldJourneyDraft(reports, {
             journeyId: existingJourneyId,
-            operationalScope: currentOperationalScope
+            operationalScope: currentOperationalScope,
+            supportReports: supportReports
         });
         if (result?.journeyId) {
             currentEditingJourneyId = result.journeyId;
@@ -2358,7 +2364,7 @@ async function handleAddSupportReport() {
                 <div class="swal-support-card" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; gap: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); transition: border-color 0.2s;">
                     <div style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; overflow: hidden; flex: 1; min-width: 0;">
                         <span style="background: #ecfdf5; color: #047857; padding: 2px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 800; margin-bottom: 4px; display: inline-block; letter-spacing: 0.02em;">${rep.hora}</span>
-                        <span style="font-weight: 800; font-size: 0.9rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-family: 'Outfit', sans-serif;">${escapeHtml(rep.motivo)}</span>
+                        <span style="font-weight: 800; font-size: 0.9rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-family: 'Outfit', sans-serif;">Pozo: ${escapeHtml(rep.motivo)}</span>
                         <span style="font-size: 0.8rem; color: #64748b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; line-height: 1.4; font-family: 'Outfit', sans-serif;">${escapeHtml(rep.descripcion)}</span>
                     </div>
                     <div style="display: flex; gap: 8px; flex-shrink: 0; align-items: center;">
@@ -2427,8 +2433,8 @@ async function handleAddNewReportFlow() {
                 <input type="time" id="swal-support-time" style="${inputStyle}" value="${currentTime}">
             </label>
             <label style="${labelStyle}">
-                <span>Motivo</span>
-                <input type="text" id="swal-support-reason" style="${inputStyle}" placeholder="Ej: Apoyo, Novedad, Incidencia" value="Apoyo">
+                <span>Pozo</span>
+                <input type="text" id="swal-support-reason" style="${inputStyle}" placeholder="Escribe el pozo (ej: MGB0025)" value="">
             </label>
             <label style="${labelStyle}">
                 <span>Detalle del reporte</span>
@@ -2456,7 +2462,7 @@ async function handleAddNewReportFlow() {
                 return false;
             }
             if (!motivo) {
-                window.Swal.showValidationMessage('El motivo es requerido');
+                window.Swal.showValidationMessage('El pozo es requerido');
                 return false;
             }
             if (!descripcion) {
@@ -2473,6 +2479,7 @@ async function handleAddNewReportFlow() {
         localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
         syncJourneyMessageComposerText();
         updateSummary();
+        autosaveJourneyDraftRemote();
     }
     handleAddSupportReport(); // Regresar al menú principal de forma fluida
 }
@@ -2488,7 +2495,7 @@ async function handleEditReportFlow(idx) {
                 <input type="time" id="swal-support-time" style="${inputStyle}" value="${rep.hora}">
             </label>
             <label style="${labelStyle}">
-                <span>Motivo</span>
+                <span>Pozo</span>
                 <input type="text" id="swal-support-reason" style="${inputStyle}" value="${escapeHtml(rep.motivo)}">
             </label>
             <label style="${labelStyle}">
@@ -2517,7 +2524,7 @@ async function handleEditReportFlow(idx) {
                 return false;
             }
             if (!motivo) {
-                window.Swal.showValidationMessage('El motivo es requerido');
+                window.Swal.showValidationMessage('El pozo es requerido');
                 return false;
             }
             if (!descripcion) {
@@ -2534,6 +2541,7 @@ async function handleEditReportFlow(idx) {
         localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
         syncJourneyMessageComposerText();
         updateSummary();
+        autosaveJourneyDraftRemote();
     }
     handleAddSupportReport(); // Regresar al menú principal de forma fluida
 }
@@ -2559,6 +2567,7 @@ async function handleDeleteReportFlow(idx) {
         localStorage.setItem(getScopedFieldStorageKey(SUPPORT_REPORT_STORAGE_KEY), JSON.stringify(supportReports));
         syncJourneyMessageComposerText();
         updateSummary();
+        autosaveJourneyDraftRemote();
     }
     handleAddSupportReport(); // Regresar al menú principal de forma fluida
 }
@@ -2663,7 +2672,8 @@ function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader =
     const reportsToUse = customSupportReports !== null ? customSupportReports : supportReports;
     const formattedSupports = reportsToUse.map(rep => {
         const lines = [
-            `Reporte: ${String(rep.motivo || 'Apoyo').trim()}`,
+            'Reporte',
+            `Pozo: ${String(rep.motivo || '').trim()}`,
             `Hora ${rep.hora || '--:--'}`,
             `${rep.descripcion || ''}`
         ];
@@ -3576,14 +3586,27 @@ async function executeActualJourneySubmission(reports) {
         });
 
         // Registrar reportes de apoyo a otras cuadrillas en la bitácora si existen
-        if (supportReports.length > 0 && workflowResult?.journeyId) {
-            for (const rep of supportReports) {
-                await logFieldJourneyAudit(
-                    workflowResult.journeyId,
-                    'support_report',
-                    `⚡ REPORTADO: [${rep.motivo}] a las ${rep.hora}\n${rep.descripcion}`,
-                    { source: 'field-web', hora: rep.hora, motivo: rep.motivo }
-                );
+        if (workflowResult?.journeyId) {
+            // Eliminar duplicados previos en la bitácora antes de publicar el definitivo
+            try {
+                await supabase
+                    .from('field_journey_review_log')
+                    .delete()
+                    .eq('journey_id', workflowResult.journeyId)
+                    .eq('action', 'support_report');
+            } catch (err) {
+                console.warn('Error clearing draft support reports before submission:', err);
+            }
+
+            if (supportReports.length > 0) {
+                for (const rep of supportReports) {
+                    await logFieldJourneyAudit(
+                        workflowResult.journeyId,
+                        'support_report',
+                        `⚡ REPORTADO: [${rep.motivo}] a las ${rep.hora}\n${rep.descripcion}`,
+                        { source: 'field-web', hora: rep.hora, motivo: rep.motivo }
+                    );
+                }
             }
         }
         await ensureStepMinDuration(s2, 5000);
@@ -4430,9 +4453,20 @@ async function fetchSubmittedJourneyForField(journeyId) {
             records
         });
 
+        // Deduplicar para limpiar duplicados previos
+        const seen = new Set();
+        const uniqueSupportReports = [];
+        for (const rep of parsedSupportReports) {
+            const key = `${rep.hora}||${rep.motivo}||${rep.descripcion}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueSupportReports.push(rep);
+            }
+        }
+
         return {
             journey: journeyRecord,
-            supportReports: parsedSupportReports
+            supportReports: uniqueSupportReports
         };
     } catch (error) {
         showAlert(error?.message || 'No se pudo abrir la jornada enviada.', 'error');

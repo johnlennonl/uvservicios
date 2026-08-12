@@ -556,12 +556,27 @@ function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabel
         varKeys.forEach((key, idx) => {
             const config = VARIABLE_CONFIG[key] || { label: key, unit: '', color: '#2563eb' };
             const dataPoints = pozoRows.map(r => {
-                const val = Number(r[key]);
-                const momentStr = `${r.fecha || ''} ${r.hora ? r.hora.substring(0, 5) : ''}`;
-                return { x: momentStr, y: (typeof val === 'number' && !isNaN(val)) ? val : null };
-            }).filter(pt => pt.y !== null);
+                const status = String(r.estatus || r.estado || 'RUN').trim().toUpperCase();
+                const isOff = status === 'OFF';
 
-            if (dataPoints.length > 0) {
+                let yVal = null;
+                const rawVal = r[key];
+                if (rawVal !== null && rawVal !== undefined && rawVal !== '') {
+                    const num = Number(rawVal);
+                    yVal = isNaN(num) ? null : num;
+                }
+
+                // Si el pozo está en OFF y el valor es nulo/vacío, lo forzamos a 0 para evitar vacíos/recortes en la gráfica
+                if (isOff && (yVal === null || yVal === undefined)) {
+                    yVal = 0;
+                }
+
+                const momentStr = `${r.fecha || ''} ${r.hora ? r.hora.substring(0, 5) : ''}`;
+                return { x: momentStr, y: yVal };
+            });
+
+            const hasValidData = dataPoints.some(pt => pt.y !== null);
+            if (hasValidData) {
                 seriesList.push({
                     name: `${config.label}`,
                     type: chartStyle === 'bar' ? (idx % 2 === 0 ? 'column' : 'line') : (chartStyle === 'area' ? 'area' : 'line'),
@@ -686,7 +701,50 @@ function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabel
             },
             tooltip: {
                 shared: true,
-                intersect: false
+                intersect: false,
+                custom: function({ series, seriesIndex, dataPointIndex, w }) {
+                    const row = pozoRows[dataPointIndex];
+                    if (!row) return '';
+
+                    const dateStr = `${row.fecha || ''} ${row.hora ? row.hora.substring(0, 5) : ''}`;
+                    const isOff = String(row.estatus || row.estado || '').trim().toUpperCase() === 'OFF';
+                    const observation = row.observaciones ? String(row.observaciones).trim() : '';
+
+                    let variablesHtml = '';
+                    w.config.series.forEach((s) => {
+                        const val = s.data[dataPointIndex]?.y;
+                        const formattedVal = (val !== null && val !== undefined) ? val : '--';
+                        const unit = s.unit || '';
+                        const color = s.color || '#2563eb';
+                        variablesHtml += `
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin:3px 0; font-size:0.85rem;">
+                                <span style="display:flex; align-items:center; gap:6px; color:#334155; font-weight:600;">
+                                    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:${color};"></span>
+                                    ${escapeHtml(s.name)}
+                                </span>
+                                <strong style="color:#0f172a;">${escapeHtml(formattedVal)} ${escapeHtml(unit)}</strong>
+                            </div>
+                        `;
+                    });
+
+                    return `
+                        <div class="stats-combined-tooltip" style="padding:10px 14px; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1); font-family:Inter, sans-serif; min-width:220px; color:#334155;">
+                            <div style="font-size:0.78rem; color:#64748b; font-weight:700; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                                <span>${escapeHtml(dateStr)}</span>
+                                ${isOff ? '<span style="color:#ef4444; font-weight:bold; background:#fef2f2; padding:1px 6px; border-radius:4px; font-size:0.7rem;">OFF</span>' : '<span style="color:#10b981; font-weight:bold; background:#ecfdf5; padding:1px 6px; border-radius:4px; font-size:0.7rem;">RUN</span>'}
+                            </div>
+                            <div style="margin-bottom:2px;">
+                                ${variablesHtml}
+                            </div>
+                            ${observation ? `
+                                <div style="margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9; color:#475569; text-align:left;">
+                                    <b style="font-size:0.75rem; color:#1e293b; display:block; margin-bottom:2px;">Observación de Campo:</b>
+                                    <p style="margin:0; font-size:0.8rem; line-height:1.25; color:#475569; font-weight:500; white-space:normal; word-break:break-word;">${escapeHtml(observation)}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
             },
             grid: {
                 borderColor: '#e2e8f0',

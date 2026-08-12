@@ -34,6 +34,76 @@ function isMissingOperationalScopeColumn(error) {
     return /operational_scope/i.test(message) && /column|schema|cache|could not find/i.test(message);
 }
 
+async function compressImageIfNeeded(file) {
+    // Si no es imagen o su tamaño es menor a 400KB, no hace falta comprimir
+    if (!file || !file.type || !file.type.startsWith('image/') || file.size < 400 * 1024) {
+        return file;
+    }
+
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Redimensionar si la resolución es muy alta (máximo 1600px en el lado más largo)
+                const maxDim = 1600;
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        resolve(file);
+                        return;
+                    }
+                    
+                    let newName = file.name;
+                    if (!newName.toLowerCase().endsWith('.jpg') && !newName.toLowerCase().endsWith('.jpeg')) {
+                        const parts = newName.split('.');
+                        if (parts.length > 1) {
+                            parts.pop();
+                        }
+                        newName = parts.join('.') + '.jpg';
+                    }
+                    
+                    try {
+                        const compressedFile = new File([blob], newName, {
+                            type: 'image/jpeg',
+                            lastModified: Date.now()
+                        });
+                        console.log(`[ImageCompression] ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB) -> Comprimido a ${newName} (${(compressedFile.size / 1024).toFixed(1)}KB)`);
+                        resolve(compressedFile);
+                    } catch (e) {
+                        // Fallback si new File() lanza excepción (Safari antiguo)
+                        blob.name = newName;
+                        resolve(blob);
+                    }
+                }, 'image/jpeg', 0.75); // 75% de calidad de compresión
+            };
+            img.onerror = () => resolve(file);
+        };
+        reader.onerror = () => resolve(file);
+    });
+}
+
 /**
  * Consulta la lista de documentos de un pozo con filtros opcionales por categoría, fecha y texto.
  * 
@@ -187,7 +257,16 @@ export async function uploadWellDocument({ file, pozoName, category, description
     const cleanPozo = String(pozoName).trim().toUpperCase();
     const cleanCategory = String(category).trim().toUpperCase();
     const cleanOperationalScope = normalizeOperationalScopeValue(operationalScope);
-    const sanitizedName = sanitizeFileName(file.name);
+
+    // Intentar comprimir la imagen en el cliente si es necesario
+    let fileToUpload = file;
+    try {
+        fileToUpload = await compressImageIfNeeded(file);
+    } catch (compressErr) {
+        console.warn('[well-documents-service] Error comprimiendo imagen; se subirá el archivo original:', compressErr);
+    }
+
+    const sanitizedName = sanitizeFileName(fileToUpload.name);
     const timeStamp = Date.now();
     
     // Generar ruta única en el Bucket de Storage: contrato/pozo/categoria/timestamp_nombre.ext
@@ -198,7 +277,7 @@ export async function uploadWellDocument({ file, pozoName, category, description
         const { error: uploadError } = await supabase
             .storage
             .from(BUCKET_NAME)
-            .upload(filePath, file, {
+            .upload(filePath, fileToUpload, {
                 cacheControl: '3600',
                 upsert: false
             });
@@ -209,16 +288,16 @@ export async function uploadWellDocument({ file, pozoName, category, description
         }
 
         // Obtener extensión/tipo de archivo
-        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'doc';
+        const fileExt = fileToUpload.name.split('.').pop()?.toLowerCase() || 'doc';
 
         // 2. Insertar metadata en la tabla well_historical_documents
         const documentPayload = {
             operational_scope: cleanOperationalScope,
             pozo_name: cleanPozo,
             categoria: cleanCategory,
-            nombre_archivo: file.name,
+            nombre_archivo: fileToUpload.name,
             file_path: filePath,
-            file_size: file.size || 0,
+            file_size: fileToUpload.size || 0,
             file_type: fileExt,
             descripcion: String(description || '').trim(),
             uploaded_by: String(uploadedBy || 'Administrador').trim()

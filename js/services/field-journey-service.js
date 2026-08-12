@@ -1706,7 +1706,47 @@ export async function getLatestFieldJourneyDraft() {
 
         if (recordsError) throw recordsError;
 
-        return { journey, records: records || [] };
+        // Recuperar reportes de apoyo en el borrador
+        const { data: logs, error: logsError } = await supabase
+            .from('field_journey_review_log')
+            .select('*')
+            .eq('journey_id', journey.id)
+            .eq('action', 'support_report')
+            .order('created_at', { ascending: true });
+
+        if (logsError) throw logsError;
+
+        const parsedSupportReports = (logs || []).map(log => {
+            const comment = log.comment || '';
+            let motivo = 'Apoyo';
+            let hora = '00:00';
+            let descripcion = comment;
+
+            const matchNew = comment.match(/^⚡ REPORTADO: \[(.*?)\] a las (.*?)\n([\s\S]*)$/);
+            if (matchNew) {
+                motivo = matchNew[1];
+                hora = matchNew[2];
+                descripcion = matchNew[3];
+            } else {
+                const matchOld = comment.match(/^⚡ APOYO A OTRAS CUADRILLAS \(Pozos fuera de sistema\):\n([\s\S]*)$/);
+                if (matchOld) {
+                    descripcion = matchOld[1];
+                }
+            }
+        });
+
+        // Deduplicar para limpiar duplicados previos
+        const seen = new Set();
+        const uniqueSupportReports = [];
+        for (const rep of parsedSupportReports) {
+            const key = `${rep.hora}||${rep.motivo}||${rep.descripcion}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueSupportReports.push(rep);
+            }
+        }
+
+        return { journey, records: records || [], supportReports: uniqueSupportReports };
     } catch (error) {
         throw wrapFieldJourneyError(error);
     }
@@ -1737,12 +1777,22 @@ export async function autosaveFieldJourneyDraft(reports = [], options = {}) {
     normalizedReports = await inheritReportsProductionMeasures(normalizedReports);
 
     try {
+        // Eliminar el borrador previo si existe para limpiar en cascada registros y logs de soporte
+        if (requestedJourneyId) {
+            const { error: deleteJourneyError } = await supabase
+                .from('field_journeys')
+                .delete()
+                .eq('id', requestedJourneyId)
+                .eq('status', 'draft');
+            if (deleteJourneyError) throw deleteJourneyError;
+        }
+
         const operationalScope = normalizeOperationalScopeValue(options.operationalScope);
         normalizedReports = normalizedReports.map(report => ({ ...report, operational_scope: operationalScope }));
         const journeyRow = buildWorkflowDraftJourneyRow(normalizedReports, session, requestedJourneyId, operationalScope);
         const { data: journey, error: journeyError } = await supabase
             .from('field_journeys')
-            .upsert(journeyRow, { onConflict: 'id' })
+            .insert(journeyRow)
             .select('id, status, updated_at')
             .single();
 
@@ -1764,6 +1814,40 @@ export async function autosaveFieldJourneyDraft(reports = [], options = {}) {
             .insert(recordRows);
 
         if (recordsError) throw recordsError;
+
+        // Sincronizar los reportes de apoyo si se pasan en las opciones
+        if (options.supportReports !== undefined) {
+            const { error: deleteLogsError } = await supabase
+                .from('field_journey_review_log')
+                .delete()
+                .eq('journey_id', journeyId)
+                .eq('action', 'support_report');
+
+            if (deleteLogsError) throw deleteLogsError;
+
+            const reportsToInsert = Array.isArray(options.supportReports) ? options.supportReports : [];
+            if (reportsToInsert.length > 0) {
+                const logRows = reportsToInsert.map(rep => ({
+                    journey_id: journeyId,
+                    action: 'support_report',
+                    comment: `⚡ REPORTADO: [${rep.motivo}] a las ${rep.hora}\n${rep.descripcion}`,
+                    performed_by_user_id: session?.user?.id || null,
+                    performed_by_email: session?.user?.email || 'operador@uvservicios.com',
+                    metadata: {
+                        source: 'field-web',
+                        hora: rep.hora,
+                        motivo: rep.motivo,
+                        timestamp: new Date().toISOString()
+                    }
+                }));
+
+                const { error: insertLogsError } = await supabase
+                    .from('field_journey_review_log')
+                    .insert(logRows);
+
+                if (insertLogsError) throw insertLogsError;
+            }
+        }
 
         return { saved: recordRows.length, journeyId, syncedAt: new Date().toISOString() };
     } catch (error) {
@@ -1842,6 +1926,14 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
                 if (oldRecords) {
                     originalPozos = oldRecords.map(r => String(r.pozo || '').trim().toUpperCase()).filter(Boolean);
                 }
+                // Eliminar la jornada previa de forma limpia para que Cascade elimine registros y logs
+                if (existingJourney.status === 'draft' || existingJourney.status === 'rejected') {
+                    const { error: deleteJourneyError } = await supabase
+                        .from('field_journeys')
+                        .delete()
+                        .eq('id', targetJourneyId);
+                    if (deleteJourneyError) throw deleteJourneyError;
+                }
             }
         }
 
@@ -1901,54 +1993,12 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
             const added = newPozos.filter(p => !originalPozos.includes(p));
             const deleted = originalPozos.filter(p => !newPozos.includes(p));
             const parts = [];
-            if (added.length > 0) parts.push(`Se agregaron ${added.length} pozo(s): ${added.join(', ')}`);
-            if (deleted.length > 0) parts.push(`Se eliminaron ${deleted.length} pozo(s): ${deleted.join(', ')}`);
+            if (added.length > 0) parts.push(`Se agregaron ${added.length} pozo(s) a la jornada: ${added.join(', ')}`);
+            if (deleted.length > 0) parts.push(`Se eliminaron ${deleted.length} pozo(s) de la jornada: ${deleted.join(', ')}`);
             if (parts.length > 0) {
                 auditComment += ' ' + parts.join('. ') + '.';
             } else {
-                auditComment += ' Sin cambios en la lista de pozos.';
-            }
-
-            // Edición de parámetros de pozos existentes
-            const oldRecordsMap = new Map(originalRecords.map(r => [String(r.pozo || '').trim().toUpperCase(), r]));
-            const parameterChangesList = [];
-
-            normalizedReports.forEach(rep => {
-                const pozoName = String(rep.pozo || '').trim().toUpperCase();
-                const oldRec = oldRecordsMap.get(pozoName);
-                if (oldRec) {
-                    const changes = [];
-                    const compareNum = (label, oldVal, newVal) => {
-                        const ov = oldVal === null || oldVal === undefined ? '' : Number(oldVal);
-                        const nv = newVal === null || newVal === undefined ? '' : Number(newVal);
-                        if (ov !== nv && (ov !== '' || nv !== '')) {
-                            changes.push(`${label} (${ov || '--'} → ${nv || '--'})`);
-                        }
-                    };
-                    const compareStr = (label, oldVal, newVal) => {
-                        const ov = String(oldVal ?? '').trim();
-                        const nv = String(newVal ?? '').trim();
-                        if (ov !== nv) {
-                            changes.push(`${label} (${ov || '--'} → ${nv || '--'})`);
-                        }
-                    };
-
-                    compareNum('frecuencia', oldRec.frecuencia, rep.frecuencia);
-                    compareNum('i_motor', oldRec.i_motor, rep.i_motor);
-                    compareNum('pip_psi', oldRec.pip_psi, rep.pip_psi);
-                    compareNum('thp_psi', oldRec.thp_psi, rep.thp_psi);
-                    compareNum('tm_f', oldRec.tm_f, rep.tm_f);
-                    compareStr('estatus', oldRec.estatus, rep.estatus);
-                    compareStr('actividad', oldRec.actividad, rep.actividad);
-
-                    if (changes.length > 0) {
-                        parameterChangesList.push(`Pozo ${pozoName}: ${changes.join(', ')}`);
-                    }
-                }
-            });
-
-            if (parameterChangesList.length > 0) {
-                auditComment += ' Modificación de parámetros: ' + parameterChangesList.join('; ') + '.';
+                auditComment = 'Jornada re-enviada desde Campo para revisión y actualización de parámetros.';
             }
         } else {
             auditComment += ` Contiene ${newPozos.length} pozo(s): ${newPozos.join(', ')}.`;

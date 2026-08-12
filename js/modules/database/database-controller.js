@@ -231,8 +231,21 @@ function renderDocumentDescription(doc = {}) {
     const uploadDate = doc.created_at
         ? new Date(doc.created_at).toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })
         : 'fecha no registrada';
+
+    const category = String(doc.categoria || '').trim().toUpperCase();
+    let defaultText = 'Soporte de archivo enviado desde Campo.';
+    if (category === 'SOPORTES') {
+        defaultText = 'Soporte fotográfico enviado desde Campo.';
+    } else if (category === 'REGISTROS_ECHOMETER') {
+        defaultText = 'Registro Echometer (TAM) enviado desde Campo.';
+    } else if (category === 'DATA_SENSOR_FONDO') {
+        defaultText = 'Registro de Sensor de Fondo enviado desde Campo.';
+    } else if (category === 'VOLCADOS_VSD') {
+        defaultText = 'Descarga de Variador VSD enviado desde Campo.';
+    }
+
     const detailText = isGenericFieldSupportDescription(cleanDescription)
-        ? 'Soporte fotografico enviado desde Campo.'
+        ? defaultText
         : cleanDescription;
 
     return `
@@ -473,6 +486,16 @@ async function fetchAndRenderFiles() {
             return 'doc-type-other';
         };
 
+        const docsWithUrls = await Promise.all(state.activeDocuments.map(async (doc) => {
+            try {
+                const downloadUrl = await getDocumentDownloadUrl(doc.file_path);
+                return { ...doc, downloadUrl };
+            } catch (err) {
+                console.error('[database-controller] Error resolviendo URL de descarga:', err);
+                return { ...doc, downloadUrl: '#' };
+            }
+        }));
+
         container.innerHTML = `
             <div class="stats-table-wrap">
                 <table class="stats-table stats-table-enhanced">
@@ -488,8 +511,7 @@ async function fetchAndRenderFiles() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${state.activeDocuments.map(doc => {
-                            const downloadUrl = getDocumentDownloadUrl(doc.file_path);
+                        ${docsWithUrls.map(doc => {
                             const badgeClass = getFileBadgeClass(doc.file_type);
                             const uploadDate = doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-ES') : '--';
 
@@ -511,11 +533,11 @@ async function fetchAndRenderFiles() {
                                     <td><span class="stats-date-cell">${uploadDate}</span></td>
                                     <td style="text-align:right;">
                                         <div style="display:inline-flex; align-items:center; justify-content:flex-end; gap:8px;">
-                                            <button type="button" class="btn-preview-doc" data-url="${escapeHtml(downloadUrl)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" data-type="${escapeHtml(doc.file_type || '')}" title="Previsualizar documento">
+                                            <button type="button" class="btn-preview-doc" data-url="${escapeHtml(doc.downloadUrl)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" data-type="${escapeHtml(doc.file_type || '')}" title="Previsualizar documento">
                                                 <i class="fa-solid fa-eye"></i>
                                                 <span>VER</span>
                                             </button>
-                                            <a href="${escapeHtml(downloadUrl)}" target="_blank" download class="btn-download-doc" rel="noopener noreferrer">
+                                            <a href="${escapeHtml(doc.downloadUrl)}" target="_blank" download class="btn-download-doc" rel="noopener noreferrer">
                                                 <i class="fa-solid fa-download"></i>
                                                 <span>DESCARGAR</span>
                                             </a>

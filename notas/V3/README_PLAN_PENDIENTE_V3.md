@@ -44,6 +44,12 @@ Propuesta completa documentada en `notas/V3/PROPUESTA_MEJORA_MOVIL_CAMPO.md`.
 
 ---
 
+### F. Comentarios en Estadísticas Personalizadas (Reportes Especiales)
+- [ ] Permitir a la gerencia e ingenieros agregar comentarios/análisis escritos libres dentro de las estadísticas personalizadas.
+- [ ] Integrar y exportar estas anotaciones directamente en el PDF/Excel final del reporte consolidado.
+
+---
+
 ## ✅ COMPLETADO
 
 - [x] Normalización de estatus `OFF`/`RUN` para CHECK constraint de `monitoreo_pozos`
