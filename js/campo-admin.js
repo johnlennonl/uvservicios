@@ -2147,10 +2147,16 @@ function openAlertConfigModal() {
 function buildRecordDiagnosticBadge(record) {
     const diagnostico = getRecordField(record, 'diagnostico');
     const observaciones = getRecordField(record, 'observaciones_pozo');
+    const status = getRecordField(record, 'estatus') || '';
+    const normalizedStatus = String(status).replace(/[^A-Z]/gi, '').toUpperCase();
+    const isOff = ['OFF', 'PARADAMANUAL', 'PARADO', 'PARADA', 'DETENIDO', 'INACTIVO'].includes(normalizedStatus);
+
     const sourceText = diagnostico || observaciones || 'Sin falla reportada';
     const compactText = String(sourceText).trim().replace(/\s+/g, ' ');
     const finalText = compactText.length > 52 ? `${compactText.slice(0, 49)}...` : compactText;
-    return `<span class="campo-admin-diagnostic-pill">${escapeHtml(finalText)}</span>`;
+    
+    const isOffClass = isOff ? ' is-off' : '';
+    return `<span class="campo-admin-diagnostic-pill${isOffClass}">${escapeHtml(finalText)}</span>`;
 }
 
 function buildPublicationRecordKey(record = {}) {
