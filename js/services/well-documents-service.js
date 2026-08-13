@@ -29,9 +29,13 @@ function normalizeOperationalScopeValue(value = '') {
     return String(value || getActiveOperationalScope() || 'ceiba_tomoporo').trim().toLowerCase() || 'ceiba_tomoporo';
 }
 
-function isMissingOperationalScopeColumn(error) {
+function isMissingColumnError(error, columnName) {
     const message = String(error?.message || error || '');
-    return /operational_scope/i.test(message) && /column|schema|cache|could not find/i.test(message);
+    return new RegExp(columnName, 'i').test(message) && /column|schema|cache|could not find/i.test(message);
+}
+
+function isMissingOperationalScopeColumn(error) {
+    return isMissingColumnError(error, 'operational_scope');
 }
 
 async function compressImageIfNeeded(file) {
@@ -121,6 +125,7 @@ export async function getWellDocuments({ pozoName = '', category = null, startDa
         let query = supabase
             .from('well_historical_documents')
             .select('*')
+            .order('fecha_documento', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: false });
 
         if (normalizedOperationalScope) {
@@ -146,29 +151,37 @@ export async function getWellDocuments({ pozoName = '', category = null, startDa
         }
 
         let { data, error } = await query;
-        if (error && isMissingOperationalScopeColumn(error)) {
-            console.warn('[well-documents-service] La columna operational_scope no existe aun; usando consulta legacy de documentos.');
-            let legacyQuery = supabase
-                .from('well_historical_documents')
-                .select('*')
-                .order('created_at', { ascending: false });
-
+        if (error && (isMissingColumnError(error, 'fecha_documento') || isMissingOperationalScopeColumn(error))) {
+            console.warn('[well-documents-service] Error de esquema (fecha_documento o operational_scope no existen); reintentando con consulta compatible.');
+            
+            let fallbackQuery = supabase.from('well_historical_documents').select('*');
+            
+            // Decidir ordenamiento
+            if (!isMissingColumnError(error, 'fecha_documento')) {
+                fallbackQuery = fallbackQuery.order('fecha_documento', { ascending: false, nullsFirst: false });
+            }
+            fallbackQuery = fallbackQuery.order('created_at', { ascending: false });
+            
+            // Re-aplicar filtros
+            if (!isMissingOperationalScopeColumn(error) && normalizedOperationalScope) {
+                fallbackQuery = fallbackQuery.or(`operational_scope.eq.${normalizedOperationalScope},operational_scope.is.null`);
+            }
             if (pozoName && pozoName !== 'TODOS') {
-                legacyQuery = legacyQuery.eq('pozo_name', pozoName.trim().toUpperCase());
+                fallbackQuery = fallbackQuery.eq('pozo_name', pozoName.trim().toUpperCase());
             }
             if (category && category !== 'TODAS') {
-                legacyQuery = legacyQuery.eq('categoria', category.trim().toUpperCase());
+                fallbackQuery = fallbackQuery.eq('categoria', category.trim().toUpperCase());
             }
             if (startDate) {
-                legacyQuery = legacyQuery.gte('created_at', `${startDate}T00:00:00.000Z`);
+                fallbackQuery = fallbackQuery.gte('created_at', `${startDate}T00:00:00.000Z`);
             }
             if (endDate) {
-                legacyQuery = legacyQuery.lte('created_at', `${endDate}T23:59:59.999Z`);
+                fallbackQuery = fallbackQuery.lte('created_at', `${endDate}T23:59:59.999Z`);
             }
-
-            const legacyResult = await legacyQuery;
-            data = legacyResult.data;
-            error = legacyResult.error;
+            
+            const fallbackResult = await fallbackQuery;
+            data = fallbackResult.data;
+            error = fallbackResult.error;
         }
         if (error) throw error;
 
@@ -249,7 +262,7 @@ export async function getWellDocumentSummaryCounts({ operationalScope = null } =
  * @param {string} [params.uploadedBy] - Nombre del usuario/técnico que realiza la carga.
  * @returns {Promise<Object>} Registro del documento recién creado.
  */
-export async function uploadWellDocument({ file, pozoName, category, description = '', uploadedBy = 'Sistema', operationalScope = null }) {
+export async function uploadWellDocument({ file, pozoName, category, description = '', uploadedBy = 'Sistema', operationalScope = null, documentDate = null }) {
     if (!file) throw new Error('Debes seleccionar un archivo para cargar.');
     if (!pozoName) throw new Error('El nombre del pozo es obligatorio.');
     if (!category) throw new Error('Debes seleccionar una categoría temática.');
@@ -300,7 +313,8 @@ export async function uploadWellDocument({ file, pozoName, category, description
             file_size: fileToUpload.size || 0,
             file_type: fileExt,
             descripcion: String(description || '').trim(),
-            uploaded_by: String(uploadedBy || 'Administrador').trim()
+            uploaded_by: String(uploadedBy || 'Administrador').trim(),
+            fecha_documento: documentDate || new Date().toISOString().split('T')[0]
         };
 
         let { data: dbData, error: dbError } = await supabase
@@ -309,17 +323,30 @@ export async function uploadWellDocument({ file, pozoName, category, description
             .select()
             .single();
 
-        if (dbError && isMissingOperationalScopeColumn(dbError)) {
-            console.warn('[well-documents-service] La columna operational_scope no existe aun; registrando metadata legacy.');
-            const legacyPayload = { ...documentPayload };
-            delete legacyPayload.operational_scope;
-            const legacyResult = await supabase
-                .from('well_historical_documents')
-                .insert([legacyPayload])
-                .select()
-                .single();
-            dbData = legacyResult.data;
-            dbError = legacyResult.error;
+        if (dbError) {
+            let columnMissing = false;
+            const cleanPayload = { ...documentPayload };
+            
+            if (isMissingColumnError(dbError, 'fecha_documento')) {
+                console.warn('[well-documents-service] La columna fecha_documento no existe; excluyendo.');
+                delete cleanPayload.fecha_documento;
+                columnMissing = true;
+            }
+            if (isMissingOperationalScopeColumn(dbError)) {
+                console.warn('[well-documents-service] La columna operational_scope no existe; excluyendo.');
+                delete cleanPayload.operational_scope;
+                columnMissing = true;
+            }
+            
+            if (columnMissing) {
+                let retryResult = await supabase
+                    .from('well_historical_documents')
+                    .insert([cleanPayload])
+                    .select()
+                    .single();
+                dbData = retryResult.data;
+                dbError = retryResult.error;
+            }
         }
 
         if (dbError) {
@@ -445,6 +472,70 @@ export async function updateWellDocumentDescription(documentId, description) {
         return data[0];
     } catch (err) {
         console.error('[well-documents-service] Error actualizando descripción del documento:', err);
+        throw err;
+    }
+}
+
+/**
+ * Actualiza la metadata (fecha y descripción/nota técnica) de un documento histórico.
+ * 
+ * @param {string} documentId - ID del registro en well_historical_documents.
+ * @param {Object} metadata - Datos a actualizar.
+ * @param {string} [metadata.description] - Nueva descripción.
+ * @param {string} [metadata.documentDate] - Nueva fecha de documento (YYYY-MM-DD).
+ * @returns {Promise<Object>} Registro del documento actualizado.
+ */
+export async function updateWellDocumentMetadata(documentId, { description = null, documentDate = null } = {}) {
+    if (!documentId) throw new Error('ID de documento no proporcionado.');
+
+    try {
+        const updatePayload = {};
+        if (description !== null) updatePayload.descripcion = String(description).trim();
+        if (documentDate !== null) updatePayload.fecha_documento = documentDate;
+
+        let { data, error } = await supabase
+            .from('well_historical_documents')
+            .update(updatePayload)
+            .eq('id', documentId)
+            .select();
+
+        if (error) {
+            // Si falla porque no existe la columna fecha_documento, la quitamos y reintentamos
+            if (isMissingColumnError(error, 'fecha_documento')) {
+                console.warn('[well-documents-service] La columna fecha_documento no existe; reintentando solo con descripcion.');
+                delete updatePayload.fecha_documento;
+                if (Object.keys(updatePayload).length > 0) {
+                    const retryResult = await supabase
+                        .from('well_historical_documents')
+                        .update(updatePayload)
+                        .eq('id', documentId)
+                        .select();
+                    data = retryResult.data;
+                    error = retryResult.error;
+                }
+            }
+        }
+
+        if (error) throw error;
+
+        // Intentar fallback numérico por compatibilidad de tipos (id número/UUID)
+        if ((!data || data.length === 0) && !isNaN(Number(documentId))) {
+            const numResult = await supabase
+                .from('well_historical_documents')
+                .update(updatePayload)
+                .eq('id', Number(documentId))
+                .select();
+            if (numResult.error) throw numResult.error;
+            data = numResult.data;
+        }
+
+        if (!data || data.length === 0) {
+            throw new Error('No se encontró el archivo adjunto para actualizar.');
+        }
+
+        return data[0];
+    } catch (err) {
+        console.error('[well-documents-service] Error actualizando metadatos del documento:', err);
         throw err;
     }
 }

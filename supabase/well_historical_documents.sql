@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.well_historical_documents (
     file_type TEXT DEFAULT 'pdf', -- Extensión o tipo MIME (pdf, xlsx, docx, etc.)
     descripcion TEXT,
     uploaded_by TEXT,
+    fecha_documento DATE DEFAULT CURRENT_DATE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

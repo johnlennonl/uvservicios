@@ -1020,7 +1020,7 @@ function syncJourneyStartGate() {
     const startJourneyButton = document.getElementById('field-start-journey-btn');
     if (!formCard || !overlay) return;
 
-    const hasWorkingData = getJourneyReports().length > 0 || Boolean(currentEditingReportId) || Boolean(getFieldStorageItem(DRAFT_STORAGE_KEY));
+    const hasWorkingData = getJourneyReports().length > 0 || Boolean(currentEditingReportId) || (typeof supportReports !== 'undefined' && supportReports.length > 0);
     const unlocked = isJourneyStarted;
     formCard.classList.toggle('is-journey-start-locked', !unlocked);
     overlay.hidden = unlocked;
@@ -2221,7 +2221,7 @@ function updateEditingContext(reports = getJourneyReports()) {
     }
 
     if (exitBtn) {
-        const hasWorkingData = reports.length > 0 || Boolean(currentEditingReportId) || Boolean(getFieldStorageItem(DRAFT_STORAGE_KEY));
+        const hasWorkingData = reports.length > 0 || Boolean(currentEditingReportId) || (typeof supportReports !== 'undefined' && supportReports.length > 0);
         exitBtn.hidden = !(isEditingSubmitted || isJourneyStarted || hasWorkingData);
         const span = exitBtn.querySelector('span');
         if (span) {
@@ -4169,11 +4169,12 @@ function scrollToPozoField() {
 }
 
 async function openReportPreview(journeyId, mode = 'journey') {
-    const journey = await fetchSubmittedJourneyForField(journeyId);
-    if (!journey) {
+    const result = await fetchSubmittedJourneyForField(journeyId);
+    if (!result) {
         showAlert('No se encontró la carga seleccionada para la vista previa.', 'error');
         return;
     }
+    const journey = result.journey;
 
     const modal = document.getElementById('field-report-preview-modal');
     const title = document.getElementById('field-report-preview-title');
@@ -4588,11 +4589,12 @@ async function exportJourneyToExcel(journeyId) {
         return;
     }
 
-    const journey = await fetchSubmittedJourneyForField(journeyId);
-    if (!journey) {
+    const result = await fetchSubmittedJourneyForField(journeyId);
+    if (!result) {
         showAlert('No se encontro la carga para exportar.', 'error');
         return;
     }
+    const journey = result.journey;
 
     const sortedRecords = sortJourneyRecords(journey.records || []);
     if (sortedRecords.length === 0) {
@@ -5158,7 +5160,7 @@ function resetJourneyWorkspace() {
 
 async function exitJourneyAndClearState() {
     const draftJourneyId = currentEditingJourneyId || getDraftJourneyKey();
-    const hasWorkingData = getJourneyReports().length > 0 || Boolean(currentEditingReportId) || Boolean(getFieldStorageItem(DRAFT_STORAGE_KEY));
+    const hasWorkingData = getJourneyReports().length > 0 || Boolean(currentEditingReportId) || (typeof supportReports !== 'undefined' && supportReports.length > 0);
     const isEditingSubmitted = Boolean(draftJourneyId);
 
     if (!isEditingSubmitted && !hasWorkingData && !isJourneyStarted) return;
@@ -5179,25 +5181,64 @@ async function exitJourneyAndClearState() {
                 .eq('id', draftJourneyId)
                 .maybeSingle();
 
-            if (data && data.status === 'draft') {
+            if (data && (data.status === 'draft' || data.status === 'rejected')) {
                 isRealDraft = true;
-                journeyStatus = 'draft';
-            } else if (data) {
-                journeyStatus = data.status;
             }
         } catch (e) {
             console.warn('Error checking journey status before exit:', e);
         }
     }
 
+    // CASO 1: Es un borrador real guardado en la nube
+    if (isRealDraft && draftJourneyId) {
+        const result = await window.Swal.fire({
+            title: '¿Cómo deseas salir de la jornada?',
+            html: `
+                <div style="text-align: left; font-size: 0.9rem; line-height: 1.5; font-family: 'Outfit', sans-serif;">
+                    <p>Esta jornada en construcción está guardada como borrador en la nube.</p>
+                    <p style="margin-bottom: 8px;"><strong>1. Salir (Conservar en nube):</strong> Cierra la edición en este equipo pero conserva todos los pozos y reportes cargados en la base de datos para que los continúes más tarde.</p>
+                    <p><strong>2. Descartar (Eliminar de nube):</strong> Borra permanentemente toda la jornada y sus pozos del servidor y del dispositivo.</p>
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: 'Salir (Conservar)',
+            denyButtonText: 'Descartar (Eliminar)',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#2563eb',
+            denyButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            width: '460px'
+        });
+
+        if (result.isConfirmed) {
+            resetJourneyWorkspace();
+            updateStatus('Saliste de la jornada. El borrador sigue seguro en la nube.', 'info');
+        } else if (result.isDenied) {
+            try {
+                await supabase.from('field_journey_records').delete().eq('journey_id', draftJourneyId);
+                await supabase.from('field_journeys').delete().eq('id', draftJourneyId).eq('status', 'draft');
+            } catch (err) {
+                console.warn('Error deleting draft from database:', err);
+            }
+            resetJourneyWorkspace();
+            updateStatus('Borrador eliminado permanentemente de la nube.', 'success');
+        }
+        return;
+    }
+
+    // CASO 2: Borrador local no sincronizado o edición de jornada ya enviada
     let title = '¿Salir de la edición?';
     let text = 'Cualquier modificación local no guardada se perderá.';
     let confirmButtonText = 'Sí, salir';
+    let confirmButtonColor = '#2563eb';
 
-    if (isRealDraft || (!draftJourneyId && hasWorkingData)) {
-        title = '¿Descartar borrador?';
-        text = 'Se eliminará permanentemente esta jornada en construcción y todos sus pozos asociados.';
+    if (!draftJourneyId && hasWorkingData) {
+        title = '¿Descartar borrador local?';
+        text = 'Se eliminarán permanentemente los pozos que llevas capturados en este dispositivo.';
         confirmButtonText = 'Sí, descartar todo';
+        confirmButtonColor = '#ef4444';
     }
 
     const { isConfirmed } = await window.Swal.fire({
@@ -5205,23 +5246,15 @@ async function exitJourneyAndClearState() {
         text: text,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#e11d48',
+        confirmButtonColor: confirmButtonColor,
         cancelButtonColor: '#64748b',
         confirmButtonText: confirmButtonText,
         cancelButtonText: 'Cancelar'
     });
 
     if (isConfirmed) {
-        if (isRealDraft && draftJourneyId) {
-            try {
-                await supabase.from('field_journey_records').delete().eq('journey_id', draftJourneyId);
-                await supabase.from('field_journeys').delete().eq('id', draftJourneyId).eq('status', 'draft');
-            } catch (err) {
-                console.warn('Error deleting draft from database:', err);
-            }
-        }
         resetJourneyWorkspace();
-        updateStatus(isRealDraft ? 'Borrador eliminado. Espacio de trabajo limpio.' : 'Edición finalizada. Espacio de trabajo limpio.', 'info');
+        updateStatus('Espacio de trabajo limpio.', 'info');
     }
 }
 
@@ -5711,11 +5744,12 @@ async function renderPozoList(journeyId) {
     const listEl = document.getElementById('field-pozo-list');
     if (!listEl) return;
     listEl.innerHTML = '<li>Cargando pozos...</li>';
-    const journey = await fetchSubmittedJourneyForField(journeyId);
-    if (!journey) {
+    const result = await fetchSubmittedJourneyForField(journeyId);
+    if (!result) {
         listEl.innerHTML = '<li>No se encontraron pozos para esta carga.</li>';
         return;
     }
+    const journey = result.journey;
     const pozos = Array.isArray(journey.pozoNames) ? journey.pozoNames : [];
     if (pozos.length === 0) {
         listEl.innerHTML = '<li>No hay pozos registrados en esta carga.</li>';

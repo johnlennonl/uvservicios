@@ -16,7 +16,8 @@ import {
     getWellDocumentSummaryCounts,
     uploadWellDocument,
     getDocumentDownloadUrl,
-    deleteWellDocument
+    deleteWellDocument,
+    updateWellDocumentMetadata
 } from '../../services/well-documents-service.js';
 
 // PIN de Seguridad por defecto (Configurable)
@@ -506,14 +507,22 @@ async function fetchAndRenderFiles() {
                             <th>Descripción / Nota</th>
                             <th>Tamaño</th>
                             <th>Cargado por</th>
-                            <th>Fecha de Carga</th>
+                            <th>Fecha del Doc.</th>
                             <th style="text-align:right;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${docsWithUrls.map(doc => {
                             const badgeClass = getFileBadgeClass(doc.file_type);
-                            const uploadDate = doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-ES') : '--';
+                            let docDate = '--';
+                            if (doc.fecha_documento) {
+                                const parts = doc.fecha_documento.split('-');
+                                docDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : new Date(doc.fecha_documento).toLocaleDateString('es-ES');
+                            } else if (doc.created_at) {
+                                docDate = new Date(doc.created_at).toLocaleDateString('es-ES');
+                            }
+
+                            const initialDate = doc.fecha_documento || (doc.created_at ? new Date(doc.created_at).toISOString().split('T')[0] : '');
 
                             return `
                                 <tr>
@@ -530,7 +539,7 @@ async function fetchAndRenderFiles() {
                                     </td>
                                     <td><span class="stats-muted-cell">${formatFileSize(doc.file_size)}</span></td>
                                     <td><span class="stats-muted-cell">${escapeHtml(doc.uploaded_by || 'Sistema')}</span></td>
-                                    <td><span class="stats-date-cell">${uploadDate}</span></td>
+                                    <td><span class="stats-date-cell">${docDate}</span></td>
                                     <td style="text-align:right;">
                                         <div style="display:inline-flex; align-items:center; justify-content:flex-end; gap:8px;">
                                             <button type="button" class="btn-preview-doc" data-url="${escapeHtml(doc.downloadUrl)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" data-type="${escapeHtml(doc.file_type || '')}" title="Previsualizar documento">
@@ -541,6 +550,10 @@ async function fetchAndRenderFiles() {
                                                 <i class="fa-solid fa-download"></i>
                                                 <span>DESCARGAR</span>
                                             </a>
+                                            <button type="button" class="btn-edit-doc" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" data-date="${escapeHtml(initialDate)}" data-description="${escapeHtml(doc.descripcion || '')}" title="Editar documento">
+                                                <i class="fa-solid fa-pen"></i>
+                                                <span>EDITAR</span>
+                                            </button>
                                             <button type="button" class="btn-delete-doc" data-id="${escapeHtml(doc.id)}" data-path="${escapeHtml(doc.file_path)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" title="Eliminar documento">
                                                 <i class="fa-solid fa-trash-can"></i>
                                                 <span>ELIMINAR</span>
@@ -586,6 +599,17 @@ async function fetchAndRenderFiles() {
                         btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> <span>ELIMINAR</span>';
                     }
                 }
+            });
+        });
+
+        // Eventos para editar archivos
+        container.querySelectorAll('.btn-edit-doc').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const docId = btn.dataset.id;
+                const docName = btn.dataset.name;
+                const docDate = btn.dataset.date;
+                const docDescription = btn.dataset.description;
+                openEditDocumentMetadataModal(docId, docName, docDate, docDescription);
             });
         });
 
@@ -793,7 +817,17 @@ function initUploadModal() {
 
     if (btnOpen) {
         btnOpen.addEventListener('click', () => {
-            if (modal) modal.hidden = false;
+            if (modal) {
+                modal.hidden = false;
+                modal.style.display = 'flex';
+            }
+            
+            // Poner por defecto la fecha de hoy local en el input de fecha del documento
+            const dateInput = document.getElementById('upload-date-input');
+            if (dateInput) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+
             if (state.activePozo) {
                 const selectPozo = document.getElementById('upload-pozo-select');
                 if (selectPozo) selectPozo.value = state.activePozo;
@@ -806,7 +840,10 @@ function initUploadModal() {
     }
 
     if (btnClose && modal) {
-        btnClose.addEventListener('click', () => { modal.hidden = true; });
+        btnClose.addEventListener('click', () => {
+            modal.hidden = true;
+            modal.style.display = 'none';
+        });
     }
 
     if (dropzone && fileInput) {
@@ -849,6 +886,7 @@ function initUploadModal() {
             const pozoName = document.getElementById('upload-pozo-select')?.value;
             const category = document.getElementById('upload-category-select')?.value;
             const description = document.getElementById('upload-description-input')?.value || '';
+            const documentDate = document.getElementById('upload-date-input')?.value || new Date().toISOString().split('T')[0];
             const submitBtn = document.getElementById('btn-submit-upload');
 
             if (!file) { alert('Selecciona un archivo para subir.'); return; }
@@ -869,7 +907,8 @@ function initUploadModal() {
                     category,
                     description,
                     uploadedBy: uploaderName,
-                    operationalScope: state.activeOperationalScope
+                    operationalScope: state.activeOperationalScope,
+                    documentDate: documentDate
                 });
 
                 showSuccessToast('¡Documento Cargado con Éxito!', `El archivo "${file.name}" se guardó correctamente en el expediente.`);
@@ -999,4 +1038,88 @@ function openDocumentPreview(url, name, type) {
             </div>
         </div>
     `;
+}
+
+/**
+ * Abre un modal de SweetAlert2 para editar la fecha del documento y su descripción/nota.
+ */
+async function openEditDocumentMetadataModal(docId, docName, docDate, docDescription) {
+    if (!window.Swal) {
+        alert('Error: SweetAlert2 no está cargado.');
+        return;
+    }
+
+    const cleanDesc = getCleanDocumentDescription(docDescription);
+    const match = String(docDescription || '').match(/^\[JORNADA_ID:[^\]]+\]/i);
+    const journeyTag = match ? match[0] : '';
+
+    const { value: formValues } = await window.Swal.fire({
+        title: 'Editar Metadatos del Documento',
+        html: `
+            <div style="text-align: left; font-family: 'Outfit', sans-serif;">
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">Archivo: <strong>${escapeHtml(docName)}</strong></p>
+                <div style="margin-bottom: 12px;">
+                    <label style="display:block; font-weight:700; font-size:0.82rem; color:#475569; margin-bottom:4px;">Fecha del Documento:</label>
+                    <input type="date" id="swal-doc-date" class="swal2-input" value="${escapeHtml(docDate)}" style="margin: 0; width: 100%; box-sizing: border-box; padding: 10px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-family: inherit; font-weight: 600;">
+                </div>
+                <div>
+                    <label style="display:block; font-weight:700; font-size:0.82rem; color:#475569; margin-bottom:4px;">Descripción o Notas Técnicas (Opcional):</label>
+                    <textarea id="swal-doc-desc" class="swal2-textarea" style="margin: 0; width: 100%; box-sizing: border-box; padding: 10px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-family: inherit; height: 80px;">${escapeHtml(cleanDesc)}</textarea>
+                </div>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Guardar Cambios',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            const dateVal = document.getElementById('swal-doc-date').value;
+            const descVal = document.getElementById('swal-doc-desc').value;
+            if (!dateVal) {
+                window.Swal.showValidationMessage('La fecha del documento es obligatoria.');
+                return false;
+            }
+            return { dateVal, descVal };
+        }
+    });
+
+    if (formValues) {
+        const { dateVal, descVal } = formValues;
+        const finalDescription = journeyTag ? `${journeyTag} ${descVal}`.trim() : descVal.trim();
+
+        try {
+            // Mostrar cargando
+            window.Swal.fire({
+                title: 'Actualizando metadatos...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    window.Swal.showLoading();
+                }
+            });
+
+            await updateWellDocumentMetadata(docId, {
+                description: finalDescription,
+                documentDate: dateVal
+            });
+
+            window.Swal.close();
+            showSuccessToast('¡Documento Actualizado!', 'Los metadatos se guardaron correctamente.');
+
+            // Recargar contadores y vista
+            state.summaryCounts = filterSummaryCountsByActivePozos(await getWellDocumentSummaryCounts({ operationalScope: state.activeOperationalScope }));
+            if (state.activeCategory) {
+                fetchAndRenderFiles();
+            } else if (state.activePozo) {
+                openFoldersView(state.activePozo);
+            } else {
+                renderWellsView();
+            }
+
+        } catch (err) {
+            console.error('Error al actualizar metadatos del documento:', err);
+            window.Swal.fire('Error al Actualizar', err.message, 'error');
+        }
+    }
 }

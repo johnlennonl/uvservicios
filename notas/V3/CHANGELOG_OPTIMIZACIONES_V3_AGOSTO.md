@@ -95,6 +95,29 @@ Este documento detalla las optimizaciones y correcciones de errores aplicadas pa
     6. Se resolvió la limitación de RLS implementando un flujo de recreación limpia en `autosaveFieldJourneyDraft` y `submitFieldJourneyWorkflow` que primero elimina el encabezado del borrador previo (lo cual limpia en cascada todos los registros e historial en el motor de base de datos) antes de insertar los nuevos datos, garantizando una base limpia.
     7. Se añadió una salvaguarda de deduplicación de metadatos del lado del cliente en `getLatestFieldJourneyDraft` y `fetchSubmittedJourneyForField` que purga de forma inmediata y automática cualquier residuo de duplicados que haya quedado guardado previamente.
 
+---
 
+## 10. Cambios Modificados en Local (Pendientes por Desplegar a Producción)
+* **Ajuste de Inicio de Jornada y Permisos de Descarte (`field-controller.js`)**:
+  * **Cambios realizados**:
+    1. Se modificó la variable `hasWorkingData` para evitar que la caché local de inputs vacíos fuerce el bloqueo de "Continuar jornada" y el botón de "Descartar borrador" de forma fantasma. Ahora, solo bloquea y ofrece continuar si hay al menos 1 pozo registrado o 1 reporte de apoyo cargado.
+    2. Se actualizó el diálogo de salida para jornadas en estado de `Borrador (Draft)` o `Rechazada (Rejected)`. Ahora ofrece un diálogo SweetAlert con tres opciones claras:
+       * **Salir (Conservar en nube)**: Cierra la edición local pero mantiene el borrador intacto en Supabase para continuarlo después.
+       * **Descartar (Eliminar de nube)**: Elimina permanentemente la jornada y sus pozos de la base de datos (permitido para Borrador y Rechazada).
+       * **Cancelar**: Vuelve a la pantalla de captura sin realizar cambios.
+    3. Para jornadas en estado `Enviada (Submitted)`, se restringe el borrado en base de datos (conforme a políticas RLS) y se mantiene el flujo clásico de salida limpia sin alterar la base de datos.
+  * **Estatus**: Listo en código local. Esperando indicación del usuario al final de la guardia para hacer `git push`.
 
+* **Resolución del Bloqueo del Modal de Carga en Base de Datos (`database-controller.js`)**:
+  * **Problema**: Tras subir un archivo con éxito, el sistema ocultaba el modal agregando `style.display = 'none'`. Al intentar abrirlo de nuevo en la misma sesión, el botón de "Cargar Documento" solo ponía `hidden = false`, pero el modal continuaba oculto porque `style.display = 'none'` tiene prioridad, obligando a recargar la página.
+  * **Solución**: Se actualizó `initUploadModal` para que, al hacer clic en abrir, ponga explícitamente `modal.style.display = 'flex'` (sincronizándose con su regla CSS) y al cerrar limpie con `modal.style.display = 'none'`. Esto permite cargar múltiples archivos consecutivamente sin recargar.
 
+* **Edición de Metadatos de Archivos en Base de Datos (`database-controller.js`, `well-documents-service.js`)**:
+  * **Cambios realizados**:
+    1. Se agregó la librería SweetAlert2 a la página `base-datos.html` para mantener consistencia visual.
+    2. Se diseñó el estilo CSS `.btn-edit-doc` con un tema color ámbar en `database-page.css` para el botón "EDITAR".
+    3. Se renderiza un nuevo botón **"EDITAR"** en la tabla de archivos para cada documento.
+    4. Al pulsar "EDITAR", se despliega un formulario SweetAlert2 que permite al usuario modificar la **Fecha del Documento** y la **Descripción/Notas**.
+    5. Se creó la función `updateWellDocumentMetadata` en el servicio que actualiza ambos campos de forma segura y cuenta con un mecanismo de retrocompatibilidad automática por si la columna `fecha_documento` aún no se ha agregado a la base de datos remota.
+    6. Se preservan automáticamente las etiquetas internas de jornada (`[JORNADA_ID:...]`) si el archivo proviene de una carga automática desde la app de Campo.
+  * **Estatus**: Listo en código local. Esperando indicación del usuario para hacer `git push`.
