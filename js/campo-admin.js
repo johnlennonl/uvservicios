@@ -1612,8 +1612,22 @@ function buildJourneyPulseTimelineMarkup(journey = {}, records = [], reviewLog =
         const diffTechs = techEntries.filter(([tech]) => headerTechs.length > 0 && !headerTechs.some(ht => ht.includes(tech.toUpperCase()) || tech.toUpperCase().includes(ht)));
 
         if (diffTechs.length > 0 || nightPozoList.length > 0) {
+            let title = 'Discrepancias detectadas en registros';
+            let techMessage = '';
+
+            if (diffTechs.length > 0) {
+                const techNames = techEntries.map(([t]) => t.trim()).filter(Boolean);
+                if (techNames.length > 1) {
+                    title = 'Cambio de guardia detectado';
+                    techMessage = `• Se detectaron múltiples técnicos operando en la misma jornada: ${techEntries.map(([t, c]) => `${t} (${c} pozos)`).join(', ')}`;
+                } else {
+                    title = 'Trazabilidad de cuadrilla';
+                    techMessage = `• Técnico en pozo difiere de la cuadrilla oficial: ${techEntries.map(([t, c]) => `${t} (${c} pozos)`).join(', ')}`;
+                }
+            }
+
             const textLines = [
-                diffTechs.length > 0 ? `• Técnicos detectados en pozos no registrados en la cuadrilla oficial: ${techEntries.map(([t, c]) => `${t} (${c} pozos)`).join(', ')}` : '',
+                techMessage,
                 nightPozoList.length > 0 ? `• Pozos reportados fuera del turno seleccionado (${journey.jornada}): ${nightPozoList.join(', ')}` : ''
             ].filter(Boolean);
 
@@ -1623,7 +1637,7 @@ function buildJourneyPulseTimelineMarkup(journey = {}, records = [], reviewLog =
                 nodeClass: 'node-amber',
                 tagClass: 'tag-amber',
                 tagLabel: 'TRAZABILIDAD',
-                title: 'Discrepancias detectadas en registros',
+                title: title,
                 text: textLines.join('\n'),
                 user: 'Sistema de Auditoría UV',
                 pozos: []
