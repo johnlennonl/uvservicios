@@ -114,7 +114,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             const pozos = getSortedKnownPozos().filter(pozo => !searchTerm || pozo.toLowerCase().includes(searchTerm));
 
             if (pozos.length === 0) {
-                menu.innerHTML = '<div class="management-pozo-empty">No hay pozos para esa b├║squeda.</div>';
+                menu.innerHTML = '<div class="management-pozo-empty">No hay pozos para esa búsqueda.</div>';
                 return;
             }
 
@@ -222,7 +222,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             statusDot.classList.remove('active', 'inactive');
 
             if (!pozoName) {
-                statusText.textContent = 'Selecciona un pozo para consultar su configuraci├│n actual.';
+                statusText.textContent = 'Selecciona un pozo para consultar su configuración actual.';
                 return;
             }
 
@@ -230,7 +230,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 const profile = await getWellBESProfile(pozoName);
                 if (profile?.pump_type) {
                     statusDot.classList.add('active');
-                    const maker = profile.pump_manufacturer ? ` ┬À ${profile.pump_manufacturer}` : '';
+                    const maker = profile.pump_manufacturer ? ` · ${profile.pump_manufacturer}` : '';
                     statusText.textContent = `Ficha BES configurada: ${profile.pump_type}${maker}.`;
                     return;
                 }
@@ -363,8 +363,8 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('btn-recent-operational').classList.toggle('active', mode === 'operational');
             document.getElementById('btn-recent-technical').classList.toggle('active', mode === 'technical');
             document.getElementById('recent-records-caption').textContent = mode === 'technical'
-                ? 'Vista r├ípida de las mediciones t├®cnicas m├ís recientes cargadas en el sistema.'
-                : 'Se muestra el ├║ltimo registro operativo cargado de cada pozo.';
+                ? 'Vista rápida de las mediciones técnicas más recientes cargadas en el sistema.'
+                : 'Se muestra el último registro operativo cargado de cada pozo.';
             renderRecentHistoryHead();
             refreshHistory();
         }
@@ -631,12 +631,12 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
         // Elimina un registro operativo despues de confirmar la accion con el usuario.
         async function handleDelete(id) {
             const result = await Swal.fire({
-                title: '┬┐Est├ís seguro?',
-                text: "Esta acci├│n no se puede deshacer.",
+                title: '¿Estás seguro?',
+                text: "Esta acción no se puede deshacer.",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
-                confirmButtonText: 'S├¡, borrarlo'
+                confirmButtonText: 'Sí, borrarlo'
             });
 
             if (result.isConfirmed) {
@@ -657,7 +657,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('manual-data-form').reset();
             document.getElementById('edit-id').value = '';
             document.getElementById('fecha').valueAsDate = new Date();
-            document.getElementById('form-title').textContent = 'Entrada de Par├ímetros';
+            document.getElementById('form-title').textContent = 'Entrada de Parámetros';
             document.getElementById('submit-btn').querySelector('.btn-text').textContent = 'Guardar Registro';
             document.getElementById('cancel-edit').style.display = 'none';
         }
@@ -694,8 +694,8 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
 
             togglePanelWithStableScroll(panel, isVisible, trigger);
             trigger.querySelector('.btn-text').textContent = isVisible
-                ? 'Agregar Otra Entrada de Par├ímetros Manual'
-                : 'Agregar Nueva Entrada de Par├ímetros Manual';
+                ? 'Agregar Otra Entrada de Parámetros Manual'
+                : 'Agregar Nueva Entrada de Parámetros Manual';
         }
 
         function prepareNewManualEntry() {
@@ -731,7 +731,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('potencial_tech').value = '';
             document.getElementById('cat_tech').value = '1';
             document.getElementById('bnpd_tech').value = '';
-            document.getElementById('tech-submit-btn').querySelector('.btn-text').textContent = 'Guardar Producci├│n T├®cnica';
+            document.getElementById('tech-submit-btn').querySelector('.btn-text').textContent = 'Guardar Producción Técnica';
         }
 
         function populatePumpProfileForm(profile = null, context = {}) {
@@ -787,8 +787,8 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
 
             togglePanelWithStableScroll(panel, isVisible, trigger);
             trigger.querySelector('.btn-text').textContent = isVisible
-                ? 'Agregar Otra Medici├│n T├®cnica Manual'
-                : 'Agregar Nueva Medici├│n T├®cnica Manual';
+                ? 'Agregar Otra Medición Técnica Manual'
+                : 'Agregar Nueva Medición Técnica Manual';
         }
 
         function prepareNewTechnicalMeasurement() {
@@ -855,13 +855,13 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 } else {
                     await insertRecord(record);
                     await upsertManualMonitoringIntoConsolidated([record], { sourceFileName: 'gestion-manual' });
-                    Swal.fire({ icon: 'success', title: 'Registro Guardado', text: 'La telemetr├¡a diaria fue guardada exitosamente.', timer: 2200, showConfirmButton: false });
+                    Swal.fire({ icon: 'success', title: 'Registro Guardado', text: 'La telemetría diaria fue guardada exitosamente.', timer: 2200, showConfirmButton: false });
                 }
                 resetForm();
                 setManualFormVisibility(false);
                 await refreshHistory();
             } catch (err) {
-                Swal.fire({ icon: 'error', title: 'Fallo de Sincronizaci├│n', text: err.message });
+                Swal.fire({ icon: 'error', title: 'Fallo de Sincronización', text: err.message });
             } finally {
                 btn.classList.remove('loading');
                 btn.disabled = false;
@@ -896,7 +896,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 await saveTechnicalMeasurement(techData);
                 setTechnicalFormVisibility(false);
                 await refreshPozoLists();
-                Swal.fire({ icon: 'success', title: 'Medici├│n T├®cnica Guardada', text: 'La medici├│n t├®cnica fue agregada al historial y el resumen del pozo qued├│ actualizado.', timer: 2400, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Medición Técnica Guardada', text: 'La medición técnica fue agregada al historial y el resumen del pozo quedó actualizado.', timer: 2400, showConfirmButton: false });
             } catch (err) {
                 Swal.fire({ icon: 'error', title: 'Fallo al Guardar', text: err.message });
             } finally {
@@ -1057,20 +1057,20 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             const previewItems = items.slice(0, limit).map(item => {
                 const record = item?.record || item || {};
                 if (kind === 'technical') {
-                    return `<li><b>${escapeHtml(record.pozo_name || '--')}</b> ┬À ${escapeHtml(record.fecha || '--')}</li>`;
+                    return `<li><b>${escapeHtml(record.pozo_name || '--')}</b> · ${escapeHtml(record.fecha || '--')}</li>`;
                 }
 
-                return `<li><b>${escapeHtml(record.pozo_name || '--')}</b> ┬À ${escapeHtml(record.fecha || '--')} ${escapeHtml(record.hora || '00:00:00')}</li>`;
+                return `<li><b>${escapeHtml(record.pozo_name || '--')}</b> · ${escapeHtml(record.fecha || '--')} ${escapeHtml(record.hora || '00:00:00')}</li>`;
             }).join('');
 
             const remaining = Math.max(items.length - limit, 0);
             const moreLine = remaining > 0
-                ? `<p style="margin: 8px 0 0 0; font-size: 0.8rem; color: #64748B;">Y ${remaining} registro(s) m├ís...</p>`
+                ? `<p style="margin: 8px 0 0 0; font-size: 0.8rem; color: #64748B;">Y ${remaining} registro(s) más...</p>`
                 : '';
 
             return previewItems
                 ? `<div style="margin-top: 8px; max-height: 260px; overflow-y: auto; padding-right: 6px;"><ul style="margin: 0 0 0 18px; padding: 0;">${previewItems}</ul></div>${moreLine}`
-                : '<p style="margin: 8px 0 0 0; color: #64748B;">Sin registros en esta categor├¡a.</p>';
+                : '<p style="margin: 8px 0 0 0; color: #64748B;">Sin registros en esta categoría.</p>';
         }
 
         function getImportPreviewRecord(item) {
@@ -1235,7 +1235,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                                 <p style="margin: 0; font-weight: 600; color: #0F172A; word-break: break-word;">${escapeHtml(fileName)}</p>
                             </div>
                             <div style="padding: 12px; border-radius: 12px; background: #F8FAFC; border: 1px solid #E2E8F0;">
-                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B;">Registros v├ílidos</p>
+                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B;">Registros válidos</p>
                                 <p style="margin: 0; font-weight: 700; color: #0F172A;">${recordsCount}</p>
                             </div>
                             <div style="padding: 12px; border-radius: 12px; background: #F8FAFC; border: 1px solid #E2E8F0;">
@@ -1247,7 +1247,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                                 <p style="margin: 0; font-weight: 700; color: #065F46;">${previewResult?.inserted ?? 0}</p>
                             </div>
                             <div style="padding: 12px; border-radius: 12px; background: #FFF7ED; border: 1px solid #FED7AA;">
-                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #C2410C;">Se actualizar├ín</p>
+                                <p style="margin: 0 0 4px 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #C2410C;">Se actualizarán</p>
                                 <p style="margin: 0; font-weight: 700; color: #9A3412;">${previewResult?.updated ?? 0}</p>
                             </div>
                             <div style="padding: 12px; border-radius: 12px; background: #F8FAFC; border: 1px solid #CBD5E1;">
@@ -1319,11 +1319,11 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                                 ? `
                                     <div style="display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start;">
                                         ${buildImportPreviewCard({ title: 'Nuevos', items: recordsToInsert, kind, tone: 'neutral' })}
-                                        ${buildImportPreviewCard({ title: 'Se actualizar├ín', items: recordsToUpdate, kind, tone: 'warm' })}
+                                        ${buildImportPreviewCard({ title: 'Se actualizarán', items: recordsToUpdate, kind, tone: 'warm' })}
                                     </div>
                                 `
                                 : defaultTab === 'update'
-                                ? buildImportPreviewCard({ title: 'Se actualizar├ín', items: recordsToUpdate, kind, tone: 'warm' })
+                                ? buildImportPreviewCard({ title: 'Se actualizarán', items: recordsToUpdate, kind, tone: 'warm' })
                                 : buildImportPreviewCard({ title: 'Nuevos', items: recordsToInsert, kind, tone: 'neutral' })}
                         </div>
                     </div>
@@ -1383,7 +1383,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                             return `
                                 <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start;">
                                     ${buildImportPreviewCard({ title: 'Nuevos', items: insertItems, kind, tone: 'neutral' })}
-                                    ${buildImportPreviewCard({ title: 'Se actualizar├ín', items: updateItems, kind, tone: 'warm' })}
+                                    ${buildImportPreviewCard({ title: 'Se actualizarán', items: updateItems, kind, tone: 'warm' })}
                                 </div>
                             `;
                         }
@@ -1391,7 +1391,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                         return `
                             <div style="display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start;">
                                 ${buildImportPreviewCard({ title: 'Nuevos', items: insertItems, kind, tone: 'neutral' })}
-                                ${buildImportPreviewCard({ title: 'Se actualizar├ín', items: updateItems, kind, tone: 'warm' })}
+                                ${buildImportPreviewCard({ title: 'Se actualizarán', items: updateItems, kind, tone: 'warm' })}
                             </div>
                         `;
                     };
@@ -1404,7 +1404,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                         if (tab === 'both') {
                             panel.innerHTML = renderBothPreviewCards(filteredInsertItems, filteredUpdateItems);
                         } else if (tab === 'update') {
-                            panel.innerHTML = buildImportPreviewCard({ title: 'Se actualizar├ín', items: filteredUpdateItems, kind, tone: 'warm' });
+                            panel.innerHTML = buildImportPreviewCard({ title: 'Se actualizarán', items: filteredUpdateItems, kind, tone: 'warm' });
                         } else {
                             panel.innerHTML = buildImportPreviewCard({ title: 'Nuevos', items: filteredInsertItems, kind, tone: 'neutral' });
                         }
@@ -1946,7 +1946,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
 
             const dashboardSheetName = workbook.SheetNames.find(sheetName => normalizeCsvKey(sheetName) === 'dashboard_general');
             if (!dashboardSheetName) {
-                throw new Error('No encontr├® la hoja Dashboard General en este Excel. Verifica el nombre de la hoja antes de importar desde Gesti├│n.');
+                throw new Error('No encontré la hoja Dashboard General en este Excel. Verifica el nombre de la hoja antes de importar desde Gestión.');
             }
 
             const candidates = [dashboardSheetName].map(sheetName => {
@@ -2228,25 +2228,24 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                     techStatusDiv.style.display = 'block';
                     techStatusText.textContent = omittedByScopeCount > 0
                         ? 'El archivo no contiene pozos del contrato activo.'
-                        : 'No se encontraron filas v├ílidas para Producci├│n T├®cnica.';
+                        : 'No se encontraron filas válidas para Producción Técnica.';
                     return;
                 }
 
                 const previewResult = await previewTechnicalMeasurements(rows);
-
                 const confirmed = await confirmImportSummary({
-                    title: 'Confirmar carga t├®cnica',
+                    title: 'Confirmar carga técnica',
                     fileName: file.name,
                     recordsCount: rows.length,
                     pozoCount: countUniquePozos(rows),
-                    detailText: 'Se sincronizar├ín las mediciones t├®cnicas detectadas y se actualizar├í el historial por pozo y fecha.',
+                    detailText: 'Se sincronizarán las mediciones técnicas detectadas y se actualizará el historial por pozo y fecha.',
                     previewResult,
                     kind: 'technical'
                 });
 
                 if (!confirmed) {
                     techStatusDiv.style.display = 'block';
-                    techStatusText.textContent = 'Carga t├®cnica cancelada por el usuario.';
+                    techStatusText.textContent = 'Carga técnica cancelada por el usuario.';
                     return;
                 }
 
@@ -2258,7 +2257,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 });
 
                 techStatusDiv.style.display = 'block';
-                techStatusText.textContent = `Subiendo ${rows.length} pozos t├®cnicos...`;
+                techStatusText.textContent = `Subiendo ${rows.length} pozos técnicos...`;
                 updateImportSession(`Sincronizando ${rows.length} medicion(es) tecnica(s)...`, 'No cierres ni abandones esta pantalla hasta finalizar la carga.');
 
                 const syncResult = await syncTechnicalMeasurements(rows);
@@ -2266,19 +2265,19 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 updateImportSession('Actualizando catalogos y formularios...', 'La importacion ya casi termina.');
                 await refreshPozoLists();
                 setTechnicalFormVisibility(false);
-                techStatusText.textContent = `Ô£à Historial t├®cnico sincronizado. Nuevas: ${syncResult.inserted}. Actualizadas: ${syncResult.updated}.`;
+                techStatusText.textContent = `✅ Historial técnico sincronizado. Nuevas: ${syncResult.inserted}. Actualizadas: ${syncResult.updated}.`;
                 populateTechnicalForm(rows[0]);
                 finishImportSession();
                 Swal.fire({
                     icon: 'success',
-                    title: 'Importaci├│n T├®cnica Exitosa',
-                    text: `Historial t├®cnico sincronizado. Nuevas: ${syncResult.inserted}. Actualizadas: ${syncResult.updated}.`
+                    title: 'Importación Técnica Exitosa',
+                    text: `Historial técnico sincronizado. Nuevas: ${syncResult.inserted}. Actualizadas: ${syncResult.updated}.`
                 });
             } catch (err) {
                 finishImportSession();
                 techStatusDiv.style.display = 'block';
-                techStatusText.textContent = `Error al cargar archivo t├®cnico: ${err.message}`;
-                Swal.fire({ icon: 'error', title: 'Error de Importaci├│n', text: err.message });
+                techStatusText.textContent = `Error al cargar archivo técnico: ${err.message}`;
+                Swal.fire({ icon: 'error', title: 'Error de Importación', text: err.message });
             }
         }
 
@@ -2392,7 +2391,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                     fileName: file.name,
                     recordsCount: telemetryRows.length,
                     pozoCount: countUniquePozos(telemetryRows),
-                    detailText: 'Se sincronizar├ín los registros diarios v├ílidos detectados en el archivo antes de guardarlos en la plataforma.',
+                    detailText: 'Se sincronizarán los registros diarios válidos detectados en el archivo antes de guardarlos en la plataforma.',
                     previewResult,
                     consolidatedPreview,
                     omittedCount: invalidStatusRows.length + omittedByScopeCount,
@@ -2487,13 +2486,13 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
 
                 const consolidatedSummaryText = `Consolidado: ${consolidatedUpdated} historicas actualizadas, ${consolidatedInserted} nuevas.`;
                 const omittedSummaryText = invalidStatusWarning ? ` Omitidas: ${invalidStatusRows.length}.` : '';
-                statusText.textContent = `Ô£à Sincronizacion finalizada. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}. ${consolidatedSummaryText}${omittedSummaryText}`;
+                statusText.textContent = `✅ Sincronizacion finalizada. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}. ${consolidatedSummaryText}${omittedSummaryText}`;
                 updateImportSession('Refrescando vistas y estado final...', 'La importacion ya casi termina.');
                 await refreshPozoLists();
                 finishImportSession();
                 Swal.fire({
                     icon: consolidatedWarning || invalidStatusWarning ? 'warning' : 'success',
-                    title: 'Importaci├│n Exitosa',
+                    title: 'Importación Exitosa',
                     text: consolidatedWarning
                         ? `Monitoreo diario sincronizado. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}. No se pudo actualizar el consolidado: ${consolidatedWarning}`
                         : `Monitoreo diario sincronizado. Nuevos: ${syncResult.inserted}. Actualizados: ${syncResult.updated}. ${consolidatedSummaryText} Total procesado: ${consolidatedSaved}.${invalidStatusWarning ? ` ${invalidStatusWarning}` : ''}`
@@ -2501,8 +2500,8 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 await refreshHistory();
             } catch (err) {
                 finishImportSession();
-                statusText.textContent = 'ÔØî Error: ' + err.message;
-                Swal.fire({ icon: 'error', title: 'Error de Importaci├│n', text: err.message });
+                statusText.textContent = '❌ Error: ' + err.message;
+                Swal.fire({ icon: 'error', title: 'Error de Importación', text: err.message });
                 console.error('File Upload Error:', err);
             }
         }
