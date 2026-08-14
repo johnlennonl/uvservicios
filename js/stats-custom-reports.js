@@ -21,16 +21,16 @@ function normalizePozoName(value) {
 }
 
 const VARIABLE_CONFIG = {
-    presion_chp: { label: 'Presión CHP', unit: 'psi', color: '#2563EB', key: 'presion_chp' },
-    presion_thp: { label: 'Presión THP', unit: 'psi', color: '#D97706', key: 'presion_thp' },
-    presion_lf: { label: 'Presión LF', unit: 'psi', color: '#059669', key: 'presion_lf' },
-    pip: { label: 'Presión PIP', unit: 'psi', color: '#7C3AED', key: 'pip' },
-    corriente_motor: { label: 'Corriente Motor', unit: 'A', color: '#DC2626', key: 'corriente_motor' },
-    frecuencia: { label: 'Frecuencia VSD', unit: 'Hz', color: '#0284C7', key: 'frecuencia' },
-    vsd_a: { label: 'VSD A', unit: 'V/A', color: '#EA580C', key: 'vsd_a' },
-    vsd_b: { label: 'VSD B', unit: 'V/A', color: '#4F46E5', key: 'vsd_b' },
-    vsd_c: { label: 'VSD C', unit: 'V/A', color: '#0891B2', key: 'vsd_c' },
-    tm: { label: 'Temperatura TM', unit: '°F', color: '#9333EA', key: 'tm' }
+    presion_chp: { label: 'Presión CHP', unit: 'psi', color: '#2563EB', key: 'presion_chp' }, // Azul Rey
+    presion_thp: { label: 'Presión THP', unit: 'psi', color: '#D97706', key: 'presion_thp' }, // Ámbar
+    presion_lf: { label: 'Presión LF', unit: 'psi', color: '#059669', key: 'presion_lf' }, // Verde Esmeralda
+    pip: { label: 'Presión PIP', unit: 'psi', color: '#7C3AED', key: 'pip' }, // Violeta
+    corriente_motor: { label: 'Corriente Motor', unit: 'A', color: '#DC2626', key: 'corriente_motor' }, // Rojo
+    frecuencia: { label: 'Frecuencia VSD', unit: 'Hz', color: '#65A30D', key: 'frecuencia' }, // Verde Lima (antes celeste)
+    vsd_a: { label: 'VSD A', unit: 'V/A', color: '#EA580C', key: 'vsd_a' }, // Naranja
+    vsd_b: { label: 'VSD B', unit: 'V/A', color: '#4F46E5', key: 'vsd_b' }, // Índigo
+    vsd_c: { label: 'VSD C', unit: 'V/A', color: '#0891B2', key: 'vsd_c' }, // Cian
+    tm: { label: 'Temperatura TM', unit: '°F', color: '#D946EF', key: 'tm' } // Fucsia (antes morado)
 };
 
 function formatIsoDate(d) {
