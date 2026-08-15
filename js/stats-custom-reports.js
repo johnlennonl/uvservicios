@@ -1,4 +1,4 @@
-import { getMonitoringData, getPozosHistorySummary } from './data-service.js';
+import { getMonitoringData, getPozosHistorySummary, getWellLevelTests } from './data-service.js';
 import { getActiveOperationalScopeWellNames } from './services/operational-scope-context.js';
 
 function escapeHtml(str) {
@@ -30,8 +30,16 @@ const VARIABLE_CONFIG = {
     vsd_a: { label: 'VSD A', unit: 'V/A', color: '#EA580C', key: 'vsd_a' }, // Naranja
     vsd_b: { label: 'VSD B', unit: 'V/A', color: '#4F46E5', key: 'vsd_b' }, // Índigo
     vsd_c: { label: 'VSD C', unit: 'V/A', color: '#0891B2', key: 'vsd_c' }, // Cian
-    tm: { label: 'Temperatura TM', unit: '°F', color: '#D946EF', key: 'tm' } // Fucsia (antes morado)
+    tm: { label: 'Temperatura TM', unit: '°F', color: '#D946EF', key: 'tm' }, // Fucsia (antes morado)
+    nivel_dinamico: { label: 'Nivel Dinámico (Echó.)', unit: 'ft', color: '#0D9488', key: 'nivel_dinamico' }, // Teal
+    sumergencia: { label: 'Sumergencia (Echó.)', unit: 'ft', color: '#F43F5E', key: 'sumergencia' }, // Rosa Vibrante
+    echometer_pip: { label: 'Presión PIP (Echó.)', unit: 'psi', color: '#475569', key: 'echometer_pip' } // Pizarra Oscuro
 };
+
+function isScatterMetric(varKey) {
+    const key = String(varKey || '').trim().toLowerCase();
+    return key === 'nivel_dinamico' || key === 'sumergencia' || key === 'echometer_pip';
+}
 
 function formatIsoDate(d) {
     const year = d.getFullYear();
@@ -308,7 +316,78 @@ async function generateCustomReport() {
             alert('Los pozos seleccionados no pertenecen al contrato activo. Selecciona pozos de este contrato.');
             return;
         }
-        const rows = await getMonitoringData(scopedSelectedWells, startIso, endIso);
+        const telemetryRows = await getMonitoringData(scopedSelectedWells, startIso, endIso);
+
+        // Consultar las pruebas de nivel por Echómetro para los pozos seleccionados en el rango de fechas
+        let levelTests = [];
+        try {
+            const levelPromises = scopedSelectedWells.map(well => getWellLevelTests(well));
+            const levelResults = await Promise.all(levelPromises);
+            levelResults.forEach((wellTests, index) => {
+                const wellName = scopedSelectedWells[index];
+                (wellTests || []).forEach(test => {
+                    const testDate = test.fecha; // 'YYYY-MM-DD'
+                    if (testDate >= startIso && testDate <= endIso) {
+                        levelTests.push({
+                            pozo_name: wellName,
+                            fecha: testDate,
+                            nivel_dinamico: test.nivel_dinamico,
+                            sumergencia: test.sumergencia,
+                            presion_pip: test.presion_pip
+                        });
+                    }
+                });
+            });
+        } catch (e) {
+            console.warn('No se pudieron cargar las pruebas de nivel por Echómetro:', e);
+        }
+
+        // Fusionar cronológicamente los datos de telemetría y pruebas de nivel
+        const mergedRowsMap = new Map();
+
+        // 1. Agregar registros de telemetría
+        (telemetryRows || []).forEach(row => {
+            const key = `${row.pozo_name.toUpperCase()}|${row.fecha}`;
+            mergedRowsMap.set(key, {
+                ...row,
+                nivel_dinamico: null,
+                sumergencia: null,
+                echometer_pip: null
+            });
+        });
+
+        // 2. Fusionar registros de nivel
+        levelTests.forEach(test => {
+            const key = `${test.pozo_name.toUpperCase()}|${test.fecha}`;
+            const existing = mergedRowsMap.get(key);
+            if (existing) {
+                existing.nivel_dinamico = test.nivel_dinamico;
+                existing.sumergencia = test.sumergencia;
+                existing.echometer_pip = test.presion_pip;
+            } else {
+                mergedRowsMap.set(key, {
+                    pozo_name: test.pozo_name,
+                    fecha: test.fecha,
+                    hora: '00:00:00',
+                    estatus: 'RUN',
+                    nivel_dinamico: test.nivel_dinamico,
+                    sumergencia: test.sumergencia,
+                    echometer_pip: test.presion_pip,
+                    presion_chp: null,
+                    presion_thp: null,
+                    presion_lf: null,
+                    pip: null,
+                    corriente_motor: null,
+                    frecuencia: null,
+                    vsd_a: null,
+                    vsd_b: null,
+                    vsd_c: null,
+                    tm: null
+                });
+            }
+        });
+
+        const rows = [...mergedRowsMap.values()];
         const sortedRows = (rows || []).sort((a, b) => {
             const dA = `${a.fecha || ''} ${a.hora || ''}`;
             const dB = `${b.fecha || ''} ${b.hora || ''}`;
@@ -437,11 +516,12 @@ function renderCharts(rows, varKeys) {
     const chartMode = document.querySelector('input[name="custom-chart-mode"]:checked')?.value || 'combined';
     const chartStyle = document.getElementById('custom-chart-style')?.value || 'line';
     const showDataLabels = document.getElementById('custom-show-datalabels')?.checked ?? true;
+    const enableShading = document.getElementById('custom-enable-shading')?.checked ?? true;
 
     if (chartMode === 'combined') {
-        renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabels);
+        renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabels, enableShading);
     } else {
-        renderIndividualCharts(container, rows, varKeys, chartStyle, showDataLabels);
+        renderIndividualCharts(container, rows, varKeys, chartStyle, showDataLabels, enableShading);
     }
 }
 
@@ -522,7 +602,7 @@ function calculateSmartYAxisBounds(values) {
     return calculateCorridorYAxisBounds(values, 0, 1);
 }
 
-function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabels) {
+function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabels, enableShading) {
     const uniqueWells = Array.from(new Set(rows.map(r => r.pozo_name || 'Pozo Sin Nombre'))).filter(Boolean);
 
     if (uniqueWells.length === 0) {
@@ -577,12 +657,19 @@ function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabel
 
             const hasValidData = dataPoints.some(pt => pt.y !== null);
             if (hasValidData) {
+                let seriesType = 'line';
+                if (chartStyle === 'bar') {
+                    seriesType = (idx % 2 === 0 ? 'column' : 'line');
+                } else if (enableShading && !isScatterMetric(key)) {
+                    seriesType = 'area';
+                }
                 seriesList.push({
                     name: `${config.label}`,
-                    type: chartStyle === 'bar' ? (idx % 2 === 0 ? 'column' : 'line') : (chartStyle === 'area' ? 'area' : 'line'),
+                    type: seriesType,
                     data: dataPoints,
                     unit: config.unit,
-                    color: config.color
+                    color: config.color,
+                    key: key
                 });
             }
         });
@@ -627,24 +714,24 @@ function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabel
                     show: true,
                     tools: {
                         download: true,
-                        selection: true,
-                        zoom: true,
-                        zoomin: true,
-                        zoomout: true,
-                        pan: true,
-                        reset: true
+                        selection: false,
+                        zoom: false,
+                        zoomin: false,
+                        zoomout: false,
+                        pan: false,
+                        reset: false
                     }
                 },
-                zoom: { enabled: true },
+                zoom: { enabled: false },
                 animations: { enabled: false }
             },
             colors: colorsList,
             stroke: {
                 curve: 'smooth',
-                width: chartStyle === 'area' ? 2.5 : 3
+                width: seriesList.map(s => isScatterMetric(s.key) ? 0 : (s.type === 'area' ? 2.5 : 3))
             },
             fill: {
-                type: chartStyle === 'area' ? 'gradient' : 'solid',
+                type: seriesList.some(s => s.type === 'area') ? 'gradient' : 'solid',
                 gradient: {
                     shadeIntensity: 1,
                     opacityFrom: 0.35,
@@ -653,11 +740,11 @@ function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabel
                 }
             },
             markers: {
-                size: 4.5,
+                size: seriesList.map(s => isScatterMetric(s.key) ? 6 : 4.5),
                 strokeColors: '#ffffff',
                 strokeWidth: 1.5,
                 hover: {
-                    size: 7
+                    size: seriesList.map(s => isScatterMetric(s.key) ? 8 : 7)
                 }
             },
         dataLabels: {
@@ -758,7 +845,7 @@ function renderCombinedChart(container, rows, varKeys, chartStyle, showDataLabel
     });
 }
 
-function renderIndividualCharts(container, rows, varKeys, chartStyle, showDataLabels) {
+function renderIndividualCharts(container, rows, varKeys, chartStyle, showDataLabels, enableShading) {
     varKeys.forEach(key => {
         const config = VARIABLE_CONFIG[key] || { label: key, unit: '', color: '#2563eb' };
 
@@ -773,11 +860,19 @@ function renderIndividualCharts(container, rows, varKeys, chartStyle, showDataLa
             }
         });
 
-        const seriesList = Object.keys(seriesByPozo).map(pozoName => ({
-            name: `${pozoName} - ${config.label}`,
-            type: chartStyle === 'area' ? 'area' : chartStyle === 'bar' ? 'column' : 'line',
-            data: seriesByPozo[pozoName]
-        }));
+        const seriesList = Object.keys(seriesByPozo).map(pozoName => {
+            let seriesType = 'line';
+            if (chartStyle === 'bar') {
+                seriesType = 'column';
+            } else if (enableShading && !isScatterMetric(key)) {
+                seriesType = 'area';
+            }
+            return {
+                name: `${pozoName} - ${config.label}`,
+                type: seriesType,
+                data: seriesByPozo[pozoName]
+            };
+        });
 
         if (seriesList.length === 0) return;
 
@@ -799,22 +894,22 @@ function renderIndividualCharts(container, rows, varKeys, chartStyle, showDataLa
             chart: {
                 type: 'line',
                 height: 340,
-                toolbar: { show: true },
-                zoom: { enabled: true },
+                toolbar: { show: false },
+                zoom: { enabled: false },
                 animations: { enabled: false }
             },
             colors: seriesList.length === 1 ? [config.color] : ['#2563EB', '#D97706', '#059669', '#7C3AED', '#DC2626', '#0284C7'],
-            stroke: { curve: 'smooth', width: 2.5 },
+            stroke: { curve: 'smooth', width: isScatterMetric(key) ? 0 : (enableShading ? 2.5 : 3) },
             fill: {
-                type: chartStyle === 'area' ? 'gradient' : 'solid',
+                type: (enableShading && !isScatterMetric(key)) ? 'gradient' : 'solid',
                 gradient: { opacityFrom: 0.35, opacityTo: 0.05 }
             },
             markers: {
-                size: 4.5,
+                size: isScatterMetric(key) ? 6 : 4.5,
                 strokeColors: '#ffffff',
                 strokeWidth: 1.5,
                 hover: {
-                    size: 7
+                    size: isScatterMetric(key) ? 8 : 7
                 }
             },
             dataLabels: {

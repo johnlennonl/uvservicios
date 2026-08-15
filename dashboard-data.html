@@ -217,6 +217,28 @@
                         <span>Configurar Ficha BES</span>
                     </button>
                 </div>
+
+                <!-- CARD 4: Pruebas de Echómetro / Niveles -->
+                <div class="gestion-bento-card" onclick="openGestionModal('modal-level-entry')">
+                    <div>
+                        <div class="gestion-bento-card-top">
+                            <div class="gestion-bento-icon level" style="background: #ecfdf5; color: #059669;">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                </svg>
+                            </div>
+                            <span class="gestion-bento-badge" id="level-pozo-bento-badge">Pozo: Sin seleccionar</span>
+                        </div>
+                        <h2 class="gestion-bento-title">Niveles / Echómetro</h2>
+                        <p class="gestion-bento-desc">Carga y consulta mediciones de nivel dinámico, sumergencia y presión de fondo PIP por Echómetro.</p>
+                    </div>
+                    <button type="button" class="gestion-bento-btn level" style="background: #10b981; color: #ffffff;" onclick="event.stopPropagation(); openGestionModal('modal-level-entry')">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        <span>Registrar Niveles</span>
+                    </button>
+                </div>
             </div>
 
             <!-- 🪟 MODAL 1: Entrada de Parámetros Operativos -->
@@ -693,6 +715,100 @@
                                 </button>
                                 <button type="submit" id="pump-submit-btn" class="btn-submit" style="margin: 0; width: auto; padding: 12px 40px;">
                                     <span class="btn-text">Guardar Ficha BES</span>
+                                    <div class="loader"></div>
+                                </button>
+                            </div>
+                        </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🪟 MODAL 4: Niveles y Echómetro -->
+            <div class="gestion-modal-overlay" id="modal-level-entry" onclick="closeGestionModalOnClickOutside(event, 'modal-level-entry')">
+                <div class="gestion-modal-dialog">
+                    <div class="gestion-modal-header">
+                        <div class="gestion-modal-header-title">
+                            <h3>Niveles de Fluido (Echómetro)</h3>
+                            <button type="button" class="gestion-info-btn" onclick="toggleGestionInfo('info-level')" title="¿Cómo funciona y qué parámetros debe llevar el Excel?">?</button>
+                        </div>
+                        <button type="button" class="gestion-modal-close-btn" onclick="closeGestionModal('modal-level-entry')" aria-label="Cerrar">&times;</button>
+                    </div>
+                    <div class="gestion-modal-body" data-lenis-prevent>
+                        <!-- Tarjeta Explicativa de Parámetros de Excel (?) -->
+                        <div class="gestion-info-card" id="info-level" style="display: none;">
+                            <h4>ℹ️ Instrucciones & Columnas del Excel de Niveles</h4>
+                            <p>Importa masivamente pruebas de nivel por pozo y fecha. Columnas requeridas en el archivo Excel (mayúsculas o minúsculas):</p>
+                            <div class="gestion-info-tags">
+                                <span class="gestion-info-tag">POZO</span>
+                                <span class="gestion-info-tag">FECHA</span>
+                                <span class="gestion-info-tag">NIVEL DINAMICO (ft)</span>
+                                <span class="gestion-info-tag">SUMERGENCIA (ft)</span>
+                                <span class="gestion-info-tag">PRESION DE FONDO PIP (Psi)</span>
+                            </div>
+                            <p style="margin-top: 8px; font-size: 0.75rem; color: #475569;">*El sistema reconoce automáticamente variaciones en las cabeceras (ej: "Nivel Dinamico", "Sumergencia (ft)", "PIP (Psi)").</p>
+                        </div>
+
+                        <!-- 📊 ZONA DE CARGA DE EXCEL DE NIVELES -->
+                        <section class="level-import-panel" aria-labelledby="level-import-title" style="margin-bottom: 20px;">
+                            <div class="upload-mini-zone integrated-upload-zone level-upload-zone" id="level-drop-zone">
+                                <div class="integrated-upload-icon"><img src="https://cdn-icons-png.flaticon.com/512/17018/17018393.png" alt="Icono de carga de archivo" width="44" height="44" aria-hidden="true"></div>
+                                <div>
+                                    <p class="integrated-upload-title">Archivo CSV o Excel de Niveles</p>
+                                    <p class="integrated-upload-subtitle">Carga masiva de mediciones de niveles y PIP de Echómetro.</p>
+                                </div>
+                                <input type="file" id="level-file-input" accept=".csv,.xlsx,.xls" style="display: none;">
+                            </div>
+                            <div id="level-upload-status" class="integrated-upload-status level-upload-status" style="display: none;">
+                                <p id="level-status-text" style="font-size: 0.75rem; font-weight: 700; color: #059669; margin: 0;"></p>
+                            </div>
+                        </section>
+
+                        <!-- FORMULARIO DE REGISTRO MANUAL DE NIVELES -->
+                        <div id="level-form-panel" class="level-form-panel is-open">
+                        <form id="level-data-form" class="login-form polished-form level-polished-form">
+                            <div class="compact-form-grid">
+                                <div class="section-header section-level" style="border-left-color: #10b981;"><span style="color: #047857;">Prueba de Nivel Manual</span></div>
+                                <div class="form-group">
+                                    <label>Pozo</label>
+                                    <div class="management-pozo-selector">
+                                        <input type="text" id="level_pozo_name" required placeholder="BES-XX" autocomplete="off">
+                                        <button type="button" id="level_pozo_name_toggle" class="management-pozo-toggle" aria-label="Abrir lista de pozos" title="Abrir lista de pozos">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <path d="M6 9l6 6 6-6" />
+                                            </svg>
+                                        </button>
+                                        <div class="management-pozo-menu" id="level_pozo_name_menu" data-lenis-prevent></div>
+                                    </div>
+                                    <div class="pozo-record-status" id="level-pozo-status" aria-live="polite">
+                                        <span class="pozo-record-dot neutral"></span>
+                                        <span id="level-pozo-status-text">Selecciona un pozo para ver registros previos.</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Fecha de la Prueba</label>
+                                    <input type="date" id="fecha_level" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nivel Dinámico (ft)</label>
+                                    <input type="number" id="nivel_dinamico_val" step="any" required placeholder="Ej: 8227" min="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Sumergencia (ft)</label>
+                                    <input type="number" id="sumergencia_val" step="any" required placeholder="Ej: 1163" min="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Presión de Fondo PIP (Psi)</label>
+                                    <input type="number" id="presion_pip_val" step="any" required placeholder="Ej: 475" min="0">
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 20px; display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap;">
+                                <button type="button" class="technical-form-close-btn" onclick="closeGestionModal('modal-level-entry')">
+                                    Cerrar Modal
+                                </button>
+                                <button type="submit" id="level-submit-btn" class="btn-submit" style="margin: 0; width: auto; padding: 12px 40px; background: #10b981; border-color: #059669;">
+                                    <span class="btn-text">Guardar Pruebas de Nivel</span>
                                     <div class="loader"></div>
                                 </button>
                             </div>

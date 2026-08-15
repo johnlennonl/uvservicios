@@ -944,26 +944,18 @@ export async function getAdminFieldJourneys(options = {}) {
 
     if (!scopeGuard.pozoNames.length) return [];
 
-    const { data: matchingRecords, error: matchingRecordsError } = await supabase
-        .from('field_journey_records')
-        .select('journey_id')
-        .in('pozo', scopeGuard.pozoNames)
-        .limit(10000);
-
-    if (matchingRecordsError) throw wrapFieldJourneyError(matchingRecordsError);
-
-    const scopedJourneyIds = [...new Set((matchingRecords || []).map(record => record.journey_id).filter(Boolean))];
-    if (!scopedJourneyIds.length) return [];
-
     let query = supabase
         .from('field_journeys')
         .select('*')
-        .in('id', scopedJourneyIds)
         .in('status', statuses)
         .order('journey_date', { ascending: false })
         .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(safeLimit);
+
+    if (scopeGuard.operationalScope) {
+        query = query.eq('operational_scope', scopeGuard.operationalScope);
+    }
 
     if (options.startDate) {
         query = query.gte('journey_date', options.startDate);
@@ -1042,22 +1034,16 @@ export async function getAdminFieldJourneyPendingCount(statuses = ['submitted', 
     if (!scopeGuard.pozoNames.length) return 0;
 
     try {
-        const { data: matchingRecords, error: recordsError } = await supabase
-            .from('field_journey_records')
-            .select('journey_id')
-            .in('pozo', scopeGuard.pozoNames)
-            .limit(10000);
-
-        if (recordsError) throw recordsError;
-
-        const scopedJourneyIds = [...new Set((matchingRecords || []).map(record => record.journey_id).filter(Boolean))];
-        if (!scopedJourneyIds.length) return 0;
-
-        const { count, error } = await supabase
+        let query = supabase
             .from('field_journeys')
             .select('id', { count: 'exact', head: true })
-            .in('id', scopedJourneyIds)
             .in('status', normalizeJourneyStatuses(statuses));
+
+        if (scopeGuard.operationalScope) {
+            query = query.eq('operational_scope', scopeGuard.operationalScope);
+        }
+
+        const { count, error } = await query;
 
         if (error) throw error;
 
@@ -1133,9 +1119,17 @@ export async function getAdminFieldJourneyDetail(journeyId) {
             throw new Error('La jornada solicitada no existe o ya no está disponible.');
         }
 
-        const scopedRecords = filterRecordsByScope(records || [], scopeGuard);
-        if (!scopedRecords.length) {
-            throw new Error('La jornada seleccionada no pertenece al contrato activo.');
+        let scopedRecords = [];
+        if (records && records.length > 0) {
+            scopedRecords = filterRecordsByScope(records, scopeGuard);
+            if (!scopedRecords.length) {
+                throw new Error('La jornada seleccionada no pertenece al contrato activo.');
+            }
+        } else {
+            const journeyScope = String(journey.operational_scope || '').trim().toLowerCase();
+            if (journeyScope && journeyScope !== scopeGuard.operationalScope) {
+                throw new Error('La jornada seleccionada no pertenece al contrato activo.');
+            }
         }
 
         const pozoNames = normalizePozoNames(scopedRecords.map(record => record.pozo));

@@ -292,7 +292,7 @@
         }
         .custom-report-params-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 16px;
         }
         .custom-report-row-3 {
@@ -412,6 +412,13 @@
     </style>
 </head>
 <body class="view-mode-standard">
+    <!-- ⏳ Loader global -->
+    <div id="premium-loader" class="premium-loader-overlay">
+        <div class="loader-logo-pulse">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV" style="width: 140px; height: 140px; object-fit: contain;">
+        </div>
+    </div>
+
     <div class="dashboard-layout">
         <!-- Sidebar -->
         <aside class="sidebar">
@@ -1083,7 +1090,7 @@
                                             <label class="param-chip-checkbox">
                                                 <input type="checkbox" name="custom-vars" value="frecuencia">
                                                 <span class="chip-content">
-                                                    <span class="chip-dot" style="background:#0284C7;"></span>
+                                                    <span class="chip-dot" style="background:#65A30D;"></span>
                                                     <span>Frecuencia VSD [Hz]</span>
                                                 </span>
                                             </label>
@@ -1117,6 +1124,36 @@
                                             </label>
                                         </div>
                                     </div>
+
+                                    <!-- Grupo C: Niveles y Echómetro -->
+                                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px;">
+                                        <span style="font-size:0.76rem; font-weight:800; color:#0d9488; text-transform:uppercase; display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+                                            🟢 Pruebas de Nivel y Echómetro
+                                        </span>
+                                        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="nivel_dinamico">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#0D9488;"></span>
+                                                    <span>Nivel Dinámico [ft]</span>
+                                                </span>
+                                            </label>
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="sumergencia">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#F43F5E;"></span>
+                                                    <span>Sumergencia [ft]</span>
+                                                </span>
+                                            </label>
+                                            <label class="param-chip-checkbox">
+                                                <input type="checkbox" name="custom-vars" value="echometer_pip">
+                                                <span class="chip-content">
+                                                    <span class="chip-dot" style="background:#475569;"></span>
+                                                    <span>Presión PIP Echómetro [psi]</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1142,10 +1179,18 @@
                                     <div style="display:flex; flex-direction:column; gap:6px;">
                                         <span style="font-size:0.72rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.03em;">Estilo de Línea</span>
                                         <select id="custom-chart-style" style="padding:0 12px; font-size:0.8rem; font-weight:700; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; cursor:pointer; height:36px;">
-                                            <option value="line">📈 Líneas Suaves (Spline)</option>
-                                            <option value="area">Area Sombreada</option>
-                                            <option value="bar">Barras Combinadas</option>
+                                            <option value="line">📈 Línea (Spline)</option>
+                                            <option value="bar">📊 Barras</option>
                                         </select>
+                                    </div>
+
+                                    <!-- Sombreado de área -->
+                                    <div style="display:flex; flex-direction:column; gap:6px;">
+                                        <span style="font-size:0.72rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.03em;">Apariencia</span>
+                                        <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.8rem; font-weight:700; color:#047857; background:#ecfdf5; padding:0 12px; border-radius:8px; border:1px solid #a7f3d0; height:36px;">
+                                            <input type="checkbox" id="custom-enable-shading" checked style="accent-color:#10b981; cursor:pointer;">
+                                            <span>Sombreado de área</span>
+                                        </label>
                                     </div>
 
                                     <!-- Valores sobre puntos -->

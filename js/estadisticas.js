@@ -226,7 +226,13 @@ export async function initEstadisticas() {
     });
 
     // 9. Cargar datos iniciales
-    loadData();
+    await loadData();
+
+    // Hide loader overlay
+    const loader = document.getElementById('premium-loader');
+    if (loader) {
+        loader.classList.add('hidden');
+    }
 }
 
 // Carga de datos desde Supabase: monitoreo publicado + jornadas aprobadas/publicadas.
@@ -277,32 +283,22 @@ async function loadData() {
         const { data: monitoringData, error: monitoringError } = await monitoringQuery;
         if (monitoringError) throw monitoringError;
 
-        const { data: scopedJourneyRecords, error: scopedJourneyRecordsError } = await supabase
-            .from('field_journey_records')
-            .select('journey_id')
-            .in('pozo', state.activeScopePozoNames)
-            .limit(10000);
+        let journeysQuery = supabase
+            .from('field_journeys')
+            .select('id, status, journey_date, jornada, equipo_guardia, total_reports, first_report_time, last_report_time, operational_scope, published_at, reviewed_at')
+            .in('status', ['approved', 'published'])
+            .gte('journey_date', start)
+            .lte('journey_date', end)
+            .order('journey_date', { ascending: false });
 
-        if (scopedJourneyRecordsError) throw scopedJourneyRecordsError;
-
-        const scopedJourneyIds = [...new Set((scopedJourneyRecords || []).map(record => record.journey_id).filter(Boolean))];
-        let journeysData = [];
-
-        if (scopedJourneyIds.length) {
-            const { data, error: journeysError } = await supabase
-                .from('field_journeys')
-                .select('id, status, journey_date, jornada, equipo_guardia, total_reports, first_report_time, last_report_time, operational_scope, published_at, reviewed_at')
-                .in('id', scopedJourneyIds)
-                .in('status', ['approved', 'published'])
-                .gte('journey_date', start)
-                .lte('journey_date', end)
-                .order('journey_date', { ascending: false });
-
-            if (journeysError) throw journeysError;
-            journeysData = data || [];
+        if (state.activeOperationalScope) {
+            journeysQuery = journeysQuery.eq('operational_scope', state.activeOperationalScope);
         }
 
-        state.fieldJourneys = journeysData;
+        const { data: journeysData, error: journeysError } = await journeysQuery;
+        if (journeysError) throw journeysError;
+
+        state.fieldJourneys = journeysData || [];
         const journeyIds = state.fieldJourneys.map(journey => journey.id).filter(Boolean);
         let journeyRecords = [];
 

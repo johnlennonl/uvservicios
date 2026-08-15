@@ -3072,7 +3072,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                 `;
             }
 
-            const canAddMoreSoportes = soportesCount < 5;
+            const canAddMoreSoportes = soportesCount < 20;
             const uploadSoportesHtml = canAddMoreSoportes ? `
                 <div style="display:flex; flex-direction:column; gap:6px;">
                     <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="SOPORTES" accept="image/*" multiple style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
@@ -3080,14 +3080,14 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                 </div>
             ` : `
                 <div style="font-size:0.78rem; font-weight:700; color:#dc2626; background:#fee2e2; padding:8px 12px; border-radius:8px; text-align:center;">
-                    ⚠️ Límite de 5 imágenes alcanzado
+                    ⚠️ Límite de 20 imágenes alcanzado
                 </div>
             `;
 
             const soportesFieldHtml = `
                 <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; border-left: 4px solid #64748b;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📸 Soportes de Campo (${soportesCount}/5)</span>
+                        <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📸 Soportes de Campo (${soportesCount}/20)</span>
                     </div>
                     ${soportesListHtml}
                     ${uploadSoportesHtml}
@@ -3345,8 +3345,8 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
 
                 if (category === 'SOPORTES') {
                     const existingSoportesCount = existingDocs.filter(d => d.pozo_name === pozoName && d.categoria === 'SOPORTES').length;
-                    if (existingSoportesCount + filesArray.length > 5) {
-                        const maxAllowed = 5 - existingSoportesCount;
+                    if (existingSoportesCount + filesArray.length > 20) {
+                        const maxAllowed = 20 - existingSoportesCount;
                         throw new Error(`Límite excedido. Solo puedes subir ${maxAllowed} foto(s) más para este pozo.`);
                     }
                 }

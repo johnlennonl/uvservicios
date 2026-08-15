@@ -2,7 +2,7 @@ let managementOutsideClickListener = null;
 let importNavigationLockListener = null;
 
 import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession } from '../auth.js';
-        import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, previewMonitoringSync, saveTechnicalMeasurement, syncTechnicalMeasurements, previewTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile, buildMonitoringRecordKey } from '../data-service.js';
+        import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, previewMonitoringSync, saveTechnicalMeasurement, syncTechnicalMeasurements, previewTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile, buildMonitoringRecordKey, getWellLevelTests, saveLevelTest, getRecentLevelTests, previewLevelTestsSync, syncLevelTests } from '../data-service.js';
         import { getActiveOperationalScope, getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from '../services/operational-scope-context.js';
         import { previewManualMonitoringIntoConsolidated, upsertManualMonitoringIntoConsolidated } from '../services/consolidado-service.js';
 
@@ -16,7 +16,8 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
         const MANAGEMENT_POZO_SELECTORS = [
             { inputId: 'pozo_name', menuId: 'pozo_name_menu', toggleId: 'pozo_name_toggle' },
             { inputId: 'tech_pozo_name', menuId: 'tech_pozo_name_menu', toggleId: 'tech_pozo_name_toggle' },
-            { inputId: 'pump_pozo_name', menuId: 'pump_pozo_name_menu', toggleId: 'pump_pozo_name_toggle' }
+            { inputId: 'pump_pozo_name', menuId: 'pump_pozo_name_menu', toggleId: 'pump_pozo_name_toggle' },
+            { inputId: 'level_pozo_name', menuId: 'level_pozo_name_menu', toggleId: 'level_pozo_name_toggle' }
         ];
         const BES_PROFILE_FORM_FIELDS = [
             'pump_type',
@@ -203,15 +204,45 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 return;
             }
 
-            const latestDate = await getLatestDate(pozoName);
+            let latestDate = null;
+            if (prefix === 'level') {
+                try {
+                    const tests = await getWellLevelTests(pozoName);
+                    if (tests && tests.length > 0) {
+                        latestDate = tests[0].fecha;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            } else if (prefix === 'technical') {
+                try {
+                    const techData = await getWellTechnicalData(pozoName);
+                    if (techData && techData.fecha) {
+                        latestDate = techData.fecha;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            } else {
+                latestDate = await getLatestDate(pozoName);
+            }
+
             if (latestDate) {
                 statusDot.classList.add('active');
-                statusText.textContent = `Con registros. Ultimo dia cargado: ${latestDate}.`;
+                statusText.textContent = prefix === 'level' 
+                    ? `Pruebas registradas. Última fecha: ${latestDate}.`
+                    : (prefix === 'technical' 
+                        ? `Medición técnica registrada. Fecha: ${latestDate}.` 
+                        : `Con registros. Ultimo dia cargado: ${latestDate}.`);
                 return;
             }
 
             statusDot.classList.add('inactive');
-            statusText.textContent = 'Sin registros de monitoreo cargados.';
+            statusText.textContent = prefix === 'level'
+                ? 'Sin pruebas de nivel cargadas.'
+                : (prefix === 'technical' 
+                    ? 'Sin medición técnica cargada.' 
+                    : 'Sin registros de monitoreo cargados.');
         }
 
         async function updatePumpProfileStatus(pozoName) {
@@ -249,7 +280,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 if (!modal) return;
                 modal.classList.add('open');
                 document.body.style.overflow = 'hidden';
-                const inputId = modalId === 'modal-daily-entry' ? 'pozo_name' : (modalId === 'modal-technical-entry' ? 'tech_pozo_name' : 'pump_pozo_name');
+                const inputId = modalId === 'modal-daily-entry' ? 'pozo_name' : (modalId === 'modal-technical-entry' ? 'tech_pozo_name' : (modalId === 'modal-level-entry' ? 'level_pozo_name' : 'pump_pozo_name'));
                 const input = document.getElementById(inputId);
                 if (input) setTimeout(() => { input.focus(); }, 60);
             };
@@ -306,6 +337,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             setTechnicalFormVisibility(false);
             resetPumpProfileForm();
             setPumpProfileVisibility(false);
+            resetLevelForm();
             await refreshPozoLists();
             initializeManagementPozoSelectors();
 
@@ -313,11 +345,14 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             if (storedPozo) {
                 document.getElementById('pozo_name').value = storedPozo;
                 document.getElementById('pump_pozo_name').value = storedPozo;
+                document.getElementById('level_pozo_name').value = storedPozo;
                 await syncDailyPozoContext();
                 await syncPumpPozoContext();
+                await syncLevelPozoContext();
             }
             await updatePozoRecordStatus(document.getElementById('pozo_name').value.trim(), 'daily');
             await updatePozoRecordStatus(document.getElementById('tech_pozo_name').value.trim(), 'technical');
+            await updatePozoRecordStatus(document.getElementById('level_pozo_name').value.trim(), 'level');
             await updatePumpProfileStatus(document.getElementById('pump_pozo_name').value.trim());
             
             // Si llegamos con ?edit=..., abrimos el registro en modo edicion.
@@ -344,6 +379,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('pozo_name')?.addEventListener('change', () => syncDailyPozoContext());
             document.getElementById('tech_pozo_name')?.addEventListener('change', () => syncTechnicalPozoContext());
             document.getElementById('pump_pozo_name')?.addEventListener('change', () => syncPumpPozoContext());
+            document.getElementById('level_pozo_name')?.addEventListener('change', () => syncLevelPozoContext());
             document.getElementById('btn-new-manual-entry')?.addEventListener('click', prepareNewManualEntry);
             document.getElementById('btn-close-manual-form')?.addEventListener('click', () => {
                 resetForm();
@@ -476,6 +512,31 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 pozo_name: pozoName,
                 campo_name: techData?.campo_name || ''
             });
+        }
+
+        async function syncLevelPozoContext() {
+            const pozoName = document.getElementById('level_pozo_name').value.trim();
+            setStoredSelectedPozo(pozoName);
+            document.getElementById('pozo_name').value = pozoName;
+            document.getElementById('tech_pozo_name').value = pozoName;
+            document.getElementById('pump_pozo_name').value = pozoName;
+            
+            await updatePozoRecordStatus(pozoName, 'level');
+            if (!pozoName) {
+                populateLevelForm(null, { pozo_name: '' });
+                return;
+            }
+
+            try {
+                const tests = await getWellLevelTests(pozoName);
+                const latestTest = tests && tests.length > 0 ? tests[0] : null;
+                populateLevelForm(latestTest, {
+                    pozo_name: pozoName
+                });
+            } catch (e) {
+                console.error('Error al sincronizar contexto de nivel:', e);
+                populateLevelForm(null, { pozo_name: pozoName });
+            }
         }
 
         // Carga el perfil BES maestro del pozo seleccionado en Gestion de Pozos.
@@ -734,6 +795,25 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('tech-submit-btn').querySelector('.btn-text').textContent = 'Guardar Producción Técnica';
         }
 
+        function populateLevelForm(levelData = null, context = {}) {
+            const pozoName = context.pozo_name || levelData?.pozo_name || '';
+            document.getElementById('level_pozo_name').value = pozoName;
+            document.getElementById('fecha_level').value = levelData?.fecha || '';
+            document.getElementById('nivel_dinamico_val').value = levelData?.nivel_dinamico ?? '';
+            document.getElementById('sumergencia_val').value = levelData?.sumergencia ?? '';
+            document.getElementById('presion_pip_val').value = levelData?.presion_pip ?? '';
+            setStoredSelectedPozo(pozoName);
+        }
+
+        function resetLevelForm() {
+            document.getElementById('level-data-form').reset();
+            document.getElementById('fecha_level').value = '';
+            document.getElementById('nivel_dinamico_val').value = '';
+            document.getElementById('sumergencia_val').value = '';
+            document.getElementById('presion_pip_val').value = '';
+            document.getElementById('level-submit-btn').querySelector('.btn-text').textContent = 'Guardar Pruebas de Nivel';
+        }
+
         function populatePumpProfileForm(profile = null, context = {}) {
             const pozoName = context.pozo_name || profile?.pozo_name || '';
             document.getElementById('pump_pozo_name').value = pozoName;
@@ -905,6 +985,42 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             }
         });
 
+        const levelForm = document.getElementById('level-data-form');
+        levelForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('level-submit-btn');
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            try {
+                const levelData = {
+                    operational_scope: activeOperationalScope,
+                    pozo_name: document.getElementById('level_pozo_name').value.trim(),
+                    fecha: document.getElementById('fecha_level').value || null,
+                    nivel_dinamico: parseFloat(document.getElementById('nivel_dinamico_val').value) || 0,
+                    sumergencia: parseFloat(document.getElementById('sumergencia_val').value) || 0,
+                    presion_pip: parseFloat(document.getElementById('presion_pip_val').value) || 0
+                };
+
+                if (!isPozoAllowedByActiveScope(levelData.pozo_name)) {
+                    throw new Error(`El pozo ${levelData.pozo_name || '--'} no pertenece al contrato activo.`);
+                }
+
+                await saveLevelTest(levelData);
+                await refreshPozoLists();
+                
+                // Cerrar modal
+                window.closeGestionModal('modal-level-entry');
+
+                Swal.fire({ icon: 'success', title: 'Prueba de Nivel Guardada', text: 'La medición del nivel por echómetro fue guardada exitosamente.', timer: 2400, showConfirmButton: false });
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Fallo al Guardar', text: err.message });
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
+
         document.getElementById('btn-new-technical-measurement')?.addEventListener('click', prepareNewTechnicalMeasurement);
         document.getElementById('btn-close-technical-form')?.addEventListener('click', () => setTechnicalFormVisibility(false));
 
@@ -945,6 +1061,11 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
         const techFileInput = document.getElementById('tech-file-input');
         const techStatusDiv = document.getElementById('tech-upload-status');
         const techStatusText = document.getElementById('tech-status-text');
+
+        const levelDropZone = document.getElementById('level-drop-zone');
+        const levelFileInput = document.getElementById('level-file-input');
+        const levelStatusDiv = document.getElementById('level-upload-status');
+        const levelStatusText = document.getElementById('level-status-text');
 
         function resetSelectedFile(input) {
             if (input) input.value = '';
@@ -1056,7 +1177,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
         function buildImportPreviewList(items = [], kind = 'operational', limit = 200) {
             const previewItems = items.slice(0, limit).map(item => {
                 const record = item?.record || item || {};
-                if (kind === 'technical') {
+                if (kind === 'technical' || kind === 'level') {
                     return `<li><b>${escapeHtml(record.pozo_name || '--')}</b> · ${escapeHtml(record.fecha || '--')}</li>`;
                 }
 
@@ -1519,6 +1640,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
         }
 
         bindDropImport(techDropZone, techFileInput, handleTechnicalFile);
+        bindDropImport(levelDropZone, levelFileInput, handleLevelFile);
 
         function normalizeCsvKey(value) {
             return String(value || '')
@@ -2277,6 +2399,106 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 finishImportSession();
                 techStatusDiv.style.display = 'block';
                 techStatusText.textContent = `Error al cargar archivo técnico: ${err.message}`;
+                Swal.fire({ icon: 'error', title: 'Error de Importación', text: err.message });
+            }
+        }
+
+        function mapLevelCsvRow(row) {
+            const normalizedRow = {};
+            Object.entries(row || {}).forEach(([key, value]) => {
+                normalizedRow[normalizeCsvKey(key)] = value;
+            });
+
+            const pozoName = normalizedRow.pozo || normalizedRow.pozo_name || normalizedRow.well || normalizedRow.well_name;
+            if (!pozoName) return null;
+
+            const nivel = normalizedRow.nivel_dinamico_ft || normalizedRow.nivel_dinamico || normalizedRow.nivel || normalizedRow.nivel_dinamico_ft_ || normalizedRow.nivel_dinamico_f;
+            const sumergencia = normalizedRow.sumergencia_ft || normalizedRow.sumergencia || normalizedRow.sumergencia_ft_ || normalizedRow.sumergencia_f;
+            const presionPip = normalizedRow.presion_de_fondo_pip_psi || normalizedRow.presion_pip || normalizedRow.presion_de_fondo_pip || normalizedRow.presion_pip_psi || normalizedRow.pip || normalizedRow.pip_psi || normalizedRow.presion_fondo_pip || normalizedRow.presion_de_fondo_pip_psi_;
+
+            return {
+                pozo_name: String(pozoName).trim(),
+                fecha: toIsoDate(normalizedRow.fecha || normalizedRow.date || normalizedRow.fecha_medicion || normalizedRow.fecha_prueba),
+                nivel_dinamico: parseCsvNumber(nivel),
+                sumergencia: parseCsvNumber(sumergencia),
+                presion_pip: parseCsvNumber(presionPip),
+                operational_scope: activeOperationalScope
+            };
+        }
+
+        async function handleLevelFile(file) {
+            if (!file) return;
+
+            try {
+                const parsedRows = await parseTabularFile(file);
+                const allRows = parsedRows
+                    .map(mapLevelCsvRow)
+                    .filter(row => row && row.pozo_name);
+                const rows = filterRowsByActiveScope(allRows);
+                const omittedByScopeCount = allRows.length - rows.length;
+
+                if (rows.length === 0) {
+                    levelStatusDiv.style.display = 'block';
+                    if (omittedByScopeCount > 0) {
+                        levelStatusText.textContent = 'El archivo no contiene pozos del contrato activo.';
+                    } else {
+                        const detectedHeaders = parsedRows.length > 0 ? Object.keys(parsedRows[0]).join(', ') : 'Ninguna';
+                        levelStatusText.textContent = `No se encontraron filas válidas. Columnas detectadas: [ ${detectedHeaders} ]. Asegúrate de que incluyan 'Pozo' y 'Fecha'.`;
+                    }
+                    return;
+                }
+
+                const previewResult = await previewLevelTestsSync(rows);
+
+                const confirmed = await confirmImportSummary({
+                    title: 'Confirmar carga de niveles',
+                    fileName: file.name,
+                    recordsCount: rows.length,
+                    pozoCount: countUniquePozos(rows),
+                    detailText: 'Se sincronizarán las pruebas de nivel detectadas y se actualizará el historial por pozo y fecha.',
+                    previewResult,
+                    kind: 'level'
+                });
+
+                if (!confirmed) {
+                    levelStatusDiv.style.display = 'block';
+                    levelStatusText.textContent = 'Carga de niveles cancelada por el usuario.';
+                    return;
+                }
+
+                beginImportSession({
+                    kind: 'level',
+                    fileName: file.name,
+                    recordsCount: rows.length,
+                    pozoCount: countUniquePozos(rows)
+                });
+
+                levelStatusDiv.style.display = 'block';
+                levelStatusText.textContent = `Subiendo ${rows.length} pruebas de nivel...`;
+                updateImportSession(`Sincronizando ${rows.length} prueba(s) de nivel...`, 'No cierres ni abandones esta pantalla hasta finalizar la carga.');
+
+                const syncResult = await syncLevelTests(rows);
+
+                updateImportSession('Actualizando catálogos y formularios...', 'La importación ya casi termina.');
+                await refreshPozoLists();
+                setStoredSelectedPozo(rows[0].pozo_name);
+                document.getElementById('level_pozo_name').value = rows[0].pozo_name;
+                await syncLevelPozoContext();
+                
+                // Cerrar modal
+                window.closeGestionModal('modal-level-entry');
+
+                levelStatusText.textContent = `✅ Historial de niveles sincronizado. Nuevas: ${syncResult.inserted}. Actualizadas: ${syncResult.updated}.`;
+                finishImportSession();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Importación de Niveles Exitosa',
+                    text: `Historial de niveles sincronizado. Nuevas: ${syncResult.inserted}. Actualizadas: ${syncResult.updated}.`
+                });
+            } catch (err) {
+                finishImportSession();
+                levelStatusDiv.style.display = 'block';
+                levelStatusText.textContent = `Error al cargar archivo de niveles: ${err.message}`;
                 Swal.fire({ icon: 'error', title: 'Error de Importación', text: err.message });
             }
         }

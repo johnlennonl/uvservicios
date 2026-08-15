@@ -80,7 +80,7 @@ const DOCUMENT_CATEGORIES = [
         name: 'SOPORTES DE CAMPO',
         icon: 'fa-solid fa-camera',
         cssClass: 'folder-soportes',
-        description: 'Evidencias fotográficas y soportes visuales capturados en campo (máx 5 por turno).'
+        description: 'Evidencias fotográficas y soportes visuales capturados en campo (máx 20 por turno).'
     }
 ];
 

@@ -1559,7 +1559,7 @@ function buildJourneyPulseTimelineMarkup(journey = {}, records = [], reviewLog =
             tagClass = 'tag-purple';
             tagLabel = 'ARCHIVO ADJUNTO';
         } else if (action === 'commented') {
-            const isRecordUpdate = metadata.action === 'update_record' || (log.comment && log.comment.includes('se modificó'));
+            const isRecordUpdate = (log.metadata?.action === 'update_record') || (log.comment && log.comment.includes('se modificó'));
             nodeClass = 'node-purple';
             tagClass = 'tag-purple';
             tagLabel = isRecordUpdate ? 'EDICIÓN ADMIN' : 'COMENTARIO';
@@ -3946,7 +3946,7 @@ async function selectJourney(journeyId, options = {}) {
     }
 
     // Toggle master-detail view in mobile responsive layout
-    const isMobile = window.innerWidth <= 1024;
+    const isMobile = window.innerWidth <= 1180;
     const shouldShowDetailView = !isMobile || !options.keepList;
 
     if (shouldShowDetailView) {
@@ -4089,7 +4089,7 @@ function handleFilterClick(event) {
     loadJourneys();
 }
 
-async function bootstrap() {
+export async function initCampoAdmin() {
     const session = await getSession();
     if (!session) {
         window.location.href = 'index.html';
@@ -4226,6 +4226,14 @@ async function bootstrap() {
     }
 
     await loadJourneys();
+
+    // Hide loader overlay
+    const loader = document.getElementById('premium-loader');
+    if (loader) {
+        loader.classList.add('hidden');
+    }
 }
 
-bootstrap();
+export function destroyCampoAdmin() {
+    console.log('[CampoAdmin] Destruyendo bandeja y limpiando recursos...');
+}

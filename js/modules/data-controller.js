@@ -1,7 +1,7 @@
 let pozoOutsideClickListener = null;
 
 import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } from '../auth.js';
-        import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord, getWellBESProfile } from '../data-service.js';
+        import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord, getWellBESProfile, getWellLevelTests, deleteLevelTest } from '../data-service.js';
         import { getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from '../services/operational-scope-context.js';
         import { supabase } from '../supabaseClient.js';
 
@@ -525,6 +525,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
             document.getElementById('btn-operational-history')?.classList.toggle('active', mode === 'operational');
             document.getElementById('btn-technical-history')?.classList.toggle('active', mode === 'technical');
+            document.getElementById('btn-level-history')?.classList.toggle('active', mode === 'level');
             document.getElementById('btn-echometer-history')?.classList.toggle('active', mode === 'echometer');
             document.getElementById('btn-sensor-history')?.classList.toggle('active', mode === 'sensor');
             document.getElementById('btn-vsd-history')?.classList.toggle('active', mode === 'vsd');
@@ -552,6 +553,19 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         <th>Usuario / Técnico</th>
                         <th style="text-align: center;">Tamaño</th>
                         <th style="text-align: right;">Acción</th>
+                    </tr>
+                `;
+                return;
+            }
+
+            if (activeHistoryMode === 'level') {
+                thead.innerHTML = `
+                    <tr>
+                        <th>Fecha Prueba</th>
+                        <th>Nivel Dinámico</th>
+                        <th>Sumergencia</th>
+                        <th>Presión PIP Echómetro</th>
+                        ${currentAccessProfile.canEditData ? '<th style="text-align: right;">Acciones</th>' : '<th style="text-align: right;"></th>'}
                     </tr>
                 `;
                 return;
@@ -659,6 +673,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             document.getElementById('mobile-logout-btn').addEventListener('click', logout);
             document.getElementById('btn-operational-history').addEventListener('click', () => setHistoryMode('operational'));
             document.getElementById('btn-technical-history').addEventListener('click', () => setHistoryMode('technical'));
+            document.getElementById('btn-level-history')?.addEventListener('click', () => setHistoryMode('level'));
             document.getElementById('btn-echometer-history').addEventListener('click', () => setHistoryMode('echometer'));
             document.getElementById('btn-sensor-history').addEventListener('click', () => setHistoryMode('sensor'));
             document.getElementById('btn-vsd-history').addEventListener('click', () => setHistoryMode('vsd'));
@@ -872,14 +887,26 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                     startStr = d.toISOString().split('T')[0];
                 }
 
-                const data = activeHistoryMode === 'technical'
-                    ? await getTechnicalHistory(activePozo, startStr, endStr)
-                    : await getMonitoringData([activePozo], startStr, endStr);
+                let data = [];
+                if (activeHistoryMode === 'technical') {
+                    data = await getTechnicalHistory(activePozo, startStr, endStr);
+                } else if (activeHistoryMode === 'level') {
+                    const rawTests = await getWellLevelTests(activePozo);
+                    data = (rawTests || []).filter(t => {
+                        if (startStr && t.fecha < startStr) return false;
+                        if (endStr && t.fecha > endStr) return false;
+                        return true;
+                    });
+                } else {
+                    data = await getMonitoringData([activePozo], startStr, endStr);
+                }
                 currentRecordData = data;
                 document.getElementById('record-count').textContent = `${data.length} Registros`;
                 document.getElementById('table-title').textContent = activeHistoryMode === 'technical'
                     ? `Historial de Medición Técnica: ${activePozo}`
-                    : `Historial Operativo: ${activePozo}`;
+                    : (activeHistoryMode === 'level'
+                        ? `Historial de Pruebas de Nivel (Echó.): ${activePozo}`
+                        : `Historial Operativo: ${activePozo}`);
                 renderTable();
             } catch (err) {
                 Swal.fire({ icon: 'error', title: 'Error BD', text: err.message });
@@ -1141,8 +1168,49 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             const formatTextCell = (value, fallback = '--') => formatMonitoringTextCell(value, fallback);
 
             if (currentRecordData.length === 0) {
-                const emptyColumns = activeHistoryMode === 'technical' ? 5 : 9;
+                const emptyColumns = activeHistoryMode === 'technical' ? 5 : (activeHistoryMode === 'level' ? 5 : 9);
                 tbody.innerHTML = `<tr><td colspan="${emptyColumns}" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay registros históricos</td></tr>`;
+                return;
+            }
+
+            if (activeHistoryMode === 'level') {
+                currentRecordData.forEach(record => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'level-history-row';
+                    tr.innerHTML = `
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="background: rgba(13, 148, 136, 0.1); color: #0d9488; padding: 6px; border-radius: 8px;">📅</span>
+                                <b>${formatTextCell(record.fecha)}</b>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: #0f172a;">${formatNumberCell(record.nivel_dinamico, 0)} ft</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: #0f172a;">${formatNumberCell(record.sumergencia, 0)} ft</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: #0f172a;">${formatNumberCell(record.presion_pip, 0)} psi</div>
+                        </td>
+                        <td style="text-align: right;">
+                            ${currentAccessProfile.canEditData ? `
+                                <button type="button" class="btn-action-delete btn-delete-level" data-id="${record.id}" style="background:none; border:none; color:#EF4444; font-weight:700; cursor:pointer; padding:6px 10px;">🗑️ Eliminar</button>
+                            ` : ''}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                if (currentAccessProfile.canEditData) {
+                    tbody.querySelectorAll('.btn-delete-level').forEach(btn => {
+                        btn.onclick = async function(e) {
+                            e.stopPropagation();
+                            const id = this.getAttribute('data-id');
+                            await handleDeleteLevelTest(id);
+                        };
+                    });
+                }
                 return;
             }
 
@@ -1864,6 +1932,29 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 if(loadingMsg) loadingMsg.style.display = 'none';
             }
         };
+
+        async function handleDeleteLevelTest(id) {
+            const result = await Swal.fire({
+                title: '¿Confirmar eliminación?',
+                text: "Esta acción borrará esta prueba de nivel de Echómetro permanentemente.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#EF4444',
+                cancelButtonColor: '#6B7280',
+                confirmButtonText: 'Sí, borrar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    await deleteLevelTest(id);
+                    Swal.fire({ icon: 'success', title: 'Borrado', showConfirmButton: false, timer: 1500 });
+                    await loadPozoData();
+                } catch (err) {
+                    Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+                }
+            }
+        }
 
 export function destroyData() {
     if (pozoOutsideClickListener) {
