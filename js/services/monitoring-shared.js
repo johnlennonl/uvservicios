@@ -92,7 +92,7 @@ export function getOperationalAlertSignals(record = {}) {
     const normalizedNotes = normalizeSearchText(record?.observaciones);
     const signals = [];
 
-    if (normalizedStatus && !['RUN', 'OFF', 'PARADA MANUAL', 'RUN / ATENCION AL CLIENTE'].includes(normalizedStatus)) {
+    if (normalizedStatus && !['RUN', 'OFF', 'PARADA MANUAL', 'RUN / ATENCION AL CLIENTE', 'OFF / ATENCION AL CLIENTE'].includes(normalizedStatus)) {
         signals.push(`estatus ${normalizedStatus}`);
     }
 

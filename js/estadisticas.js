@@ -511,7 +511,7 @@ function classifyModeForChart(record = {}) {
 
 function classifyOperationalStatusForChart(record = {}) {
     const status = normalizeStatus(record.estatus);
-    if (['OFF', 'PARADAMANUAL', 'PARADO', 'PARADA', 'DETENIDO', 'INACTIVO'].includes(status)) return 'OFF';
+    if (['OFF', 'PARADAMANUAL', 'PARADO', 'PARADA', 'DETENIDO', 'INACTIVO', 'OFFATENCIONALCLIENTE'].includes(status)) return 'OFF';
     if (['RUN', 'RUNATENCIONALCLIENTE', 'RUNNING', 'OPERANDO', 'OPERATIVO', 'ACTIVO'].includes(status)) return 'RUN';
     return 'SIN ESTATUS / OTRO';
 }
@@ -525,17 +525,17 @@ function classifyDiagnostico(record = {}) {
         return 'POZOS EN RUN / SIN FALLA';
     }
 
-    if (!text.trim() && !['OFF', 'PARADAMANUAL'].includes(status)) return 'POZOS EN RUN / SIN FALLA';
-    if (/sin falla|condiciones normales|normal|operativo/.test(text) && !['OFF', 'PARADAMANUAL'].includes(status)) return 'POZOS EN RUN / SIN FALLA';
+    if (!text.trim() && !['OFF', 'PARADAMANUAL', 'OFFATENCIONALCLIENTE'].includes(status)) return 'POZOS EN RUN / SIN FALLA';
+    if (/sin falla|condiciones normales|normal|operativo/.test(text) && !['OFF', 'PARADAMANUAL', 'OFFATENCIONALCLIENTE'].includes(status)) return 'POZOS EN RUN / SIN FALLA';
 
-    if (['OFF', 'PARADAMANUAL'].includes(status) && !text.trim()) return 'POZOS OFF / SIN DIAGNÓSTICO';
+    if (['OFF', 'PARADAMANUAL', 'OFFATENCIONALCLIENTE'].includes(status) && !text.trim()) return 'POZOS OFF / SIN DIAGNÓSTICO';
     if (/electr|vsd|volt|corriente|fusible|sen\b|suministro|generaci/.test(text)) return 'FALLA ELÉCTRICA';
     if (/baja produ|bajo aporte|baja frecuencia|declin/.test(text)) return 'BAJA PRODUCCIÓN';
     if (/señal|senal|sensor|comunicaci|data/.test(text)) return 'PÉRDIDA DE SEÑAL';
     if (/presi|thp|chp|lf|pip/.test(text)) return 'CONDICIÓN DE PRESIÓN';
     if (/temperatura|tm|calent/.test(text)) return 'ALTA TEMPERATURA';
     if (/mecanic|cabezal|manometro|cable|superficie/.test(text)) return 'CONDICIÓN MECÁNICA/SUPERFICIE';
-    return ['OFF', 'PARADAMANUAL'].includes(status) ? 'OTROS DIAGNÓSTICOS' : 'POZOS EN RUN / SIN FALLA';
+    return ['OFF', 'PARADAMANUAL', 'OFFATENCIONALCLIENTE'].includes(status) ? 'OTROS DIAGNÓSTICOS' : 'POZOS EN RUN / SIN FALLA';
 }
 
 // Procesar Métricas y KPIs del resumen mensual corporativo.
@@ -1046,7 +1046,7 @@ function buildFieldDetailRows(fields = getReportFieldOrder()) {
             field,
             total: records.length,
             runCount: records.filter(record => classifyDiagnostico(record) === 'POZOS EN RUN / SIN FALLA').length,
-            offCount: records.filter(record => ['OFF', 'PARADAMANUAL'].includes(normalizeStatus(record.estatus))).length,
+            offCount: records.filter(record => ['OFF', 'PARADAMANUAL', 'OFFATENCIONALCLIENTE'].includes(normalizeStatus(record.estatus))).length,
             levelCount: new Set(records.map(record => normalizePozoName(record.pozo_name)).filter(pozo => executedLevelPozos.has(pozo))).size,
             mainMode: getTopEntry(records, classifyModeForChart),
             mainDiagnostic: getTopEntry(records, classifyDiagnostico)
@@ -1281,7 +1281,7 @@ function renderAlertasTable(filterText, selectedPozos, selectedStatus) {
                 return ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(status);
             }
             if (selectedStatus === 'OFF') {
-                return ['OFF', 'PARADA MANUAL'].includes(status);
+                return ['OFF', 'PARADA MANUAL', 'OFF / ATENCION AL CLIENTE'].includes(status);
             }
             return status === selectedStatus;
         });
@@ -1314,7 +1314,7 @@ function renderAlertasTable(filterText, selectedPozos, selectedStatus) {
         const obs = String(r.observaciones || '').trim();
         
         const isRun = ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(estatus);
-        const isOff = ['OFF', 'PARADA MANUAL'].includes(estatus);
+        const isOff = ['OFF', 'PARADA MANUAL', 'OFF / ATENCION AL CLIENTE'].includes(estatus);
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -1488,7 +1488,7 @@ function getMonthlyPdfData() {
     const pozosUnicos = new Set(state.records.map(record => normalizePozoName(record.pozo_name)).filter(Boolean));
     const sinFallaCount = state.records.filter(record => classifyDiagnostico(record) === 'POZOS EN RUN / SIN FALLA').length;
     const nivelesEjecutados = getExecutedLevelPozoNames().size;
-    const offCount = state.records.filter(record => ['OFF', 'PARADAMANUAL'].includes(normalizeStatus(record.estatus))).length;
+    const offCount = state.records.filter(record => ['OFF', 'PARADAMANUAL', 'OFFATENCIONALCLIENTE'].includes(normalizeStatus(record.estatus))).length;
 
     return {
         total,

@@ -294,7 +294,7 @@ export function validateFieldReport(payload, options = {}) {
 
     const estatus = String(normalizedPayload.estatus || '').trim().toUpperCase();
     const estatusNorm = estatus.replace(/[^A-Z]/g, '');
-    const isOffLike = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm);
+    const isOffLike = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE', 'OFFATENCIONALCLIENTE'].includes(estatusNorm);
     const poseeSensor = String(normalizedPayload.posee_sensor_fondo || '').trim().toUpperCase() === 'SI';
 
     if (isOffLike) {
@@ -409,7 +409,7 @@ export function validateFieldReport(payload, options = {}) {
 export function validateSectionParameters(sectionIndex, payload = {}) {
     const estatus = String(payload.estatus || '').trim().toUpperCase();
     const estatusNorm = estatus.replace(/[^A-Z]/g, '');
-    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm);
+    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE', 'OFFATENCIONALCLIENTE'].includes(estatusNorm);
     const poseeSensor = String(payload.posee_sensor_fondo || '').trim().toUpperCase() === 'SI';
     const missing = [];
 

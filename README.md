@@ -55,6 +55,13 @@ graph TD
 * **Solución aplicada:** Se aumentó el límite de carga de soportes de **5 a 20 imágenes** en los controladores [field-controller.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/modules/field/field-controller.js) y [database-controller.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/modules/database/database-controller.js).
 * **Resultado:** Los técnicos ahora pueden adjuntar hasta 20 imágenes sin toparse con el límite restrictivo, facilitando el reporte de múltiples evidencias de ingeniería.
 
+### 🔌 Nuevo Estatus: OFF / ATENCION AL CLIENTE
+* **Problema detectado:** El equipo requería registrar pozos detenidos por atención/requerimiento del cliente y obligar al técnico a justificar dicha parada mediante el Diagnóstico y las Observaciones, omitiendo el ingreso de telemetría eléctrica (ya que el pozo está apagado).
+* **Solución aplicada:**
+  * Se agregó la opción `OFF / ATENCION AL CLIENTE` en [field.html](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/field.html) y [dashboard-data.html](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/dashboard-data.html).
+  * Se actualizaron las validaciones en JS ([field-validation.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/modules/field/field-validation.js), [field-controller.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/modules/field/field-controller.js) y [field-formatters.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/modules/field/field-formatters.js)) para clasificarlo como estado inactivo/OFF (saltando la verificación eléctrica pero forzando el llenado obligatorio de **Diagnóstico** y **Observaciones**).
+  * Se integró en [estadisticas.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/estadisticas.js) para clasificarlo correctamente como pozo "OFF" en las gráficas, sumarios y listados de incidencias.
+
 ---
 
 ## 🗄️ Parche de Base de Datos (Supabase)

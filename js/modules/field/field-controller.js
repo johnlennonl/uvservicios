@@ -1329,7 +1329,7 @@ function syncInputsBasedOnStatus() {
     const statusSelect = document.querySelector('[name="estatus"]');
     if (!statusSelect) return;
     const estatusNorm = String(statusSelect.value || '').replace(/[^A-Z]/g, '').toUpperCase();
-    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm);
+    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE', 'OFFATENCIONALCLIENTE'].includes(estatusNorm);
 
     const giroSelect = document.querySelector('[name="sentido_giro"]');
     if (giroSelect) {
@@ -1377,7 +1377,7 @@ function syncSensorFondoRequirements() {
     const poseeSensor = poseeSensorSelect.value === 'SI';
     const isNoSensor = poseeSensorSelect.value === 'NO';
     const estatusNorm = String(estatusSelect?.value || '').replace(/[^A-Z]/g, '').toUpperCase();
-    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm);
+    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE', 'OFFATENCIONALCLIENTE'].includes(estatusNorm);
 
     if (panelSensorSelect) {
         const panelGroup = panelSensorSelect.closest('.field-input-group');
@@ -1636,7 +1636,7 @@ function getFormPayload() {
     payload.pozo = String(document.getElementById('field-pozo')?.value || payload.pozo || '').trim().toUpperCase();
     payload.jornada = getJourneyFromTime(payload.hora || document.getElementById('field-hora')?.value || '');
     const estatusNorm = String(payload.estatus || '').replace(/[^A-Z]/g, '').toUpperCase();
-    const isOffStatus = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm);
+    const isOffStatus = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE', 'OFFATENCIONALCLIENTE'].includes(estatusNorm);
     payload.sentido_giro = isOffStatus ? '' : (String(payload.sentido_giro || '').trim() || 'FWD');
     payload.diagnostico = resolveDiagnosisPayloadValue(payload.diagnostico);
     const guardField = document.getElementById('field-equipo-guardia');
@@ -2696,7 +2696,7 @@ function buildJourneyShareMessage(reports = getJourneyReports(), messageHeader =
 
 function buildJourneyWellMessageBlock(report) {
     const estatusStr = String(report.estatus || '').trim().toUpperCase();
-    const isOff = ['OFF', 'PARADA MANUAL', 'RUN / ATENCION AL CLIENTE'].includes(estatusStr);
+    const isOff = ['OFF', 'PARADA MANUAL', 'RUN / ATENCION AL CLIENTE', 'OFF / ATENCION AL CLIENTE'].includes(estatusStr);
 
     const lines = [
         `Pozo: ${String(report.pozo || '').toUpperCase() || '--'}`,
@@ -2709,6 +2709,8 @@ function buildJourneyWellMessageBlock(report) {
         lines.push('Estatus: PARADA MANUAL');
     } else if (estatusStr === 'RUN / ATENCION AL CLIENTE') {
         lines.push('Estatus: RUN / ATENCION AL CLIENTE');
+    } else if (estatusStr === 'OFF / ATENCION AL CLIENTE') {
+        lines.push('Estatus: OFF / ATENCION AL CLIENTE');
     }
 
     const measurementLines = [
@@ -2834,7 +2836,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
         : allReports.filter(report => {
             const estatus = String(report.estatus || '').trim().toUpperCase();
             const estatusNorm = estatus.replace(/[^A-Z]/g, '');
-            if (['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estatusNorm)) return false;
+            if (['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE', 'OFFATENCIONALCLIENTE'].includes(estatusNorm)) return false;
 
             const echometerYes = String(report.echometer || '').trim().toUpperCase() === 'SI';
             const isSensorDataYes = String(report.descarga_datas_sensor || '').trim().toUpperCase() === 'SI';
@@ -2953,9 +2955,13 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             const isSensorDataYes = String(report.descarga_datas_sensor || '').trim().toUpperCase() === 'SI';
             const isVsdDataYes = String(report.descarga_datas_vsd || report.baja_datos || '').trim().toUpperCase() === 'SI';
 
-            const existingEchoDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'REGISTROS_ECHOMETER');
-            const existingSensorDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'DATA_SENSOR_FONDO');
-            const existingVsdDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'VOLCADOS_VSD');
+            const reportId = report.id || '';
+            const hasTicketTag = d => String(d.descripcion || '').includes('[TICKET_ID:');
+            const matchesTicket = d => reportId ? (hasTicketTag(d) ? String(d.descripcion || '').includes(`[TICKET_ID:${reportId}]`) : true) : true;
+
+            const existingEchoDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'REGISTROS_ECHOMETER' && matchesTicket(d));
+            const existingSensorDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'DATA_SENSOR_FONDO' && matchesTicket(d));
+            const existingVsdDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'VOLCADOS_VSD' && matchesTicket(d));
 
             const echometerFieldHtml = (echometerYes || isManualTrigger) ? `
                 <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; border-left: 4px solid #3b82f6;">
@@ -2972,7 +2978,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                         </div>
                     ` : `
                         <div style="display:flex; flex-direction:column; gap:6px;">
-                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="REGISTROS_ECHOMETER" accept=".028,.twm,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-report-id="${escapeHtml(reportId)}" data-category="REGISTROS_ECHOMETER" accept=".028,.twm,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
                             <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
                         </div>
                     `}
@@ -2994,7 +3000,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                         </div>
                     ` : `
                         <div style="display:flex; flex-direction:column; gap:6px;">
-                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="DATA_SENSOR_FONDO" accept=".dat,.raw,.zip,.rar,.txt,.csv" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-report-id="${escapeHtml(reportId)}" data-category="DATA_SENSOR_FONDO" accept=".dat,.raw,.zip,.rar,.txt,.csv" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
                             <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
                         </div>
                     `}
@@ -3016,14 +3022,14 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                         </div>
                     ` : `
                         <div style="display:flex; flex-direction:column; gap:6px;">
-                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="VOLCADOS_VSD" accept=".dat,.raw,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-report-id="${escapeHtml(reportId)}" data-category="VOLCADOS_VSD" accept=".dat,.raw,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
                             <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
                         </div>
                     `}
                 </div>
             ` : '';
 
-            const existingSoportes = existingDocs.filter(d => d.pozo_name === pozoName && d.categoria === 'SOPORTES');
+            const existingSoportes = existingDocs.filter(d => d.pozo_name === pozoName && d.categoria === 'SOPORTES' && matchesTicket(d));
             const soportesCount = existingSoportes.length;
 
             let soportesListHtml = '';
@@ -3075,7 +3081,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             const canAddMoreSoportes = soportesCount < 20;
             const uploadSoportesHtml = canAddMoreSoportes ? `
                 <div style="display:flex; flex-direction:column; gap:6px;">
-                    <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-category="SOPORTES" accept="image/*" multiple style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                    <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-report-id="${escapeHtml(reportId)}" data-category="SOPORTES" accept="image/*" multiple style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
                     <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
                 </div>
             ` : `
@@ -3107,25 +3113,29 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                    </button>`
                 : '';
 
+            const accordionKey = reportId ? `${pozoName}_${reportId}` : pozoName;
+
             if (!window._expandedPozos) {
                 window._expandedPozos = new Set();
                 if (reportsToDisplay.length > 0) {
                     const firstPozoName = String(reportsToDisplay[0].pozo || reportsToDisplay[0].pozo_name || '').trim().toUpperCase();
-                    if (firstPozoName) window._expandedPozos.add(firstPozoName);
+                    const firstReportId = reportsToDisplay[0].id || '';
+                    const firstAccordionKey = firstReportId ? `${firstPozoName}_${firstReportId}` : firstPozoName;
+                    if (firstPozoName) window._expandedPozos.add(firstAccordionKey);
                 }
             }
 
-            const isExpanded = window._expandedPozos.has(pozoName);
+            const isExpanded = window._expandedPozos.has(accordionKey);
             const badgeColor = attachedCount > 0 ? '#059669' : '#475569';
             const badgeBg = attachedCount > 0 ? '#d1fae5' : '#e2e8f0';
 
             return `
                 <div class="well-accordion-item" style="background:#ffffff; border-radius:14px; border:1px solid #cbd5e1; box-shadow:0 4px 12px rgba(0,0,0,0.03); overflow:hidden; display:flex; flex-direction:column; margin-bottom:10px; flex-shrink:0;">
                     <!-- Cabecera de Acordeón -->
-                    <div class="well-accordion-trigger" data-pozo-name="${escapeHtml(pozoName)}" style="padding:16px; background:${isExpanded ? '#f8fafc' : '#ffffff'}; cursor:pointer; display:flex; justify-content:space-between; align-items:center; user-select:none; transition: background 0.2s; border-bottom: ${isExpanded ? '1px solid #cbd5e1' : 'none'};">
+                    <div class="well-accordion-trigger" data-accordion-key="${escapeHtml(accordionKey)}" data-pozo-name="${escapeHtml(pozoName)}" style="padding:16px; background:${isExpanded ? '#f8fafc' : '#ffffff'}; cursor:pointer; display:flex; justify-content:space-between; align-items:center; user-select:none; transition: background 0.2s; border-bottom: ${isExpanded ? '1px solid #cbd5e1' : 'none'};">
                         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                             <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981;"></span>
-                            <strong style="font-size:1.05rem; color:#0f172a; font-weight:800;">Pozo: ${escapeHtml(pozoName)}</strong>
+                            <strong style="font-size:1.05rem; color:#0f172a; font-weight:800;">Pozo: ${escapeHtml(pozoName)} ${report.estatus ? ` - <span style="color:#2563eb; font-weight:700;">${escapeHtml(report.estatus)}</span>` : ''}</strong>
                             <span style="font-size:0.75rem; font-weight:700; color:${badgeColor}; background:${badgeBg}; padding:3px 10px; border-radius:10px; transition: all 0.2s;">
                                 ${attachedCount} ${attachedCount === 1 ? 'archivo subido' : 'archivos subidos'}
                             </span>
@@ -3197,6 +3207,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                             filesToUpload.push({
                                 file: file,
                                 pozoName: input.dataset.pozo,
+                                reportId: input.dataset.reportId,
                                 category: input.dataset.category,
                                 inputEl: input
                             });
@@ -3225,7 +3236,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                                 file: item.file,
                                 pozoName: item.pozoName,
                                 category: item.category,
-                                description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${item.pozoName}`,
+                                description: `[JORNADA_ID:${tempJourneyTag}][TICKET_ID:${item.reportId || ''}] Adjunto enviado desde captura de Campo para el pozo ${item.pozoName}`,
                                 uploadedBy: 'Técnico de Campo',
                                 operationalScope: currentOperationalScope
                             });
@@ -3291,7 +3302,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
     // Toggle para los acordeones colapsables por pozo
     body.querySelectorAll('.well-accordion-trigger').forEach(trigger => {
         trigger.onclick = () => {
-            const pozoName = trigger.dataset.pozoName;
+            const accordionKey = trigger.dataset.accordionKey;
             const content = trigger.nextElementSibling;
             const arrow = trigger.querySelector('.accordion-arrow');
 
@@ -3302,7 +3313,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                 trigger.style.background = '#ffffff';
                 trigger.style.borderBottom = 'none';
                 if (arrow) arrow.style.transform = 'rotate(0deg)';
-                window._expandedPozos.delete(pozoName);
+                window._expandedPozos.delete(accordionKey);
             } else {
                 // Colapsar los otros acordeones para mantener orden y no "marear" al técnico
                 body.querySelectorAll('.well-accordion-content').forEach(c => c.style.display = 'none');
@@ -3318,7 +3329,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                 trigger.style.background = '#f8fafc';
                 trigger.style.borderBottom = '1px solid #cbd5e1';
                 if (arrow) arrow.style.transform = 'rotate(90deg)';
-                window._expandedPozos.add(pozoName);
+                window._expandedPozos.add(accordionKey);
             }
         };
     });
@@ -3327,6 +3338,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
     body.querySelectorAll('.field-attachment-input').forEach(fileInput => {
         fileInput.onchange = async () => {
             const pozoName = fileInput.dataset.pozo;
+            const reportId = fileInput.dataset.reportId;
             const category = fileInput.dataset.category;
             const container = fileInput.closest('div');
             const statusLabel = container?.querySelector('.upload-status-lbl');
@@ -3344,7 +3356,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                 const filesArray = Array.from(fileInput.files);
 
                 if (category === 'SOPORTES') {
-                    const existingSoportesCount = existingDocs.filter(d => d.pozo_name === pozoName && d.categoria === 'SOPORTES').length;
+                    const existingSoportesCount = existingDocs.filter(d => d.pozo_name === pozoName && d.categoria === 'SOPORTES' && (String(d.descripcion || '').includes('[TICKET_ID:') ? String(d.descripcion || '').includes(`[TICKET_ID:${reportId || ''}]`) : true)).length;
                     if (existingSoportesCount + filesArray.length > 20) {
                         const maxAllowed = 20 - existingSoportesCount;
                         throw new Error(`Límite excedido. Solo puedes subir ${maxAllowed} foto(s) más para este pozo.`);
@@ -3356,7 +3368,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                         file: file,
                         pozoName: pozoName,
                         category: category,
-                        description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${pozoName}`,
+                        description: `[JORNADA_ID:${tempJourneyTag}][TICKET_ID:${reportId || ''}] Adjunto enviado desde captura de Campo para el pozo ${pozoName}`,
                         uploadedBy: 'Técnico de Campo',
                         operationalScope: currentOperationalScope
                     });
@@ -3480,6 +3492,7 @@ async function processAndExecuteJourneySubmission(reports) {
                 selectedFilesToUpload.push({
                     file: file,
                     pozoName: input.dataset.pozo,
+                    reportId: input.dataset.reportId,
                     category: input.dataset.category
                 });
             });
@@ -3501,7 +3514,7 @@ async function processAndExecuteJourneySubmission(reports) {
                     file: item.file,
                     pozoName: item.pozoName,
                     category: item.category,
-                    description: `[JORNADA_ID:${tempJourneyTag}] Adjunto enviado desde captura de Campo para el pozo ${item.pozoName}`,
+                    description: `[JORNADA_ID:${tempJourneyTag}][TICKET_ID:${item.reportId || ''}] Adjunto enviado desde captura de Campo para el pozo ${item.pozoName}`,
                     uploadedBy: 'Técnico de Campo',
                     operationalScope: currentOperationalScope
                 });

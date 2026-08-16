@@ -16,7 +16,7 @@ function formatCurrentTriplet(payload) {
 export function buildFieldWhatsappMessage(payload) {
     const est = String(payload?.estatus || '').trim().toUpperCase();
     const estNorm = est.replace(/[^A-Z]/g, '');
-    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE'].includes(estNorm);
+    const isOff = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE', 'OFFATENCIONALCLIENTE'].includes(estNorm);
 
     const lines = [
         `Técnico 1: ${formatValue(payload?.tecnico_1)}`,
@@ -25,7 +25,7 @@ export function buildFieldWhatsappMessage(payload) {
         `Locacion: ${formatValue(payload?.locacion_jornada)}`,
         `Hora: ${formatValue(payload?.hora)}`,
         `Pozo: ${formatValue(payload?.pozo).toUpperCase()}`,
-        ['OFF', 'PARADA MANUAL', 'RUN / ATENCION AL CLIENTE'].includes(est) ? `Estatus: ${est}` : null,
+        ['OFF', 'PARADA MANUAL', 'RUN / ATENCION AL CLIENTE', 'OFF / ATENCION AL CLIENTE'].includes(est) ? `Estatus: ${est}` : null,
         `Hz: ${formatValue(payload?.hz)}`,
         isOff ? null : `Sentido: ${formatValue(payload?.sentido_giro, 'FWD').toUpperCase()}`,
         `I vsd: ${formatCurrentTriplet(payload)}`,
