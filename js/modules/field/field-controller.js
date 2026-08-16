@@ -3420,7 +3420,15 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
     });
 
     const saveComment = async (docId, commentText, inputElement, btnElement) => {
-        const newDescription = `[JORNADA_ID:${tempJourneyTag}] ${commentText}`;
+        const docObj = existingDocs.find(d => d.id === docId);
+        let ticketTag = '';
+        if (docObj && docObj.descripcion) {
+            const match = docObj.descripcion.match(/\[TICKET_ID:[^\]]+\]/);
+            if (match) {
+                ticketTag = match[0];
+            }
+        }
+        const newDescription = `[JORNADA_ID:${tempJourneyTag}]${ticketTag} ${commentText}`;
         try {
             if (inputElement) inputElement.style.borderColor = '#2563eb';
             if (btnElement) {
