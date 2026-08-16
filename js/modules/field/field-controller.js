@@ -3053,14 +3053,11 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                     <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;">
                         ${existingSoportes.map((doc, sIdx) => {
                             const desc = String(doc.descripcion || '').trim();
-                            const prefix = `[JORNADA_ID:${tempJourneyTag}]`;
-                            let userComment = desc;
-                            if (userComment.startsWith(prefix)) {
-                                userComment = userComment.slice(prefix.length).trim();
-                            } else {
-                                userComment = userComment.replace(/^\[JORNADA_ID:[^\]]+\]\s*/i, '');
-                            }
-                            if (userComment === 'Soporte de campo' || userComment === 'Archivo de campo' || userComment.includes('Adjunto enviado desde captura')) {
+                            let userComment = desc
+                                .replace(/\[JORNADA_ID:[^\]]+\]/gi, '')
+                                .replace(/\[TICKET_ID:[^\]]+\]/gi, '')
+                                .trim();
+                            if (!userComment || userComment === 'Soporte de campo' || userComment === 'Archivo de campo' || userComment.includes('Adjunto enviado desde captura')) {
                                 userComment = '';
                             }
 
