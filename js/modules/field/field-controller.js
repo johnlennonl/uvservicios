@@ -868,6 +868,7 @@ function bindStaticActions() {
     document.getElementById('field-submit-journey-btn')?.addEventListener('click', submitJourneyForAdminPreview);
     document.getElementById('field-exit-journey-btn')?.addEventListener('click', exitJourneyAndClearState);
     document.getElementById('field-copy-journey-message-btn')?.addEventListener('click', copyJourneyMessageToClipboard);
+    document.getElementById('field-report-start-btn')?.addEventListener('click', copyStartJourneyMessage);
     document.getElementById('field-back-to-capture-btn')?.addEventListener('click', scrollBackToCapture);
     document.getElementById('field-admin-filter-start')?.addEventListener('change', renderAdminPreview);
     document.getElementById('field-admin-filter-end')?.addEventListener('change', renderAdminPreview);
@@ -2297,6 +2298,107 @@ function enforceLockedJourneySelection() {
     jornadaField.value = jornadaField.dataset.lockedValue || jornadaField.value;
 }
 
+async function copyStartJourneyMessage() {
+    const tecnico1 = document.getElementById('field-tecnico-1')?.value || '';
+    const tecnico2 = document.getElementById('field-tecnico-2')?.value || '';
+    const locacion = document.getElementById('field-locacion-jornada')?.value || '';
+    const fechaRaw = document.getElementById('field-fecha')?.value || '';
+    const horaRaw = document.getElementById('field-hora')?.value || '';
+    const jornada = document.getElementById('field-jornada')?.value || 'Diurna';
+
+    if (!tecnico1) {
+        showAlert('Selecciona al menos el Técnico 1 para reportar el inicio.', 'warning');
+        focusFieldById('field-tecnico-1');
+        return;
+    }
+    if (!locacion) {
+        showAlert('Selecciona la Locación para reportar el inicio.', 'warning');
+        focusFieldById('field-locacion-jornada');
+        return;
+    }
+    if (!fechaRaw) {
+        showAlert('Selecciona la Fecha para reportar el inicio.', 'warning');
+        focusFieldById('field-fecha');
+        return;
+    }
+    if (!horaRaw) {
+        showAlert('Selecciona la Hora para reportar el inicio.', 'warning');
+        focusFieldById('field-hora');
+        return;
+    }
+
+    // Formatear fecha a DD/MM/AAAA
+    let fechaFormatted = fechaRaw;
+    try {
+        const parts = fechaRaw.split('-');
+        if (parts.length === 3) {
+            fechaFormatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+    } catch (e) {
+        console.warn('Error formatting date:', e);
+    }
+
+    // Formatear hora a 12 horas (a.m. / p.m.)
+    let horaFormatted = horaRaw;
+    try {
+        const parts = horaRaw.split(':');
+        if (parts.length >= 2) {
+            let hours = parseInt(parts[0], 10);
+            const minutes = parts[1];
+            const ampm = hours >= 12 ? 'p.m.' : 'a.m.';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            horaFormatted = `${hours}:${minutes} ${ampm}`;
+        }
+    } catch (e) {
+        console.warn('Error formatting time:', e);
+    }
+
+    const t2Text = tecnico2 ? tecnico2 : 'No aplica';
+
+    const msg = `🟢 *INICIO DE JORNADA* 🟢
+*Fecha:* ${fechaFormatted}
+*Hora:* ${horaFormatted}
+*Jornada:* ${jornada}
+*Locación:* LA CEIBA / TOMOPORO
+
+*Personal de Guardia:*
+• *Técnico 1:* ${tecnico1}
+• *Técnico 2:* ${t2Text}
+
+*Estatus:* Iniciando recorrido y toma de parámetros.`;
+
+    try {
+        await navigator.clipboard.writeText(msg);
+        updateStatus('Mensaje de inicio de jornada copiado al portapapeles.', 'success');
+
+        if (window.Swal) {
+            window.Swal.fire({
+                title: '¡Inicio de Jornada Copiado!',
+                text: 'El reporte de inicio se copió al portapapeles. ¿Deseas que te redirijamos a WhatsApp?',
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, abrir WhatsApp',
+                cancelButtonText: 'No, solo copiar',
+                confirmButtonColor: '#128c7e',
+                cancelButtonColor: '#64748b'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+                }
+            });
+        } else {
+            const open = confirm('Mensaje de inicio de jornada copiado al portapapeles. ¿Deseas abrir WhatsApp?');
+            if (open) {
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+            }
+        }
+    } catch (err) {
+        console.error('Error al copiar al portapapeles:', err);
+        showAlert('No se pudo copiar automáticamente el mensaje al portapapeles.', 'error');
+    }
+}
+
 async function copyJourneyMessageToClipboard() {
     const reports = getJourneyReports();
     if (reports.length === 0) {
@@ -2842,19 +2944,26 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
         return;
     }
 
+    const isAlreadyOpen = modal.style.display === 'flex';
     modal.style.display = 'flex';
-    body.innerHTML = `
-        <div style="text-align:center; padding:55px 20px; color:#64748b;">
-            <div style="display:inline-block; width:35px; height:35px; border:3.5px solid #e2e8f0; border-top-color:#2563eb; border-radius:50%; animation:modal-spin 0.8s linear infinite; margin-bottom:14px;"></div>
-            <strong style="font-size:1.02rem; color:#1e293b; display:block;">Cargando archivos y evidencias...</strong>
-            <p style="font-size:0.82rem; margin-top:5px; color:#64748b;">Consultando registros de Echometer, Sensor, VSD y Soportes para los pozos de este turno.</p>
-        </div>
-        <style>
-            @keyframes modal-spin {
-                to { transform: rotate(360deg); }
-            }
-        </style>
-    `;
+
+    if (!isAlreadyOpen) {
+        body.innerHTML = `
+            <div style="text-align:center; padding:55px 20px; color:#64748b;">
+                <div style="display:inline-block; width:35px; height:35px; border:3.5px solid #e2e8f0; border-top-color:#2563eb; border-radius:50%; animation:modal-spin 0.8s linear infinite; margin-bottom:14px;"></div>
+                <strong style="font-size:1.02rem; color:#1e293b; display:block;">Cargando archivos y evidencias...</strong>
+                <p style="font-size:0.82rem; margin-top:5px; color:#64748b;">Consultando registros de Echometer, Sensor, VSD y Soportes para los pozos de este turno.</p>
+            </div>
+            <style>
+                @keyframes modal-spin {
+                    to { transform: rotate(360deg); }
+                }
+                @keyframes comment-spin-local {
+                    to { transform: rotate(360deg); }
+                }
+            </style>
+        `;
+    }
 
     const allReports = Array.isArray(reports) ? reports : [];
 
@@ -3077,8 +3186,13 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                                             🗑️ Borrar
                                         </button>
                                     </div>
-                                    <div style="display:flex; gap:6px; align-items:center; margin-top:2px;">
-                                        <input type="text" class="input-photo-comment" data-doc-id="${escapeHtml(doc.id)}" data-original="${escapeHtml(userComment)}" value="${escapeHtml(userComment)}" placeholder="💬 Comentario opcional (se guarda automáticamente)" style="flex:1; font-size:0.75rem; padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; box-sizing:border-box; height:32px; transition: border-color 0.3s;">
+                                    <div style="display:flex; gap:6px; align-items:center; margin-top:2px; width:100%;">
+                                        <div style="position:relative; flex:1; display:flex; align-items:center; width:100%;">
+                                            <input type="text" class="input-photo-comment" data-doc-id="${escapeHtml(doc.id)}" data-original="${escapeHtml(userComment)}" value="${escapeHtml(userComment)}" placeholder="💬 Comentario opcional (se guarda automáticamente)" style="width:100%; font-size:0.75rem; padding:6px 32px 6px 10px; border-radius:6px; border:1px solid #cbd5e1; box-sizing:border-box; height:32px; transition: border-color 0.3s;">
+                                            <span class="comment-status-icon-${escapeHtml(doc.id)}" style="position:absolute; right:10px; display:${userComment ? 'flex' : 'none'}; align-items:center; justify-content:center; pointer-events:none;">
+                                                ${userComment ? `<i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 0.85rem;"></i>` : ''}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             `;
@@ -3438,8 +3552,14 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             }
         }
         const newDescription = `[JORNADA_ID:${tempJourneyTag}]${ticketTag} ${commentText}`;
+        const statusIcon = body.querySelector(`.comment-status-icon-${docId}`);
+
         try {
             if (inputElement) inputElement.style.borderColor = '#2563eb';
+            if (statusIcon) {
+                statusIcon.style.display = 'flex';
+                statusIcon.innerHTML = `<div style="width: 13px; height: 13px; border: 2.2px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: comment-spin-local 0.8s linear infinite;"></div>`;
+            }
 
             await updateWellDocumentDescription(docId, newDescription);
 
@@ -3451,24 +3571,58 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             if (inputElement) {
                 inputElement.dataset.original = commentText;
                 inputElement.style.borderColor = '#10b981';
-                setTimeout(() => {
-                    inputElement.style.borderColor = '#cbd5e1';
-                }, 2000);
             }
+            if (statusIcon) {
+                if (commentText) {
+                    statusIcon.style.display = 'flex';
+                    statusIcon.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 0.85rem;"></i>`;
+                } else {
+                    statusIcon.style.display = 'none';
+                    statusIcon.innerHTML = '';
+                }
+            }
+
+            setTimeout(() => {
+                if (inputElement) inputElement.style.borderColor = '#cbd5e1';
+            }, 2000);
         } catch (err) {
             console.error('Error guardando comentario:', err);
             if (inputElement) inputElement.style.borderColor = '#ef4444';
+            if (statusIcon) {
+                statusIcon.innerHTML = `<i class="fa-solid fa-circle-xmark" style="color: #ef4444; font-size: 0.85rem;"></i>`;
+            }
             showAlert(`Error al guardar comentario: ${err.message}`, 'error');
         }
     };
 
     // Auto-guardado al salir del campo (blur) — sin botón necesario
     body.querySelectorAll('.input-photo-comment').forEach(input => {
+        // Ocultar check temporalmente mientras escribe
+        input.addEventListener('input', () => {
+            const docId = input.dataset.docId;
+            const statusIcon = body.querySelector(`.comment-status-icon-${docId}`);
+            if (statusIcon) {
+                statusIcon.style.display = 'none';
+                statusIcon.innerHTML = '';
+            }
+            input.style.borderColor = '#cbd5e1';
+        });
+
+        // Auto-guardado al perder el foco (blur)
         input.addEventListener('blur', async () => {
             const docId = input.dataset.docId;
             const currentVal = String(input.value || '').trim();
             const originalVal = String(input.dataset.original || '').trim();
-            if (currentVal === originalVal) return; // Sin cambios, no guardar
+
+            if (currentVal === originalVal) {
+                // Si no cambió pero tiene texto, volvemos a mostrar su check verde
+                const statusIcon = body.querySelector(`.comment-status-icon-${docId}`);
+                if (statusIcon && currentVal) {
+                    statusIcon.style.display = 'flex';
+                    statusIcon.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 0.85rem;"></i>`;
+                }
+                return;
+            }
             await saveComment(docId, currentVal, input);
         });
     });
