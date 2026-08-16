@@ -2356,11 +2356,16 @@ async function copyStartJourneyMessage() {
 
     const t2Text = tecnico2 ? tecnico2 : 'No aplica';
 
+    let locacionLabel = 'LA CEIBA / TOMOPORO';
+    if (currentOperationalScope === 'bmm') {
+        locacionLabel = 'BARUA / MOTATAN / MENE GRANDE';
+    }
+
     const msg = `🟢 *INICIO DE JORNADA* 🟢
 *Fecha:* ${fechaFormatted}
 *Hora:* ${horaFormatted}
 *Jornada:* ${jornada}
-*Locación:* LA CEIBA / TOMOPORO
+*Locación:* ${locacionLabel}
 
 *Personal de Guardia:*
 • *Técnico 1:* ${tecnico1}
