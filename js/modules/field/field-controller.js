@@ -470,7 +470,6 @@ const FIELD_JOURNEY_STATUS_LABELS = {
 };
 
 let currentEditingReportId = null;
-let currentEditingJourneyId = null;
 let CURRENT_ACCESS_PROFILE = null;
 let availablePozos = [];
 let availablePozoCatalog = new Map();
@@ -546,7 +545,23 @@ function setDraftJourneyKey(value) {
 
 function clearDraftJourneyKey() {
     removeFieldStorageItem(DRAFT_JOURNEY_KEY_STORAGE_KEY);
+    removeFieldStorageItem('uv-field-draft-editing-journey-id');
 }
+
+let _currentEditingJourneyId = null;
+Object.defineProperty(window, 'currentEditingJourneyId', {
+    get() {
+        return _currentEditingJourneyId || getFieldStorageItem('uv-field-draft-editing-journey-id') || null;
+    },
+    set(val) {
+        _currentEditingJourneyId = val;
+        if (val) {
+            setFieldStorageItem('uv-field-draft-editing-journey-id', val);
+        } else {
+            removeFieldStorageItem('uv-field-draft-editing-journey-id');
+        }
+    }
+});
 
 function setJourneyStartedFlag(value) {
     if (value) {
@@ -2828,6 +2843,18 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
     }
 
     modal.style.display = 'flex';
+    body.innerHTML = `
+        <div style="text-align:center; padding:55px 20px; color:#64748b;">
+            <div style="display:inline-block; width:35px; height:35px; border:3.5px solid #e2e8f0; border-top-color:#2563eb; border-radius:50%; animation:modal-spin 0.8s linear infinite; margin-bottom:14px;"></div>
+            <strong style="font-size:1.02rem; color:#1e293b; display:block;">Cargando archivos y evidencias...</strong>
+            <p style="font-size:0.82rem; margin-top:5px; color:#64748b;">Consultando registros de Echometer, Sensor, VSD y Soportes para los pozos de este turno.</p>
+        </div>
+        <style>
+            @keyframes modal-spin {
+                to { transform: rotate(360deg); }
+            }
+        </style>
+    `;
 
     const allReports = Array.isArray(reports) ? reports : [];
 
@@ -2908,20 +2935,8 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
         console.warn('Error fetching existing journey attachments:', err);
     }
 
-    let allPozoOptions = [];
-    try {
-        const uniqueWells = await getUniquePozos().catch(() => []);
-        allPozoOptions = (Array.isArray(uniqueWells) ? uniqueWells : [])
-            .map(w => typeof w === 'string' ? w : (w?.pozo || w?.pozo_name || w?.name))
-            .filter(Boolean);
-    } catch (e) {
-        console.warn('Error getting unique pozos:', e);
-    }
-
-    // Ordenar los pozos del campo por orden natural alfanumérico (CEI0003, CEI0006, CEI0007..., TOM0008, TOM0010...)
-    allPozoOptions = Array.from(new Set(allPozoOptions)).sort((a, b) => {
-        return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
-    });
+    // Filtrar la lista de pozos extras para que correspondan ÚNICAMENTE al área/contrato operativo activo
+    let allPozoOptions = Array.isArray(availablePozos) ? [...availablePozos] : [];
 
      const extraWellPickerHtml = `
         <div style="background:#ffffff; border-radius:14px; border:1px solid #cbd5e1; padding:14px 16px; margin-bottom:14px; display:flex; flex-direction:column; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
@@ -3066,10 +3081,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                                         </button>
                                     </div>
                                     <div style="display:flex; gap:6px; align-items:center; margin-top:2px;">
-                                        <input type="text" class="input-photo-comment" data-doc-id="${escapeHtml(doc.id)}" value="${escapeHtml(userComment)}" placeholder="Escribe un motivo/comentario (ej: falla de polea)" style="flex:1; font-size:0.75rem; padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; box-sizing:border-box; height:32px;">
-                                        <button type="button" class="btn-save-photo-comment" data-doc-id="${escapeHtml(doc.id)}" style="background:#059669; color:#fff; border:none; border-radius:6px; padding:6px 10px; font-size:0.75rem; font-weight:700; cursor:pointer; flex-shrink:0; display:inline-flex; align-items:center; gap:4px; height:32px;">
-                                            💾 Guardar
-                                        </button>
+                                        <input type="text" class="input-photo-comment" data-doc-id="${escapeHtml(doc.id)}" data-original="${escapeHtml(userComment)}" value="${escapeHtml(userComment)}" placeholder="💬 Comentario opcional (se guarda automáticamente)" style="flex:1; font-size:0.75rem; padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; box-sizing:border-box; height:32px; transition: border-color 0.3s;">
                                     </div>
                                 </div>
                             `;
@@ -3149,7 +3161,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
 
                     <!-- Contenido de Acordeón -->
                     <div class="well-accordion-content" style="display: ${isExpanded ? 'block' : 'none'}; padding:16px; background:#fff;">
-                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
+                        <div style="display:flex; flex-direction:column; gap:14px;">
                             ${echometerFieldHtml}
                             ${sensorFieldHtml}
                             ${vsdFieldHtml}
@@ -3419,7 +3431,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
         };
     });
 
-    const saveComment = async (docId, commentText, inputElement, btnElement) => {
+    const saveComment = async (docId, commentText, inputElement) => {
         const docObj = existingDocs.find(d => d.id === docId);
         let ticketTag = '';
         if (docObj && docObj.descripcion) {
@@ -3431,19 +3443,16 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
         const newDescription = `[JORNADA_ID:${tempJourneyTag}]${ticketTag} ${commentText}`;
         try {
             if (inputElement) inputElement.style.borderColor = '#2563eb';
-            if (btnElement) {
-                btnElement.disabled = true;
-                btnElement.innerText = '⏳ ...';
-            }
 
             await updateWellDocumentDescription(docId, newDescription);
 
-            const docObj = existingDocs.find(d => d.id === docId);
-            if (docObj) {
-                docObj.descripcion = newDescription;
+            const docObj2 = existingDocs.find(d => d.id === docId);
+            if (docObj2) {
+                docObj2.descripcion = newDescription;
             }
 
             if (inputElement) {
+                inputElement.dataset.original = commentText;
                 inputElement.style.borderColor = '#10b981';
                 setTimeout(() => {
                     inputElement.style.borderColor = '#cbd5e1';
@@ -3453,30 +3462,18 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             console.error('Error guardando comentario:', err);
             if (inputElement) inputElement.style.borderColor = '#ef4444';
             showAlert(`Error al guardar comentario: ${err.message}`, 'error');
-        } finally {
-            if (btnElement) {
-                btnElement.disabled = false;
-                btnElement.innerText = '💾 Guardar';
-            }
         }
     };
 
+    // Auto-guardado al salir del campo (blur) — sin botón necesario
     body.querySelectorAll('.input-photo-comment').forEach(input => {
-        input.onchange = async () => {
+        input.addEventListener('blur', async () => {
             const docId = input.dataset.docId;
-            const btn = input.closest('div').querySelector('.btn-save-photo-comment');
-            await saveComment(docId, String(input.value || '').trim(), input, btn);
-        };
-    });
-
-    body.querySelectorAll('.btn-save-photo-comment').forEach(btn => {
-        btn.onclick = async () => {
-            const docId = btn.dataset.docId;
-            const rowContainer = btn.closest('div');
-            const input = rowContainer.querySelector('.input-photo-comment');
-            if (!docId || !input) return;
-            await saveComment(docId, String(input.value || '').trim(), input, btn);
-        };
+            const currentVal = String(input.value || '').trim();
+            const originalVal = String(input.dataset.original || '').trim();
+            if (currentVal === originalVal) return; // Sin cambios, no guardar
+            await saveComment(docId, currentVal, input);
+        });
     });
 
     body.querySelectorAll('.btn-remove-extra-well').forEach(btn => {

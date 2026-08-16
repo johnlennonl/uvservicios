@@ -400,7 +400,12 @@ export async function previewMonitoringSync(records = []) {
     };
 }
 
+let uniquePozosCache = null;
+
 export async function getUniquePozos() {
+    if (uniquePozosCache) {
+        return uniquePozosCache;
+    }
     const [monitoringRows, technicalRows, besRows] = await Promise.all([
         fetchAllRows('monitoreo_pozos', 'pozo_name'),
         fetchAllRows('well_production', 'pozo_name'),
@@ -411,7 +416,8 @@ export async function getUniquePozos() {
         .map(item => item?.pozo_name?.trim())
         .filter(Boolean);
 
-    return [...new Set(allPozos)];
+    uniquePozosCache = [...new Set(allPozos)];
+    return uniquePozosCache;
 }
 
 export async function getPozosHistorySummary() {

@@ -510,39 +510,7 @@ const state = {
     autoEditPozoName: null // NUEVO: para abrir el modal de edición automáticamente
 };
 
-const elements = {
-    refreshButton: document.getElementById('campo-admin-refresh-btn'),
-    alertConfigButton: document.getElementById('campo-admin-alert-config-btn'),
-    searchInput: document.getElementById('campo-admin-search'),
-    historicalExportButton: document.getElementById('campo-admin-historical-export-btn'),
-    historicalAuditButton: document.getElementById('campo-admin-historical-audit-btn'),
-    filterGroup: document.getElementById('campo-admin-filter-group'),
-    toolbarStatus: document.getElementById('campo-admin-toolbar-status'),
-    sideCopy: document.getElementById('campo-admin-side-copy'),
-    visibleCount: document.getElementById('campo-admin-visible-count'),
-    reviewCount: document.getElementById('campo-admin-review-count'),
-    reportCount: document.getElementById('campo-admin-report-count'),
-    listCount: document.getElementById('campo-admin-list-count'),
-    list: document.getElementById('campo-admin-list'),
-    queueTitle: document.getElementById('campo-admin-queue-title'),
-    queueSubtitle: document.getElementById('campo-admin-queue-subtitle'),
-    detailShell: document.getElementById('campo-admin-detail-shell'),
-    sidebarIncidentsPanel: document.getElementById('campo-admin-sidebar-incidents-panel'),
-    sidebarIncidentsCount: document.getElementById('campo-admin-sidebar-incidents-count'),
-    sidebarIncidentsList: document.getElementById('campo-admin-sidebar-incidents-list'),
-    recordModal: document.getElementById('campo-admin-record-modal'),
-    recordModalBody: document.getElementById('campo-admin-record-modal-body'),
-    incidentModal: document.getElementById('campo-admin-incident-modal'),
-    incidentModalBody: document.getElementById('campo-admin-incident-modal-body'),
-    historicalModal: document.getElementById('campo-admin-historical-modal'),
-    historicalModalBody: document.getElementById('campo-admin-historical-modal-body'),
-    historicalAuditModal: document.getElementById('campo-admin-historical-audit-modal'),
-    historicalAuditModalBody: document.getElementById('campo-admin-historical-audit-modal-body'),
-    alertConfigModal: document.getElementById('campo-admin-alert-config-modal'),
-    alertConfigModalBody: document.getElementById('campo-admin-alert-config-modal-body'),
-    logoutButton: document.getElementById('logout-btn'),
-    mobileLogoutButton: document.getElementById('mobile-logout-btn')
-};
+const elements = {};
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -3661,14 +3629,12 @@ async function renderDetail(detail) {
         if (soportesListEl) {
             soportesListEl.innerHTML = soportesDocs.length > 0 ? soportesDocs.map(doc => {
                 const desc = String(doc.descripcion || '').trim();
-                const prefix = `[JORNADA_ID:${journey.id}]`;
-                let userComment = desc;
-                if (userComment.startsWith(prefix)) {
-                    userComment = userComment.slice(prefix.length).trim();
-                } else {
-                    userComment = userComment.replace(/^\[JORNADA_ID:[^\]]+\]\s*/i, '');
-                }
-                if (userComment === 'Soporte de campo' || userComment === 'Archivo de campo' || userComment.includes('Adjunto enviado desde captura')) {
+                let userComment = desc
+                    .replace(/\[JORNADA_ID:[^\]]+\]/gi, '')
+                    .replace(/\[TICKET_ID:[^\]]+\]/gi, '')
+                    .trim();
+
+                if (userComment === 'Soporte de campo' || userComment === 'Archivo de campo' || userComment.includes('Adjunto enviado desde captura') || !userComment) {
                     userComment = '';
                 }
 
@@ -4090,6 +4056,38 @@ function handleFilterClick(event) {
 }
 
 export async function initCampoAdmin() {
+    elements.refreshButton = document.getElementById('campo-admin-refresh-btn');
+    elements.alertConfigButton = document.getElementById('campo-admin-alert-config-btn');
+    elements.searchInput = document.getElementById('campo-admin-search');
+    elements.historicalExportButton = document.getElementById('campo-admin-historical-export-btn');
+    elements.historicalAuditButton = document.getElementById('campo-admin-historical-audit-btn');
+    elements.filterGroup = document.getElementById('campo-admin-filter-group');
+    elements.toolbarStatus = document.getElementById('campo-admin-toolbar-status');
+    elements.sideCopy = document.getElementById('campo-admin-side-copy');
+    elements.visibleCount = document.getElementById('campo-admin-visible-count');
+    elements.reviewCount = document.getElementById('campo-admin-review-count');
+    elements.reportCount = document.getElementById('campo-admin-report-count');
+    elements.listCount = document.getElementById('campo-admin-list-count');
+    elements.list = document.getElementById('campo-admin-list');
+    elements.queueTitle = document.getElementById('campo-admin-queue-title');
+    elements.queueSubtitle = document.getElementById('campo-admin-queue-subtitle');
+    elements.detailShell = document.getElementById('campo-admin-detail-shell');
+    elements.sidebarIncidentsPanel = document.getElementById('campo-admin-sidebar-incidents-panel');
+    elements.sidebarIncidentsCount = document.getElementById('campo-admin-sidebar-incidents-count');
+    elements.sidebarIncidentsList = document.getElementById('campo-admin-sidebar-incidents-list');
+    elements.recordModal = document.getElementById('campo-admin-record-modal');
+    elements.recordModalBody = document.getElementById('campo-admin-record-modal-body');
+    elements.incidentModal = document.getElementById('campo-admin-incident-modal');
+    elements.incidentModalBody = document.getElementById('campo-admin-incident-modal-body');
+    elements.historicalModal = document.getElementById('campo-admin-historical-modal');
+    elements.historicalModalBody = document.getElementById('campo-admin-historical-modal-body');
+    elements.historicalAuditModal = document.getElementById('campo-admin-historical-audit-modal');
+    elements.historicalAuditModalBody = document.getElementById('campo-admin-historical-audit-modal-body');
+    elements.alertConfigModal = document.getElementById('campo-admin-alert-config-modal');
+    elements.alertConfigModalBody = document.getElementById('campo-admin-alert-config-modal-body');
+    elements.logoutButton = document.getElementById('logout-btn');
+    elements.mobileLogoutButton = document.getElementById('mobile-logout-btn');
+
     const session = await getSession();
     if (!session) {
         window.location.href = 'index.html';

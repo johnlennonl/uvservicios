@@ -62,6 +62,15 @@ graph TD
   * Se actualizaron las validaciones en JS ([field-validation.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/modules/field/field-validation.js), [field-controller.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/modules/field/field-controller.js) y [field-formatters.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/modules/field/field-formatters.js)) para clasificarlo como estado inactivo/OFF (saltando la verificación eléctrica pero forzando el llenado obligatorio de **Diagnóstico** y **Observaciones**).
   * Se integró en [estadisticas.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/estadisticas.js) para clasificarlo correctamente como pozo "OFF" en las gráficas, sumarios y listados de incidencias.
 
+### 🚀 Optimización del Modal de Adjuntos y Filtrado de Pozos Extras
+* **Problema detectado:** 
+  1. Al abrir el selector de "Pozos extras" en el modal de adjuntos, se listaban todos los pozos de la base de datos (mezclando Ceiba, Tomoporo, Mene Grande, etc.) en lugar de limitarse a los pozos del contrato en el que trabaja el técnico.
+  2. Debido a las llamadas en red asíncronas para resolver previsualizaciones y pozos extras, el modal se cargaba en blanco por varios segundos antes de pintar los datos, dando una sensación de lentitud o congelamiento.
+* **Solución aplicada:**
+  * Se reemplazó la llamada pesada de base de datos por `availablePozos` (el catálogo pre-cargado de la sesión activa en el formulario) para listar los pozos extras. Ahora solo se muestran los pozos correspondientes al contrato activo del operador (Ceiba / Tomoporo).
+  * Se agregó una animación de carga (spinner premium CSS) que se inyecta inmediatamente al presionar el botón de adjuntos, indicándole al usuario de forma clara el progreso de la sincronización de archivos.
+  * Se corrigió la función de comentarios para que no borre la etiqueta de ticket (`[TICKET_ID:...]`) al guardar descripciones de fotos.
+
 ---
 
 ## 🗄️ Parche de Base de Datos (Supabase)
