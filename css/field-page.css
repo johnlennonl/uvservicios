@@ -639,6 +639,23 @@ body.operational-scope-bmm {
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.field-input-group input[type="date"],
+.field-input-group input[type="time"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.field-input-group input[type="date"]::-webkit-date-and-time-value,
+.field-input-group input[type="time"]::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+    padding: 0;
+    min-height: 1.2em;
+    width: 100%;
+}
+
+
 .field-pozo-selector {
     position: relative;
 }
