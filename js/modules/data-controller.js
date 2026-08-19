@@ -564,7 +564,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         <th>Fecha Prueba</th>
                         <th>Nivel Dinámico</th>
                         <th>Sumergencia</th>
-                        <th>Presión PIP Echómetro</th>
+                        <th>Presión PIP Echometer</th>
                         <th>Soporte</th>
                         ${currentAccessProfile.canEditData ? '<th style="text-align: right;">Acciones</th>' : '<th style="text-align: right;"></th>'}
                     </tr>
@@ -1052,7 +1052,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 document.getElementById('table-title').textContent = activeHistoryMode === 'technical'
                     ? `Historial de Medición Técnica: ${activePozo}`
                     : (activeHistoryMode === 'level'
-                        ? `Historial de Pruebas de Nivel (Echó.): ${activePozo}`
+                        ? `Historial de Pruebas de Nivel (Echometer): ${activePozo}`
                         : `Historial Operativo: ${activePozo}`);
                 renderTable();
             } catch (err) {
@@ -1966,18 +1966,18 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
             try {
                 let extraData = {};
+                const cleanTime = String(record.hora || '').substring(0, 5); // Obtiene "HH:MM"
                 
                 // 1. Intentar buscar en App de Campo (raw_payload)
                 const { data: fieldData } = await supabase
                     .from('field_journey_records')
-                    .select('raw_payload')
+                    .select('report_time, raw_payload')
                     .eq('pozo', pozo)
-                    .eq('report_date', record.fecha)
-                    .eq('report_time', record.hora)
-                    .limit(1);
+                    .eq('report_date', record.fecha);
 
                 if (fieldData && fieldData.length > 0) {
-                    extraData = fieldData[0].raw_payload || {};
+                    const match = fieldData.find(f => String(f.report_time || '').substring(0, 5) === cleanTime) || fieldData[0];
+                    extraData = match.raw_payload || {};
                 } else {
                     // 2. Intentar buscar en Excel Historico (row_data)
                     const { data: excelData } = await supabase
@@ -1987,7 +1987,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         .eq('report_date', record.fecha);
                         
                     if (excelData && excelData.length > 0) {
-                        const exactMatch = excelData.find(r => r.report_time === record.hora) || excelData[0];
+                        const exactMatch = excelData.find(r => String(r.report_time || '').substring(0, 5) === cleanTime) || excelData[0];
                         extraData = exactMatch.row_data || {};
                     }
                 }
@@ -2010,7 +2010,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
         async function handleDeleteLevelTest(id) {
             const result = await Swal.fire({
                 title: '¿Confirmar eliminación?',
-                text: "Esta acción borrará esta prueba de nivel de Echómetro permanentemente.",
+                text: "Esta acción borrará esta prueba de nivel de Echometer permanentemente.",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#EF4444',

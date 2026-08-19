@@ -425,7 +425,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('pump_pozo_name')?.addEventListener('change', () => syncPumpPozoContext());
             document.getElementById('level_pozo_name')?.addEventListener('change', () => syncLevelPozoContext());
 
-            // Eventos para el soporte del echómetro
+            // Eventos para el soporte del echometer
             const btnSelectLevelFile = document.getElementById('btn-select-level-file');
             const levelFileSoporte = document.getElementById('level_file_soporte');
             const levelFileName = document.getElementById('level-file-name');
@@ -891,7 +891,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                     const { getDocumentDownloadUrl } = await import('../services/well-documents-service.js');
                     const url = await getDocumentDownloadUrl(levelData.file_path);
                     if (fileNameSpan) {
-                        fileNameSpan.innerHTML = `<a href="${url}" target="_blank" style="color: #2563eb; font-weight: 700; text-decoration: underline;">👁️ Ver Soporte Echó.</a>`;
+                        fileNameSpan.innerHTML = `<a href="${url}" target="_blank" style="color: #2563eb; font-weight: 700; text-decoration: underline;">👁️ Ver Soporte Echometer.</a>`;
                     }
                     if (clearBtn) {
                         clearBtn.style.display = 'inline-block';
@@ -1132,7 +1132,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                     
                     Swal.fire({
                         title: 'Subiendo Soporte...',
-                        text: 'Cargando archivo del echómetro a Supabase Storage.',
+                        text: 'Cargando archivo del echometer a Supabase Storage.',
                         allowOutsideClick: false,
                         didOpen: () => { Swal.showLoading(); }
                     });
@@ -1172,7 +1172,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 // Cerrar modal
                 window.closeGestionModal('modal-level-entry', true);
 
-                Swal.fire({ icon: 'success', title: 'Prueba de Nivel Guardada', text: 'La medición del nivel por echómetro fue guardada exitosamente.', timer: 2400, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Prueba de Nivel Guardada', text: 'La medición del nivel por echometer fue guardada exitosamente.', timer: 2400, showConfirmButton: false });
             } catch (err) {
                 Swal.fire({ icon: 'error', title: 'Fallo al Guardar', text: err.message });
             } finally {

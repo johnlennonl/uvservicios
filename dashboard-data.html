@@ -229,8 +229,8 @@
                             </div>
                             <span class="gestion-bento-badge" id="level-pozo-bento-badge">Pozo: Sin seleccionar</span>
                         </div>
-                        <h2 class="gestion-bento-title">Niveles / Echómetro</h2>
-                        <p class="gestion-bento-desc">Carga y consulta mediciones de nivel dinámico, sumergencia y presión de fondo PIP por Echómetro.</p>
+                        <h2 class="gestion-bento-title">Niveles / Echometer</h2>
+                        <p class="gestion-bento-desc">Carga y consulta mediciones de nivel dinámico, sumergencia y presión de fondo PIP por Echometer.</p>
                     </div>
                     <button type="button" class="gestion-bento-btn level" style="background: #10b981; color: #ffffff;" onclick="event.stopPropagation(); openGestionModal('modal-level-entry')">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -730,7 +730,7 @@
                 <div class="gestion-modal-dialog">
                     <div class="gestion-modal-header">
                         <div class="gestion-modal-header-title">
-                            <h3>Niveles de Fluido (Echómetro)</h3>
+                            <h3>Niveles de Fluido (Echometer)</h3>
                             <button type="button" class="gestion-info-btn" onclick="toggleGestionInfo('info-level')" title="¿Cómo funciona y qué parámetros debe llevar el Excel?">?</button>
                         </div>
                         <button type="button" class="gestion-modal-close-btn" onclick="closeGestionModal('modal-level-entry')" aria-label="Cerrar">&times;</button>
@@ -756,7 +756,7 @@
                                 <div class="integrated-upload-icon"><img src="https://cdn-icons-png.flaticon.com/512/17018/17018393.png" alt="Icono de carga de archivo" width="44" height="44" aria-hidden="true"></div>
                                 <div>
                                     <p class="integrated-upload-title">Archivo CSV o Excel de Niveles</p>
-                                    <p class="integrated-upload-subtitle">Carga masiva de mediciones de niveles y PIP de Echómetro.</p>
+                                    <p class="integrated-upload-subtitle">Carga masiva de mediciones de niveles y PIP de Echometer.</p>
                                 </div>
                                 <input type="file" id="level-file-input" accept=".csv,.xlsx,.xls" style="display: none;">
                             </div>
@@ -803,7 +803,7 @@
                                     <input type="number" id="presion_pip_val" step="any" required placeholder="Ej: 475" min="0">
                                 </div>
                                 <div class="form-group" style="grid-column: span 2;">
-                                    <label>Soporte Echómetro (Imagen o PDF - Opcional)</label>
+                                     <label>Soporte Echometer (Imagen o PDF - Opcional)</label>
                                     <div class="file-upload-wrapper" style="position: relative; display: flex; align-items: center; gap: 10px; margin-top: 5px;">
                                         <button type="button" id="btn-select-level-file" class="btn-secondary" style="padding: 10px 15px; border-radius: 8px; border: 1px dashed #cbd5e1; background: #f8fafc; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; color: #475569;">
                                             📁 Seleccionar Archivo
