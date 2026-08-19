@@ -380,6 +380,36 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('tech_pozo_name')?.addEventListener('change', () => syncTechnicalPozoContext());
             document.getElementById('pump_pozo_name')?.addEventListener('change', () => syncPumpPozoContext());
             document.getElementById('level_pozo_name')?.addEventListener('change', () => syncLevelPozoContext());
+
+            // Eventos para el soporte del echómetro
+            const btnSelectLevelFile = document.getElementById('btn-select-level-file');
+            const levelFileSoporte = document.getElementById('level_file_soporte');
+            const levelFileName = document.getElementById('level-file-name');
+            const btnClearLevelFile = document.getElementById('btn-clear-level-file');
+
+            btnSelectLevelFile?.addEventListener('click', () => {
+                levelFileSoporte?.click();
+            });
+
+            levelFileSoporte?.addEventListener('change', () => {
+                if (levelFileSoporte.files && levelFileSoporte.files.length > 0) {
+                    const file = levelFileSoporte.files[0];
+                    if (levelFileName) levelFileName.textContent = file.name;
+                    if (btnClearLevelFile) btnClearLevelFile.style.display = 'inline-block';
+                } else {
+                    if (levelFileName) levelFileName.textContent = 'Ningún archivo seleccionado';
+                    if (btnClearLevelFile) btnClearLevelFile.style.display = 'none';
+                }
+            });
+
+            btnClearLevelFile?.addEventListener('click', () => {
+                if (levelFileSoporte) levelFileSoporte.value = '';
+                if (levelFileName) levelFileName.textContent = 'Ningún archivo seleccionado';
+                if (btnClearLevelFile) {
+                    btnClearLevelFile.style.display = 'none';
+                    delete btnClearLevelFile.dataset.filePath;
+                }
+            });
             document.getElementById('btn-new-manual-entry')?.addEventListener('click', prepareNewManualEntry);
             document.getElementById('btn-close-manual-form')?.addEventListener('click', () => {
                 resetForm();
@@ -523,19 +553,19 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             
             await updatePozoRecordStatus(pozoName, 'level');
             if (!pozoName) {
-                populateLevelForm(null, { pozo_name: '' });
+                await populateLevelForm(null, { pozo_name: '' });
                 return;
             }
 
             try {
                 const tests = await getWellLevelTests(pozoName);
                 const latestTest = tests && tests.length > 0 ? tests[0] : null;
-                populateLevelForm(latestTest, {
+                await populateLevelForm(latestTest, {
                     pozo_name: pozoName
                 });
             } catch (e) {
                 console.error('Error al sincronizar contexto de nivel:', e);
-                populateLevelForm(null, { pozo_name: pozoName });
+                await populateLevelForm(null, { pozo_name: pozoName });
             }
         }
 
@@ -795,13 +825,43 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('tech-submit-btn').querySelector('.btn-text').textContent = 'Guardar Producción Técnica';
         }
 
-        function populateLevelForm(levelData = null, context = {}) {
+        async function populateLevelForm(levelData = null, context = {}) {
             const pozoName = context.pozo_name || levelData?.pozo_name || '';
             document.getElementById('level_pozo_name').value = pozoName;
             document.getElementById('fecha_level').value = levelData?.fecha || '';
             document.getElementById('nivel_dinamico_val').value = levelData?.nivel_dinamico ?? '';
             document.getElementById('sumergencia_val').value = levelData?.sumergencia ?? '';
             document.getElementById('presion_pip_val').value = levelData?.presion_pip ?? '';
+
+            // Mostrar soporte existente si hay
+            const fileNameSpan = document.getElementById('level-file-name');
+            const clearBtn = document.getElementById('btn-clear-level-file');
+            const fileInput = document.getElementById('level_file_soporte');
+            if (fileInput) fileInput.value = '';
+
+            if (levelData?.file_path) {
+                try {
+                    const { getDocumentDownloadUrl } = await import('../services/well-documents-service.js');
+                    const url = await getDocumentDownloadUrl(levelData.file_path);
+                    if (fileNameSpan) {
+                        fileNameSpan.innerHTML = `<a href="${url}" target="_blank" style="color: #2563eb; font-weight: 700; text-decoration: underline;">👁️ Ver Soporte Echó.</a>`;
+                    }
+                    if (clearBtn) {
+                        clearBtn.style.display = 'inline-block';
+                        clearBtn.dataset.filePath = levelData.file_path;
+                    }
+                } catch (e) {
+                    console.error('Error al generar enlace de soporte de nivel:', e);
+                    if (fileNameSpan) fileNameSpan.textContent = 'Archivo registrado (error al enlazar)';
+                }
+            } else {
+                if (fileNameSpan) fileNameSpan.textContent = 'Ningún archivo seleccionado';
+                if (clearBtn) {
+                    clearBtn.style.display = 'none';
+                    delete clearBtn.dataset.filePath;
+                }
+            }
+
             setStoredSelectedPozo(pozoName);
         }
 
@@ -811,6 +871,17 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('nivel_dinamico_val').value = '';
             document.getElementById('sumergencia_val').value = '';
             document.getElementById('presion_pip_val').value = '';
+
+            const fileInput = document.getElementById('level_file_soporte');
+            if (fileInput) fileInput.value = '';
+            const fileNameSpan = document.getElementById('level-file-name');
+            if (fileNameSpan) fileNameSpan.textContent = 'Ningún archivo seleccionado';
+            const clearBtn = document.getElementById('btn-clear-level-file');
+            if (clearBtn) {
+                clearBtn.style.display = 'none';
+                delete clearBtn.dataset.filePath;
+            }
+
             document.getElementById('level-submit-btn').querySelector('.btn-text').textContent = 'Guardar Pruebas de Nivel';
         }
 
@@ -999,11 +1070,53 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                     fecha: document.getElementById('fecha_level').value || null,
                     nivel_dinamico: parseFloat(document.getElementById('nivel_dinamico_val').value) || 0,
                     sumergencia: parseFloat(document.getElementById('sumergencia_val').value) || 0,
-                    presion_pip: parseFloat(document.getElementById('presion_pip_val').value) || 0
+                    presion_pip: parseFloat(document.getElementById('presion_pip_val').value) || 0,
+                    file_path: document.getElementById('btn-clear-level-file')?.dataset.filePath || null
                 };
 
                 if (!isPozoAllowedByActiveScope(levelData.pozo_name)) {
                     throw new Error(`El pozo ${levelData.pozo_name || '--'} no pertenece al contrato activo.`);
+                }
+
+                // Subir archivo si se seleccionó uno
+                const fileInput = document.getElementById('level_file_soporte');
+                if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    
+                    Swal.fire({
+                        title: 'Subiendo Soporte...',
+                        text: 'Cargando archivo del echómetro a Supabase Storage.',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    const { supabase } = await import('../supabaseClient.js');
+                    const sanitizeFileName = (name) => {
+                        return String(name)
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .replace(/[^a-zA-Z0-9._-]/g, '_');
+                    };
+
+                    const cleanPozo = String(levelData.pozo_name).trim().toUpperCase();
+                    const cleanOperationalScope = String(levelData.operational_scope || 'ceiba_tomoporo').trim().toLowerCase();
+                    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin';
+                    const sanitizedName = sanitizeFileName(file.name);
+                    const timeStamp = Date.now();
+                    const filePath = `${cleanOperationalScope}/${cleanPozo}/REGISTROS_ECHOMETER/${timeStamp}_${sanitizedName}`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from('expedientes-pozos')
+                        .upload(filePath, file, {
+                            cacheControl: '3600',
+                            upsert: false
+                        });
+
+                    if (uploadError) {
+                        throw new Error(`Error en el almacenamiento de Supabase Storage: ${uploadError.message}`);
+                    }
+
+                    levelData.file_path = filePath;
                 }
 
                 await saveLevelTest(levelData);

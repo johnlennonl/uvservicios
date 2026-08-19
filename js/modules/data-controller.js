@@ -565,6 +565,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         <th>Nivel Dinámico</th>
                         <th>Sumergencia</th>
                         <th>Presión PIP Echómetro</th>
+                        <th>Soporte</th>
                         ${currentAccessProfile.canEditData ? '<th style="text-align: right;">Acciones</th>' : '<th style="text-align: right;"></th>'}
                     </tr>
                 `;
@@ -683,6 +684,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             document.getElementById('ticket-shift').addEventListener('change', loadDailyTicketData);
             document.getElementById('btn-generate-daily-ticket').addEventListener('click', loadDailyTicketData);
 
+            setupDataPageEventListeners();
             await initPozos();
         }
 
@@ -692,6 +694,11 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 pozoSummaries = (summaries || []).filter(item => isPozoAllowedByActiveScope(item.pozo_name));
                 renderPozoOptions();
 
+                const input = document.getElementById('pozo-selector-input');
+                if (input) {
+                    input.placeholder = "Busca o selecciona un pozo";
+                }
+
                 if (!pozoSummaries || pozoSummaries.length === 0) {
                     document.getElementById('pozo-selector-menu').innerHTML = '<div class="pozo-selector-empty">No hay pozos registrados para el contrato activo.</div>';
                     return;
@@ -699,6 +706,10 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             } catch (err) {
                 console.error("Error loading pozos:", err);
                 Swal.fire({ icon: 'error', title: 'Error de Lectura', text: 'No se pudieron cargar los pozos.' });
+                const input = document.getElementById('pozo-selector-input');
+                if (input) {
+                    input.placeholder = "Error al cargar pozos";
+                }
             }
         }
 
@@ -781,52 +792,188 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             renderPozoOptions(ignoreSearch);
         }
 
-        document.getElementById('filter-date').addEventListener('change', (e) => {
-            const specDateInput = document.getElementById('input-specific-date');
-            if (e.target.value === 'SPECIFIC') {
-                specDateInput.style.display = 'inline-block';
-            } else {
-                specDateInput.style.display = 'none';
-                specDateInput.value = '';
-                loadPozoData();
+        function setupDataPageEventListeners() {
+            if (pozoOutsideClickListener) {
+                document.removeEventListener('click', pozoOutsideClickListener);
             }
-        });
+            pozoOutsideClickListener = (event) => {
+                const wrapper = document.querySelector('.pozo-selector-input-wrap');
+                if (wrapper && !wrapper.contains(event.target)) {
+                    const menu = document.getElementById('pozo-selector-menu');
+                    if (menu) {
+                        menu.classList.remove('active');
+                    }
+                    const input = document.getElementById('pozo-selector-input');
+                    if (activePozo && input && !input.value.trim()) {
+                        input.value = activePozo;
+                    }
+                }
+            };
+            document.addEventListener('click', pozoOutsideClickListener);
 
-        document.getElementById('input-specific-date').addEventListener('change', () => loadPozoData());
-        document.getElementById('pozo-selector-input').addEventListener('focus', () => {
-            const input = document.getElementById('pozo-selector-input');
-            if (activePozo && input.value.trim() === activePozo) {
-                input.select();
+            const filterDateEl = document.getElementById('filter-date');
+            if (filterDateEl) {
+                filterDateEl.addEventListener('change', (e) => {
+                    const specDateInput = document.getElementById('input-specific-date');
+                    if (e.target.value === 'SPECIFIC') {
+                        specDateInput.style.display = 'inline-block';
+                    } else {
+                        specDateInput.style.display = 'none';
+                        specDateInput.value = '';
+                        loadPozoData();
+                    }
+                });
             }
-            openPozoMenu(activePozo && input.value.trim() === activePozo);
-        });
-        document.getElementById('pozo-selector-input').addEventListener('input', () => {
-            openPozoMenu(false);
-        });
-        document.getElementById('pozo-selector-toggle').addEventListener('click', () => {
-            const menu = document.getElementById('pozo-selector-menu');
-            const shouldOpen = !menu.classList.contains('active');
-            if (shouldOpen) {
-                openPozoMenu(true);
-            } else {
-                menu.classList.remove('active');
+
+            const inputSpecDateEl = document.getElementById('input-specific-date');
+            if (inputSpecDateEl) {
+                inputSpecDateEl.addEventListener('change', () => loadPozoData());
             }
-        });
-        document.getElementById('pozo-activity-filter').addEventListener('change', renderPozoOptions);
-        pozoOutsideClickListener = (event) => {
-            const wrapper = document.querySelector('.pozo-selector-input-wrap');
-            if (wrapper && !wrapper.contains(event.target)) {
-                const menu = document.getElementById('pozo-selector-menu');
-                if (menu) {
-                    menu.classList.remove('active');
-                }
-                const input = document.getElementById('pozo-selector-input');
-                if (activePozo && input && !input.value.trim()) {
-                    input.value = activePozo;
-                }
+
+            const pozoSelectorInputEl = document.getElementById('pozo-selector-input');
+            if (pozoSelectorInputEl) {
+                pozoSelectorInputEl.addEventListener('focus', () => {
+                    const input = document.getElementById('pozo-selector-input');
+                    if (activePozo && input.value.trim() === activePozo) {
+                        input.select();
+                    }
+                    openPozoMenu(activePozo && input.value.trim() === activePozo);
+                });
+                pozoSelectorInputEl.addEventListener('input', () => {
+                    openPozoMenu(false);
+                });
+                pozoSelectorInputEl.addEventListener('click', () => {
+                    const menu = document.getElementById('pozo-selector-menu');
+                    if (menu && !menu.classList.contains('active')) {
+                        openPozoMenu(true);
+                    }
+                });
             }
-        };
-        document.addEventListener('click', pozoOutsideClickListener);
+
+            const pozoSelectorToggleEl = document.getElementById('pozo-selector-toggle');
+            if (pozoSelectorToggleEl) {
+                pozoSelectorToggleEl.addEventListener('click', () => {
+                    const menu = document.getElementById('pozo-selector-menu');
+                    const shouldOpen = !menu.classList.contains('active');
+                    if (shouldOpen) {
+                        openPozoMenu(true);
+                    } else {
+                        menu.classList.remove('active');
+                    }
+                });
+            }
+
+            const pozoActivityFilterEl = document.getElementById('pozo-activity-filter');
+            if (pozoActivityFilterEl) {
+                pozoActivityFilterEl.addEventListener('change', renderPozoOptions);
+            }
+
+            const mainViewToggleEl = document.getElementById('main-view-toggle');
+            if (mainViewToggleEl) {
+                mainViewToggleEl.addEventListener('click', async () => {
+                    if (activeDataView === 'daily-ticket' && !document.getElementById('ticket-date')?.value) {
+                        Swal.fire({ icon: 'info', title: 'Fecha requerida', text: 'Selecciona una fecha antes de exportar el ticket diario.' });
+                        return;
+                    }
+
+                    if (activeDataView === 'daily-ticket' && currentTicketGroups.length === 0) {
+                        Swal.fire({ icon: 'info', title: 'Sin datos', text: 'No hay monitoreos para exportar en la fecha seleccionada.' });
+                        return;
+                    }
+
+                    if (activeDataView === 'history' && !activePozo) {
+                        Swal.fire({ icon: 'info', title: 'Selecciona un pozo', text: 'Primero selecciona un pozo o cambia al modo ticket diario.' });
+                        return;
+                    }
+
+                    const isStandard = !document.body.classList.contains('view-mode-report');
+                    if (isStandard) {
+                        if (activeDataView === 'history') {
+                            Swal.fire({
+                                title: 'Preparando reporte detallado...',
+                                text: 'Descargando parámetros extendidos para cada registro.',
+                                allowOutsideClick: false,
+                                didOpen: () => { Swal.showLoading(); }
+                            });
+
+                            try {
+                                const printContainer = document.getElementById('print-detailed-cards-container');
+                                printContainer.innerHTML = '';
+                                
+                                const excludeKeys = ['id', 'ID', 'created_at', 'updated_at', 'deleted_at', 'user_id', 'is_historical', 'synced_at', 'pozo_id', 'row_data', 'raw_payload'];
+                                const formatVal = (v) => (v !== null && v !== undefined && v !== '') ? v : '--';
+
+                                const [ {data: fieldData}, {data: excelData} ] = await Promise.all([
+                                    supabase.from('field_journey_records').select('report_date, report_time, raw_payload').eq('pozo', activePozo),
+                                    supabase.from('consolidated_dashboard_operational').select('report_date, report_time, row_data').eq('pozo', activePozo)
+                                ]);
+
+                                let cardsHtml = '<div style="display: flex; flex-direction: column; gap: 40px;">';
+
+                                currentRecordData.forEach(record => {
+                                    let extraData = {};
+                                    
+                                    if (fieldData) {
+                                        const fMatch = fieldData.find(f => f.report_date === record.fecha && f.report_time === record.hora);
+                                        if (fMatch) extraData = { ...fMatch.raw_payload };
+                                    }
+                                    if (Object.keys(extraData).length === 0 && excelData) {
+                                        const eMatch = excelData.find(e => e.report_date === record.fecha && e.report_time === record.hora) 
+                                                    || excelData.find(e => e.report_date === record.fecha);
+                                        if (eMatch) extraData = { ...eMatch.row_data };
+                                    }
+
+                                    const mergedData = { ...extraData, ...record };
+                                    
+                                    cardsHtml += `
+                                        <div class="print-detailed-card" style="page-break-inside: avoid; border: 1px solid #E2E8F0; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                                            <h3 style="margin-top: 0; color: #1E293B; border-bottom: 2px solid #3B82F6; padding-bottom: 10px; margin-bottom: 15px;">
+                                                Registro: ${formatVal(record.fecha)} ${formatVal(record.hora)}
+                                            </h3>
+                                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                                    `;
+
+                                    for (const [key, value] of Object.entries(mergedData)) {
+                                        if (excludeKeys.includes(key)) continue;
+                                        if (value === null || value === '' || value === undefined) continue;
+                                        
+                                        let cleanKey = key.replace(/_/g, ' ').toUpperCase();
+                                        cardsHtml += `
+                                            <div style="background: #F8FAFC; padding: 8px; border-radius: 6px; border: 1px solid #F1F5F9;">
+                                                <span style="display:block; font-size: 0.65rem; font-weight: 800; color: #64748B; margin-bottom: 2px;">${cleanKey}</span>
+                                                <strong style="color: #0F172A; font-size: 0.85rem; word-break: break-word;">${value}</strong>
+                                            </div>
+                                        `;
+                                    }
+
+                                    cardsHtml += `</div></div>`;
+                                });
+                                
+                                cardsHtml += '</div>';
+                                printContainer.innerHTML = cardsHtml;
+                                Swal.close();
+                            } catch (error) {
+                                console.error('Error preparando reporte detallado:', error);
+                                Swal.fire({ icon: 'error', title: 'Error', text: 'Hubo un error armando el reporte detallado. Se imprimirá el resumen estándar.' });
+                            }
+                        }
+
+                        updateReportExportHeader();
+                        document.body.classList.add('view-mode-report');
+                        if (activeDataView === 'history') document.body.classList.add('view-mode-report-history');
+
+                        document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER A LA WEB';
+
+                        setTimeout(printDataReport, 500);
+                    } else {
+                        document.body.classList.remove('view-mode-report');
+                        document.body.classList.remove('view-mode-report-history');
+                        document.getElementById('main-view-toggle').querySelector('span').textContent = 'EXPORTAR REPORTE';
+                        document.getElementById('print-detailed-cards-container').innerHTML = '';
+                    }
+                });
+            }
+        }
 
         async function selectPozo(pozo) {
             if (activeDataView !== 'history') return;
@@ -1168,7 +1315,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             const formatTextCell = (value, fallback = '--') => formatMonitoringTextCell(value, fallback);
 
             if (currentRecordData.length === 0) {
-                const emptyColumns = activeHistoryMode === 'technical' ? 5 : (activeHistoryMode === 'level' ? 5 : 9);
+                const emptyColumns = activeHistoryMode === 'technical' ? 5 : (activeHistoryMode === 'level' ? 6 : 9);
                 tbody.innerHTML = `<tr><td colspan="${emptyColumns}" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay registros históricos</td></tr>`;
                 return;
             }
@@ -1177,6 +1324,16 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 currentRecordData.forEach(record => {
                     const tr = document.createElement('tr');
                     tr.className = 'level-history-row';
+
+                    let soporteHtml = '<span style="color:#9ca3af; font-size: 0.85rem;">--</span>';
+                    if (record.file_path) {
+                        soporteHtml = `
+                            <button type="button" class="btn-view-soporte-level" data-file-path="${escapeHtml(record.file_path)}" style="padding:6px 12px; border-radius:8px; background:#2563eb; color:#fff; font-weight:700; font-size:0.8rem; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition: background 0.2s;">
+                                👁️ Ver Soporte
+                            </button>
+                        `;
+                    }
+
                     tr.innerHTML = `
                         <td>
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -1193,6 +1350,9 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         <td>
                             <div style="font-weight: 700; color: #0f172a;">${formatNumberCell(record.presion_pip, 0)} psi</div>
                         </td>
+                        <td>
+                            ${soporteHtml}
+                        </td>
                         <td style="text-align: right;">
                             ${currentAccessProfile.canEditData ? `
                                 <button type="button" class="btn-action-delete btn-delete-level" data-id="${record.id}" style="background:none; border:none; color:#EF4444; font-weight:700; cursor:pointer; padding:6px 10px;">🗑️ Eliminar</button>
@@ -1200,6 +1360,28 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         </td>
                     `;
                     tbody.appendChild(tr);
+                });
+
+                // Handler para abrir soporte
+                tbody.querySelectorAll('.btn-view-soporte-level').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const path = e.currentTarget.dataset.filePath;
+                        if (!path) return;
+                        try {
+                            btn.disabled = true;
+                            const originalHtml = btn.innerHTML;
+                            btn.innerHTML = 'Generando...';
+                            const { getDocumentDownloadUrl } = await import('../services/well-documents-service.js');
+                            const url = await getDocumentDownloadUrl(path);
+                            window.open(url, '_blank');
+                            btn.innerHTML = originalHtml;
+                            btn.disabled = false;
+                        } catch (err) {
+                            console.error('Error al obtener URL del soporte:', err);
+                            if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo abrir el soporte.' });
+                            btn.disabled = false;
+                        }
+                    });
                 });
 
                 if (currentAccessProfile.canEditData) {
@@ -1349,115 +1531,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             });
         }
 
-        // Alterna entre vista web normal y vista preparada para reporte.
-        document.getElementById('main-view-toggle').addEventListener('click', async () => {
-            if (activeDataView === 'daily-ticket' && !document.getElementById('ticket-date')?.value) {
-                Swal.fire({ icon: 'info', title: 'Fecha requerida', text: 'Selecciona una fecha antes de exportar el ticket diario.' });
-                return;
-            }
 
-            if (activeDataView === 'daily-ticket' && currentTicketGroups.length === 0) {
-                Swal.fire({ icon: 'info', title: 'Sin datos', text: 'No hay monitoreos para exportar en la fecha seleccionada.' });
-                return;
-            }
-
-            if (activeDataView === 'history' && !activePozo) {
-                Swal.fire({ icon: 'info', title: 'Selecciona un pozo', text: 'Primero selecciona un pozo o cambia al modo ticket diario.' });
-                return;
-            }
-
-            const isStandard = !document.body.classList.contains('view-mode-report');
-            if (isStandard) {
-                if (activeDataView === 'history') {
-                    // Mostrar loader porque puede tardar descargando datos
-                    Swal.fire({
-                        title: 'Preparando reporte detallado...',
-                        text: 'Descargando parámetros extendidos para cada registro.',
-                        allowOutsideClick: false,
-                        didOpen: () => { Swal.showLoading(); }
-                    });
-
-                    try {
-                        const printContainer = document.getElementById('print-detailed-cards-container');
-                        printContainer.innerHTML = '';
-                        
-                        const excludeKeys = ['id', 'ID', 'created_at', 'updated_at', 'deleted_at', 'user_id', 'is_historical', 'synced_at', 'pozo_id', 'row_data', 'raw_payload'];
-                        const formatVal = (v) => (v !== null && v !== undefined && v !== '') ? v : '--';
-
-                        // Agrupar por fechas para facilitar busqueda y no colapsar la db (aunque aqui buscaremos todo lo del pozo)
-                        // Para optimizar, traemos todos los del pozo de field_journey y consolidated
-                        const [ {data: fieldData}, {data: excelData} ] = await Promise.all([
-                            supabase.from('field_journey_records').select('report_date, report_time, raw_payload').eq('pozo', activePozo),
-                            supabase.from('consolidated_dashboard_operational').select('report_date, report_time, row_data').eq('pozo', activePozo)
-                        ]);
-
-                        let cardsHtml = '<div style="display: flex; flex-direction: column; gap: 40px;">';
-
-                        currentRecordData.forEach(record => {
-                            let extraData = {};
-                            
-                            // Match en field_journey_records
-                            if (fieldData) {
-                                const fMatch = fieldData.find(f => f.report_date === record.fecha && f.report_time === record.hora);
-                                if (fMatch) extraData = { ...fMatch.raw_payload };
-                            }
-                            // Si no, Match en excel
-                            if (Object.keys(extraData).length === 0 && excelData) {
-                                const eMatch = excelData.find(e => e.report_date === record.fecha && e.report_time === record.hora) 
-                                            || excelData.find(e => e.report_date === record.fecha); // fallback
-                                if (eMatch) extraData = { ...eMatch.row_data };
-                            }
-
-                            const mergedData = { ...extraData, ...record };
-                            
-                            cardsHtml += `
-                                <div class="print-detailed-card" style="page-break-inside: avoid; border: 1px solid #E2E8F0; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                                    <h3 style="margin-top: 0; color: #1E293B; border-bottom: 2px solid #3B82F6; padding-bottom: 10px; margin-bottom: 15px;">
-                                        Registro: ${formatVal(record.fecha)} ${formatVal(record.hora)}
-                                    </h3>
-                                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
-                            `;
-
-                            for (const [key, value] of Object.entries(mergedData)) {
-                                if (excludeKeys.includes(key)) continue;
-                                if (value === null || value === '' || value === undefined) continue;
-                                
-                                let cleanKey = key.replace(/_/g, ' ').toUpperCase();
-                                cardsHtml += `
-                                    <div style="background: #F8FAFC; padding: 8px; border-radius: 6px; border: 1px solid #F1F5F9;">
-                                        <span style="display:block; font-size: 0.65rem; font-weight: 800; color: #64748B; margin-bottom: 2px;">${cleanKey}</span>
-                                        <strong style="color: #0F172A; font-size: 0.85rem; word-break: break-word;">${value}</strong>
-                                    </div>
-                                `;
-                            }
-
-                            cardsHtml += `</div></div>`;
-                        });
-                        
-                        cardsHtml += '</div>';
-                        printContainer.innerHTML = cardsHtml;
-                        Swal.close();
-                    } catch (error) {
-                        console.error('Error preparando reporte detallado:', error);
-                        Swal.fire({ icon: 'error', title: 'Error', text: 'Hubo un error armando el reporte detallado. Se imprimirá el resumen estándar.' });
-                    }
-                }
-
-                updateReportExportHeader();
-                document.body.classList.add('view-mode-report');
-                if (activeDataView === 'history') document.body.classList.add('view-mode-report-history');
-
-                document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER A LA WEB';
-
-                // Abre automaticamente el dialogo de impresion o guardado en PDF.
-                setTimeout(printDataReport, 500);
-            } else {
-                document.body.classList.remove('view-mode-report');
-                document.body.classList.remove('view-mode-report-history');
-                document.getElementById('main-view-toggle').querySelector('span').textContent = 'EXPORTAR REPORTE';
-                document.getElementById('print-detailed-cards-container').innerHTML = ''; // Limpiar RAM
-            }
-        });
 
         // Abre el modal con todos los parametros del registro
         window.openFullDataModal = async function(recordId) {

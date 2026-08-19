@@ -43,7 +43,8 @@ export function normalizeLevelTestRecord(record = {}) {
         nivel_dinamico: record?.nivel_dinamico !== undefined && record?.nivel_dinamico !== null ? parseFloat(record.nivel_dinamico) : 0,
         sumergencia: record?.sumergencia !== undefined && record?.sumergencia !== null ? parseFloat(record.sumergencia) : 0,
         presion_pip: record?.presion_pip !== undefined && record?.presion_pip !== null ? parseFloat(record.presion_pip) : 0,
-        operational_scope: String(record?.operational_scope || '').trim().toLowerCase() || null
+        operational_scope: String(record?.operational_scope || '').trim().toLowerCase() || null,
+        file_path: record?.file_path || null
     };
 }
 
@@ -113,7 +114,21 @@ export async function saveLevelTest(data) {
             .upsert(normalized, { onConflict: 'pozo_name,fecha' })
             .select();
 
-        if (error) throw error;
+        if (error) {
+            // Si el error es porque la columna file_path no existe aún, reintentar sin ella
+            const msg = String(error?.message || '');
+            if (/file_path/i.test(msg) && /column|schema|cache|could not find/i.test(msg)) {
+                console.warn('[level-tests-service] La columna file_path no existe aún; reintentando sin ella.');
+                const { file_path, ...withoutFilePath } = normalized;
+                const { data: retryResult, error: retryError } = await supabase
+                    .from('well_level_tests')
+                    .upsert(withoutFilePath, { onConflict: 'pozo_name,fecha' })
+                    .select();
+                if (retryError) throw retryError;
+                return retryResult?.[0] || withoutFilePath;
+            }
+            throw error;
+        }
         return result?.[0] || normalized;
     } catch (error) {
         throw wrapLevelTestError(error);
@@ -272,12 +287,16 @@ export async function syncLevelTests(records = []) {
 export async function deleteLevelTest(id) {
     await ensureMonitoringWriteAccess();
     try {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('well_level_tests')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .select();
 
         if (error) throw error;
+        if (!data || data.length === 0) {
+            throw new Error('No tienes permisos suficientes en la base de datos (RLS) para eliminar esta prueba de nivel, o el registro ya fue eliminado.');
+        }
         return true;
     } catch (error) {
         throw wrapLevelTestError(error);

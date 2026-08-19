@@ -7,6 +7,7 @@ create table if not exists public.well_level_tests (
     sumergencia numeric(12,3) default 0,
     presion_pip numeric(12,2) default 0,
     operational_scope text not null references public.operational_contracts(scope_key) on update cascade,
+    file_path text,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
