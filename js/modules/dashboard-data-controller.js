@@ -424,6 +424,8 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('tech_pozo_name')?.addEventListener('change', () => syncTechnicalPozoContext());
             document.getElementById('pump_pozo_name')?.addEventListener('change', () => syncPumpPozoContext());
             document.getElementById('level_pozo_name')?.addEventListener('change', () => syncLevelPozoContext());
+            document.getElementById('fecha_level')?.addEventListener('change', () => syncLevelDateContext());
+
 
             // Eventos para el soporte del echometer
             const btnSelectLevelFile = document.getElementById('btn-select-level-file');
@@ -615,6 +617,41 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 await populateLevelForm(null, { pozo_name: pozoName });
             }
         }
+
+        async function syncLevelDateContext() {
+            const pozoName = document.getElementById('level_pozo_name').value.trim();
+            const selectedDate = document.getElementById('fecha_level').value;
+            if (!pozoName || !selectedDate) return;
+
+            try {
+                const tests = await getWellLevelTests(pozoName);
+                const matchingTest = tests.find(t => t.fecha === selectedDate);
+                
+                if (matchingTest) {
+                    await populateLevelForm(matchingTest, { pozo_name: pozoName });
+                    document.getElementById('fecha_level').value = selectedDate;
+                } else {
+                    document.getElementById('nivel_dinamico_val').value = '';
+                    document.getElementById('sumergencia_val').value = '';
+                    document.getElementById('presion_pip_val').value = '';
+                    
+                    const fileInput = document.getElementById('level_file_soporte');
+                    if (fileInput) fileInput.value = '';
+                    
+                    const fileNameSpan = document.getElementById('level-file-name');
+                    if (fileNameSpan) fileNameSpan.textContent = 'Ningún archivo seleccionado';
+                    
+                    const clearBtn = document.getElementById('btn-clear-level-file');
+                    if (clearBtn) {
+                        clearBtn.style.display = 'none';
+                        delete clearBtn.dataset.filePath;
+                    }
+                }
+            } catch (e) {
+                console.error('Error al sincronizar fecha de nivel:', e);
+            }
+        }
+
 
         // Carga el perfil BES maestro del pozo seleccionado en Gestion de Pozos.
         async function syncPumpPozoContext() {

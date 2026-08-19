@@ -26,7 +26,7 @@ const ROUTES = {
         destroy: (m) => m.destroyData()
     },
     'dashboard-data.html': {
-        load: () => import('../modules/dashboard-data-controller.js'),
+        load: () => import('../modules/dashboard-data-controller.js?v=20260819-1253'),
         init: (m) => m.initDashboardData(),
         destroy: (m) => m.destroyDashboardData()
     },

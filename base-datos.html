@@ -65,6 +65,10 @@
                 </div>
                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;">
                     <div id="database-operational-scope-switcher"></div>
+                    <button id="btn-create-folder" class="stats-generate-btn" style="height: 44px; padding:0 20px; background: #059669; border-color: #047857; display: none;">
+                        <i class="fa-solid fa-folder-plus"></i>
+                        <span>Nueva Carpeta</span>
+                    </button>
                     <button id="btn-open-upload-modal" class="stats-generate-btn" style="height: 44px; padding:0 20px;">
                         <i class="fa-solid fa-cloud-arrow-up"></i>
                         <span>Cargar Documento</span>
@@ -149,6 +153,32 @@
                         </div>
                     </div>
                     <div id="folders-grid" class="folders-grid"></div>
+                    <div id="folders-search-files-results" style="margin-top:24px; display:none;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 0.85rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-file-lines" style="color:#2563eb;"></i>
+                            Documentos coincidentes en este Pozo
+                        </h4>
+                        <div id="folders-search-files-grid" class="stats-table-wrap" style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:4px;"></div>
+                    </div>
+                </div>
+
+                <!-- VISTA NIVEL 4: RESULTADOS DE BÚSQUEDA GLOBAL -->
+                <div id="view-search-results-container" hidden>
+                    <div class="stats-card">
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:18px;">
+                            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                                <button type="button" id="btn-close-search" class="btn-back-nav" title="Cerrar búsqueda">
+                                    <i class="fa-solid fa-xmark"></i>
+                                    <span>Cerrar Búsqueda</span>
+                                </button>
+                                <div>
+                                    <h3 style="margin:0; font-size:1.2rem; font-weight:800; color:#0f172a;">Resultados de Búsqueda Global</h3>
+                                    <p class="stats-card-subtitle" style="margin:2px 0 0 0;">Coincidencias encontradas en todos los expedientes del contrato activo.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="search-results-table-grid"></div>
+                    </div>
                 </div>
 
                 <!-- VISTA NIVEL 3: VISOR & TABLA DE DOCUMENTOS -->
@@ -166,6 +196,15 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- Subcarpetas en el nivel actual -->
+                        <div id="subfolders-section" style="margin-bottom: 24px; display: none;">
+                            <h4 style="margin: 0 0 10px 0; font-size: 0.78rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-folder-tree" style="color:#2563eb;"></i>
+                                Subcarpetas
+                            </h4>
+                            <div id="subfolders-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;"></div>
+                        </div>
+
                         <div id="files-table-container"></div>
                     </div>
                 </div>
@@ -281,7 +320,7 @@
     </div>
 
     <!-- Scripts ES6 Modulares -->
-    <script type="module" src="js/modules/database/database-controller.js"></script>
+    <script type="module" src="js/modules/database/database-controller.js?v=20260819-1236"></script>
 </body>
 
 </html>
