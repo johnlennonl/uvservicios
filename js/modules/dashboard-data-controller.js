@@ -285,9 +285,33 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 if (input) setTimeout(() => { input.focus(); }, 60);
             };
 
-            window.closeGestionModal = function(modalId) {
+            window.closeGestionModal = function(modalId, forceClose = false) {
                 const modal = document.getElementById(modalId);
                 if (!modal) return;
+
+                // Si no es forzado, verificar si el formulario tiene datos
+                if (!forceClose) {
+                    const form = modal.querySelector('form');
+                    if (form && isFormDirty(form)) {
+                        Swal.fire({
+                            title: '¿Salir sin guardar?',
+                            text: 'Tienes datos sin guardar en el formulario. Si sales, perderás la información ingresada.',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#EF4444',
+                            cancelButtonColor: '#64748B',
+                            confirmButtonText: 'Sí, salir',
+                            cancelButtonText: 'Continuar editando'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                modal.classList.remove('open');
+                                document.body.style.overflow = '';
+                            }
+                        });
+                        return;
+                    }
+                }
+
                 modal.classList.remove('open');
                 document.body.style.overflow = '';
             };
@@ -297,6 +321,22 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                     window.closeGestionModal(modalId);
                 }
             };
+
+            // Detecta si un formulario tiene campos con datos ingresados
+            function isFormDirty(form) {
+                const inputs = form.querySelectorAll('input, select, textarea');
+                for (const input of inputs) {
+                    if (input.type === 'hidden' || input.type === 'file' || input.style.display === 'none') continue;
+                    if (input.type === 'checkbox' || input.type === 'radio') {
+                        if (input.checked) return true;
+                    } else if (input.tagName === 'SELECT') {
+                        if (input.selectedIndex > 0) return true;
+                    } else {
+                        if (input.value && input.value.trim() !== '') return true;
+                    }
+                }
+                return false;
+            }
 
             window.toggleGestionInfo = function(infoId) {
                 const card = document.getElementById(infoId);
@@ -387,7 +427,9 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             const levelFileName = document.getElementById('level-file-name');
             const btnClearLevelFile = document.getElementById('btn-clear-level-file');
 
-            btnSelectLevelFile?.addEventListener('click', () => {
+            btnSelectLevelFile?.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 levelFileSoporte?.click();
             });
 
@@ -1123,7 +1165,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 await refreshPozoLists();
                 
                 // Cerrar modal
-                window.closeGestionModal('modal-level-entry');
+                window.closeGestionModal('modal-level-entry', true);
 
                 Swal.fire({ icon: 'success', title: 'Prueba de Nivel Guardada', text: 'La medición del nivel por echómetro fue guardada exitosamente.', timer: 2400, showConfirmButton: false });
             } catch (err) {
@@ -2599,7 +2641,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 await syncLevelPozoContext();
                 
                 // Cerrar modal
-                window.closeGestionModal('modal-level-entry');
+                window.closeGestionModal('modal-level-entry', true);
 
                 levelStatusText.textContent = `✅ Historial de niveles sincronizado. Nuevas: ${syncResult.inserted}. Actualizadas: ${syncResult.updated}.`;
                 finishImportSession();
