@@ -466,6 +466,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('btn-new-pump-profile')?.addEventListener('click', prepareNewPumpProfile);
             document.getElementById('btn-close-pump-profile')?.addEventListener('click', () => setPumpProfileVisibility(false));
 
+            setupAllPageEventListeners();
             await refreshHistory();
         }
 
@@ -788,7 +789,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             }
         }
 
-        document.getElementById('cancel-edit')?.addEventListener('click', resetForm);
+        // Event listener para cancelar edición (se registra en setupAllPageEventListeners)
 
         function resetForm() {
             isEditing = false;
@@ -1006,8 +1007,11 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             focusWithoutScroll(document.getElementById('bbpd_tech'));
         }
 
-        const manualForm = document.getElementById('manual-data-form');
-        manualForm?.addEventListener('submit', async (e) => {
+        function setupAllPageEventListeners() {
+            document.getElementById('cancel-edit')?.addEventListener('click', resetForm);
+
+            const manualForm = document.getElementById('manual-data-form');
+            manualForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submit-btn');
             btn.classList.add('loading');
@@ -1216,6 +1220,19 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 btn.disabled = false;
             }
         });
+
+            const techDropZone = document.getElementById('tech-drop-zone');
+            const techFileInput = document.getElementById('tech-file-input');
+            if (techDropZone && techFileInput) {
+                bindDropImport(techDropZone, techFileInput, handleTechnicalFile);
+            }
+
+            const levelDropZone = document.getElementById('level-drop-zone');
+            const levelFileInput = document.getElementById('level-file-input');
+            if (levelDropZone && levelFileInput) {
+                bindDropImport(levelDropZone, levelFileInput, handleLevelFile);
+            }
+        }
 
         const techDropZone = document.getElementById('tech-drop-zone');
         const techFileInput = document.getElementById('tech-file-input');
@@ -1799,8 +1816,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             return new Promise(resolve => setTimeout(resolve, 30));
         }
 
-        bindDropImport(techDropZone, techFileInput, handleTechnicalFile);
-        bindDropImport(levelDropZone, levelFileInput, handleLevelFile);
+        // Las importaciones se enlazan dinámicamente en setupAllPageEventListeners()
 
         function normalizeCsvKey(value) {
             return String(value || '')
