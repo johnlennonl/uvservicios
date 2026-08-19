@@ -153,6 +153,10 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                     if (input.value.trim()) {
                         input.select();
                     }
+                });
+
+                input.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     openManagementPozoMenu(config, true);
                 });
 
@@ -735,6 +739,7 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 const record = await getRecordById(id);
                 const techData = await getWellTechnicalData(record.pozo_name);
                 Swal.close();
+                window.openGestionModal('modal-daily-entry');
                 setManualFormVisibility(true);
                 setTechnicalFormVisibility(true);
 

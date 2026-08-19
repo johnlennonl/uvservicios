@@ -387,7 +387,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                     <td><b>${formatMonitoringTextCell(record.pip)}</b> <span style="color:#9CA3AF; font-size:0.7rem;">PSI</span> <br> <span style="color:#EF4444;">${formatMonitoringTextCell(record.tm)}°F</span></td>
                     <td><span style="color:#2563EB;">T: ${formatMonitoringTextCell(record.presion_thp)}</span> / <span style="color:#06B6D4;">C: ${formatMonitoringTextCell(record.presion_chp)}</span> <br> <span style="color:#F59E0B;">LF: ${formatMonitoringTextCell(record.presion_lf ?? record.lf, '--')}</span></td>
                     <td style="font-family: monospace;">${formatMonitoringTextCell(record.vsd_a)} / ${formatMonitoringTextCell(record.vsd_b, '0')} / ${formatMonitoringTextCell(record.vsd_c, '0')}</td>
-                    <td><span style="color:${record.estatus === 'RUN' ? '#38A169' : '#E53E3E'}; font-weight: 800;">${formatMonitoringTextCell(record.estatus)}</span></td>
+                    <td><span style="color:${['RUN', 'RUN / ATENCION AL CLIENTE'].includes(String(record.estatus).toUpperCase().trim()) ? '#38A169' : '#E53E3E'}; font-weight: 800;">${formatMonitoringTextCell(record.estatus)}</span></td>
                     <td style="text-align: right; white-space: nowrap;">
                         <button class="btn-action btn-view" onclick="openFullDataModal('${escapeHtml(recordId)}')" style="background: #E0E7FF; color: #4338CA;">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; vertical-align:text-bottom; margin-right:4px;">
@@ -1535,7 +1535,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
         // Abre el modal con todos los parametros del registro
         window.openFullDataModal = async function(recordId) {
-            const record = currentRecordData.find(r => (r.id || r.ID) == recordId);
+            const record = currentRecordData.find(r => String(r.id || r.ID || '') === String(recordId || ''));
             if (!record) return;
 
             const formatVal = (v) => (v !== null && v !== undefined && v !== '') ? v : '--';
@@ -1892,10 +1892,10 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                             let badgeHtml = '';
 
                             if (targetCk === 'estatus') {
-                                const normSt = String(rawVal).toUpperCase();
-                                if (normSt === 'RUN') {
+                                const normSt = String(rawVal).toUpperCase().trim();
+                                if (normSt === 'RUN' || normSt === 'RUN / ATENCION AL CLIENTE') {
                                     badgeHtml = `<span style="background:#dcfce7; color:#15803d; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:12px; display:inline-block;">🟢 RUN</span>`;
-                                } else if (normSt === 'OFF') {
+                                } else if (normSt === 'OFF' || normSt === 'OFF / ATENCION AL CLIENTE' || normSt === 'PARADA MANUAL') {
                                     badgeHtml = `<span style="background:#fee2e2; color:#b91c1c; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:12px; display:inline-block;">🔴 OFF</span>`;
                                 } else {
                                     badgeHtml = `<span style="background:#f1f5f9; color:#475569; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:12px; display:inline-block;">${valStr}</span>`;
