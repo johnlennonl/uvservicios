@@ -119,7 +119,7 @@ async function compressImageIfNeeded(file) {
  * @param {string} [options.searchKeyword] - Texto a buscar en el nombre del archivo o descripción.
  * @returns {Promise<Array>} Lista de registros documentales.
  */
-export async function getWellDocuments({ pozoName = '', category = null, startDate = null, endDate = null, searchKeyword = '', operationalScope = null } = {}) {
+export async function getWellDocuments({ pozoName = '', category = null, startDate = null, endDate = null, searchKeyword = '', operationalScope = null, folderId = undefined } = {}) {
     try {
         const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope);
         let query = supabase
@@ -137,8 +137,19 @@ export async function getWellDocuments({ pozoName = '', category = null, startDa
             query = query.eq('pozo_name', pozoName.trim().toUpperCase());
         }
 
-        // Filtrar por categoría temática
-        if (category && category !== 'TODAS') {
+        // Filtrar por carpeta virtual (solo si no hay búsqueda activa)
+        if (!searchKeyword && folderId !== undefined) {
+            if (folderId === null) {
+                query = query.is('folder_id', null);
+            } else if (category && category !== 'TODAS') {
+                query = query.or(`folder_id.eq.${folderId},and(folder_id.is.null,categoria.eq.${category.trim().toUpperCase()})`);
+            } else {
+                query = query.eq('folder_id', folderId);
+            }
+        }
+
+        // Filtrar por categoría temática (si no hay filtro de carpeta que lo reemplace)
+        if (category && category !== 'TODAS' && folderId === undefined) {
             query = query.eq('categoria', category.trim().toUpperCase());
         }
 
@@ -169,7 +180,16 @@ export async function getWellDocuments({ pozoName = '', category = null, startDa
             if (pozoName && pozoName !== 'TODOS') {
                 fallbackQuery = fallbackQuery.eq('pozo_name', pozoName.trim().toUpperCase());
             }
-            if (category && category !== 'TODAS') {
+            if (!searchKeyword && folderId !== undefined) {
+                if (folderId === null) {
+                    fallbackQuery = fallbackQuery.is('folder_id', null);
+                } else if (category && category !== 'TODAS') {
+                    fallbackQuery = fallbackQuery.or(`folder_id.eq.${folderId},and(folder_id.is.null,categoria.eq.${category.trim().toUpperCase()})`);
+                } else {
+                    fallbackQuery = fallbackQuery.eq('folder_id', folderId);
+                }
+            }
+            if (category && category !== 'TODAS' && folderId === undefined) {
                 fallbackQuery = fallbackQuery.eq('categoria', category.trim().toUpperCase());
             }
             if (startDate) {
@@ -262,7 +282,7 @@ export async function getWellDocumentSummaryCounts({ operationalScope = null } =
  * @param {string} [params.uploadedBy] - Nombre del usuario/técnico que realiza la carga.
  * @returns {Promise<Object>} Registro del documento recién creado.
  */
-export async function uploadWellDocument({ file, pozoName, category, description = '', uploadedBy = 'Sistema', operationalScope = null, documentDate = null }) {
+export async function uploadWellDocument({ file, pozoName, category, description = '', uploadedBy = 'Sistema', operationalScope = null, documentDate = null, folderId = null }) {
     if (!file) throw new Error('Debes seleccionar un archivo para cargar.');
     if (!pozoName) throw new Error('El nombre del pozo es obligatorio.');
     if (!category) throw new Error('Debes seleccionar una categoría temática.');
@@ -314,7 +334,8 @@ export async function uploadWellDocument({ file, pozoName, category, description
             file_type: fileExt,
             descripcion: String(description || '').trim(),
             uploaded_by: String(uploadedBy || 'Administrador').trim(),
-            fecha_documento: documentDate || new Date().toISOString().split('T')[0]
+            fecha_documento: documentDate || new Date().toISOString().split('T')[0],
+            folder_id: folderId || null
         };
 
         let { data: dbData, error: dbError } = await supabase
@@ -330,6 +351,11 @@ export async function uploadWellDocument({ file, pozoName, category, description
             if (isMissingColumnError(dbError, 'fecha_documento')) {
                 console.warn('[well-documents-service] La columna fecha_documento no existe; excluyendo.');
                 delete cleanPayload.fecha_documento;
+                columnMissing = true;
+            }
+            if (isMissingColumnError(dbError, 'folder_id')) {
+                console.warn('[well-documents-service] La columna folder_id no existe; excluyendo.');
+                delete cleanPayload.folder_id;
                 columnMissing = true;
             }
             if (isMissingOperationalScopeColumn(dbError)) {
@@ -544,4 +570,109 @@ export async function updateWellDocumentMetadata(documentId, { description = nul
         console.error('[well-documents-service] Error actualizando metadatos del documento:', err);
         throw err;
     }
+}
+
+/**
+ * ==============================================================================
+ * SERVICIOS ADICIONALES PARA LA GESTIÓN DE CARPETAS Y SUBCARPETAS VIRTUALES
+ * ==============================================================================
+ */
+
+/**
+ * Crea una nueva carpeta virtual para un pozo y contrato específicos.
+ */
+export async function createFolder({ pozoName, name, parentId = null, operationalScope = null, description = '', icon = 'fa-solid fa-folder-closed' }) {
+    if (!pozoName) throw new Error('El nombre del pozo es obligatorio.');
+    if (!name || !name.trim()) throw new Error('El nombre de la carpeta es obligatorio.');
+
+    const cleanScope = normalizeOperationalScopeValue(operationalScope);
+    const cleanName = String(name).trim();
+
+    const insertPayload = {
+        operational_scope: cleanScope,
+        pozo_name: String(pozoName).trim().toUpperCase(),
+        parent_id: parentId,
+        name: cleanName,
+        description: String(description || '').trim(),
+        icon: String(icon || 'fa-solid fa-folder-closed').trim()
+    };
+
+    const { data, error } = await supabase
+        .from('well_document_folders')
+        .insert([insertPayload])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('[well-documents-service] Error creando carpeta:', error);
+        throw error;
+    }
+    return data;
+}
+
+/**
+ * Obtiene las subcarpetas del directorio actual.
+ */
+export async function getFolders({ pozoName, parentId = null, operationalScope = null }) {
+    if (!pozoName) throw new Error('El nombre del pozo es obligatorio.');
+    const cleanScope = normalizeOperationalScopeValue(operationalScope);
+
+    let query = supabase
+        .from('well_document_folders')
+        .select('*')
+        .eq('pozo_name', String(pozoName).trim().toUpperCase())
+        .order('name', { ascending: true });
+
+    if (cleanScope) {
+        query = query.or(`operational_scope.eq.${cleanScope},operational_scope.is.null`);
+    }
+
+    if (parentId === null) {
+        query = query.is('parent_id', null);
+    } else {
+        query = query.eq('parent_id', parentId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+        console.error('[well-documents-service] Error obteniendo carpetas:', error);
+        throw error;
+    }
+    return data || [];
+}
+
+/**
+ * Obtiene los detalles de una carpeta específica por su ID.
+ */
+export async function getFolderById(folderId) {
+    if (!folderId) return null;
+    const { data, error } = await supabase
+        .from('well_document_folders')
+        .select('*')
+        .eq('id', folderId)
+        .single();
+
+    if (error) {
+        console.error('[well-documents-service] Error obteniendo carpeta por ID:', error);
+        return null;
+    }
+    return data;
+}
+
+/**
+ * Elimina una carpeta de la base de datos (con borrado en cascada en la BD).
+ */
+export async function deleteFolder(folderId) {
+    if (!folderId) throw new Error('ID de carpeta no proporcionado.');
+
+    const { error } = await supabase
+        .from('well_document_folders')
+        .delete()
+        .eq('id', folderId);
+
+    if (error) {
+        console.error('[well-documents-service] Error eliminando carpeta:', error);
+        throw error;
+    }
+    return true;
 }
