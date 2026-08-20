@@ -104,7 +104,8 @@ const state = {
     activeDocuments: [],
     currentFolders: [],
     currentAllDocs: [],
-    currentSubfolders: []
+    currentSubfolders: [],
+    allFoldersList: []
 };
 
 /**
@@ -147,13 +148,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 6. Inicializar sistema de advertencia por inactividad (5 min + reloj)
         initInactivityTimer();
-
-        // 7. Vincular botón de Cerrar Sesión
-        document.getElementById('logout-btn')?.addEventListener('click', async () => {
+        // 7. Vincular botón de Cerrar Sesión (Escritorio y Móvil)
+        const handleLogout = async () => {
             sessionStorage.removeItem(PIN_SESSION_STORAGE_KEY);
             await logout();
-        });
-
+        };
+        document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
+        document.getElementById('mobile-logout-btn')?.addEventListener('click', handleLogout);
         // Ocultar el loader inicial con animación suave
         setTimeout(() => {
             const loader = document.getElementById('premium-loader');
@@ -304,10 +305,12 @@ function populateUploadWellSelect() {
  * @param {string} [filterText] - Texto opcional para buscar pozos por nombre.
  */
 function renderWellsView(filterText = '') {
+    window.scrollTo({ top: 0, behavior: 'instant' });
     state.activePozo = null;
     state.activeCategory = null;
-
-    document.getElementById('view-wells-container').hidden = false;
+    state.activeFolderId = null;
+    const wellsContainer = document.getElementById('view-wells-container');
+    if (wellsContainer) wellsContainer.hidden = false;
     document.getElementById('view-folders-container').hidden = true;
     document.getElementById('view-files-container').hidden = true;
 
@@ -380,15 +383,15 @@ async function ensureDefaultFoldersExist(pozoName) {
     const cleanScope = state.activeOperationalScope;
     
     try {
+        // Obtener todas las carpetas del pozo (tanto padres como subcarpetas)
         const { data: existingFolders, error } = await supabase
             .from('well_document_folders')
             .select('*')
-            .eq('pozo_name', cleanPozo)
-            .is('parent_id', null);
+            .eq('pozo_name', cleanPozo);
             
         if (error) throw error;
         
-        const existingNames = new Set((existingFolders || []).map(f => f.name.toUpperCase()));
+        const existingNames = new Set((existingFolders || []).filter(f => f.parent_id === null).map(f => f.name.toUpperCase()));
         const foldersToCreate = [];
         
         DOCUMENT_CATEGORIES.forEach(cat => {
@@ -407,6 +410,132 @@ async function ensureDefaultFoldersExist(pozoName) {
                 .from('well_document_folders')
                 .insert(foldersToCreate);
             if (insertError) throw insertError;
+        }
+
+        // Volver a consultar para obtener la lista actualizada con IDs
+        const { data: allFolders } = await supabase
+            .from('well_document_folders')
+            .select('*')
+            .eq('pozo_name', cleanPozo);
+
+        // Encontrar la carpeta padre "REGISTROS ECHOMETER (TAM)"
+        const echometerParent = (allFolders || []).find(f => f.name.toUpperCase() === 'REGISTROS ECHOMETER (TAM)' && f.parent_id === null);
+        
+        if (echometerParent) {
+            const existingSubNames = new Set(
+                (allFolders || [])
+                    .filter(f => f.parent_id === echometerParent.id)
+                    .map(f => f.name.toUpperCase())
+            );
+
+            const subsToCreate = [];
+            const requiredSubs = [
+                { name: 'INFORMES DE PRUEBAS (PDF)', icon: 'fa-solid fa-file-pdf' },
+                { name: 'ARCHIVOS DE DATOS (.028, .TWM)', icon: 'fa-solid fa-file-code' }
+            ];
+
+            requiredSubs.forEach(sub => {
+                if (!existingSubNames.has(sub.name.toUpperCase())) {
+                    subsToCreate.push({
+                        operational_scope: cleanScope,
+                        pozo_name: cleanPozo,
+                        parent_id: echometerParent.id,
+                        name: sub.name,
+                        icon: sub.icon,
+                        description: sub.name === 'INFORMES DE PRUEBAS (PDF)'
+                            ? 'Reportes e informes técnicos de pruebas de nivel en formato PDF.'
+                            : 'Archivos crudos de telemetría y disparos acústicos Echometer.'
+                    });
+                }
+            });
+
+            if (subsToCreate.length > 0) {
+                const { error: subInsertError } = await supabase
+                    .from('well_document_folders')
+                    .insert(subsToCreate);
+                if (subInsertError) throw subInsertError;
+            }
+
+            // Volver a consultar para obtener la lista final de carpetas y subcarpetas con sus IDs correctos
+            const { data: finalFolders } = await supabase
+                .from('well_document_folders')
+                .select('*')
+                .eq('pozo_name', cleanPozo);
+
+            // Migrar documentos preexistentes de Echometer a sus respectivas subcarpetas
+            const { data: echoDocs } = await supabase
+                .from('well_historical_documents')
+                .select('id, nombre_archivo, folder_id, file_type')
+                .eq('pozo_name', cleanPozo)
+                .eq('categoria', 'REGISTROS_ECHOMETER');
+
+            const pdfSubFolder = (finalFolders || []).find(f => f.name.toUpperCase() === 'INFORMES DE PRUEBAS (PDF)' && f.parent_id === echometerParent.id);
+            const dataSubFolder = (finalFolders || []).find(f => f.name.toUpperCase() === 'ARCHIVOS DE DATOS (.028, .TWM)' && f.parent_id === echometerParent.id);
+
+            if (echoDocs && echoDocs.length > 0 && pdfSubFolder && dataSubFolder) {
+                for (const doc of echoDocs) {
+                    const fileExt = String(doc.file_type || doc.nombre_archivo.split('.').pop() || '').toLowerCase();
+                    const isPdfReport = ['pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(fileExt);
+                    const targetSubFolderId = isPdfReport ? pdfSubFolder.id : dataSubFolder.id;
+
+                    if (doc.folder_id !== targetSubFolderId) {
+                        await supabase
+                            .from('well_historical_documents')
+                            .update({ folder_id: targetSubFolderId })
+                            .eq('id', doc.id);
+                    }
+                }
+            }
+
+            // --- NUEVA AUTO-MIGRACIÓN DESDE GESTIÓN DE NIVELES ---
+            // Buscar pruebas de nivel guardadas que contengan archivos de soporte (file_path)
+            const { data: levelTests } = await supabase
+                .from('well_level_tests')
+                .select('*')
+                .eq('pozo_name', cleanPozo)
+                .not('file_path', 'is', null)
+                .neq('file_path', '');
+
+            if (levelTests && levelTests.length > 0 && pdfSubFolder) {
+                // Obtener todos los documentos del pozo que ya están registrados para evitar duplicados
+                const { data: existingHistoricalDocs } = await supabase
+                    .from('well_historical_documents')
+                    .select('file_path')
+                    .eq('pozo_name', cleanPozo);
+                
+                const existingFilePaths = new Set(
+                    (existingHistoricalDocs || []).map(d => d.file_path)
+                );
+
+                for (const test of levelTests) {
+                    if (test.file_path && !existingFilePaths.has(test.file_path)) {
+                        const fileName = test.file_path.split('/').pop() || 'Soporte_Prueba_Nivel.pdf';
+                        const fileExt = fileName.split('.').pop()?.toLowerCase() || 'pdf';
+                        
+                        const docPayload = {
+                            operational_scope: test.operational_scope || cleanScope,
+                            pozo_name: cleanPozo,
+                            categoria: 'REGISTROS_ECHOMETER',
+                            nombre_archivo: fileName,
+                            file_path: test.file_path,
+                            file_size: 0,
+                            file_type: fileExt,
+                            descripcion: `Soporte de Prueba de Nivel - Fecha: ${test.fecha}`,
+                            uploaded_by: 'Gestión de Pozos',
+                            fecha_documento: test.fecha,
+                            folder_id: pdfSubFolder.id
+                        };
+
+                        const { error: insertErr } = await supabase
+                            .from('well_historical_documents')
+                            .insert([docPayload]);
+
+                        if (insertErr) {
+                            console.warn('[ensureDefaultFoldersExist] Error registrando nivel histórico:', insertErr);
+                        }
+                    }
+                }
+            }
         }
     } catch (e) {
         console.error('[database-controller] Error en ensureDefaultFoldersExist:', e);
@@ -473,11 +602,11 @@ window.handleDeleteFolderClick = async function(folderId, folderName) {
  * @param {string} pozoName - Nombre del pozo seleccionado.
  */
 async function openFoldersView(pozoName) {
+    window.scrollTo({ top: 0, behavior: 'instant' });
     state.activePozo = pozoName;
     state.activeCategory = null;
     state.activeFolderId = null;
     state.currentFolderPath = [{ id: null, name: pozoName }];
-
     document.getElementById('view-wells-container').hidden = true;
     document.getElementById('view-folders-container').hidden = false;
     document.getElementById('view-files-container').hidden = true;
@@ -514,8 +643,21 @@ async function openFoldersView(pozoName) {
             operationalScope: state.activeOperationalScope
         });
 
+        // Obtener la lista completa de carpetas (incluyendo subcarpetas) del pozo para contar subcarpetas en la vista principal
+        const { data: allFoldersList, error: allFoldersError } = await supabase
+            .from('well_document_folders')
+            .select('*')
+            .eq('pozo_name', String(pozoName).trim().toUpperCase());
+
+        if (allFoldersError) {
+            console.error('[openFoldersView] Error al obtener todas las carpetas:', allFoldersError);
+        } else {
+            console.log('[openFoldersView] Lista completa de carpetas cargadas de la DB:', allFoldersList);
+        }
+
         state.currentFolders = folders;
         state.currentAllDocs = allDocs;
+        state.allFoldersList = allFoldersList || [];
 
         // Leer valor del buscador si ya hay algo
         const searchInput = document.getElementById('db-search-input');
@@ -564,6 +706,14 @@ function renderFoldersGrid(searchTerm = '') {
                 count = state.currentAllDocs.filter(d => d.folder_id === folder.id).length;
             }
 
+            const subfoldersCount = state.allFoldersList.filter(f => f.parent_id === folder.id).length;
+            let countText = '';
+            if (subfoldersCount > 0) {
+                countText = `<strong>${subfoldersCount}</strong> subcarpeta${subfoldersCount === 1 ? '' : 's'}`;
+            } else {
+                countText = `<strong>${count}</strong> archivo${count === 1 ? '' : 's'}`;
+            }
+
             return `
                 <div class="folder-card ${config.cssClass}" data-folder-id="${folder.id}" data-folder-name="${escapeHtml(folder.name)}">
                     <div class="folder-card-header" style="display:flex; justify-content:space-between; align-items:center;">
@@ -572,15 +722,15 @@ function renderFoldersGrid(searchTerm = '') {
                         </div>
                         <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV" class="card-uv-mini-logo" style="margin-left:auto;">
                         ${!isDefault ? `
-                        <button type="button" class="btn-delete-folder" onclick="event.stopPropagation(); handleDeleteFolderClick('${folder.id}', '${escapeHtml(folder.name)}')" title="Eliminar Carpeta" style="background:none; border:none; color:#ef4444; font-size:1.1rem; cursor:pointer; margin-left:10px; display:flex; align-items:center;">
-                            <i class="fa-solid fa-trash-can"></i>
+                        <button type="button" class="btn-folder-actions" onclick="event.stopPropagation(); showFolderActions('${folder.id}', '${escapeHtml(folder.name)}')" title="Opciones" style="background:none; border:none; color:#64748b; font-size:1.15rem; cursor:pointer; margin-left:10px; display:flex; align-items:center; width:28px; height:28px; border-radius:50%; justify-content:center; transition:background 0.2s;" onmouseover="this.style.background='#e2e8f0';" onmouseout="this.style.background='none';">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
                         </button>
                         ` : ''}
                     </div>
                     <h3 class="folder-card-title" style="margin-top:14px;">${escapeHtml(folder.name)}</h3>
                     <p class="folder-card-desc">${escapeHtml(config.description)}</p>
                     <div class="folder-card-footer">
-                        <span class="folder-card-count"><strong>${count}</strong> archivo${count === 1 ? '' : 's'}</span>
+                        <span class="folder-card-count">${countText}</span>
                         <strong style="color:#1d4ed8; font-weight:700;">Ver archivos <i class="fa-solid fa-arrow-right"></i></strong>
                     </div>
                 </div>
@@ -742,18 +892,38 @@ function renderSubfoldersGrid(searchTerm = '') {
     if (filtered.length > 0) {
         subSection.style.display = 'block';
         subGrid.innerHTML = filtered.map(sub => {
+            const count = state.currentAllDocs.filter(d => d.folder_id === sub.id).length;            // Colores correspondientes a las subcarpetas
+            const colorClass = sub.name.toUpperCase().includes('INFORMES') 
+                ? 'folder-informes' 
+                : 'folder-sensor';
+                
+            const isSubDefault = ['INFORMES DE PRUEBAS (PDF)', 'ARCHIVOS DE DATOS (.028, .TWM)'].includes(sub.name.toUpperCase());
+            const iconClass = sub.icon || 'fa-solid fa-folder-closed';
+
             return `
-                <div class="folder-mini-card" data-folder-id="${sub.id}" data-folder-name="${escapeHtml(sub.name)}" title="${escapeHtml(sub.description || 'Sin descripción')}" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; cursor:pointer; transition:all 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                    <i class="${sub.icon || 'fa-solid fa-folder'}" style="color:#2563eb; font-size:1.15rem;"></i>
-                    <span style="font-weight:700; color:#1e293b; font-size:0.88rem; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(sub.name)}</span>
-                    <button onclick="event.stopPropagation(); handleDeleteFolderClick('${sub.id}', '${escapeHtml(sub.name)}')" style="background:none; border:none; color:#ef4444; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:4px;">
-                        <i class="fa-solid fa-trash-can" style="font-size:0.85rem;"></i>
-                    </button>
+                <div class="folder-card ${colorClass}" data-folder-id="${sub.id}" data-folder-name="${escapeHtml(sub.name)}" style="margin: 0; min-height: 190px;">
+                    <div class="folder-card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="folder-card-icon" style="background:#eff6ff; color:#2563eb;">
+                            <i class="${iconClass}"></i>
+                        </div>
+                        <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV" class="card-uv-mini-logo" style="margin-left:auto; max-height:22px;">
+                        ${!isSubDefault ? `
+                        <button type="button" class="btn-folder-actions" onclick="event.stopPropagation(); showFolderActions('${sub.id}', '${escapeHtml(sub.name)}')" title="Opciones" style="background:none; border:none; color:#64748b; font-size:1.15rem; cursor:pointer; margin-left:10px; display:flex; align-items:center; width:28px; height:28px; border-radius:50%; justify-content:center; transition:background 0.2s;" onmouseover="this.style.background='#e2e8f0';" onmouseout="this.style.background='none';">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                    <h3 class="folder-card-title" style="margin-top:14px; font-size:1.02rem; font-weight:800; color:#0f172a;">${escapeHtml(sub.name)}</h3>
+                    <p class="folder-card-desc" style="font-size:0.78rem; margin-top:4px; line-height:1.35;">${escapeHtml(sub.description || 'Carpeta de expedientes.')}</p>
+                    <div class="folder-card-footer" style="margin-top:auto; padding-top:10px; display:flex; justify-content:space-between; align-items:center; width:100%;">
+                        <span class="folder-card-count" style="font-size:0.8rem; color:#64748b;"><strong>${count}</strong> archivo${count === 1 ? '' : 's'}</span>
+                        <strong style="color:#2563eb; font-weight:700; font-size:0.82rem;">Ver archivos <i class="fa-solid fa-arrow-right"></i></strong>
+                    </div>
                 </div>
             `;
         }).join('');
 
-        subGrid.querySelectorAll('.folder-mini-card').forEach(card => {
+        subGrid.querySelectorAll('.folder-card').forEach(card => {
             card.addEventListener('click', () => {
                 openFolderView(card.dataset.folderId, card.dataset.folderName);
             });
@@ -763,6 +933,7 @@ function renderSubfoldersGrid(searchTerm = '') {
         subGrid.innerHTML = '';
     }
 }
+
 
 /**
  * Realiza una búsqueda global inteligente en todos los documentos del contrato.
@@ -1005,6 +1176,7 @@ async function triggerGlobalSearch(queryText = '') {
  * Restaura la vista que estaba activa antes de realizar la búsqueda global.
  */
 function restoreActiveView() {
+    window.scrollTo({ top: 0, behavior: 'instant' });
     if (!state.activePozo) {
         document.getElementById('view-wells-container').hidden = false;
         document.getElementById('view-folders-container').hidden = true;
@@ -1026,10 +1198,9 @@ function restoreActiveView() {
 }
 
 async function openFolderView(folderId, folderName) {
-    // Limpiar la tabla de archivos inmediatamente al iniciar la navegación para evitar que se vean archivos anteriores
+    window.scrollTo({ top: 0, behavior: 'instant' });
     const container = document.getElementById('files-table-container');
     if (container) container.innerHTML = '';
-
     state.activePozo = state.activePozo;
     state.activeFolderId = folderId;
     
@@ -1075,6 +1246,9 @@ async function openFolderView(folderId, folderName) {
     // 1. Renderizar Subcarpetas si existen
     const subGrid = document.getElementById('subfolders-grid');
     const subSection = document.getElementById('subfolders-section');
+    const filesTableContainer = document.getElementById('files-table-container');
+    
+    let hasSubfolders = false;
     if (subGrid && subSection) {
         try {
             const subfolders = await getFolders({
@@ -1083,7 +1257,8 @@ async function openFolderView(folderId, folderName) {
                 operationalScope: state.activeOperationalScope
             });
 
-            state.currentSubfolders = subfolders;
+            state.currentSubfolders = subfolders || [];
+            hasSubfolders = state.currentSubfolders.length > 0;
             
             const searchInput = document.getElementById('db-search-input');
             const term = searchInput ? searchInput.value : '';
@@ -1095,8 +1270,21 @@ async function openFolderView(folderId, folderName) {
         }
     }
 
-    // 2. Renderizar los archivos
-    await fetchAndRenderFiles();
+    const searchInput = document.getElementById('db-search-input');
+    const term = searchInput ? searchInput.value.trim() : '';
+
+    if (hasSubfolders) {
+        // Si hay subcarpetas y NO hay término de búsqueda activo, ocultamos la tabla de archivos
+        if (!term) {
+            if (filesTableContainer) filesTableContainer.style.display = 'none';
+        } else {
+            if (filesTableContainer) filesTableContainer.style.display = 'block';
+            await fetchAndRenderFiles();
+        }
+    } else {
+        if (filesTableContainer) filesTableContainer.style.display = 'block';
+        await fetchAndRenderFiles();
+    }
 }
 
 /**
@@ -1474,18 +1662,31 @@ function initFiltersEvents() {
             }
         });
     }
-
     // Buscador general (db-search-input) en tiempo real para todos los niveles
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            const val = e.target.value;
+            const val = String(e.target.value || '').trim();
             if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
             
-            searchDebounceTimeout = setTimeout(() => {
+            searchDebounceTimeout = setTimeout(async () => {
                 if (state.activeFolderId) {
                     // Nivel 3: Archivos de la Carpeta (búsqueda dentro de esta carpeta específica)
                     renderSubfoldersGrid(val);
-                    fetchAndRenderFiles();
+                    
+                    const filesTableContainer = document.getElementById('files-table-container');
+                    const hasSubfolders = state.currentSubfolders && state.currentSubfolders.length > 0;
+                    
+                    if (hasSubfolders) {
+                        if (!val) {
+                            if (filesTableContainer) filesTableContainer.style.display = 'none';
+                        } else {
+                            if (filesTableContainer) filesTableContainer.style.display = 'block';
+                            await fetchAndRenderFiles();
+                        }
+                    } else {
+                        if (filesTableContainer) filesTableContainer.style.display = 'block';
+                        await fetchAndRenderFiles();
+                    }
                 } else {
                     // Nivel 1 o 2: Búsqueda global o del pozo completo
                     if (!val && !startDateInput?.value && !endDateInput?.value) {
@@ -1531,9 +1732,18 @@ function initFiltersEvents() {
     }
 }
 
-/**
- * Inicializa los eventos relacionados a la creación de carpetas.
- */
+const FONT_AWESOME_LIST = [
+    // Carpetas y Documentos
+    'fa-solid fa-folder', 'fa-solid fa-folder-open', 'fa-solid fa-folder-closed', 'fa-solid fa-file', 'fa-solid fa-file-lines', 'fa-solid fa-file-pdf', 'fa-solid fa-file-excel', 'fa-solid fa-file-word',
+    // Técnicos y Operaciones
+    'fa-solid fa-oil-well', 'fa-solid fa-screwdriver-wrench', 'fa-solid fa-gauge-high', 'fa-solid fa-gears', 'fa-solid fa-microchip', 'fa-solid fa-bolt', 'fa-solid fa-chart-line', 'fa-solid fa-hard-drive',
+    // Otros Comunes
+    'fa-solid fa-droplet', 'fa-solid fa-wrench', 'fa-solid fa-clipboard-list', 'fa-solid fa-triangle-exclamation', 'fa-solid fa-server', 'fa-solid fa-database', 'fa-solid fa-flask', 'fa-solid fa-fire',
+    'fa-solid fa-industry', 'fa-solid fa-plug', 'fa-solid fa-satellite', 'fa-solid fa-network-wired', 'fa-solid fa-shield-halved', 'fa-solid fa-user-gear'
+];
+
+
+
 function initFolderEvents() {
     const btnCreateFolder = document.getElementById('btn-create-folder');
     if (btnCreateFolder) {
@@ -1541,6 +1751,12 @@ function initFolderEvents() {
             if (!state.activePozo) return;
 
             const allWells = state.pozosList || [];
+            
+            // Obtener carpetas raíz del pozo activo para listarlas en el selector de carpeta padre
+            const parentFolders = state.currentFolders || [];
+            const parentOptions = parentFolders
+                .map(f => `<option value="${escapeHtml(f.name)}">📁 ${escapeHtml(f.name)}</option>`)
+                .join('');
 
             const { value: formValues } = await Swal.fire({
                 title: '<i class="fa-solid fa-folder-plus" style="color:#2563eb;margin-right:6px;"></i> Crear Nueva Carpeta',
@@ -1558,21 +1774,42 @@ function initFolderEvents() {
                         </div>
 
                         <div>
+                            <label style="font-weight:700; color:#475569; font-size:0.82rem; display:block; margin-bottom:5px;">Carpeta Padre (Ubicación):</label>
+                            <select id="swal-parent-folder" style="margin:0; width:100%; box-sizing:border-box; border-radius:10px; font-size:0.9rem; padding:10px; border:1.5px solid #cbd5e1; outline:none; font-family:inherit; background:#fff;">
+                                <option value="">[ Carpeta Raíz / Ninguna ]</option>
+                                ${parentOptions}
+                            </select>
+                        </div>
+                        <div>
                             <label style="font-weight:700; color:#475569; font-size:0.82rem; display:block; margin-bottom:5px;">Icono:</label>
                             <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:6px;" id="swal-icon-picker">
                                 <button type="button" class="swal-icon-btn active" data-icon="fa-solid fa-folder" style="padding:8px; border-radius:8px; border:1.5px solid #2563eb; background:#eff6ff; cursor:pointer; font-size:1.15rem; color:#2563eb; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-folder"></i></button>
                                 <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-chart-line" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-chart-line"></i></button>
                                 <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-file-contract" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-file-contract"></i></button>
-                                <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-gauge-high" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-gauge-high"></i></button>
-                                <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-gears" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-gears"></i></button>
-                                <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-microchip" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-microchip"></i></button>
-                                <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-bolt" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-bolt"></i></button>
-                                <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-camera" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-camera"></i></button>
-                                <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-screwdriver-wrench" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-screwdriver-wrench"></i></button>
-                                <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-hard-drive" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-hard-drive"></i></button>
+                                
+                                <button type="button" class="swal-icon-btn" id="swal-active-custom-icon" data-icon="fa-solid fa-gauge-high" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;">
+                                    <i id="swal-active-custom-icon-i" class="fa-solid fa-gauge-high"></i>
+                                </button>
+                                
+                                <button type="button" id="swal-more-icons-btn" style="padding:8px; border-radius:8px; border:1.5px dashed #cbd5e1; background:#f8fafc; cursor:pointer; font-size:1.15rem; color:#64748b; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;" title="Más Iconos">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+
+                            <div id="swal-extra-icons-wrapper" style="display:none; margin-top:10px; border-top:1.5px dashed #cbd5e1; padding-top:10px; display:none; flex-direction:column; gap:10px; grid-column: span 5;">
+                                <div style="display:flex; gap:6px;">
+                                    <input id="swal-custom-icon-input" placeholder="Escribir clase (ej: droplet, industry)" style="flex:1; margin:0; box-sizing:border-box; border-radius:10px; font-size:0.85rem; padding:8px; border:1.5px solid #cbd5e1; outline:none; font-family:inherit;">
+                                    <button type="button" id="swal-apply-manual-icon" style="padding:0 12px; background:#2563eb; color:#fff; border:none; border-radius:8px; font-size:0.85rem; font-weight:700; cursor:pointer;">Aplicar</button>
+                                </div>
+                                <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:6px; max-height:120px; overflow-y:auto; padding:6px; border:1.5px solid #e2e8f0; border-radius:10px; background:#f8fafc;" id="swal-extra-icons-grid">
+                                    ${FONT_AWESOME_LIST.map(ic => `
+                                        <button type="button" class="swal-grid-icon-btn" data-icon="${ic}" style="padding:8px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.1rem; color:#475569; display:flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;">
+                                            <i class="${ic}"></i>
+                                        </button>
+                                    `).join('')}
+                                </div>
                             </div>
                         </div>
-
                         <div>
                             <label style="font-weight:700; color:#475569; font-size:0.82rem; display:block; margin-bottom:5px;">¿En qué pozos crear la carpeta?</label>
                             <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding:7px 12px; background:#eff6ff; border-radius:8px; border:1px solid #bfdbfe;">
@@ -1619,7 +1856,62 @@ function initFolderEvents() {
                         });
                     });
 
-                    // Evento de seleccionar todos los pozos
+                    // Evento del botón de buscar más iconos (expandible inline)
+                    const moreBtn = document.getElementById('swal-more-icons-btn');
+                    if (moreBtn) {
+                        moreBtn.addEventListener('click', () => {
+                            const wrapper = document.getElementById('swal-extra-icons-wrapper');
+                            if (wrapper) {
+                                if (wrapper.style.display === 'none' || wrapper.style.display === '') {
+                                    wrapper.style.display = 'flex';
+                                    moreBtn.innerHTML = '<i class="fa-solid fa-minus"></i>';
+                                    moreBtn.style.borderColor = '#2563eb';
+                                    moreBtn.style.color = '#2563eb';
+                                } else {
+                                    wrapper.style.display = 'none';
+                                    moreBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
+                                    moreBtn.style.borderColor = '#cbd5e1';
+                                    moreBtn.style.color = '#64748b';
+                                }
+                            }
+                        });
+                    }
+
+                    // Eventos de click en los iconos de la grilla extra inline
+                    const gridBtns = document.querySelectorAll('#swal-extra-icons-grid .swal-grid-icon-btn');
+                    gridBtns.forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const newIcon = btn.dataset.icon;
+                            const customBtn = document.getElementById('swal-active-custom-icon');
+                            const customIconI = document.getElementById('swal-active-custom-icon-i');
+                            if (customBtn && customIconI) {
+                                customBtn.dataset.icon = newIcon;
+                                customIconI.className = newIcon;
+                                customBtn.click(); // seleccionar automáticamente
+                            }
+                        });
+                    });
+
+                    // Botón de aplicar manualmente
+                    const applyBtn = document.getElementById('swal-apply-manual-icon');
+                    const manualInput = document.getElementById('swal-custom-icon-input');
+                    if (applyBtn && manualInput) {
+                        applyBtn.addEventListener('click', () => {
+                            let newIcon = manualInput.value.trim();
+                            if (!newIcon) return;
+                            if (!newIcon.startsWith('fa-')) {
+                                newIcon = `fa-solid fa-${newIcon}`;
+                            }
+                            const customBtn = document.getElementById('swal-active-custom-icon');
+                            const customIconI = document.getElementById('swal-active-custom-icon-i');
+                            if (customBtn && customIconI) {
+                                customBtn.dataset.icon = newIcon;
+                                customIconI.className = newIcon;
+                                customBtn.click(); // seleccionar automáticamente
+                            }
+                        });
+                    }
+
                     const selectAllCb = document.getElementById('swal-select-all-wells');
                     if (selectAllCb) {
                         selectAllCb.addEventListener('change', () => {
@@ -1628,6 +1920,16 @@ function initFolderEvents() {
                             });
                         });
                     }
+
+                    // Pre-seleccionar la carpeta actual si aplica
+                    const parentSelect = document.getElementById('swal-parent-folder');
+                    if (parentSelect && state.activeFolderId) {
+                        const currentFolderName = state.currentFolderPath[state.currentFolderPath.length - 1]?.name;
+                        if (currentFolderName) {
+                            const matchedOption = Array.from(parentSelect.options).find(opt => opt.value === currentFolderName);
+                            if (matchedOption) parentSelect.value = currentFolderName;
+                        }
+                    }
                 },
                 preConfirm: () => {
                     const name = document.getElementById('swal-folder-name').value;
@@ -1635,6 +1937,7 @@ function initFolderEvents() {
                     const activeBtn = document.querySelector('.swal-icon-btn.active');
                     const icon = activeBtn ? activeBtn.dataset.icon : 'fa-solid fa-folder';
                     const selectedWells = Array.from(document.querySelectorAll('.swal-well-cb:checked')).map(el => el.value);
+                    const parentName = document.getElementById('swal-parent-folder').value;
 
                     if (!name || !name.trim()) {
                         Swal.showValidationMessage('¡El nombre de la carpeta es obligatorio!');
@@ -1645,7 +1948,7 @@ function initFolderEvents() {
                         return false;
                     }
 
-                    return { name: name.trim(), desc: desc.trim(), icon, wells: selectedWells };
+                    return { name: name.trim().toUpperCase(), desc: desc.trim(), icon, wells: selectedWells, parentName };
                 }
             });
 
@@ -1661,38 +1964,50 @@ function initFolderEvents() {
             });
 
             try {
-                let parentFolderName = null;
-                if (state.activeFolderId) {
-                    const currentFolder = state.currentFolderPath.find(p => p.id === state.activeFolderId);
-                    if (currentFolder) parentFolderName = currentFolder.name;
-                }
-
-                let createdCount = 0;
-                let skippedCount = 0;
-
-                for (const pozo of formValues.wells) {
+                const createPromises = formValues.wells.map(async (pozo) => {
                     let targetParentId = null;
 
-                    if (state.activeFolderId && parentFolderName) {
+                    if (formValues.parentName) {
                         const { data: matchedParent } = await supabase
                             .from('well_document_folders')
                             .select('id')
                             .eq('pozo_name', pozo)
-                            .eq('name', parentFolderName)
+                            .ilike('name', formValues.parentName)
+                            .is('parent_id', null) // asegurar que buscamos la raíz con ese nombre
                             .limit(1);
 
                         if (matchedParent && matchedParent.length > 0) {
                             targetParentId = matchedParent[0].id;
+                        } else {
+                            // Si el padre no existe en ese pozo, lo creamos dinámicamente primero para no romper la estructura!
+                            const parentDetails = parentFolders.find(pf => pf.name.toLowerCase() === formValues.parentName.toLowerCase());
+                            try {
+                                const newParent = await createFolder({
+                                    pozoName: pozo,
+                                    name: formValues.parentName.toUpperCase(),
+                                    description: parentDetails?.description || '',
+                                    icon: parentDetails?.icon || 'fa-solid fa-folder',
+                                    parentId: null,
+                                    operationalScope: state.activeOperationalScope
+                                });
+                                if (newParent && newParent.id) {
+                                    targetParentId = newParent.id;
+                                }
+                            } catch (createParentErr) {
+                                console.error('[initFolderEvents] Error creando carpeta padre automática:', createParentErr);
+                            }
                         }
                     }
 
                     // Verificar duplicados
-                    let dupQuery = supabase.from('well_document_folders').select('id').eq('pozo_name', pozo).eq('name', formValues.name);
+                    let dupQuery = supabase.from('well_document_folders').select('id').eq('pozo_name', pozo).ilike('name', formValues.name);
                     if (targetParentId) dupQuery = dupQuery.eq('parent_id', targetParentId);
                     else dupQuery = dupQuery.is('parent_id', null);
 
                     const { data: dupData } = await dupQuery;
-                    if (dupData && dupData.length > 0) { skippedCount++; continue; }
+                    if (dupData && dupData.length > 0) {
+                        return 'skipped';
+                    }
 
                     await createFolder({
                         pozoName: pozo,
@@ -1702,8 +2017,12 @@ function initFolderEvents() {
                         parentId: targetParentId,
                         operationalScope: state.activeOperationalScope
                     });
-                    createdCount++;
-                }
+                    return 'created';
+                });
+
+                const results = await Promise.all(createPromises);
+                const createdCount = results.filter(r => r === 'created').length;
+                const skippedCount = results.filter(r => r === 'skipped').length;
 
                 Swal.close();
 
@@ -1722,6 +2041,7 @@ function initFolderEvents() {
         });
     }
 }
+
 
 
 
@@ -1807,6 +2127,93 @@ function initInactivityTimer() {
  * 6. MODAL Y EVENTOS DE CARGA DE ARCHIVOS (UPLOAD TO SUPABASE STORAGE)
  * ============================================================================== */
 
+// Cache local para almacenar las carpetas y subcarpetas cargadas del pozo seleccionado en el modal
+let uploadModalFoldersCache = {
+    rootFolders: [],
+    subFolders: []
+};
+
+/**
+ * Carga de forma asíncrona todas las carpetas de un pozo específico y llena en cascada
+ * los selectores de "Carpeta Principal" y "Subcarpeta" en el modal de carga.
+ * @param {string} pozoName - Nombre del pozo seleccionado.
+ * @returns {Promise<void>}
+ */
+async function loadFoldersForUploadModal(pozoName) {
+    const categorySelect = document.getElementById('upload-category-select');
+    const subfolderSelect = document.getElementById('upload-subfolder-select');
+    if (!categorySelect || !subfolderSelect) return;
+
+    // Mostrar estado de carga en el selector
+    categorySelect.innerHTML = '<option value="">Cargando carpetas...</option>';
+    subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Raíz)</option>';
+    subfolderSelect.disabled = true;
+
+    if (!pozoName) {
+        categorySelect.innerHTML = '<option value="">Selecciona Pozo primero...</option>';
+        return;
+    }
+
+    try {
+        // Consultar de forma unificada todas las carpetas asignadas a este pozo en la base de datos
+        const { data: foldersList, error } = await supabase
+            .from('well_document_folders')
+            .select('*')
+            .eq('pozo_name', String(pozoName).trim().toUpperCase())
+            .order('name', { ascending: true });
+
+        if (error) throw error;
+
+        // Clasificar carpetas según si son principales (parent_id es nulo) o subcarpetas
+        uploadModalFoldersCache.rootFolders = (foldersList || []).filter(f => f.parent_id === null);
+        uploadModalFoldersCache.subFolders = (foldersList || []).filter(f => f.parent_id !== null);
+
+        // Rellenar el dropdown de la Carpeta Principal
+        if (uploadModalFoldersCache.rootFolders.length === 0) {
+            categorySelect.innerHTML = '<option value="">Sin carpetas raíz registradas</option>';
+        } else {
+            categorySelect.innerHTML = '<option value="">Selecciona Carpeta...</option>' + 
+                uploadModalFoldersCache.rootFolders.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+        }
+
+    } catch (e) {
+        console.error('[loadFoldersForUploadModal] Error cargando carpetas para el modal de carga:', e);
+        categorySelect.innerHTML = '<option value="">Error al cargar carpetas</option>';
+    }
+}
+
+/**
+ * Filtra y rellena el selector de subcarpetas en base a la carpeta principal seleccionada.
+ * @param {string} parentFolderId - UUID de la carpeta padre seleccionada.
+ * @param {string} [preselectedSubId] - UUID de la subcarpeta que se debe pre-seleccionar.
+ */
+function updateSubfolderSelector(parentFolderId, preselectedSubId = '') {
+    const subfolderSelect = document.getElementById('upload-subfolder-select');
+    if (!subfolderSelect) return;
+
+    if (!parentFolderId) {
+        subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Raíz)</option>';
+        subfolderSelect.disabled = true;
+        return;
+    }
+
+    // Filtrar subcarpetas que pertenezcan a la carpeta padre
+    const filteredSubs = uploadModalFoldersCache.subFolders.filter(f => f.parent_id === parentFolderId);
+
+    if (filteredSubs.length === 0) {
+        subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Raíz)</option>';
+        subfolderSelect.disabled = true;
+    } else {
+        subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Raíz)</option>' + 
+            filteredSubs.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+        subfolderSelect.disabled = false;
+
+        if (preselectedSubId) {
+            subfolderSelect.value = preselectedSubId;
+        }
+    }
+}
+
 /**
  * Inicializa la funcionalidad del modal de carga de archivos (Drag & Drop + Formulario).
  */
@@ -1819,8 +2226,12 @@ function initUploadModal() {
     const fileBadge = document.getElementById('selected-file-badge');
     const form = document.getElementById('upload-document-form');
 
+    const selectPozo = document.getElementById('upload-pozo-select');
+    const categorySelect = document.getElementById('upload-category-select');
+    const subfolderSelect = document.getElementById('upload-subfolder-select');
+
     if (btnOpen) {
-        btnOpen.addEventListener('click', () => {
+        btnOpen.addEventListener('click', async () => {
             if (modal) {
                 modal.hidden = false;
                 modal.style.display = 'flex';
@@ -1832,24 +2243,67 @@ function initUploadModal() {
                 dateInput.value = new Date().toISOString().split('T')[0];
             }
 
-            if (state.activePozo) {
-                const selectPozo = document.getElementById('upload-pozo-select');
-                if (selectPozo) selectPozo.value = state.activePozo;
-            }
-            
-            // Pre-seleccionar la categoría según el contexto de carpetas actual
-            let selectCategoryVal = state.activeCategory;
-            if (!selectCategoryVal && state.currentFolderPath && state.currentFolderPath.length >= 2) {
-                const rootFolder = state.currentFolderPath[1]; // El primer nivel bajo el pozo
-                if (rootFolder) {
-                    const matched = DOCUMENT_CATEGORIES.find(c => c.name.toUpperCase() === rootFolder.name.toUpperCase());
-                    if (matched) selectCategoryVal = matched.key;
+            // Contexto de Pozo
+            if (selectPozo) {
+                if (state.activePozo) {
+                    selectPozo.value = state.activePozo;
+                    selectPozo.disabled = true;
+                    // Forzar carga de carpetas del pozo activo
+                    await loadFoldersForUploadModal(state.activePozo);
+                    
+                    // Pre-selecciones inteligentes basadas en el contexto actual
+                    if (state.activeFolderId) {
+                        // Si estamos en un path de navegación
+                        if (state.currentFolderPath && state.currentFolderPath.length >= 2) {
+                            const rootFolder = state.currentFolderPath[1]; // Carpeta raíz
+                            const rootId = rootFolder.id;
+                            
+                            if (rootId) {
+                                categorySelect.value = rootId;
+                                // Cargar subcarpetas de esta raíz
+                                if (state.activeFolderId !== rootId) {
+                                    // Estamos en una subcarpeta
+                                    updateSubfolderSelector(rootId, state.activeFolderId);
+                                } else {
+                                    // Estamos en la carpeta raíz misma
+                                    updateSubfolderSelector(rootId, '');
+                                }
+                            }
+                        }
+                    } else {
+                        // Estamos en la lista de carpetas del pozo
+                        if (categorySelect) categorySelect.value = '';
+                        if (subfolderSelect) {
+                            subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Raíz)</option>';
+                            subfolderSelect.disabled = true;
+                        }
+                    }
+                } else {
+                    selectPozo.value = '';
+                    selectPozo.disabled = false;
+                    if (categorySelect) categorySelect.innerHTML = '<option value="">Selecciona Pozo primero...</option>';
+                    if (subfolderSelect) {
+                        subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Raíz)</option>';
+                        subfolderSelect.disabled = true;
+                    }
                 }
             }
-            if (selectCategoryVal) {
-                const selectCat = document.getElementById('upload-category-select');
-                if (selectCat) selectCat.value = selectCategoryVal;
-            }
+        });
+    }
+
+    // Listener para cuando el usuario cambia manualmente de pozo (solo cuando no está bloqueado)
+    if (selectPozo) {
+        selectPozo.addEventListener('change', async () => {
+            const selectedPozo = selectPozo.value;
+            await loadFoldersForUploadModal(selectedPozo);
+        });
+    }
+
+    // Listener para cuando el usuario cambia manualmente de Carpeta Principal
+    if (categorySelect) {
+        categorySelect.addEventListener('change', () => {
+            const parentId = categorySelect.value;
+            updateSubfolderSelector(parentId);
         });
     }
 
@@ -1897,15 +2351,24 @@ function initUploadModal() {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const file = fileInput?.files?.[0];
-            const pozoName = document.getElementById('upload-pozo-select')?.value;
-            const category = document.getElementById('upload-category-select')?.value;
+            const pozoName = (selectPozo?.disabled ? state.activePozo : selectPozo?.value);
+            const parentFolderId = categorySelect?.value;
+            const subfolderId = subfolderSelect?.value;
             const description = document.getElementById('upload-description-input')?.value || '';
             const documentDate = document.getElementById('upload-date-input')?.value || new Date().toISOString().split('T')[0];
             const submitBtn = document.getElementById('btn-submit-upload');
 
             if (!file) { alert('Selecciona un archivo para subir.'); return; }
             if (!pozoName) { alert('Selecciona un pozo.'); return; }
-            if (!category) { alert('Selecciona una categoría.'); return; }
+            if (!parentFolderId) { alert('Selecciona una carpeta principal.'); return; }
+
+            // El destino final será la subcarpeta seleccionada, o si no hay, la carpeta principal
+            const targetFolderId = subfolderId || parentFolderId;
+
+            // Resolver la categoría del documento (nombre de la carpeta principal en mayúsculas sanitizadas)
+            const parentFolderRecord = uploadModalFoldersCache.rootFolders.find(f => f.id === parentFolderId);
+            if (!parentFolderRecord) { alert('No se pudo determinar la carpeta de destino.'); return; }
+            const finalCategory = parentFolderRecord.name.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
 
             try {
                 if (submitBtn) {
@@ -1918,12 +2381,12 @@ function initUploadModal() {
                 await uploadWellDocument({
                     file,
                     pozoName,
-                    category,
+                    category: finalCategory,
                     description,
                     uploadedBy: uploaderName,
                     operationalScope: state.activeOperationalScope,
                     documentDate: documentDate,
-                    folderId: state.activeFolderId
+                    folderId: targetFolderId
                 });
 
                 showSuccessToast('¡Documento Cargado con Éxito!', `El archivo "${file.name}" se guardó correctamente en el expediente.`);
@@ -1936,6 +2399,8 @@ function initUploadModal() {
 
                 // Recargar contadores y vista si aplica
                 state.summaryCounts = filterSummaryCountsByActivePozos(await getWellDocumentSummaryCounts({ operationalScope: state.activeOperationalScope }));
+                
+                // Recargar vista basándose en el contexto del archivo recién subido
                 if (state.activeFolderId) {
                     await openFolderView(state.activeFolderId, state.currentFolderPath[state.currentFolderPath.length - 1].name);
                 } else if (state.activeCategory) {
@@ -1957,6 +2422,7 @@ function initUploadModal() {
         });
     }
 }
+
 
 /**
  * Muestra una notificación Toast animada con un check verde de éxito.
@@ -2140,3 +2606,465 @@ async function openEditDocumentMetadataModal(docId, docName, docDate, docDescrip
         }
     }
 }
+window.showFolderActions = async function(folderId, folderName) {
+    if (!window.Swal) {
+        alert('Error: SweetAlert2 no está cargado.');
+        return;
+    }
+
+    let selectedAction = null;
+    await window.Swal.fire({
+        title: 'Opciones de Carpeta',
+        html: `
+            <div style="display:flex; flex-direction:column; gap:10px; font-family:'Outfit', sans-serif; text-align:left;">
+                <p style="font-size:0.85rem; color:#64748b; margin:0 0 5px 0;">Selecciona una acción para la carpeta <strong>"${escapeHtml(folderName)}"</strong>:</p>
+                <button type="button" id="swal-opt-edit" style="display:flex; align-items:center; gap:12px; padding:12px 16px; border:1.5px solid #e2e8f0; background:#fff; border-radius:10px; font-size:0.92rem; font-weight:600; color:#334155; cursor:pointer; text-align:left; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#eff6ff'; this.style.borderColor='#2563eb'; this.style.color='#2563eb';" onmouseout="this.style.background='#fff'; this.style.borderColor='#e2e8f0'; this.style.color='#334155';">
+                    <i class="fa-solid fa-pen" style="font-size:1.1rem; width:20px; color:#2563eb;"></i> Renombrar / Editar Detalles
+                </button>
+                <button type="button" id="swal-opt-move" style="display:flex; align-items:center; gap:12px; padding:12px 16px; border:1.5px solid #e2e8f0; background:#fff; border-radius:10px; font-size:0.92rem; font-weight:600; color:#334155; cursor:pointer; text-align:left; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#f0fdf4'; this.style.borderColor='#22c55e'; this.style.color='#15803d';" onmouseout="this.style.background='#fff'; this.style.borderColor='#e2e8f0'; this.style.color='#334155';">
+                    <i class="fa-solid fa-arrow-right-to-bracket" style="font-size:1.1rem; width:20px; color:#16a34a;"></i> Mover / Transferir Carpeta (Organizar)
+                </button>
+                <button type="button" id="swal-opt-delete" style="display:flex; align-items:center; gap:12px; padding:12px 16px; border:1.5px solid #e2e8f0; background:#fff; border-radius:10px; font-size:0.92rem; font-weight:600; color:#ef4444; cursor:pointer; text-align:left; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#fef2f2'; this.style.borderColor='#ef4444';" onmouseout="this.style.background='#fff'; this.style.borderColor='#e2e8f0';">
+                    <i class="fa-solid fa-trash-can" style="font-size:1.1rem; width:20px; color:#ef4444;"></i> Eliminar Carpeta
+                </button>
+            </div>
+        `,
+        showConfirmButton: false,
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar',
+        cancelButtonColor: '#64748b',
+        didOpen: () => {
+            document.getElementById('swal-opt-edit').addEventListener('click', () => {
+                selectedAction = 'edit';
+                window.Swal.clickConfirm();
+            });
+            document.getElementById('swal-opt-move').addEventListener('click', () => {
+                selectedAction = 'move';
+                window.Swal.clickConfirm();
+            });
+            document.getElementById('swal-opt-delete').addEventListener('click', () => {
+                selectedAction = 'delete';
+                window.Swal.clickConfirm();
+            });
+        }
+    });
+
+    if (selectedAction === 'edit') {
+        window.handleEditFolderClick(folderId, folderName);
+    } else if (selectedAction === 'move') {
+        window.handleMoveFolderClick(folderId, folderName);
+    } else if (selectedAction === 'delete') {
+        window.handleDeleteFolderClick(folderId, folderName);
+    }
+}
+
+window.handleMoveFolderClick = async function(folderId, folderName) {
+    if (!window.Swal) return;
+
+    try {
+        const folderDetails = await getFolderById(folderId);
+        
+        // Obtener todas las carpetas del pozo actual
+        const { data: siblingFolders, error: fetchErr } = await supabase
+            .from('well_document_folders')
+            .select('*')
+            .eq('pozo_name', String(state.activePozo).trim().toUpperCase());
+
+        if (fetchErr) throw fetchErr;
+
+        // Filtrar candidatos a padres: deben ser raíces (parent_id es null) y no ser la misma carpeta
+        const possibleParents = (siblingFolders || []).filter(f => f.parent_id === null && f.id !== folderId);
+        
+        const parentOptionsHtml = possibleParents
+            .map(f => `<option value="${f.id}" ${folderDetails?.parent_id === f.id ? 'selected' : ''}>📁 ${escapeHtml(f.name)}</option>`)
+            .join('');
+
+        const { value: formValues } = await window.Swal.fire({
+            title: 'Mover / Transferir Carpeta',
+            html: `
+                <div style="text-align: left; font-family: 'Outfit', sans-serif; display:flex; flex-direction:column; gap:14px;">
+                    <p style="font-size:0.85rem; color:#64748b; margin:0; line-height:1.4;">
+                        Estás organizando la carpeta <strong>"${escapeHtml(folderName)}"</strong>. Selecciona su nueva ubicación:
+                    </p>
+                    
+                    <div>
+                        <label style="font-weight: 700; color: #475569; font-size: 0.82rem; display: block; margin-bottom: 5px;">Nueva Ubicación / Carpeta Padre</label>
+                        <select id="move-parent-id" style="width:100%; box-sizing:border-box; border-radius:10px; font-size:0.9rem; padding:10px; border:1.5px solid #cbd5e1; outline:none; font-family:inherit; background:#fff;">
+                            <option value="">[ Convertir en Carpeta Raíz / Ninguna ]</option>
+                            ${parentOptionsHtml}
+                        </select>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:8px; padding:7px 12px; background:#eff6ff; border-radius:8px; border:1px solid #bfdbfe;">
+                        <input type="checkbox" id="move-apply-all-wells" style="width:16px; height:16px; cursor:pointer; accent-color:#2563eb;" checked>
+                        <label for="move-apply-all-wells" style="font-weight:700; font-size:0.82rem; color:#1e40af; cursor:pointer; margin:0;">Aplicar cambio de ubicación en todos los pozos</label>
+                    </div>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Confirmar Traslado',
+            confirmButtonColor: '#2563eb',
+            preConfirm: () => {
+                const parentId = document.getElementById('move-parent-id').value;
+                const applyToAll = document.getElementById('move-apply-all-wells')?.checked || false;
+                
+                let parentName = '';
+                if (parentId) {
+                    const parentObj = possibleParents.find(p => p.id === parentId);
+                    if (parentObj) parentName = parentObj.name;
+                }
+                
+                return { parentId, parentName, applyToAll };
+            }
+        });
+
+        if (formValues) {
+            window.Swal.fire({
+                title: 'Trasladando carpeta...',
+                allowOutsideClick: false,
+                didOpen: () => { window.Swal.showLoading(); }
+            });
+            if (formValues.applyToAll) {
+                const allWells = state.pozosList || [];
+                const movePromises = allWells.map(async (pozo) => {
+                    const { data: targetFolderData } = await supabase
+                        .from('well_document_folders')
+                        .select('*')
+                        .eq('pozo_name', pozo)
+                        .ilike('name', folderName)
+                        .limit(1);
+
+                    if (targetFolderData && targetFolderData.length > 0) {
+                        const targetFolder = targetFolderData[0];
+                        let targetParentId = null;
+
+                        if (formValues.parentName) {
+                            const { data: matchedParent } = await supabase
+                                .from('well_document_folders')
+                                .select('id')
+                                .eq('pozo_name', pozo)
+                                .ilike('name', formValues.parentName)
+                                .is('parent_id', null)
+                                .limit(1);
+
+                            if (matchedParent && matchedParent.length > 0) {
+                                targetParentId = matchedParent[0].id;
+                            } else {
+                                const parentDetails = possibleParents.find(p => p.name.toLowerCase() === formValues.parentName.toLowerCase());
+                                try {
+                                    const newParent = await createFolder({
+                                        pozoName: pozo,
+                                        name: formValues.parentName.toUpperCase(),
+                                        description: parentDetails?.description || '',
+                                        icon: parentDetails?.icon || 'fa-solid fa-folder',
+                                        parentId: null,
+                                        operationalScope: state.activeOperationalScope
+                                    });
+                                    if (newParent && newParent.id) {
+                                        targetParentId = newParent.id;
+                                    }
+                                } catch (createParentErr) {
+                                    console.error('[handleMoveFolderClick] Error creando carpeta padre automática:', createParentErr);
+                                }
+                            }
+                        }
+
+                        await supabase
+                            .from('well_document_folders')
+                            .update({ parent_id: targetParentId })
+                            .eq('id', targetFolder.id);
+                    }
+                });
+
+                await Promise.all(movePromises);
+            } else {
+                // Solo para el pozo local
+                const { error: updateErr } = await supabase
+                    .from('well_document_folders')
+                    .update({ parent_id: formValues.parentId ? formValues.parentId : null })
+                    .eq('id', folderId);
+
+                if (updateErr) throw updateErr;
+            }
+
+            // Recargar datos y refrescar la vista activa
+            await refreshActiveFoldersView();
+
+            window.Swal.fire({
+                icon: 'success',
+                title: 'Traslado Completado',
+                text: 'La carpeta ha sido reubicada de forma exitosa.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    } catch (err) {
+        console.error('Error al mover carpeta:', err);
+        window.Swal.fire({
+            icon: 'error',
+            title: 'Error al trasladar',
+            text: err.message || 'No se pudo mover la carpeta.'
+        });
+    }
+};
+window.handleEditFolderClick = async function(folderId, folderName) {
+    if (!window.Swal) return;
+
+    try {
+        const folderDetails = await getFolderById(folderId);
+        const currentIcon = folderDetails?.icon || 'fa-solid fa-folder';
+        
+        const { value: formValues } = await window.Swal.fire({
+            title: 'Editar Carpeta',
+            html: `
+                <div style="text-align: left; font-family: 'Outfit', sans-serif; display:flex; flex-direction:column; gap:14px;">
+                    <div>
+                        <label style="font-weight: 700; color: #475569; font-size: 0.82rem; display: block; margin-bottom: 5px;">Nombre de la Carpeta</label>
+                        <input id="edit-folder-name" class="swal2-input" value="${escapeHtml(folderName)}" style="width: 100%; margin: 0; box-sizing: border-box; border-radius:10px; font-size:0.9rem; padding:10px; border:1.5px solid #cbd5e1; outline:none; font-family:inherit;">
+                    </div>
+                    
+                    <div>
+                        <label style="font-weight: 700; color: #475569; font-size: 0.82rem; display: block; margin-bottom: 5px;">Descripción / Notas (Opcional)</label>
+                        <textarea id="edit-folder-desc" class="swal2-textarea" style="width: 100%; margin: 0; min-height: 70px; box-sizing: border-box; border-radius:10px; padding:10px; border:1.5px solid #cbd5e1; outline:none; font-size:0.9rem; resize:none; font-family:inherit;">${escapeHtml(folderDetails?.description || '')}</textarea>
+                    </div>
+                    <div>
+                        <label style="font-weight: 700; color: #475569; font-size: 0.82rem; display: block; margin-bottom: 5px;">Icono:</label>
+                        <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:6px;" id="edit-icon-picker">
+                            <button type="button" class="swal-icon-btn active" id="edit-active-custom-icon" data-icon="${currentIcon}" style="padding:8px; border-radius:8px; border:1.5px solid #2563eb; background:#eff6ff; cursor:pointer; font-size:1.15rem; color:#2563eb; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;">
+                                <i id="edit-active-custom-icon-i" class="${currentIcon}"></i>
+                            </button>
+                            <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-chart-line" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-chart-line"></i></button>
+                            <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-file-contract" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-file-contract"></i></button>
+                            <button type="button" class="swal-icon-btn" data-icon="fa-solid fa-folder" style="padding:8px; border-radius:8px; border:1.5px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.15rem; color:#475569; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;"><i class="fa-solid fa-folder"></i></button>
+                            
+                            <button type="button" id="edit-more-icons-btn" style="padding:8px; border-radius:8px; border:1.5px dashed #cbd5e1; background:#f8fafc; cursor:pointer; font-size:1.15rem; color:#64748b; outline:none; display:flex; align-items:center; justify-content:center; transition:all 0.15s;" title="Más Iconos">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+
+                        <div id="edit-extra-icons-wrapper" style="display:none; margin-top:10px; border-top:1.5px dashed #cbd5e1; padding-top:10px; display:none; flex-direction:column; gap:10px; grid-column: span 5;">
+                            <div style="display:flex; gap:6px;">
+                                <input id="edit-custom-icon-input" placeholder="Escribir clase (ej: droplet, industry)" style="flex:1; margin:0; box-sizing:border-box; border-radius:10px; font-size:0.85rem; padding:8px; border:1.5px solid #cbd5e1; outline:none; font-family:inherit;">
+                                <button type="button" id="edit-apply-manual-icon" style="padding:0 12px; background:#2563eb; color:#fff; border:none; border-radius:8px; font-size:0.85rem; font-weight:700; cursor:pointer;">Aplicar</button>
+                            </div>
+                            <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:6px; max-height:120px; overflow-y:auto; padding:6px; border:1.5px solid #e2e8f0; border-radius:10px; background:#f8fafc;" id="edit-extra-icons-grid">
+                                ${FONT_AWESOME_LIST.map(ic => `
+                                    <button type="button" class="swal-grid-icon-btn" data-icon="${ic}" style="padding:8px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; font-size:1.1rem; color:#475569; display:flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;">
+                                        <i class="${ic}"></i>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:8px; padding:7px 12px; background:#eff6ff; border-radius:8px; border:1px solid #bfdbfe;">
+                        <input type="checkbox" id="edit-apply-all-wells" style="width:16px; height:16px; cursor:pointer; accent-color:#2563eb;">
+                        <label for="edit-apply-all-wells" style="font-weight:700; font-size:0.82rem; color:#1e40af; cursor:pointer; margin:0;">Aplicar cambios en todos los pozos</label>
+                    </div>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Guardar Cambios',
+            confirmButtonColor: '#2563eb',
+            didOpen: () => {
+                // Eventos del icon picker
+                const picker = document.getElementById('edit-icon-picker');
+                picker.querySelectorAll('.swal-icon-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        picker.querySelectorAll('.swal-icon-btn').forEach(b => {
+                            b.style.borderColor = '#cbd5e1';
+                            b.style.background = '#fff';
+                            b.style.color = '#475569';
+                            b.classList.remove('active');
+                        });
+                        btn.style.borderColor = '#2563eb';
+                        btn.style.background = '#eff6ff';
+                        btn.style.color = '#2563eb';
+                        btn.classList.add('active');
+                    });
+                });
+
+                // Evento del botón de buscar más iconos (expandible inline)
+                const moreBtn = document.getElementById('edit-more-icons-btn');
+                if (moreBtn) {
+                    moreBtn.addEventListener('click', () => {
+                        const wrapper = document.getElementById('edit-extra-icons-wrapper');
+                        if (wrapper) {
+                            if (wrapper.style.display === 'none' || wrapper.style.display === '') {
+                                wrapper.style.display = 'flex';
+                                moreBtn.innerHTML = '<i class="fa-solid fa-minus"></i>';
+                                moreBtn.style.borderColor = '#2563eb';
+                                moreBtn.style.color = '#2563eb';
+                            } else {
+                                wrapper.style.display = 'none';
+                                moreBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
+                                moreBtn.style.borderColor = '#cbd5e1';
+                                moreBtn.style.color = '#64748b';
+                            }
+                        }
+                    });
+                }
+
+                // Eventos de click en los iconos de la grilla extra inline
+                const gridBtns = document.querySelectorAll('#edit-extra-icons-grid .swal-grid-icon-btn');
+                gridBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const newIcon = btn.dataset.icon;
+                        const customBtn = document.getElementById('edit-active-custom-icon');
+                        const customIconI = document.getElementById('edit-active-custom-icon-i');
+                        if (customBtn && customIconI) {
+                            customBtn.dataset.icon = newIcon;
+                            customIconI.className = newIcon;
+                            customBtn.click(); // seleccionar automáticamente
+                        }
+                    });
+                });
+
+                // Botón de aplicar manualmente
+                const applyBtn = document.getElementById('edit-apply-manual-icon');
+                const manualInput = document.getElementById('edit-custom-icon-input');
+                if (applyBtn && manualInput) {
+                    applyBtn.addEventListener('click', () => {
+                        let newIcon = manualInput.value.trim();
+                        if (!newIcon) return;
+                        if (!newIcon.startsWith('fa-')) {
+                            newIcon = `fa-solid fa-${newIcon}`;
+                        }
+                        const customBtn = document.getElementById('edit-active-custom-icon');
+                        const customIconI = document.getElementById('edit-active-custom-icon-i');
+                        if (customBtn && customIconI) {
+                            customBtn.dataset.icon = newIcon;
+                            customIconI.className = newIcon;
+                            customBtn.click(); // seleccionar automáticamente
+                        }
+                    });
+                }
+            },
+            preConfirm: () => {
+                const name = document.getElementById('edit-folder-name').value.trim();
+                const description = document.getElementById('edit-folder-desc').value.trim();
+                const activeBtn = document.querySelector('#edit-icon-picker .swal-icon-btn.active');
+                const icon = activeBtn ? activeBtn.dataset.icon : 'fa-solid fa-folder';
+                const applyToAll = document.getElementById('edit-apply-all-wells')?.checked || false;
+                if (!name) {
+                    window.Swal.showValidationMessage('El nombre de la carpeta es obligatorio.');
+                    return false;
+                }
+                return { name: name.toUpperCase(), description, icon, applyToAll };
+            }
+        });
+
+        if (formValues) {
+            window.Swal.fire({
+                title: 'Guardando cambios...',
+                allowOutsideClick: false,
+                didOpen: () => { window.Swal.showLoading(); }
+            });
+
+            const oldName = folderDetails?.name || folderName;
+
+            let updateQuery = supabase
+                .from('well_document_folders')
+                .update({
+                    name: formValues.name,
+                    description: formValues.description,
+                    icon: formValues.icon
+                });
+
+            if (formValues.applyToAll) {
+                updateQuery = updateQuery.ilike('name', oldName);
+                if (folderDetails && folderDetails.parent_id === null) {
+                    updateQuery = updateQuery.is('parent_id', null);
+                } else {
+                    updateQuery = updateQuery.not('parent_id', 'is', null);
+                }
+            } else {
+                updateQuery = updateQuery.eq('id', folderId);
+            }
+
+            const { error } = await updateQuery;
+
+            if (error) throw error;
+
+            // Si es carpeta raíz (parent_id es null) y cambió el nombre, actualizamos la columna categoria de documentos asociados
+            if (folderDetails && folderDetails.parent_id === null) {
+                const oldCat = oldName.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+                const newCat = formValues.name.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+                
+                if (oldCat !== newCat) {
+                    let docUpdateQuery = supabase
+                        .from('well_historical_documents')
+                        .update({ categoria: newCat });
+
+                    if (formValues.applyToAll) {
+                        docUpdateQuery = docUpdateQuery.eq('categoria', oldCat);
+                    } else {
+                        docUpdateQuery = docUpdateQuery.eq('folder_id', folderId);
+                    }
+                    
+                    const { error: docErr } = await docUpdateQuery;
+                    if (docErr) console.warn('[handleEditFolderClick] Error actualizando categoria de documentos:', docErr);
+                }
+            }
+
+            // Recargar datos y refrescar la vista activa
+            await refreshActiveFoldersView();
+
+            window.Swal.fire({
+                icon: 'success',
+                title: 'Carpeta Actualizada',
+                text: 'Los cambios se han guardado exitosamente.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    } catch (err) {
+        console.error('Error al editar carpeta:', err);
+        window.Swal.fire({
+            icon: 'error',
+            title: 'Error al actualizar',
+            text: err.message || 'No se pudo guardar la edición de la carpeta.'
+        });
+    }
+};
+
+async function refreshActiveFoldersView() {
+    if (state.activePozo) {
+        const folders = await getFolders({
+            pozoName: state.activePozo,
+            parentId: null,
+            operationalScope: state.activeOperationalScope
+        });
+        state.currentFolders = folders || [];
+        
+        const { data: allFoldersList } = await supabase
+            .from('well_document_folders')
+            .select('*')
+            .eq('pozo_name', String(state.activePozo).trim().toUpperCase());
+        state.allFoldersList = allFoldersList || [];
+
+        const allDocs = await getWellDocuments({
+            pozoName: state.activePozo,
+            operationalScope: state.activeOperationalScope
+        });
+        state.currentAllDocs = allDocs || [];
+    }
+    if (state.activeFolderId) {
+        const pathFolder = state.currentFolderPath.find(p => p.id === state.activeFolderId);
+        if (pathFolder) {
+            const updatedFolderObj = state.currentFolders.find(f => f.id === state.activeFolderId);
+            if (updatedFolderObj) {
+                pathFolder.name = updatedFolderObj.name;
+            }
+        }
+        const currentFolder = state.currentFolderPath[state.currentFolderPath.length - 1];
+        await openFolderView(state.activeFolderId, currentFolder.name);
+    } else if (state.activePozo) {
+        openFoldersView(state.activePozo);
+    }
+}
+

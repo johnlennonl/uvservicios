@@ -21,10 +21,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Hojas de estilos oficiales de UV Servicios -->
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/dashboard-page.css">
-    <link rel="stylesheet" href="css/stats-page.css">
-    <link rel="stylesheet" href="css/database-page.css">
+    <link rel="stylesheet" href="css/style.css?v=20260820-1150">
+    <link rel="stylesheet" href="css/dashboard-page.css?v=20260820-1150">
+    <link rel="stylesheet" href="css/stats-page.css?v=20260820-1150">
+    <link rel="stylesheet" href="css/database-page.css?v=20260820-1150">
     <!-- SweetAlert2 para diálogos elegantes -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -58,8 +58,22 @@
 
         <!-- Contenido Principal -->
         <main class="main-container">
+            <!-- 📱 MOBILE TOP APP BAR -->
+            <div class="mobile-top-app-bar">
+                <div class="mobile-app-bar-left">
+                    <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" class="mobile-app-bar-logo">
+                    <span class="mobile-app-bar-title">Base Datos</span>
+                </div>
+                <div class="mobile-app-bar-right">
+                    <div class="mobile-status-pill">
+                        <span class="status-dot"></span>
+                        <span>Online</span>
+                    </div>
+                </div>
+            </div>
+
             <header style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
-                <div>
+                <div class="database-desktop-header-copy">
                     <h1 style="font-size:1.8rem; font-weight:800; color:#0f172a; margin:0 0 6px;">Base de Datos & Expediente Digital</h1>
                     <p style="margin:0; font-size:0.92rem; color:#64748b;">Dossier histórico de pozos, simulaciones, informes técnicos y fichas BES.</p>
                 </div>
@@ -77,7 +91,6 @@
             </header>
 
             <section class="content-section" style="padding: 18px 0;">
-                <!-- Miga de Pan (Breadcrumb de Navegación) -->
                 <div class="db-breadcrumb" id="db-breadcrumb">
                     <div class="db-breadcrumb-item is-active" data-nav="root">
                         <i class="fa-solid fa-database"></i>
@@ -267,23 +280,24 @@
                         </label>
                     </div>
                 </div>
-
-                <div style="margin-bottom:14px;">
-                    <label style="display:flex; flex-direction:column; gap:4px; font-size:0.82rem; font-weight:700; color:#475569;">
-                        Categoría:
-                        <select id="upload-category-select" required style="padding:10px; border-radius:10px; border:1.5px solid #cbd5e1; font-weight:600; background:#fff; width:100%; box-sizing:border-box;">
-                            <option value="SIMULACIONES">📁 SIMULACIONES</option>
-                            <option value="INFORMES_TECNICOS">📁 INFORMES TÉCNICOS</option>
-                            <option value="PRUEBAS_PRODUCCION">📁 PRUEBAS DE PRODUCCIÓN</option>
-                            <option value="FICHAS_BES">📁 FICHAS TÉCNICAS BES</option>
-                            <option value="REGISTROS_ECHOMETER">📁 REGISTROS ECHOMETER (TAM)</option>
-                            <option value="DATA_SENSOR_FONDO">📁 DATA SENSOR DE FONDO</option>
-                            <option value="VOLCADOS_VSD">📁 DESCARGA DE DATA VSD</option>
-                            <option value="SOPORTES">📁 SOPORTES DE CAMPO</option>
-                        </select>
-                    </label>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+                    <div>
+                        <label style="display:flex; flex-direction:column; gap:4px; font-size:0.82rem; font-weight:700; color:#475569;">
+                            Carpeta Principal:
+                            <select id="upload-category-select" required style="padding:10px; border-radius:10px; border:1.5px solid #cbd5e1; font-weight:600; background:#fff; width:100%; box-sizing:border-box;">
+                                <option value="">Selecciona Carpeta...</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div>
+                        <label style="display:flex; flex-direction:column; gap:4px; font-size:0.82rem; font-weight:700; color:#475569;">
+                            Subcarpeta (Opcional):
+                            <select id="upload-subfolder-select" style="padding:10px; border-radius:10px; border:1.5px solid #cbd5e1; font-weight:600; background:#fff; width:100%; box-sizing:border-box;">
+                                <option value="">Ninguna (Guardar en Raíz)</option>
+                            </select>
+                        </label>
+                    </div>
                 </div>
-
                 <div style="margin-bottom:16px;">
                     <label style="display:flex; flex-direction:column; gap:4px; font-size:0.82rem; font-weight:700; color:#475569;">
                         Descripción o Notas Técnicas (Opcional):
@@ -295,6 +309,9 @@
                     <span>Guardar y Subir Expediente</span>
                 </button>
             </form>
+        </div>
+    </div>
+
     <!-- MODAL 3: PREVISUALIZADOR DE DOCUMENTOS (PREVIEW MODAL) -->
     <div id="document-preview-modal" class="upload-modal-overlay" hidden>
         <div class="upload-modal-card" style="max-width: 900px; width: 95%;">
@@ -319,8 +336,18 @@
         </div>
     </div>
 
-    <!-- Scripts ES6 Modulares -->
-    <script type="module" src="js/modules/database/database-controller.js?v=20260819-1236"></script>
+    <!-- 📱 NEW MOBILE BOTTOM NAV (SIMPLIFIED) -->
+    <nav class="mobile-bottom-nav" aria-label="Navegacion movil principal" style="grid-template-columns: repeat(2, 1fr);">
+        <a href="base-datos.html" class="mobile-nav-link active" id="mob-nav-base-datos">
+            <i class="fa-solid fa-database" style="font-size: 1.25rem;"></i>
+            <span>Base Datos</span>
+        </a>
+        <button type="button" class="mobile-nav-link logout-btn logout" id="mobile-logout-btn">
+            <i class="fa-solid fa-right-from-bracket" style="font-size: 1.25rem;"></i>
+            <span>Salir</span>
+        </button>
+    </nav>
+    <script type="module" src="js/modules/database/database-controller.js?v=20260820-0958"></script>
 </body>
 
 </html>

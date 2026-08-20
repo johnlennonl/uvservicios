@@ -16,12 +16,10 @@
  * ---------------------------------------------------------------------------- */
 .pin-modal-overlay {
   position: fixed;
-  top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.7);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -500,15 +498,16 @@
 /* ------------------------------------------------------------------------------
  * 6. MODAL DE CARGA DE DOCUMENTOS (UPLOAD)
  * ---------------------------------------------------------------------------- */
+
 .upload-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
+
   width: 100vw;
   height: 100vh;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(4px);
-  z-index: 999;
+  background: rgba(15, 23, 42, 0.7);
+  z-index: 2200 !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -712,4 +711,212 @@
   border-color: #1d4ed8;
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.12);
+}
+
+/* ------------------------------------------------------------------------------
+ * 10. ESTILOS DE CARPETAS Y SUBCARPETAS PERSONALIZADAS (CUSTOM DIRECTORIES)
+ * ---------------------------------------------------------------------------- */
+.folder-custom .folder-card-icon {
+  background: #eff6ff;
+  color: #2563eb;
+}
+.folder-mini-card:hover {
+  transform: translateY(-2px);
+  border-color: #2563eb !important;
+  background: #f0f7ff !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+}
+/* ------------------------------------------------------------------------------
+ * 11. RESPONSIVE DESIGN & MOBILE OVERRIDES (TABLETS & MOBILE <= 1024px)
+ * ---------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  /* Layout global and spacing */
+  .main-container {
+    padding: 16px 12px 120px 12px !important;
+  }
+  .database-desktop-header-copy {
+    display: none !important;
+  }
+  header h1 {
+    font-size: 1.4rem !important;
+  }
+  
+  header p {
+    font-size: 0.8rem !important;
+  }
+
+  /* Center Header & Switchers/Buttons on Mobile */
+  header {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 14px !important;
+  }
+  
+  header > div:first-child {
+    margin-bottom: 4px;
+  }
+
+  header > div:last-child {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+  }
+
+  /* Center and full-width buttons */
+  #btn-create-folder,
+  #btn-open-upload-modal {
+    width: 100% !important;
+    max-width: 340px !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+  }
+
+  /* Switcher width */
+  #database-operational-scope-switcher {
+    display: none !important;
+  }
+
+  /* Fix horizontal overflow / breaking of flex containers */
+  .dashboard-layout,
+  .main-container,
+  .content-section,
+  #view-wells-container,
+  #view-folders-container,
+  #view-files-container,
+  #view-search-results-container,
+  .db-breadcrumb {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .stats-card {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Header Card */
+  .db-header-card {
+    padding: 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  
+  .db-header-left {
+    gap: 12px;
+  }
+  
+  .db-header-title {
+    font-size: 1.15rem;
+  }
+  
+  .db-header-subtitle {
+    font-size: 0.8rem;
+  }
+  
+  .db-search-box {
+    max-width: 100%;
+  }
+
+  /* Breadcrumb */
+  .db-breadcrumb {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    gap: 6px;
+    border-radius: 12px;
+  }
+
+  /* Wells, Folders & Subfolders grids - 1 Column for Tablet/Mobile */
+  .wells-grid,
+  .folders-grid,
+  #subfolders-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  /* Folder & Well cards styling */
+  .folder-card, .well-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+  
+  /* Stack filter inputs vertically on mobile/tablet */
+  .stats-filter-panel > div {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Tables horizontally scrollable */
+  .stats-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    margin-top: 10px;
+    border-radius: 12px;
+  }
+  
+  .stats-table {
+    min-width: 600px; /* Force scroll bar instead of squeezing columns */
+  }
+
+  /* Action Buttons inside tables */
+  .btn-preview-doc,
+  .btn-download-doc,
+  .btn-edit-doc,
+  .btn-delete-doc {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    border-radius: 8px;
+  }
+
+  /* Modals */
+  .upload-modal-card,
+  .pin-modal-card {
+    padding: 20px 16px;
+    border-radius: 20px;
+    margin: 10px;
+    max-width: 100%;
+  }
+  
+  .pin-input-group {
+    gap: 8px;
+  }
+  
+  .pin-digit-box {
+    width: 44px;
+    height: 52px;
+    font-size: 1.3rem;
+    border-radius: 10px;
+  }
+  
+  .pin-modal-card h2 {
+    font-size: 1.2rem;
+  }
+  
+  .pin-modal-card p {
+    font-size: 0.82rem;
+    margin-bottom: 18px;
+  }
+  
+  /* Inputs inside creation modals */
+  .upload-modal-card form select,
+  .upload-modal-card form input,
+  .upload-modal-card form textarea {
+    font-size: 0.85rem !important;
+    padding: 8px !important;
+  }
+  
+  .dropzone-area {
+    padding: 16px;
+  }
+  
+  .dropzone-area i {
+    font-size: 1.8rem !important;
+  }
 }

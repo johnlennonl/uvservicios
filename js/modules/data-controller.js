@@ -1076,7 +1076,16 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                     : mode === 'vsd'
                     ? 'VOLCADOS_VSD'
                     : 'SOPORTES';
-                const docs = await getWellDocuments({ pozoName, category: categoryFilter });
+                let docs = await getWellDocuments({ pozoName, category: categoryFilter });
+
+                if (mode === 'echometer') {
+                    // Filtrar para excluir reportes en PDF/Imágenes que corresponden al soporte de la prueba de nivel
+                    docs = (docs || []).filter(doc => {
+                        const name = doc.nombre_archivo || doc.file_name || '';
+                        const ext = name.split('.').pop()?.toLowerCase() || '';
+                        return !['pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(ext);
+                    });
+                }
 
                 if (countLabel) {
                     countLabel.textContent = `${docs?.length || 0} Archivo(s)`;
