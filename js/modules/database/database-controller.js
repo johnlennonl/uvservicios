@@ -472,9 +472,14 @@ function populateQuickWellSwitcher() {
     let activeIndex = -1;
 
     // Renderizar opciones filtradas
-    function renderFilteredDropdown(filterText = '') {
+    function renderFilteredDropdown(filterText = '', forceShowAll = false) {
         const text = String(filterText).trim().toLowerCase();
-        const filtered = list.filter(pozo => pozo.toLowerCase().includes(text));
+        
+        // Si el texto coincide exactamente con el pozo activo o si se fuerza, mostramos todos
+        const isCurrentActive = state.activePozo && (text === state.activePozo.toLowerCase());
+        const showAll = forceShowAll || isCurrentActive || text === '';
+        
+        const filtered = showAll ? list : list.filter(pozo => pozo.toLowerCase().includes(text));
 
         if (filtered.length === 0) {
             dropdown.innerHTML = '<div style="padding:8px 12px; font-size:0.8rem; color:#94a3b8; font-style:italic;">No hay coincidencias</div>';
@@ -482,20 +487,31 @@ function populateQuickWellSwitcher() {
             return;
         }
 
-        dropdown.innerHTML = filtered.map((pozo, idx) => `
-            <div class="autocomplete-option" data-value="${pozo}" data-index="${idx}">
-                <i class="fa-solid fa-oil-well"></i>
-                <span>${pozo}</span>
-            </div>
-        `).join('');
+        dropdown.innerHTML = filtered.map((pozo, idx) => {
+            const isActive = state.activePozo && (pozo.toUpperCase() === state.activePozo.toUpperCase());
+            return `
+                <div class="autocomplete-option ${isActive ? 'current-active' : ''}" data-value="${pozo}" data-index="${idx}" style="${isActive ? 'background:#eff6ff; font-weight:700; color:#1e40af;' : ''}">
+                    <i class="fa-solid ${isActive ? 'fa-circle-check' : 'fa-oil-well'}" style="${isActive ? 'color:#2563eb; margin-right:6px;' : 'margin-right:6px;'}"></i>
+                    <span>${pozo}</span>
+                </div>
+            `;
+        }).join('');
 
         dropdown.querySelectorAll('.autocomplete-option').forEach(opt => {
-            opt.addEventListener('click', () => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
                 selectWellOption(opt.dataset.value);
             });
         });
         
-        activeIndex = -1;
+        // Encontrar índice del pozo activo para resaltarlo y hacerle scroll por defecto
+        if (showAll && state.activePozo) {
+            activeIndex = filtered.findIndex(p => p.toUpperCase() === state.activePozo.toUpperCase());
+            highlightOption(dropdown.querySelectorAll('.autocomplete-option'));
+        } else {
+            activeIndex = -1;
+            dropdown.querySelectorAll('.autocomplete-option').forEach(opt => opt.classList.remove('active'));
+        }
     }
 
     // Ejecutar conmutación al seleccionar pozo
@@ -550,12 +566,22 @@ function populateQuickWellSwitcher() {
     // Registrar eventos una sola vez
     if (!input.dataset.listenerBound) {
         input.addEventListener('focus', () => {
-            renderFilteredDropdown(input.value);
+            renderFilteredDropdown(input.value, true);
             dropdown.style.display = 'block';
+            setTimeout(() => { input.select(); }, 50);
+        });
+
+        input.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (dropdown.style.display !== 'block') {
+                renderFilteredDropdown(input.value, true);
+                dropdown.style.display = 'block';
+                setTimeout(() => { input.select(); }, 50);
+            }
         });
 
         input.addEventListener('input', (e) => {
-            renderFilteredDropdown(e.target.value);
+            renderFilteredDropdown(e.target.value, false);
             dropdown.style.display = 'block';
         });
 
@@ -1979,16 +2005,16 @@ function updateBreadcrumb() {
 
     // Gestionar visibilidad y sincronización del conmutador rápido integrado
     const switcherContainer = document.getElementById('well-quick-switcher-container');
-    const switcherSelect = document.getElementById('well-switcher-select');
+    const switcherSearch = document.getElementById('well-switcher-search');
     const shouldShowSwitcher = state.activePozo && !isVirtualWell;
 
-    if (switcherContainer && switcherSelect) {
+    if (switcherContainer && switcherSearch) {
         if (shouldShowSwitcher) {
             switcherContainer.style.display = 'flex';
-            switcherSelect.value = state.activePozo;
+            switcherSearch.value = state.activePozo;
         } else {
             switcherContainer.style.display = 'none';
-            switcherSelect.value = '';
+            switcherSearch.value = '';
         }
     }
 
@@ -2705,7 +2731,7 @@ function updateSubfolderSelector(parentFolderId, preselectedSubId = '') {
     if (!subfolderSelect) return;
 
     if (!parentFolderId) {
-        subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Raíz)</option>';
+        subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Carpeta Principal)</option>';
         subfolderSelect.disabled = true;
         return;
     }
@@ -2718,17 +2744,19 @@ function updateSubfolderSelector(parentFolderId, preselectedSubId = '') {
         const children = allSubs.filter(f => f.parent_id === currentParentId);
         children.forEach(child => {
             const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(depth);
-            const label = pathPrefix ? `${pathPrefix} > 📁 ${child.name}` : `📁 ${child.name}`;
-            optionsHtml += `<option value="${child.id}">${indent}${label}</option>`;
+            const prefixSymbol = depth > 0 ? '└─ ' : '';
+            const optionLabel = `${indent}${prefixSymbol}📁 ${child.name}`;
+            const labelForRecursion = pathPrefix ? `${pathPrefix} > 📁 ${child.name}` : `📁 ${child.name}`;
+            optionsHtml += `<option value="${child.id}">${optionLabel}</option>`;
             // Recursivamente agregar los hijos de esta subcarpeta
-            buildSubOptions(child.id, depth + 1, label);
+            buildSubOptions(child.id, depth + 1, labelForRecursion);
         });
     }
 
     buildSubOptions(parentFolderId, 0, '');
 
     if (optionsHtml === '') {
-        subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Raíz)</option>';
+        subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Carpeta Principal)</option>';
         subfolderSelect.disabled = true;
     } else {
         subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Carpeta Principal)</option>' + optionsHtml;
