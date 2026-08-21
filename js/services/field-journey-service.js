@@ -1727,6 +1727,7 @@ export async function getLatestFieldJourneyDraft() {
                     descripcion = matchOld[1];
                 }
             }
+            return { motivo, hora, descripcion };
         });
 
         // Deduplicar para limpiar duplicados previos
