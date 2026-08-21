@@ -2301,12 +2301,21 @@ function initUploadModal() {
     const categorySelect = document.getElementById('upload-category-select');
     const subfolderSelect = document.getElementById('upload-subfolder-select');
 
+    let selectedFilesArray = [];
+    const filesContainer = document.getElementById('selected-files-container');
+    const filesList = document.getElementById('selected-files-list');
+    const filesCount = document.getElementById('selected-files-count');
+
     if (btnOpen) {
         btnOpen.addEventListener('click', async () => {
             if (modal) {
                 modal.hidden = false;
                 modal.style.display = 'flex';
             }
+            
+            // Limpiar selección de archivos al abrir el modal para empezar limpio
+            selectedFilesArray = [];
+            renderSelectedFilesList();
             
             // Poner por defecto la fecha de hoy local en el input de fecha del documento
             const dateInput = document.getElementById('upload-date-input');
@@ -2399,29 +2408,114 @@ function initUploadModal() {
             e.preventDefault();
             dropzone.classList.remove('is-dragover');
             if (e.dataTransfer.files?.length) {
-                fileInput.files = e.dataTransfer.files;
-                updateSelectedFileBadge();
+                addFiles(e.dataTransfer.files);
             }
         });
 
-        fileInput.addEventListener('change', () => updateSelectedFileBadge());
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files?.length) {
+                addFiles(fileInput.files);
+                fileInput.value = ''; // Limpiar para permitir volver a elegir los mismos archivos si se desea
+            }
+        });
     }
 
-    function updateSelectedFileBadge() {
-        if (!fileBadge || !fileInput) return;
-        const file = fileInput.files?.[0];
-        if (file) {
-            fileBadge.textContent = `Archivo seleccionado: ${file.name} (${(file.size / 1048576).toFixed(2)} MB)`;
-            fileBadge.hidden = false;
-        } else {
-            fileBadge.hidden = true;
+    function addFiles(files) {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            // Evitar duplicados exactos en el mismo lote
+            const alreadyExists = selectedFilesArray.some(f => f.name === file.name && f.size === file.size);
+            if (!alreadyExists) {
+                selectedFilesArray.push(file);
+            }
         }
+        renderSelectedFilesList();
+    }
+
+    function removeFile(index) {
+        selectedFilesArray.splice(index, 1);
+        renderSelectedFilesList();
+    }
+
+    function getFileIconStyle(fileName) {
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+        let iconClass = 'fa-solid fa-file-lines';
+        let color = '#64748b'; // default slate
+
+        switch (ext) {
+            case 'pdf':
+                iconClass = 'fa-solid fa-file-pdf';
+                color = '#ef4444';
+                break;
+            case 'xlsx':
+            case 'xls':
+            case 'csv':
+                iconClass = 'fa-solid fa-file-excel';
+                color = '#16a34a';
+                break;
+            case 'docx':
+            case 'doc':
+                iconClass = 'fa-solid fa-file-word';
+                color = '#2563eb';
+                break;
+            case 'png':
+            case 'jpg':
+            case 'jpeg':
+            case 'gif':
+            case 'webp':
+                iconClass = 'fa-solid fa-file-image';
+                color = '#a855f7';
+                break;
+            default:
+                iconClass = 'fa-solid fa-file-lines';
+                color = '#64748b';
+        }
+        return { iconClass, color };
+    }
+
+    function renderSelectedFilesList() {
+        if (!filesList || !filesContainer || !filesCount) return;
+
+        if (selectedFilesArray.length === 0) {
+            filesContainer.hidden = true;
+            filesContainer.style.display = 'none';
+            filesCount.textContent = '0';
+            filesList.innerHTML = '';
+            return;
+        }
+
+        filesCount.textContent = selectedFilesArray.length;
+        filesContainer.hidden = false;
+        filesContainer.style.display = 'block';
+
+        filesList.innerHTML = selectedFilesArray.map((file, idx) => {
+            const { iconClass, color } = getFileIconStyle(file.name);
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            return `
+                <div class="selected-file-item" style="display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:0.8rem; margin-bottom: 4px;">
+                    <div style="display:flex; align-items:center; gap:8px; max-width:80%; overflow:hidden;">
+                        <i class="${iconClass}" style="color:${color}; font-size:1rem;"></i>
+                        <span style="font-weight:600; color:#1e293b; text-overflow:ellipsis; white-space:nowrap; overflow:hidden;" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                        <span style="color:#64748b; font-size:0.75rem;">(${sizeMB} MB)</span>
+                    </div>
+                    <button type="button" class="btn-remove-file" data-index="${idx}" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:0.9rem; padding:0 4px; transition:color 0.2s;">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        filesList.querySelectorAll('.btn-remove-file').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(btn.getAttribute('data-index'), 10);
+                removeFile(idx);
+            });
+        });
     }
 
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const file = fileInput?.files?.[0];
             const pozoName = (selectPozo?.disabled ? state.activePozo : selectPozo?.value);
             const parentFolderId = categorySelect?.value;
             const subfolderId = subfolderSelect?.value;
@@ -2429,7 +2523,14 @@ function initUploadModal() {
             const documentDate = document.getElementById('upload-date-input')?.value || new Date().toISOString().split('T')[0];
             const submitBtn = document.getElementById('btn-submit-upload');
 
-            if (!file) { alert('Selecciona un archivo para subir.'); return; }
+            if (selectedFilesArray.length === 0) {
+                window.Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin archivos',
+                    text: 'Debes arrastrar o seleccionar al menos un archivo para subir.'
+                });
+                return;
+            }
             if (!pozoName) { alert('Selecciona un pozo.'); return; }
             if (!parentFolderId) { alert('Selecciona una carpeta principal.'); return; }
 
@@ -2441,37 +2542,92 @@ function initUploadModal() {
             if (!parentFolderRecord) { alert('No se pudo determinar la carpeta de destino.'); return; }
             const finalCategory = parentFolderRecord.name.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
 
+            const totalFiles = selectedFilesArray.length;
+            let successCount = 0;
+            const failedFiles = [];
+            const uploaderName = state.userSession?.user?.email || 'Técnico UV';
+
             try {
                 if (submitBtn) {
                     submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Subiendo expediente...</span>';
+                    // Desactivar temporalmente los inputs del modal para evitar ediciones mientras se sube
+                    selectPozo.disabled = true;
+                    if (categorySelect) categorySelect.disabled = true;
+                    if (subfolderSelect) subfolderSelect.disabled = true;
+                    const dateInput = document.getElementById('upload-date-input');
+                    if (dateInput) dateInput.disabled = true;
+                    const descInput = document.getElementById('upload-description-input');
+                    if (descInput) descInput.disabled = true;
+                    if (btnClose) btnClose.disabled = true;
                 }
 
-                const uploaderName = state.userSession?.user?.email || 'Técnico UV';
+                // Carga secuencial de archivos en el lote
+                for (let i = 0; i < totalFiles; i++) {
+                    const currentFile = selectedFilesArray[i];
+                    if (submitBtn) {
+                        submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Subiendo (${i + 1}/${totalFiles}): ${escapeHtml(currentFile.name)}...</span>`;
+                    }
 
-                await uploadWellDocument({
-                    file,
-                    pozoName,
-                    category: finalCategory,
-                    description,
-                    uploadedBy: uploaderName,
-                    operationalScope: state.activeOperationalScope,
-                    documentDate: documentDate,
-                    folderId: targetFolderId
-                });
-
-                showSuccessToast('¡Documento Cargado con Éxito!', `El archivo "${file.name}" se guardó correctamente en el expediente.`);
-                if (modal) {
-                    modal.hidden = true;
-                    modal.style.display = 'none';
+                    try {
+                        await uploadWellDocument({
+                            file: currentFile,
+                            pozoName,
+                            category: finalCategory,
+                            description,
+                            uploadedBy: uploaderName,
+                            operationalScope: state.activeOperationalScope,
+                            documentDate: documentDate,
+                            folderId: targetFolderId
+                        });
+                        successCount++;
+                    } catch (fileErr) {
+                        console.error(`[initUploadModal] Error subiendo archivo "${currentFile.name}":`, fileErr);
+                        failedFiles.push({ file: currentFile, error: fileErr.message || 'Error desconocido' });
+                    }
                 }
-                form.reset();
-                if (fileBadge) fileBadge.hidden = true;
 
-                // Recargar contadores y vista si aplica
+                if (failedFiles.length === 0) {
+                    showSuccessToast('¡Documentos Cargados!', `Se subieron con éxito los ${successCount} expedientes.`);
+                    if (modal) {
+                        modal.hidden = true;
+                        modal.style.display = 'none';
+                    }
+                    form.reset();
+                    selectedFilesArray = [];
+                    renderSelectedFilesList();
+                } else {
+                    const failedNames = failedFiles.map(f => `• ${f.file.name}: ${f.error}`).join('\n');
+                    
+                    if (successCount > 0) {
+                        window.Swal.fire({
+                            icon: 'warning',
+                            title: 'Carga Parcial',
+                            html: `<div style="text-align: left;">
+                                <p>Se subieron <strong>${successCount}</strong> de <strong>${totalFiles}</strong> archivos.</p>
+                                <p style="color:#ef4444; font-weight:700;">Fallaron los siguientes archivos:</p>
+                                <pre style="font-size: 0.8rem; background: #f8fafc; padding: 10px; border-radius: 8px; max-height: 120px; overflow-y: auto;">${escapeHtml(failedNames)}</pre>
+                                <p>Los archivos fallidos quedan en la lista para que puedas reintentar subirlos.</p>
+                            </div>`
+                        });
+                    } else {
+                        window.Swal.fire({
+                            icon: 'error',
+                            title: 'Error de Carga',
+                            html: `<div style="text-align: left;">
+                                <p>No se pudo subir ninguno de los <strong>${totalFiles}</strong> archivos.</p>
+                                <pre style="font-size: 0.8rem; background: #f8fafc; padding: 10px; border-radius: 8px; max-height: 120px; overflow-y: auto;">${escapeHtml(failedNames)}</pre>
+                            </div>`
+                        });
+                    }
+
+                    // Dejar en la lista únicamente los que fallaron
+                    selectedFilesArray = failedFiles.map(f => f.file);
+                    renderSelectedFilesList();
+                }
+
+                // Recargar contadores y vista correspondiente
                 state.summaryCounts = filterSummaryCountsByActivePozos(await getWellDocumentSummaryCounts({ operationalScope: state.activeOperationalScope }));
                 
-                // Recargar vista basándose en el contexto del archivo recién subido
                 if (state.activeFolderId) {
                     await openFolderView(state.activeFolderId, state.currentFolderPath[state.currentFolderPath.length - 1].name);
                 } else if (state.activeCategory) {
@@ -2483,12 +2639,20 @@ function initUploadModal() {
                 }
 
             } catch (err) {
-                showSuccessToast('Error al Subir', err.message);
+                showSuccessToast('Error al Procesar Lote', err.message);
             } finally {
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = '<span>Guardar y Subir Expediente</span>';
                 }
+                selectPozo.disabled = !!state.activePozo; // Mantener deshabilitado si ya había un pozo activo en el contexto
+                if (categorySelect) categorySelect.disabled = false;
+                if (subfolderSelect) subfolderSelect.disabled = false;
+                const dateInput = document.getElementById('upload-date-input');
+                if (dateInput) dateInput.disabled = false;
+                const descInput = document.getElementById('upload-description-input');
+                if (descInput) descInput.disabled = false;
+                if (btnClose) btnClose.disabled = false;
             }
         });
     }
