@@ -1737,12 +1737,32 @@ const FONT_AWESOME_LIST = [
     'fa-solid fa-folder', 'fa-solid fa-folder-open', 'fa-solid fa-folder-closed', 'fa-solid fa-file', 'fa-solid fa-file-lines', 'fa-solid fa-file-pdf', 'fa-solid fa-file-excel', 'fa-solid fa-file-word',
     // Técnicos y Operaciones
     'fa-solid fa-oil-well', 'fa-solid fa-screwdriver-wrench', 'fa-solid fa-gauge-high', 'fa-solid fa-gears', 'fa-solid fa-microchip', 'fa-solid fa-bolt', 'fa-solid fa-chart-line', 'fa-solid fa-hard-drive',
-    // Otros Comunes
-    'fa-solid fa-droplet', 'fa-solid fa-wrench', 'fa-solid fa-clipboard-list', 'fa-solid fa-triangle-exclamation', 'fa-solid fa-server', 'fa-solid fa-database', 'fa-solid fa-flask', 'fa-solid fa-fire',
-    'fa-solid fa-industry', 'fa-solid fa-plug', 'fa-solid fa-satellite', 'fa-solid fa-network-wired', 'fa-solid fa-shield-halved', 'fa-solid fa-user-gear'
+'fa-solid fa-industry', 'fa-solid fa-plug', 'fa-solid fa-satellite', 'fa-solid fa-network-wired', 'fa-solid fa-shield-halved', 'fa-solid fa-user-gear'
 ];
 
+function getDescendantIds(folders, folderId) {
+    const ids = [];
+    const children = folders.filter(f => f.parent_id === folderId);
+    for (const child of children) {
+        ids.push(child.id);
+        ids.push(...getDescendantIds(folders, child.id));
+    }
+    return ids;
+}
 
+function getFolderPathNames(folders, targetFolderId) {
+    const path = [];
+    let current = folders.find(f => f.id === targetFolderId);
+    while (current) {
+        path.unshift(current.name);
+        if (current.parent_id) {
+            current = folders.find(f => f.id === current.parent_id);
+        } else {
+            current = null;
+        }
+    }
+    return path;
+}
 
 function initFolderEvents() {
     const btnCreateFolder = document.getElementById('btn-create-folder');
@@ -1752,11 +1772,43 @@ function initFolderEvents() {
 
             const allWells = state.pozosList || [];
             
-            // Obtener carpetas raíz del pozo activo para listarlas en el selector de carpeta padre
-            const parentFolders = state.currentFolders || [];
-            const parentOptions = parentFolders
-                .map(f => `<option value="${escapeHtml(f.name)}">📁 ${escapeHtml(f.name)}</option>`)
-                .join('');
+            // Obtener todas las carpetas del pozo activo para listarlas en el selector de carpeta padre
+            const { data: siblingFolders, error: fetchErr } = await supabase
+                .from('well_document_folders')
+                .select('*')
+                .eq('pozo_name', String(state.activePozo).trim().toUpperCase());
+
+            if (fetchErr) {
+                console.error('Error fetching sibling folders:', fetchErr);
+                return;
+            }
+
+            const folders = siblingFolders || [];
+
+            // Construir jerarquía
+            const rootFolders = folders.filter(f => f.parent_id === null);
+            const subFoldersMap = {};
+            folders.forEach(f => {
+                if (f.parent_id !== null) {
+                    if (!subFoldersMap[f.parent_id]) subFoldersMap[f.parent_id] = [];
+                    subFoldersMap[f.parent_id].push(f);
+                }
+            });
+
+            let parentOptions = '';
+            rootFolders.forEach(root => {
+                parentOptions += `<option value="${root.id}">📁 ${escapeHtml(root.name)}</option>`;
+                
+                const level1 = subFoldersMap[root.id] || [];
+                level1.forEach(sub1 => {
+                    parentOptions += `<option value="${sub1.id}">&nbsp;&nbsp;&nbsp;&nbsp;📁 ${escapeHtml(root.name)} &gt; 📁 ${escapeHtml(sub1.name)}</option>`;
+                    
+                    const level2 = subFoldersMap[sub1.id] || [];
+                    level2.forEach(sub2 => {
+                        parentOptions += `<option value="${sub2.id}">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📁 ${escapeHtml(root.name)} &gt; 📁 ${escapeHtml(sub1.name)} &gt; 📁 ${escapeHtml(sub2.name)}</option>`;
+                    });
+                });
+            });
 
             const { value: formValues } = await Swal.fire({
                 title: '<i class="fa-solid fa-folder-plus" style="color:#2563eb;margin-right:6px;"></i> Crear Nueva Carpeta',
@@ -1924,11 +1976,7 @@ function initFolderEvents() {
                     // Pre-seleccionar la carpeta actual si aplica
                     const parentSelect = document.getElementById('swal-parent-folder');
                     if (parentSelect && state.activeFolderId) {
-                        const currentFolderName = state.currentFolderPath[state.currentFolderPath.length - 1]?.name;
-                        if (currentFolderName) {
-                            const matchedOption = Array.from(parentSelect.options).find(opt => opt.value === currentFolderName);
-                            if (matchedOption) parentSelect.value = currentFolderName;
-                        }
+                        parentSelect.value = state.activeFolderId;
                     }
                 },
                 preConfirm: () => {
@@ -1937,7 +1985,7 @@ function initFolderEvents() {
                     const activeBtn = document.querySelector('.swal-icon-btn.active');
                     const icon = activeBtn ? activeBtn.dataset.icon : 'fa-solid fa-folder';
                     const selectedWells = Array.from(document.querySelectorAll('.swal-well-cb:checked')).map(el => el.value);
-                    const parentName = document.getElementById('swal-parent-folder').value;
+                    const parentId = document.getElementById('swal-parent-folder').value;
 
                     if (!name || !name.trim()) {
                         Swal.showValidationMessage('¡El nombre de la carpeta es obligatorio!');
@@ -1948,7 +1996,12 @@ function initFolderEvents() {
                         return false;
                     }
 
-                    return { name: name.trim().toUpperCase(), desc: desc.trim(), icon, wells: selectedWells, parentName };
+                    let parentNamePath = [];
+                    if (parentId) {
+                        parentNamePath = getFolderPathNames(folders, parentId);
+                    }
+
+                    return { name: name.trim().toUpperCase(), desc: desc.trim(), icon, wells: selectedWells, parentNamePath };
                 }
             });
 
@@ -1967,36 +2020,46 @@ function initFolderEvents() {
                 const createPromises = formValues.wells.map(async (pozo) => {
                     let targetParentId = null;
 
-                    if (formValues.parentName) {
-                        const { data: matchedParent } = await supabase
-                            .from('well_document_folders')
-                            .select('id')
-                            .eq('pozo_name', pozo)
-                            .ilike('name', formValues.parentName)
-                            .is('parent_id', null) // asegurar que buscamos la raíz con ese nombre
-                            .limit(1);
+                    if (formValues.parentNamePath && formValues.parentNamePath.length > 0) {
+                        let currentParentId = null;
+                        for (const name of formValues.parentNamePath) {
+                            let matchedQuery = supabase
+                                .from('well_document_folders')
+                                .select('id')
+                                .eq('pozo_name', pozo)
+                                .ilike('name', name);
+                            
+                            if (currentParentId) {
+                                matchedQuery = matchedQuery.eq('parent_id', currentParentId);
+                            } else {
+                                matchedQuery = matchedQuery.is('parent_id', null);
+                            }
 
-                        if (matchedParent && matchedParent.length > 0) {
-                            targetParentId = matchedParent[0].id;
-                        } else {
-                            // Si el padre no existe en ese pozo, lo creamos dinámicamente primero para no romper la estructura!
-                            const parentDetails = parentFolders.find(pf => pf.name.toLowerCase() === formValues.parentName.toLowerCase());
-                            try {
-                                const newParent = await createFolder({
-                                    pozoName: pozo,
-                                    name: formValues.parentName.toUpperCase(),
-                                    description: parentDetails?.description || '',
-                                    icon: parentDetails?.icon || 'fa-solid fa-folder',
-                                    parentId: null,
-                                    operationalScope: state.activeOperationalScope
-                                });
-                                if (newParent && newParent.id) {
-                                    targetParentId = newParent.id;
+                            const { data: matchedFolder } = await matchedQuery.limit(1);
+
+                            if (matchedFolder && matchedFolder.length > 0) {
+                                currentParentId = matchedFolder[0].id;
+                            } else {
+                                // Crear padre intermedio
+                                const orig = folders.find(f => f.name.toLowerCase() === name.toLowerCase());
+                                try {
+                                    const newParent = await createFolder({
+                                        pozoName: pozo,
+                                        name: name.toUpperCase(),
+                                        description: orig?.description || '',
+                                        icon: orig?.icon || 'fa-solid fa-folder',
+                                        parentId: currentParentId,
+                                        operationalScope: state.activeOperationalScope
+                                    });
+                                    if (newParent && newParent.id) {
+                                        currentParentId = newParent.id;
+                                    }
+                                } catch (createParentErr) {
+                                    console.error('[initFolderEvents] Error creando carpeta padre automática:', createParentErr);
                                 }
-                            } catch (createParentErr) {
-                                console.error('[initFolderEvents] Error creando carpeta padre automática:', createParentErr);
                             }
                         }
+                        targetParentId = currentParentId;
                     }
 
                     // Verificar duplicados
@@ -2041,11 +2104,6 @@ function initFolderEvents() {
         });
     }
 }
-
-
-
-
-
 
 let inactivityTimer = null;
 let countdownInterval = null;
@@ -2672,12 +2730,34 @@ window.handleMoveFolderClick = async function(folderId, folderName) {
 
         if (fetchErr) throw fetchErr;
 
-        // Filtrar candidatos a padres: deben ser raíces (parent_id es null) y no ser la misma carpeta
-        const possibleParents = (siblingFolders || []).filter(f => f.parent_id === null && f.id !== folderId);
-        
-        const parentOptionsHtml = possibleParents
-            .map(f => `<option value="${f.id}" ${folderDetails?.parent_id === f.id ? 'selected' : ''}>📁 ${escapeHtml(f.name)}</option>`)
-            .join('');
+        const folders = siblingFolders || [];
+        const excludedIds = [folderId, ...getDescendantIds(folders, folderId)];
+        const possibleParents = folders.filter(f => !excludedIds.includes(f.id));
+
+        // Construir jerarquía
+        const rootFolders = possibleParents.filter(f => f.parent_id === null);
+        const subFoldersMap = {};
+        possibleParents.forEach(f => {
+            if (f.parent_id !== null) {
+                if (!subFoldersMap[f.parent_id]) subFoldersMap[f.parent_id] = [];
+                subFoldersMap[f.parent_id].push(f);
+            }
+        });
+
+        let parentOptionsHtml = '';
+        rootFolders.forEach(root => {
+            parentOptionsHtml += `<option value="${root.id}" ${folderDetails?.parent_id === root.id ? 'selected' : ''}>📁 ${escapeHtml(root.name)}</option>`;
+            
+            const level1 = subFoldersMap[root.id] || [];
+            level1.forEach(sub1 => {
+                parentOptionsHtml += `<option value="${sub1.id}" ${folderDetails?.parent_id === sub1.id ? 'selected' : ''}>&nbsp;&nbsp;&nbsp;&nbsp;📁 ${escapeHtml(root.name)} &gt; 📁 ${escapeHtml(sub1.name)}</option>`;
+                
+                const level2 = subFoldersMap[sub1.id] || [];
+                level2.forEach(sub2 => {
+                    parentOptionsHtml += `<option value="${sub2.id}" ${folderDetails?.parent_id === sub2.id ? 'selected' : ''}>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📁 ${escapeHtml(root.name)} &gt; 📁 ${escapeHtml(sub1.name)} &gt; 📁 ${escapeHtml(sub2.name)}</option>`;
+                });
+            });
+        });
 
         const { value: formValues } = await window.Swal.fire({
             title: 'Mover / Transferir Carpeta',
@@ -2710,13 +2790,12 @@ window.handleMoveFolderClick = async function(folderId, folderName) {
                 const parentId = document.getElementById('move-parent-id').value;
                 const applyToAll = document.getElementById('move-apply-all-wells')?.checked || false;
                 
-                let parentName = '';
+                let parentNamePath = [];
                 if (parentId) {
-                    const parentObj = possibleParents.find(p => p.id === parentId);
-                    if (parentObj) parentName = parentObj.name;
+                    parentNamePath = getFolderPathNames(folders, parentId);
                 }
                 
-                return { parentId, parentName, applyToAll };
+                return { parentId, parentNamePath, applyToAll };
             }
         });
 
@@ -2740,35 +2819,46 @@ window.handleMoveFolderClick = async function(folderId, folderName) {
                         const targetFolder = targetFolderData[0];
                         let targetParentId = null;
 
-                        if (formValues.parentName) {
-                            const { data: matchedParent } = await supabase
-                                .from('well_document_folders')
-                                .select('id')
-                                .eq('pozo_name', pozo)
-                                .ilike('name', formValues.parentName)
-                                .is('parent_id', null)
-                                .limit(1);
+                        if (formValues.parentNamePath && formValues.parentNamePath.length > 0) {
+                            let currentParentId = null;
+                            for (const name of formValues.parentNamePath) {
+                                let matchedQuery = supabase
+                                    .from('well_document_folders')
+                                    .select('id')
+                                    .eq('pozo_name', pozo)
+                                    .ilike('name', name);
+                                
+                                if (currentParentId) {
+                                    matchedQuery = matchedQuery.eq('parent_id', currentParentId);
+                                } else {
+                                    matchedQuery = matchedQuery.is('parent_id', null);
+                                }
 
-                            if (matchedParent && matchedParent.length > 0) {
-                                targetParentId = matchedParent[0].id;
-                            } else {
-                                const parentDetails = possibleParents.find(p => p.name.toLowerCase() === formValues.parentName.toLowerCase());
-                                try {
-                                    const newParent = await createFolder({
-                                        pozoName: pozo,
-                                        name: formValues.parentName.toUpperCase(),
-                                        description: parentDetails?.description || '',
-                                        icon: parentDetails?.icon || 'fa-solid fa-folder',
-                                        parentId: null,
-                                        operationalScope: state.activeOperationalScope
-                                    });
-                                    if (newParent && newParent.id) {
-                                        targetParentId = newParent.id;
+                                const { data: matchedFolder } = await matchedQuery.limit(1);
+
+                                if (matchedFolder && matchedFolder.length > 0) {
+                                    currentParentId = matchedFolder[0].id;
+                                } else {
+                                    // Crear el padre intermedio si no existe en ese pozo
+                                    const orig = folders.find(f => f.name.toLowerCase() === name.toLowerCase());
+                                    try {
+                                        const newParent = await createFolder({
+                                            pozoName: pozo,
+                                            name: name.toUpperCase(),
+                                            description: orig?.description || '',
+                                            icon: orig?.icon || 'fa-solid fa-folder',
+                                            parentId: currentParentId,
+                                            operationalScope: state.activeOperationalScope
+                                        });
+                                        if (newParent && newParent.id) {
+                                            currentParentId = newParent.id;
+                                        }
+                                    } catch (createParentErr) {
+                                        console.error('[handleMoveFolderClick] Error creando carpeta padre automática:', createParentErr);
                                     }
-                                } catch (createParentErr) {
-                                    console.error('[handleMoveFolderClick] Error creando carpeta padre automática:', createParentErr);
                                 }
                             }
+                            targetParentId = currentParentId;
                         }
 
                         await supabase
