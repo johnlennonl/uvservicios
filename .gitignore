@@ -13,3 +13,7 @@ Thumbs.db
 # Desarrollo local y binarios temporales
 cloudflared.exe
 scratch/
+
+# Modulo experimental field-mobile (ignorar siempre)
+*field-mobile*
+*FIELD_MOBILE*

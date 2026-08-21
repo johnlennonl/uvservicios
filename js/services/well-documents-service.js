@@ -38,6 +38,10 @@ function isMissingOperationalScopeColumn(error) {
     return isMissingColumnError(error, 'operational_scope');
 }
 
+function isMissingDeletedAtColumn(error) {
+    return isMissingColumnError(error, 'deleted_at');
+}
+
 async function compressImageIfNeeded(file) {
     // Si no es imagen o su tamaño es menor a 400KB, no hace falta comprimir
     if (!file || !file.type || !file.type.startsWith('image/') || file.size < 400 * 1024) {
@@ -125,10 +129,12 @@ export async function getWellDocuments({ pozoName = '', category = null, startDa
         let query = supabase
             .from('well_historical_documents')
             .select('*')
+            .is('deleted_at', null)
             .order('fecha_documento', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: false });
 
-        if (normalizedOperationalScope) {
+        const isVirtualWell = pozoName === '_GENERAL' || pozoName === '_GERENCIAL';
+        if (normalizedOperationalScope && !isVirtualWell) {
             query = query.or(`operational_scope.eq.${normalizedOperationalScope},operational_scope.is.null`);
         }
 
@@ -162,10 +168,16 @@ export async function getWellDocuments({ pozoName = '', category = null, startDa
         }
 
         let { data, error } = await query;
-        if (error && (isMissingColumnError(error, 'fecha_documento') || isMissingOperationalScopeColumn(error))) {
-            console.warn('[well-documents-service] Error de esquema (fecha_documento o operational_scope no existen); reintentando con consulta compatible.');
+        if (error && (isMissingColumnError(error, 'fecha_documento') || isMissingOperationalScopeColumn(error) || isMissingDeletedAtColumn(error))) {
+            console.warn('[well-documents-service] Error de esquema (fecha_documento, operational_scope o deleted_at no existen); reintentando con consulta compatible.');
             
-            let fallbackQuery = supabase.from('well_historical_documents').select('*');
+            let fallbackQuery = supabase
+                .from('well_historical_documents')
+                .select('*');
+            
+            if (!isMissingDeletedAtColumn(error)) {
+                fallbackQuery = fallbackQuery.is('deleted_at', null);
+            }
             
             // Decidir ordenamiento
             if (!isMissingColumnError(error, 'fecha_documento')) {
@@ -174,7 +186,7 @@ export async function getWellDocuments({ pozoName = '', category = null, startDa
             fallbackQuery = fallbackQuery.order('created_at', { ascending: false });
             
             // Re-aplicar filtros
-            if (!isMissingOperationalScopeColumn(error) && normalizedOperationalScope) {
+            if (!isMissingOperationalScopeColumn(error) && normalizedOperationalScope && !isVirtualWell) {
                 fallbackQuery = fallbackQuery.or(`operational_scope.eq.${normalizedOperationalScope},operational_scope.is.null`);
             }
             if (pozoName && pozoName !== 'TODOS') {
@@ -210,11 +222,14 @@ export async function getWellDocuments({ pozoName = '', category = null, startDa
         // Filtrar localmente por palabra clave si se proporcionó un término de búsqueda
         if (searchKeyword && searchKeyword.trim()) {
             const term = searchKeyword.trim().toLowerCase();
-            results = results.filter(doc => 
-                (doc.nombre_archivo && doc.nombre_archivo.toLowerCase().includes(term)) ||
-                (doc.descripcion && doc.descripcion.toLowerCase().includes(term)) ||
-                (doc.uploaded_by && doc.uploaded_by.toLowerCase().includes(term))
-            );
+            results = results.filter(doc => {
+                const categoryClean = String(doc.categoria || '').replace(/_/g, ' ').toLowerCase();
+                return (doc.nombre_archivo && doc.nombre_archivo.toLowerCase().includes(term)) ||
+                       (doc.descripcion && doc.descripcion.toLowerCase().includes(term)) ||
+                       (doc.uploaded_by && doc.uploaded_by.toLowerCase().includes(term)) ||
+                       (doc.categoria && doc.categoria.toLowerCase().includes(term.replace(/\s+/g, '_'))) ||
+                       (categoryClean && categoryClean.includes(term));
+            });
         }
 
         return results;
@@ -235,20 +250,37 @@ export async function getWellDocumentSummaryCounts({ operationalScope = null } =
         const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope);
         let query = supabase
             .from('well_historical_documents')
-            .select('pozo_name, categoria, operational_scope');
+            .select('pozo_name, categoria, operational_scope')
+            .is('deleted_at', null);
 
         if (normalizedOperationalScope) {
             query = query.or(`operational_scope.eq.${normalizedOperationalScope},operational_scope.is.null`);
         }
 
         let { data, error } = await query;
-        if (error && isMissingOperationalScopeColumn(error)) {
-            console.warn('[well-documents-service] La columna operational_scope no existe aun; usando conteo legacy de documentos.');
-            const legacyResult = await supabase
+        if (error && (isMissingOperationalScopeColumn(error) || isMissingDeletedAtColumn(error))) {
+            console.warn('[well-documents-service] La columna operational_scope o deleted_at no existe; usando consulta compatible.');
+            
+            let fallbackQuery = supabase
                 .from('well_historical_documents')
                 .select('pozo_name, categoria');
-            data = legacyResult.data;
-            error = legacyResult.error;
+                
+            if (!isMissingOperationalScopeColumn(error)) {
+                fallbackQuery = supabase
+                    .from('well_historical_documents')
+                    .select('pozo_name, categoria, operational_scope');
+                if (normalizedOperationalScope) {
+                    fallbackQuery = fallbackQuery.or(`operational_scope.eq.${normalizedOperationalScope},operational_scope.is.null`);
+                }
+            }
+            
+            if (!isMissingDeletedAtColumn(error)) {
+                fallbackQuery = fallbackQuery.is('deleted_at', null);
+            }
+            
+            const fallbackResult = await fallbackQuery;
+            data = fallbackResult.data;
+            error = fallbackResult.error;
         }
 
         if (error) throw error;
@@ -359,8 +391,9 @@ export async function uploadWellDocument({ file, pozoName, category, description
         const fileExt = fileToUpload.name.split('.').pop()?.toLowerCase() || 'doc';
 
         // 2. Insertar metadata en la tabla well_historical_documents
+        const isVirtual = cleanPozo === '_GENERAL' || cleanPozo === '_GERENCIAL';
         const documentPayload = {
-            operational_scope: cleanOperationalScope,
+            operational_scope: isVirtual ? null : cleanOperationalScope,
             pozo_name: cleanPozo,
             categoria: cleanCategory,
             nombre_archivo: fileToUpload.name,
@@ -468,11 +501,58 @@ export async function getDocumentDownloadUrl(filePath = '', expiresInSeconds = 3
  * @param {string} filePath - Ruta física del archivo en el Bucket.
  * @returns {Promise<boolean>} Retorna true si fue eliminado exitosamente.
  */
-export async function deleteWellDocument(documentId, filePath) {
+export async function deleteWellDocument(documentId) {
     if (!documentId) throw new Error('ID de documento no proporcionado.');
 
     try {
-        // 1. Eliminar archivo de Supabase Storage si se tiene la ruta
+        const { error } = await supabase
+            .from('well_historical_documents')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', documentId);
+
+        if (error) throw error;
+        return true;
+    } catch (err) {
+        console.error('[well-documents-service] Error eliminando documento (soft delete):', err);
+        throw err;
+    }
+}
+
+/**
+ * Restaura un documento eliminado lógicamente (borra el valor de deleted_at).
+ * 
+ * @param {string} documentId - ID del registro.
+ * @returns {Promise<boolean>} Retorna true si fue restaurado.
+ */
+export async function restoreWellDocument(documentId) {
+    if (!documentId) throw new Error('ID de documento no proporcionado.');
+
+    try {
+        const { error } = await supabase
+            .from('well_historical_documents')
+            .update({ deleted_at: null })
+            .eq('id', documentId);
+
+        if (error) throw error;
+        return true;
+    } catch (err) {
+        console.error('[well-documents-service] Error restaurando documento:', err);
+        throw err;
+    }
+}
+
+/**
+ * Elimina físicamente un documento (de Storage y de la base de datos de manera definitiva).
+ * 
+ * @param {string} documentId - ID del registro.
+ * @param {string} filePath - Ruta del archivo en el Storage Bucket.
+ * @returns {Promise<boolean>} Retorna true si fue eliminado físicamente.
+ */
+export async function permanentlyDeleteWellDocument(documentId, filePath) {
+    if (!documentId) throw new Error('ID de documento no proporcionado.');
+
+    try {
+        // 1. Eliminar archivo físico de Supabase Storage
         if (filePath) {
             const { error: storageError } = await supabase
                 .storage
@@ -480,22 +560,49 @@ export async function deleteWellDocument(documentId, filePath) {
                 .remove([filePath]);
 
             if (storageError) {
-                console.warn('[well-documents-service] Advertencia eliminando archivo de Storage:', storageError);
+                console.warn('[well-documents-service] Advertencia al remover de storage en eliminación definitiva:', storageError);
             }
         }
 
-        // 2. Eliminar registro en la base de datos PostgreSQL
+        // 2. Eliminar registro físico en PostgreSQL
         const { error: dbError } = await supabase
             .from('well_historical_documents')
             .delete()
             .eq('id', documentId);
 
         if (dbError) throw dbError;
-
         return true;
-
     } catch (err) {
-        console.error('[well-documents-service] Error eliminando documento:', err);
+        console.error('[well-documents-service] Error en eliminación permanente de documento:', err);
+        throw err;
+    }
+}
+
+/**
+ * Consulta todos los documentos eliminados lógicamente (deleted_at IS NOT NULL) para la papelera.
+ * 
+ * @param {Object} params
+ * @param {string} [params.operationalScope] - Contrato activo.
+ * @returns {Promise<Array>} Listado de registros eliminados.
+ */
+export async function getDeletedWellDocuments({ operationalScope = null } = {}) {
+    try {
+        const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope);
+        let query = supabase
+            .from('well_historical_documents')
+            .select('*, well_document_folders(name)')
+            .not('deleted_at', 'is', null)
+            .order('deleted_at', { ascending: false });
+
+        if (normalizedOperationalScope) {
+            query = query.or(`operational_scope.eq.${normalizedOperationalScope},operational_scope.is.null`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+    } catch (err) {
+        console.error('[well-documents-service] Error obteniendo documentos en papelera:', err);
         throw err;
     }
 }
@@ -623,8 +730,9 @@ export async function createFolder({ pozoName, name, parentId = null, operationa
     const cleanScope = normalizeOperationalScopeValue(operationalScope);
     const cleanName = String(name).trim();
 
+    const isVirtual = String(pozoName).trim().toUpperCase() === '_GENERAL' || String(pozoName).trim().toUpperCase() === '_GERENCIAL';
     const insertPayload = {
-        operational_scope: cleanScope,
+        operational_scope: isVirtual ? null : cleanScope,
         pozo_name: String(pozoName).trim().toUpperCase(),
         parent_id: parentId,
         name: cleanName,
@@ -658,7 +766,8 @@ export async function getFolders({ pozoName, parentId = null, operationalScope =
         .eq('pozo_name', String(pozoName).trim().toUpperCase())
         .order('name', { ascending: true });
 
-    if (cleanScope) {
+    const isVirtualWell = String(pozoName).trim().toUpperCase() === '_GENERAL' || String(pozoName).trim().toUpperCase() === '_GERENCIAL';
+    if (cleanScope && !isVirtualWell) {
         query = query.or(`operational_scope.eq.${cleanScope},operational_scope.is.null`);
     }
 

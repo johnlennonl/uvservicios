@@ -323,6 +323,15 @@
 .folder-vsd .folder-card-icon { background: #fef3c7; color: #d97706; }
 .folder-soportes .folder-card-icon { background: #fee2e2; color: #ef4444; }
 
+/* Estilos de Carpetas de Secciones Virtuales (Información General & Gerencial) */
+.folder-novedades .folder-card-icon { background: #ffe4e6; color: #db2777; }
+.folder-contratos .folder-card-icon { background: #ffedd5; color: #d97706; }
+.folder-formatos .folder-card-icon { background: #e0e7ff; color: #4338ca; }
+.folder-minutas .folder-card-icon { background: #ecfeff; color: #0891b2; }
+.folder-siaho .folder-card-icon { background: #fff7ed; color: #ea580c; }
+.folder-formatos-admin .folder-card-icon { background: #fae8ff; color: #a21caf; }
+.folder-inventario .folder-card-icon { background: #f7fee7; color: #4d7c0f; }
+
 .folder-card-title {
   font-size: 1.05rem;
   font-weight: 800;
@@ -920,3 +929,47 @@
     font-size: 1.8rem !important;
   }
 }
+
+/* Autocomplete Dropdown Switcher */
+.autocomplete-dropdown {
+  position: absolute;
+  top: 38px;
+  left: 0;
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  padding: 4px 0;
+}
+
+.autocomplete-option {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.autocomplete-option:hover,
+.autocomplete-option.active {
+  background: #f1f5f9;
+  color: #2563eb;
+}
+
+.autocomplete-option i {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+.autocomplete-option:hover i,
+.autocomplete-option.active i {
+  color: #2563eb;
+}
+

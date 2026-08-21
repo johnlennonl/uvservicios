@@ -22,8 +22,15 @@ import {
     createFolder,
     getFolders,
     deleteFolder,
-    getFolderById
+    getFolderById,
+    restoreWellDocument,
+    permanentlyDeleteWellDocument,
+    getDeletedWellDocuments
 } from '../../services/well-documents-service.js';
+
+// Instancias globales de Chart.js para el control de almacenamiento
+let categoryChartInstance = null;
+let wellsChartInstance = null;
 
 // PIN de Seguridad por defecto (Configurable)
 const PIN_SECURITY_KEY = '4826';
@@ -89,6 +96,63 @@ const DOCUMENT_CATEGORIES = [
     }
 ];
 
+// Definición de categorías virtuales para Información General
+const GENERAL_CATEGORIES = [
+    {
+        key: 'NOVEDADES',
+        name: 'NOVEDADES',
+        icon: 'fa-solid fa-bullhorn',
+        cssClass: 'folder-novedades',
+        description: 'Informes de novedades de personal, minutas y eventos generales.'
+    },
+    {
+        key: 'CONTRATOS',
+        name: 'CONTRATOS',
+        icon: 'fa-solid fa-file-signature',
+        cssClass: 'folder-contratos',
+        description: 'Documentos contractuales, anexos y actas de inicio/cierre.'
+    },
+    {
+        key: 'FORMATOS',
+        name: 'FORMATOS',
+        icon: 'fa-solid fa-paste',
+        cssClass: 'folder-formatos',
+        description: 'Plantillas oficiales de informes, reportes diarios y control operacional.'
+    },
+    {
+        key: 'MINUTAS',
+        name: 'MINUTAS',
+        icon: 'fa-solid fa-clock-rotate-left',
+        cssClass: 'folder-minutas',
+        description: 'Minutas de reuniones con clientes y acuerdos operativos.'
+    }
+];
+
+// Definición de categorías virtuales para Gerencial
+const GERENCIAL_CATEGORIES = [
+    {
+        key: 'SIAHO',
+        name: 'SIAHO',
+        icon: 'fa-solid fa-shield-halved',
+        cssClass: 'folder-siaho',
+        description: 'Documentación de seguridad, higiene y ambiente ocupacional.'
+    },
+    {
+        key: 'FORMATOS_ADMINISTRATIVOS',
+        name: 'FORMATOS ADMINISTRATIVOS',
+        icon: 'fa-solid fa-file-invoice-dollar',
+        cssClass: 'folder-formatos-admin',
+        description: 'Plantillas y formatos administrativos, reportes de viáticos y vales.'
+    },
+    {
+        key: 'INVENTARIO',
+        name: 'INVENTARIO',
+        icon: 'fa-solid fa-boxes-stacked',
+        cssClass: 'folder-inventario',
+        description: 'Control de inventario de equipos BES, herramientas y consumibles.'
+    }
+];
+
 // Estado global de navegación del módulo
 const state = {
     userSession: null,
@@ -146,6 +210,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 5b. Inicializar eventos de creación de carpetas
         initFolderEvents();
 
+        // 5c. Inicializar eventos del cuadro de mando de almacenamiento y papelera
+        initStorageAndTrashEvents();
+
         // 6. Inicializar sistema de advertencia por inactividad (5 min + reloj)
         initInactivityTimer();
         // 7. Vincular botón de Cerrar Sesión (Escritorio y Móvil)
@@ -155,6 +222,91 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
         document.getElementById('mobile-logout-btn')?.addEventListener('click', handleLogout);
+
+        // 7b. Vincular botones de navegación por secciones (Pozos, General, Gerencial)
+        const setupSectionNavigation = () => {
+            const btnPozos = document.getElementById('sidebar-link-pozos');
+            const btnGeneral = document.getElementById('sidebar-link-general');
+            const btnGerencial = document.getElementById('sidebar-link-gerencial');
+            const btnStorage = document.getElementById('sidebar-link-storage');
+
+            const mobBtnPozos = document.getElementById('mobile-link-pozos');
+            const mobBtnGeneral = document.getElementById('mobile-link-general');
+            const mobBtnGerencial = document.getElementById('mobile-link-gerencial');
+            const mobBtnStorage = document.getElementById('mobile-link-storage');
+
+            const activateTab = (activeId) => {
+                // Barra lateral
+                [btnPozos, btnGeneral, btnGerencial, btnStorage].forEach(btn => {
+                    if (btn) btn.classList.toggle('active', btn.id === activeId);
+                });
+                // Móvil
+                const activeMobId = activeId.replace('sidebar-link-', 'mobile-link-');
+                [mobBtnPozos, mobBtnGeneral, mobBtnGerencial, mobBtnStorage].forEach(btn => {
+                    if (btn) btn.classList.toggle('active', btn.id === activeMobId);
+                });
+            };
+
+            const goPozos = () => {
+                activateTab('sidebar-link-pozos');
+                const storageContainer = document.getElementById('view-storage-dashboard-container');
+                const trashContainer = document.getElementById('view-trash-container');
+                if (storageContainer) storageContainer.hidden = true;
+                if (trashContainer) trashContainer.hidden = true;
+                renderWellsView();
+            };
+
+            const goGeneral = () => {
+                activateTab('sidebar-link-general');
+                const storageContainer = document.getElementById('view-storage-dashboard-container');
+                const trashContainer = document.getElementById('view-trash-container');
+                if (storageContainer) storageContainer.hidden = true;
+                if (trashContainer) trashContainer.hidden = true;
+                openFoldersView('_GENERAL');
+            };
+
+            const goGerencial = () => {
+                activateTab('sidebar-link-gerencial');
+                const storageContainer = document.getElementById('view-storage-dashboard-container');
+                const trashContainer = document.getElementById('view-trash-container');
+                if (storageContainer) storageContainer.hidden = true;
+                if (trashContainer) trashContainer.hidden = true;
+                openFoldersView('_GERENCIAL');
+            };
+
+            const goStorage = async () => {
+                activateTab('sidebar-link-storage');
+                // Ocultar las demás vistas
+                document.getElementById('view-wells-container').hidden = true;
+                document.getElementById('view-folders-container').hidden = true;
+                document.getElementById('view-files-container').hidden = true;
+                document.getElementById('view-search-results-container').hidden = true;
+                document.getElementById('view-trash-container').hidden = true;
+
+                // Ocultar botón Nueva Carpeta
+                const btnCreateFolder = document.getElementById('btn-create-folder');
+                if (btnCreateFolder) btnCreateFolder.style.display = 'none';
+
+                // Mostrar el dashboard
+                document.getElementById('view-storage-dashboard-container').hidden = false;
+
+                // Cargar datos y renderizar gráficos
+                await loadAndRenderStorageStats();
+            };
+
+            btnPozos?.addEventListener('click', goPozos);
+            mobBtnPozos?.addEventListener('click', goPozos);
+
+            btnGeneral?.addEventListener('click', goGeneral);
+            mobBtnGeneral?.addEventListener('click', goGeneral);
+
+            btnGerencial?.addEventListener('click', goGerencial);
+            mobBtnGerencial?.addEventListener('click', goGerencial);
+
+            btnStorage?.addEventListener('click', goStorage);
+            mobBtnStorage?.addEventListener('click', goStorage);
+        };
+        setupSectionNavigation();
         // Ocultar el loader inicial con animación suave
         setTimeout(() => {
             const loader = document.getElementById('premium-loader');
@@ -188,11 +340,15 @@ async function loadDatabaseModule() {
 
         state.pozosList = (rawPozos || [])
             .map(p => String(p || '').trim().toUpperCase())
+            .filter(p => p !== '_GENERAL' && p !== '_GERENCIAL')
             .filter(Boolean)
             .sort();
 
         // Poblar el selector de pozos en el modal de Cargar Documento
         populateUploadWellSelect();
+
+        // Poblar el conmutador rápido de pozos
+        populateQuickWellSwitcher();
 
         // Renderizar la vista de Pozos (Nivel 1) de forma instantánea
         renderWellsView();
@@ -292,8 +448,161 @@ function populateUploadWellSelect() {
     const select = document.getElementById('upload-pozo-select');
     if (!select) return;
 
+    let extraOptions = '';
+    if (state.activePozo === '_GENERAL') {
+        extraOptions = '<option value="_GENERAL">Información General</option>';
+    } else if (state.activePozo === '_GERENCIAL') {
+        extraOptions = '<option value="_GERENCIAL">Gerencial</option>';
+    }
+
     select.innerHTML = '<option value="">Selecciona Pozo...</option>' + 
+        extraOptions +
         state.pozosList.map(pozo => `<option value="${pozo}">${pozo}</option>`).join('');
+}
+
+/**
+ * Popula y gestiona el conmutador rápido de pozos con soporte para autocompletado y teclado.
+ */
+function populateQuickWellSwitcher() {
+    const input = document.getElementById('well-switcher-search');
+    const dropdown = document.getElementById('well-switcher-dropdown');
+    if (!input || !dropdown) return;
+
+    const list = state.pozosList || [];
+    let activeIndex = -1;
+
+    // Renderizar opciones filtradas
+    function renderFilteredDropdown(filterText = '') {
+        const text = String(filterText).trim().toLowerCase();
+        const filtered = list.filter(pozo => pozo.toLowerCase().includes(text));
+
+        if (filtered.length === 0) {
+            dropdown.innerHTML = '<div style="padding:8px 12px; font-size:0.8rem; color:#94a3b8; font-style:italic;">No hay coincidencias</div>';
+            activeIndex = -1;
+            return;
+        }
+
+        dropdown.innerHTML = filtered.map((pozo, idx) => `
+            <div class="autocomplete-option" data-value="${pozo}" data-index="${idx}">
+                <i class="fa-solid fa-oil-well"></i>
+                <span>${pozo}</span>
+            </div>
+        `).join('');
+
+        dropdown.querySelectorAll('.autocomplete-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                selectWellOption(opt.dataset.value);
+            });
+        });
+        
+        activeIndex = -1;
+    }
+
+    // Ejecutar conmutación al seleccionar pozo
+    async function selectWellOption(newPozo) {
+        input.value = newPozo;
+        dropdown.style.display = 'none';
+        
+        const isVirtual = state.activePozo === '_GENERAL' || state.activePozo === '_GERENCIAL';
+        if (isVirtual) return;
+
+        if (state.activeFolderId) {
+            const currentFolderName = state.currentFolderPath[state.currentFolderPath.length - 1].name;
+            
+            Swal.fire({
+                title: 'Buscando Carpeta...',
+                html: `<p style="color:#64748b;">Localizando carpeta <strong>${escapeHtml(currentFolderName)}</strong> en el pozo <strong>${newPozo}</strong>...</p>`,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                const { data: destFolders, error: fetchErr } = await supabase
+                    .from('well_document_folders')
+                    .select('id, parent_id, name')
+                    .eq('pozo_name', newPozo);
+
+                Swal.close();
+
+                if (fetchErr) throw fetchErr;
+
+                const matchedFolder = (destFolders || []).find(f => f.name.toUpperCase() === currentFolderName.toUpperCase());
+
+                if (matchedFolder) {
+                    state.activePozo = newPozo;
+                    state.currentFolderPath = buildFolderPathArray(destFolders, matchedFolder.id, newPozo);
+                    await openFolderView(matchedFolder.id, currentFolderName);
+                } else {
+                    showSuccessToast('Carpeta no encontrada', `La carpeta "${currentFolderName}" no existe en el pozo ${newPozo}. Redirigiendo a carpetas.`);
+                    await openFoldersView(newPozo);
+                }
+            } catch (err) {
+                console.error('[well-switcher] Error al conmutar pozo:', err);
+                Swal.close();
+                await openFoldersView(newPozo);
+            }
+        } else {
+            await openFoldersView(newPozo);
+        }
+    }
+
+    // Registrar eventos una sola vez
+    if (!input.dataset.listenerBound) {
+        input.addEventListener('focus', () => {
+            renderFilteredDropdown(input.value);
+            dropdown.style.display = 'block';
+        });
+
+        input.addEventListener('input', (e) => {
+            renderFilteredDropdown(e.target.value);
+            dropdown.style.display = 'block';
+        });
+
+        input.addEventListener('keydown', (e) => {
+            const options = dropdown.querySelectorAll('.autocomplete-option');
+            if (options.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex++;
+                if (activeIndex >= options.length) activeIndex = 0;
+                highlightOption(options);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex--;
+                if (activeIndex < 0) activeIndex = options.length - 1;
+                highlightOption(options);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (activeIndex >= 0 && activeIndex < options.length) {
+                    selectWellOption(options[activeIndex].dataset.value);
+                } else if (options.length > 0) {
+                    selectWellOption(options[0].dataset.value);
+                }
+            } else if (e.key === 'Escape') {
+                dropdown.style.display = 'none';
+                input.blur();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        input.dataset.listenerBound = 'true';
+    }
+
+    function highlightOption(options) {
+        options.forEach(opt => opt.classList.remove('active'));
+        if (activeIndex >= 0 && activeIndex < options.length) {
+            const activeOpt = options[activeIndex];
+            activeOpt.classList.add('active');
+            activeOpt.scrollIntoView({ block: 'nearest' });
+        }
+    }
 }
 
 /* ==============================================================================
@@ -313,6 +622,10 @@ function renderWellsView(filterText = '') {
     if (wellsContainer) wellsContainer.hidden = false;
     document.getElementById('view-folders-container').hidden = true;
     document.getElementById('view-files-container').hidden = true;
+
+    // Asegurar que el botón Nueva Carpeta esté oculto en la vista general de pozos
+    const btnCreateFolder = document.getElementById('btn-create-folder');
+    if (btnCreateFolder) btnCreateFolder.style.display = 'none';
 
     updateBreadcrumb();
 
@@ -394,7 +707,14 @@ async function ensureDefaultFoldersExist(pozoName) {
         const existingNames = new Set((existingFolders || []).filter(f => f.parent_id === null).map(f => f.name.toUpperCase()));
         const foldersToCreate = [];
         
-        DOCUMENT_CATEGORIES.forEach(cat => {
+        let categories = DOCUMENT_CATEGORIES;
+        if (cleanPozo === '_GENERAL') {
+            categories = GENERAL_CATEGORIES;
+        } else if (cleanPozo === '_GERENCIAL') {
+            categories = GERENCIAL_CATEGORIES;
+        }
+
+        categories.forEach(cat => {
             if (!existingNames.has(cat.name.toUpperCase())) {
                 foldersToCreate.push({
                     operational_scope: cleanScope,
@@ -410,6 +730,11 @@ async function ensureDefaultFoldersExist(pozoName) {
                 .from('well_document_folders')
                 .insert(foldersToCreate);
             if (insertError) throw insertError;
+        }
+
+        // Si es Información General o Gerencial, no requerimos subcarpetas Echometer ni migración de niveles
+        if (cleanPozo === '_GENERAL' || cleanPozo === '_GERENCIAL') {
+            return;
         }
 
         // Volver a consultar para obtener la lista actualizada con IDs
@@ -547,7 +872,9 @@ async function ensureDefaultFoldersExist(pozoName) {
  */
 function getFolderConfig(folder) {
     const name = folder.name;
-    const matched = DOCUMENT_CATEGORIES.find(c => c.name.toUpperCase() === name.toUpperCase());
+    const matched = DOCUMENT_CATEGORIES.find(c => c.name.toUpperCase() === name.toUpperCase())
+        || GENERAL_CATEGORIES.find(c => c.name.toUpperCase() === name.toUpperCase())
+        || GERENCIAL_CATEGORIES.find(c => c.name.toUpperCase() === name.toUpperCase());
     if (matched) return matched;
     return {
         key: name,
@@ -622,7 +949,11 @@ async function openFoldersView(pozoName) {
     updateBreadcrumb();
 
     const titleEl = document.getElementById('folder-well-title');
-    if (titleEl) titleEl.textContent = `Expediente del Pozo ${pozoName}`;
+    if (titleEl) {
+        if (pozoName === '_GENERAL') titleEl.textContent = 'Información General';
+        else if (pozoName === '_GERENCIAL') titleEl.textContent = 'Expediente Gerencial';
+        else titleEl.textContent = `Expediente del Pozo ${pozoName}`;
+    }
 
     const grid = document.getElementById('folders-grid');
     if (!grid) return;
@@ -696,11 +1027,15 @@ function renderFoldersGrid(searchTerm = '') {
     } else {
         grid.innerHTML = filteredFolders.map(folder => {
             const config = getFolderConfig(folder);
-            const isDefault = DOCUMENT_CATEGORIES.some(c => c.name.toUpperCase() === folder.name.toUpperCase());
+            const isDefault = DOCUMENT_CATEGORIES.some(c => c.name.toUpperCase() === folder.name.toUpperCase())
+                || GENERAL_CATEGORIES.some(c => c.name.toUpperCase() === folder.name.toUpperCase())
+                || GERENCIAL_CATEGORIES.some(c => c.name.toUpperCase() === folder.name.toUpperCase());
             
             let count = 0;
             if (isDefault) {
-                const matchedCategory = DOCUMENT_CATEGORIES.find(c => c.name.toUpperCase() === folder.name.toUpperCase());
+                const matchedCategory = DOCUMENT_CATEGORIES.find(c => c.name.toUpperCase() === folder.name.toUpperCase())
+                    || GENERAL_CATEGORIES.find(c => c.name.toUpperCase() === folder.name.toUpperCase())
+                    || GERENCIAL_CATEGORIES.find(c => c.name.toUpperCase() === folder.name.toUpperCase());
                 count = state.currentAllDocs.filter(d => d.folder_id === folder.id || (d.folder_id === null && d.categoria === matchedCategory.key)).length;
             } else {
                 count = state.currentAllDocs.filter(d => d.folder_id === folder.id).length;
@@ -1019,11 +1354,16 @@ async function triggerGlobalSearch(queryText = '') {
         // Filtrar localmente por palabra clave si queda algo después de quitar el pozo
         if (searchKeyword) {
             const kw = searchKeyword.toLowerCase();
-            results = results.filter(doc => 
-                (doc.nombre_archivo && doc.nombre_archivo.toLowerCase().includes(kw)) ||
-                (doc.descripcion && doc.descripcion.toLowerCase().includes(kw)) ||
-                (doc.uploaded_by && doc.uploaded_by.toLowerCase().includes(kw))
-            );
+            results = results.filter(doc => {
+                const folderName = doc.well_document_folders?.name || '';
+                const categoryClean = String(doc.categoria || '').replace(/_/g, ' ').toLowerCase();
+                return (doc.nombre_archivo && doc.nombre_archivo.toLowerCase().includes(kw)) ||
+                       (doc.descripcion && doc.descripcion.toLowerCase().includes(kw)) ||
+                       (doc.uploaded_by && doc.uploaded_by.toLowerCase().includes(kw)) ||
+                       (doc.categoria && doc.categoria.toLowerCase().includes(kw.replace(/\s+/g, '_'))) ||
+                       (categoryClean && categoryClean.includes(kw)) ||
+                       (folderName && folderName.toLowerCase().includes(kw));
+            });
         }
 
         if (results.length === 0) {
@@ -1177,23 +1517,56 @@ async function triggerGlobalSearch(queryText = '') {
  */
 function restoreActiveView() {
     window.scrollTo({ top: 0, behavior: 'instant' });
+    const storageContainer = document.getElementById('view-storage-dashboard-container');
+    const trashContainer = document.getElementById('view-trash-container');
+    if (storageContainer) storageContainer.hidden = true;
+    if (trashContainer) trashContainer.hidden = true;
+
+    // Sincronizar botones de la barra lateral tras volver
+    const btnPozos = document.getElementById('sidebar-link-pozos');
+    const btnGeneral = document.getElementById('sidebar-link-general');
+    const btnGerencial = document.getElementById('sidebar-link-gerencial');
+    const btnStorage = document.getElementById('sidebar-link-storage');
+
+    const mobBtnPozos = document.getElementById('mobile-link-pozos');
+    const mobBtnGeneral = document.getElementById('mobile-link-general');
+    const mobBtnGerencial = document.getElementById('mobile-link-gerencial');
+    const mobBtnStorage = document.getElementById('mobile-link-storage');
+
+    const syncSidebar = (activeId) => {
+        [btnPozos, btnGeneral, btnGerencial, btnStorage].forEach(btn => {
+            if (btn) btn.classList.toggle('active', btn.id === activeId);
+        });
+        const activeMobId = activeId.replace('sidebar-link-', 'mobile-link-');
+        [mobBtnPozos, mobBtnGeneral, mobBtnGerencial, mobBtnStorage].forEach(btn => {
+            if (btn) btn.classList.toggle('active', btn.id === activeMobId);
+        });
+    };
+
     if (!state.activePozo) {
         document.getElementById('view-wells-container').hidden = false;
         document.getElementById('view-folders-container').hidden = true;
         document.getElementById('view-files-container').hidden = true;
         const wellSearchInput = document.getElementById('well-search-input');
         renderWellsView(wellSearchInput ? wellSearchInput.value : '');
+        syncSidebar('sidebar-link-pozos');
     } else if (state.activePozo && !state.activeFolderId) {
         document.getElementById('view-wells-container').hidden = true;
         document.getElementById('view-folders-container').hidden = false;
         document.getElementById('view-files-container').hidden = true;
         renderFoldersGrid('');
+        if (state.activePozo === '_GENERAL') syncSidebar('sidebar-link-general');
+        else if (state.activePozo === '_GERENCIAL') syncSidebar('sidebar-link-gerencial');
+        else syncSidebar('sidebar-link-pozos');
     } else {
         document.getElementById('view-wells-container').hidden = true;
         document.getElementById('view-folders-container').hidden = true;
         document.getElementById('view-files-container').hidden = false;
         renderSubfoldersGrid('');
         fetchAndRenderFiles();
+        if (state.activePozo === '_GENERAL') syncSidebar('sidebar-link-general');
+        else if (state.activePozo === '_GERENCIAL') syncSidebar('sidebar-link-gerencial');
+        else syncSidebar('sidebar-link-pozos');
     }
 }
 
@@ -1205,7 +1578,9 @@ async function openFolderView(folderId, folderName) {
     state.activeFolderId = folderId;
     
     // Buscar si coincide con alguna categoría por defecto del sistema
-    const matchedCategory = DOCUMENT_CATEGORIES.find(c => c.name.toUpperCase() === folderName.toUpperCase());
+    const matchedCategory = DOCUMENT_CATEGORIES.find(c => c.name.toUpperCase() === folderName.toUpperCase())
+        || GENERAL_CATEGORIES.find(c => c.name.toUpperCase() === folderName.toUpperCase())
+        || GERENCIAL_CATEGORIES.find(c => c.name.toUpperCase() === folderName.toUpperCase());
     state.activeCategory = matchedCategory ? matchedCategory.key : null;
 
     // Actualizar el path de navegación
@@ -1229,10 +1604,14 @@ async function openFolderView(folderId, folderName) {
     const titleEl = document.getElementById('files-section-title');
     const subtitleEl = document.getElementById('files-section-subtitle');
 
-    if (titleEl) titleEl.textContent = `Carpeta: ${folderName} (${state.activePozo})`;
+    if (titleEl) {
+        const readablePozo = state.activePozo === '_GENERAL' ? 'Información General' : state.activePozo === '_GERENCIAL' ? 'Gerencial' : state.activePozo;
+        titleEl.textContent = `Carpeta: ${folderName} (${readablePozo})`;
+    }
     
     // Obtener descripción de la base de datos
-    let folderDescription = `Visualizando carpeta "${folderName}" para el pozo ${state.activePozo}.`;
+    const targetEntityName = state.activePozo === '_GENERAL' ? 'Información General' : state.activePozo === '_GERENCIAL' ? 'Gerencial' : `el pozo ${state.activePozo}`;
+    let folderDescription = `Visualizando carpeta "${folderName}" para ${targetEntityName}.`;
     try {
         const folderDetails = await getFolderById(folderId);
         if (folderDetails && folderDetails.description) {
@@ -1480,25 +1859,39 @@ async function fetchAndRenderFiles() {
             });
         });
 
-        // Eventos para eliminar archivos
+        // Eventos para eliminar archivos (Soft Delete)
         container.querySelectorAll('.btn-delete-doc').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const docId = btn.dataset.id;
-                const filePath = btn.dataset.path;
                 const docName = btn.dataset.name;
 
-                if (confirm(`¿Estás seguro de eliminar el archivo "${docName}"?\n\nEsta acción lo borra de Supabase Storage y del expediente.`)) {
+                const result = await Swal.fire({
+                    title: '¿Enviar a la Papelera?',
+                    html: `<p style="color:#64748b;">¿Estás seguro de eliminar el archivo <strong>${escapeHtml(docName)}</strong>?<br>Se enviará a la papelera y podrá ser restaurado posteriormente.</p>`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, mover a papelera',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#64748b'
+                });
+
+                if (result.isConfirmed) {
                     try {
                         btn.disabled = true;
                         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-                        await deleteWellDocument(docId, filePath);
-                        showSuccessToast('¡Documento Eliminado!', `El archivo "${docName}" fue borrado de Supabase Storage.`);
+                        await deleteWellDocument(docId);
+                        showSuccessToast('¡Movido a Papelera!', `El archivo "${docName}" fue enviado a la papelera de reciclaje.`);
                         state.summaryCounts = filterSummaryCountsByActivePozos(await getWellDocumentSummaryCounts({ operationalScope: state.activeOperationalScope }));
                         fetchAndRenderFiles();
                     } catch (err) {
-                        showSuccessToast('Error al Eliminar', err.message);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error al eliminar',
+                            text: err.message || 'No se pudo mover el archivo a la papelera.'
+                        });
                         btn.disabled = false;
-                        btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> <span>ELIMINAR</span>';
+                        btn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
                     }
                 }
             });
@@ -1534,21 +1927,35 @@ function updateBreadcrumb() {
     const breadcrumb = document.getElementById('db-breadcrumb');
     if (!breadcrumb) return;
 
-    let html = `
-        <div class="db-breadcrumb-item ${!state.activePozo ? 'is-active' : ''}" id="bc-root" style="cursor:pointer;">
-            <i class="fa-solid fa-database"></i>
-            <span>Pozos Registrados</span>
-        </div>
-    `;
+    const isGeneral = state.activePozo === '_GENERAL';
+    const isGerencial = state.activePozo === '_GERENCIAL';
+    const isVirtualWell = isGeneral || isGerencial;
 
-    if (state.activePozo) {
+    let html = '';
+    if (isVirtualWell) {
         html += `
-            <span class="db-breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
-            <div class="db-breadcrumb-item ${state.currentFolderPath.length === 0 ? 'is-active' : ''}" id="bc-pozo" style="cursor:pointer;">
-                <i class="fa-solid fa-oil-well"></i>
-                <span>${state.activePozo}</span>
+            <div class="db-breadcrumb-item ${state.currentFolderPath.length === 0 || (state.currentFolderPath.length === 1 && state.currentFolderPath[0].id === null) ? 'is-active' : ''}" id="bc-virtual-root" style="cursor:pointer;">
+                <i class="${isGeneral ? 'fa-solid fa-folder-open' : 'fa-solid fa-briefcase'}"></i>
+                <span>${isGeneral ? 'Información General' : 'Gerencial'}</span>
             </div>
         `;
+    } else {
+        html += `
+            <div class="db-breadcrumb-item ${!state.activePozo ? 'is-active' : ''}" id="bc-root" style="cursor:pointer;">
+                <i class="fa-solid fa-database"></i>
+                <span>Pozos Registrados</span>
+            </div>
+        `;
+
+        if (state.activePozo) {
+            html += `
+                <span class="db-breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+                <div class="db-breadcrumb-item ${state.currentFolderPath.length === 0 ? 'is-active' : ''}" id="bc-pozo" style="cursor:pointer;">
+                    <i class="fa-solid fa-oil-well"></i>
+                    <span>${state.activePozo}</span>
+                </div>
+            `;
+        }
     }
 
     state.currentFolderPath.forEach((folder, index) => {
@@ -1563,18 +1970,44 @@ function updateBreadcrumb() {
         `;
     });
 
-    breadcrumb.innerHTML = html;
+    const breadcrumbList = document.getElementById('db-breadcrumb-list');
+    if (breadcrumbList) {
+        breadcrumbList.innerHTML = html;
+    } else {
+        breadcrumb.innerHTML = html;
+    }
+
+    // Gestionar visibilidad y sincronización del conmutador rápido integrado
+    const switcherContainer = document.getElementById('well-quick-switcher-container');
+    const switcherSelect = document.getElementById('well-switcher-select');
+    const shouldShowSwitcher = state.activePozo && !isVirtualWell;
+
+    if (switcherContainer && switcherSelect) {
+        if (shouldShowSwitcher) {
+            switcherContainer.style.display = 'flex';
+            switcherSelect.value = state.activePozo;
+        } else {
+            switcherContainer.style.display = 'none';
+            switcherSelect.value = '';
+        }
+    }
 
     // Vincular clics en la miga de pan
-    document.getElementById('bc-root')?.addEventListener('click', () => {
-        const btnCreateFolder = document.getElementById('btn-create-folder');
-        if (btnCreateFolder) btnCreateFolder.style.display = 'none';
-        renderWellsView();
-    });
-    
-    document.getElementById('bc-pozo')?.addEventListener('click', () => {
-        if (state.activePozo) openFoldersView(state.activePozo);
-    });
+    if (isVirtualWell) {
+        document.getElementById('bc-virtual-root')?.addEventListener('click', () => {
+            openFoldersView(state.activePozo);
+        });
+    } else {
+        document.getElementById('bc-root')?.addEventListener('click', () => {
+            const btnCreateFolder = document.getElementById('btn-create-folder');
+            if (btnCreateFolder) btnCreateFolder.style.display = 'none';
+            renderWellsView();
+        });
+        
+        document.getElementById('bc-pozo')?.addEventListener('click', () => {
+            if (state.activePozo) openFoldersView(state.activePozo);
+        });
+    }
 
     state.currentFolderPath.forEach((folder, index) => {
         if (index === 0 && folder.id === null) return;
@@ -1764,12 +2197,28 @@ function getFolderPathNames(folders, targetFolderId) {
     return path;
 }
 
+function buildFolderPathArray(folders, targetFolderId, pozoName) {
+    const path = [{ id: null, name: pozoName }];
+    let current = folders.find(f => f.id === targetFolderId);
+    const temp = [];
+    while (current) {
+        temp.unshift({ id: current.id, name: current.name });
+        if (current.parent_id) {
+            current = folders.find(f => f.id === current.parent_id);
+        } else {
+            current = null;
+        }
+    }
+    return path.concat(temp);
+}
+
 function initFolderEvents() {
     const btnCreateFolder = document.getElementById('btn-create-folder');
     if (btnCreateFolder) {
         btnCreateFolder.addEventListener('click', async () => {
             if (!state.activePozo) return;
 
+            const isVirtualWell = state.activePozo === '_GENERAL' || state.activePozo === '_GERENCIAL';
             const allWells = state.pozosList || [];
             
             // Obtener todas las carpetas del pozo activo para listarlas en el selector de carpeta padre
@@ -1801,11 +2250,11 @@ function initFolderEvents() {
                 
                 const level1 = subFoldersMap[root.id] || [];
                 level1.forEach(sub1 => {
-                    parentOptions += `<option value="${sub1.id}">&nbsp;&nbsp;&nbsp;&nbsp;📁 ${escapeHtml(root.name)} &gt; 📁 ${escapeHtml(sub1.name)}</option>`;
+                    parentOptions += `<option value="${sub1.id}">&nbsp;&nbsp;&nbsp;&nbsp;└─ 📁 ${escapeHtml(sub1.name)}</option>`;
                     
                     const level2 = subFoldersMap[sub1.id] || [];
                     level2.forEach(sub2 => {
-                        parentOptions += `<option value="${sub2.id}">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📁 ${escapeHtml(root.name)} &gt; 📁 ${escapeHtml(sub1.name)} &gt; 📁 ${escapeHtml(sub2.name)}</option>`;
+                        parentOptions += `<option value="${sub2.id}">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ 📁 ${escapeHtml(sub2.name)}</option>`;
                     });
                 });
             });
@@ -1862,6 +2311,11 @@ function initFolderEvents() {
                                 </div>
                             </div>
                         </div>
+                        ${isVirtualWell ? `
+                        <div style="display:none;">
+                            <input type="checkbox" value="${state.activePozo}" class="swal-well-cb" checked>
+                        </div>
+                        ` : `
                         <div>
                             <label style="font-weight:700; color:#475569; font-size:0.82rem; display:block; margin-bottom:5px;">¿En qué pozos crear la carpeta?</label>
                             <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding:7px 12px; background:#eff6ff; border-radius:8px; border:1px solid #bfdbfe;">
@@ -1880,6 +2334,7 @@ function initFolderEvents() {
                             </div>
                             <p style="color:#94a3b8; font-size:0.75rem; margin-top:5px;"><i class="fa-solid fa-circle-info"></i> El pozo actual siempre se incluye.</p>
                         </div>
+                        `}
 
                     </div>
                 `,
@@ -2313,6 +2768,9 @@ function initUploadModal() {
                 modal.style.display = 'flex';
             }
             
+            // Re-poblar el selector de pozos para inyectar pozos virtuales si corresponde
+            populateUploadWellSelect();
+
             // Limpiar selección de archivos al abrir el modal para empezar limpio
             selectedFilesArray = [];
             renderSelectedFilesList();
@@ -2424,9 +2882,9 @@ function initUploadModal() {
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             // Evitar duplicados exactos en el mismo lote
-            const alreadyExists = selectedFilesArray.some(f => f.name === file.name && f.size === file.size);
+            const alreadyExists = selectedFilesArray.some(f => f.file.name === file.name && f.file.size === file.size);
             if (!alreadyExists) {
-                selectedFilesArray.push(file);
+                selectedFilesArray.push({ file, date: '' });
             }
         }
         renderSelectedFilesList();
@@ -2488,22 +2946,37 @@ function initUploadModal() {
         filesContainer.hidden = false;
         filesContainer.style.display = 'block';
 
-        filesList.innerHTML = selectedFilesArray.map((file, idx) => {
+        filesList.innerHTML = selectedFilesArray.map((fileObj, idx) => {
+            const file = fileObj.file;
             const { iconClass, color } = getFileIconStyle(file.name);
             const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
             return `
-                <div class="selected-file-item" style="display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:0.8rem; margin-bottom: 4px;">
-                    <div style="display:flex; align-items:center; gap:8px; max-width:80%; overflow:hidden;">
-                        <i class="${iconClass}" style="color:${color}; font-size:1rem;"></i>
+                <div class="selected-file-item" style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; font-size:0.8rem; margin-bottom: 6px; gap: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
+                        <i class="${iconClass}" style="color:${color}; font-size:1.1rem; flex-shrink:0;"></i>
                         <span style="font-weight:600; color:#1e293b; text-overflow:ellipsis; white-space:nowrap; overflow:hidden;" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
-                        <span style="color:#64748b; font-size:0.75rem;">(${sizeMB} MB)</span>
+                        <span style="color:#64748b; font-size:0.75rem; flex-shrink:0;">(${sizeMB} MB)</span>
                     </div>
-                    <button type="button" class="btn-remove-file" data-index="${idx}" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:0.9rem; padding:0 4px; transition:color 0.2s;">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+                    <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                        <label style="font-weight:700; color:#475569; font-size:0.75rem; margin:0;">Fecha:</label>
+                        <input type="date" class="file-individual-date" data-index="${idx}" value="${fileObj.date}" style="border:1px solid #cbd5e1; border-radius:6px; padding:3px 6px; font-size:0.78rem; outline:none; color:#334155; font-family:inherit;">
+                        <button type="button" class="btn-remove-file" data-index="${idx}" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1rem; padding:4px; transition:color 0.2s; display:flex; align-items:center; justify-content:center;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
                 </div>
             `;
         }).join('');
+
+        // Vincular eventos de cambio a los inputs de fecha individual para actualizar el array de estado
+        filesList.querySelectorAll('.file-individual-date').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const idx = parseInt(input.getAttribute('data-index'), 10);
+                if (selectedFilesArray[idx]) {
+                    selectedFilesArray[idx].date = e.target.value;
+                }
+            });
+        });
 
         filesList.querySelectorAll('.btn-remove-file').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -2563,7 +3036,10 @@ function initUploadModal() {
 
                 // Carga secuencial de archivos en el lote
                 for (let i = 0; i < totalFiles; i++) {
-                    const currentFile = selectedFilesArray[i];
+                    const currentFileObj = selectedFilesArray[i];
+                    const currentFile = currentFileObj.file;
+                    const fileDocDate = currentFileObj.date || documentDate; // Fallback a la fecha global
+
                     if (submitBtn) {
                         submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Subiendo (${i + 1}/${totalFiles}): ${escapeHtml(currentFile.name)}...</span>`;
                     }
@@ -2576,13 +3052,13 @@ function initUploadModal() {
                             description,
                             uploadedBy: uploaderName,
                             operationalScope: state.activeOperationalScope,
-                            documentDate: documentDate,
+                            documentDate: fileDocDate,
                             folderId: targetFolderId
                         });
                         successCount++;
                     } catch (fileErr) {
                         console.error(`[initUploadModal] Error subiendo archivo "${currentFile.name}":`, fileErr);
-                        failedFiles.push({ file: currentFile, error: fileErr.message || 'Error desconocido' });
+                        failedFiles.push({ file: currentFile, date: currentFileObj.date, error: fileErr.message || 'Error desconocido' });
                     }
                 }
 
@@ -2620,8 +3096,8 @@ function initUploadModal() {
                         });
                     }
 
-                    // Dejar en la lista únicamente los que fallaron
-                    selectedFilesArray = failedFiles.map(f => f.file);
+                    // Dejar en la lista únicamente los que fallaron, conservando sus fechas individuales
+                    selectedFilesArray = failedFiles.map(f => ({ file: f.file, date: f.date || '' }));
                     renderSelectedFilesList();
                 }
 
@@ -3332,6 +3808,574 @@ async function refreshActiveFoldersView() {
         await openFolderView(state.activeFolderId, currentFolder.name);
     } else if (state.activePozo) {
         openFoldersView(state.activePozo);
+    }
+}
+
+/**
+ * Inicializa los eventos de la papelera de reciclaje y el dashboard de almacenamiento.
+ */
+function initStorageAndTrashEvents() {
+    const btnOpenStorage = document.getElementById('btn-open-storage-dashboard');
+    const btnBackFromStorage = document.getElementById('btn-back-from-storage');
+    const btnOpenTrash = document.getElementById('btn-open-trash');
+    const btnBackFromTrash = document.getElementById('btn-back-from-trash');
+
+    if (btnOpenStorage) {
+        btnOpenStorage.addEventListener('click', async () => {
+            // Ocultar las demás vistas
+            document.getElementById('view-wells-container').hidden = true;
+            document.getElementById('view-folders-container').hidden = true;
+            document.getElementById('view-files-container').hidden = true;
+            document.getElementById('view-search-results-container').hidden = true;
+            document.getElementById('view-trash-container').hidden = true;
+
+            // Mostrar el dashboard
+            document.getElementById('view-storage-dashboard-container').hidden = false;
+
+            // Cargar datos y renderizar gráficos
+            await loadAndRenderStorageStats();
+        });
+    }
+
+    if (btnBackFromStorage) {
+        btnBackFromStorage.addEventListener('click', () => {
+            document.getElementById('view-storage-dashboard-container').hidden = true;
+            restoreActiveView();
+        });
+    }
+
+    if (btnOpenTrash) {
+        btnOpenTrash.addEventListener('click', async () => {
+            document.getElementById('view-storage-dashboard-container').hidden = true;
+            document.getElementById('view-trash-container').hidden = false;
+            await loadAndRenderTrashTable();
+        });
+    }
+
+    if (btnBackFromTrash) {
+        btnBackFromTrash.addEventListener('click', async () => {
+            document.getElementById('view-trash-container').hidden = true;
+            document.getElementById('view-storage-dashboard-container').hidden = false;
+            await loadAndRenderStorageStats(); // refrescar estadísticas tras vaciar papelera
+        });
+    }
+}
+
+/**
+ * Recupera todos los archivos activos del contrato y genera las métricas y gráficos (Chart.js)
+ */
+async function loadAndRenderStorageStats() {
+    try {
+        // Cargar contador de la papelera en segundo plano para actualizar el botón
+        getDeletedWellDocuments({ operationalScope: state.activeOperationalScope }).then(docs => {
+            const badge = document.getElementById('trash-badge-count');
+            if (badge) badge.innerText = docs.length;
+        }).catch(err => console.warn('Error al obtener conteo de papelera:', err));
+
+        // 1. Obtener peso total y datos de la base de datos (solo campos necesarios)
+        let dbQuery = supabase
+            .from('well_historical_documents')
+            .select('pozo_name, categoria, file_size')
+            .is('deleted_at', null);
+
+        if (state.activeOperationalScope) {
+            dbQuery = dbQuery.or(`operational_scope.eq.${state.activeOperationalScope},operational_scope.is.null`);
+        }
+
+        let { data: allDocs, error } = await dbQuery;
+        if (error && String(error.message || error).includes('deleted_at')) {
+            console.warn('[storage-stats] La columna deleted_at no existe; reintentando sin filtro de borrado lógico.');
+            let fallbackQuery = supabase
+                .from('well_historical_documents')
+                .select('pozo_name, categoria, file_size');
+            if (state.activeOperationalScope && !String(error.message || error).includes('operational_scope')) {
+                fallbackQuery = fallbackQuery.or(`operational_scope.eq.${state.activeOperationalScope},operational_scope.is.null`);
+            }
+            const fallbackResult = await fallbackQuery;
+            allDocs = fallbackResult.data;
+            error = fallbackResult.error;
+        }
+        if (error) throw error;
+
+        const docs = allDocs || [];
+        const totalFiles = docs.length;
+        const totalSize = docs.reduce((acc, d) => acc + (d.file_size || 0), 0);
+        const avgSize = totalFiles > 0 ? (totalSize / totalFiles) : 0;
+
+        // Quota: 100 GB = 100 * 1024 * 1024 * 1024 bytes
+        const quotaBytes = 100 * 1024 * 1024 * 1024;
+        const percent = Math.min((totalSize / quotaBytes) * 100, 100);
+
+        // Actualizar UI
+        const formatSize = (bytes) => {
+            if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(2)} GB`;
+            if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(2)} MB`;
+            if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            return `${bytes} Bytes`;
+        };
+
+        const storageUsedVal = document.getElementById('storage-used-val');
+        if (storageUsedVal) storageUsedVal.innerText = formatSize(totalSize);
+
+        const storageProgressBar = document.getElementById('storage-progress-bar');
+        if (storageProgressBar) {
+            storageProgressBar.style.width = `${percent}%`;
+            // Cambiar colores dinámicos
+            if (percent > 85) {
+                storageProgressBar.style.background = '#ef4444'; // Rojo crítico
+            } else if (percent > 60) {
+                storageProgressBar.style.background = '#f59e0b'; // Naranja preventivo
+            } else {
+                storageProgressBar.style.background = 'linear-gradient(90deg, #3b82f6, #10b981)'; // Azul a verde
+            }
+        }
+
+        const storagePercentDesc = document.getElementById('storage-percent-desc');
+        if (storagePercentDesc) {
+            storagePercentDesc.innerText = `Utilizando ${percent.toFixed(2)}% de la capacidad de almacenamiento asignada.`;
+        }
+
+        const storageFilesCount = document.getElementById('storage-files-count');
+        if (storageFilesCount) storageFilesCount.innerText = totalFiles.toLocaleString();
+
+        const storageAvgSize = document.getElementById('storage-avg-size');
+        if (storageAvgSize) storageAvgSize.innerText = formatSize(avgSize);
+
+        // 1.5 Obtener y renderizar los últimos 5 archivos subidos
+        try {
+            let recentQuery = supabase
+                .from('well_historical_documents')
+                .select('pozo_name, categoria, nombre_archivo, file_size, uploaded_by, created_at, well_document_folders(name)')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false })
+                .limit(5);
+
+            if (state.activeOperationalScope) {
+                recentQuery = recentQuery.or(`operational_scope.eq.${state.activeOperationalScope},operational_scope.is.null`);
+            }
+
+            let { data: recentDocs, error: recentErr } = await recentQuery;
+            if (recentErr && String(recentErr.message || recentErr).includes('deleted_at')) {
+                let fallbackRecent = supabase
+                    .from('well_historical_documents')
+                    .select('pozo_name, categoria, nombre_archivo, file_size, uploaded_by, created_at, well_document_folders(name)')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                if (state.activeOperationalScope && !String(recentErr.message || recentErr).includes('operational_scope')) {
+                    fallbackRecent = fallbackRecent.or(`operational_scope.eq.${state.activeOperationalScope},operational_scope.is.null`);
+                }
+                const fallbackRes = await fallbackRecent;
+                recentDocs = fallbackRes.data;
+                recentErr = fallbackRes.error;
+            }
+
+            const recentTbody = document.getElementById('storage-recent-table-body');
+            if (recentTbody) {
+                if (recentErr || !recentDocs || recentDocs.length === 0) {
+                    recentTbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" style="text-align:center; padding:24px; color:#64748b;">
+                                <i class="fa-solid fa-folder-open" style="font-size:1.4rem; color:#cbd5e1; margin-bottom:8px; display:block;"></i>
+                                <span>No hay archivos cargados recientemente.</span>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    const getFriendlyCategory = (catKey, folderObj) => {
+                        if (folderObj && folderObj.name) return folderObj.name;
+                        const catMap = {
+                            'SIMULACIONES': 'Simulaciones',
+                            'INFORMES_TECNICOS': 'Informes Técnicos',
+                            'PRUEBAS_PRODUCCION': 'Pruebas de Producción',
+                            'FICHAS_BES': 'Fichas Técnicas BES',
+                            'REGISTROS_ECHOMETER': 'Registros Echometer',
+                            'DATA_SENSOR': 'Data Sensor Fondo',
+                            'DESCARGA_DATA': 'Descarga Data VSD',
+                            'SOPORTES_DE_CAMPO': 'Soportes de Campo',
+                            'NOVEDADES': 'Novedades',
+                            'CONTRATOS': 'Contratos',
+                            'FORMATOS': 'Formatos',
+                            'MINUTAS': 'Minutas',
+                            'SIAHO': 'SIAHO',
+                            'FORMATOS_ADMIN': 'Formatos Admin',
+                            'INVENTARIO': 'Inventario'
+                        };
+                        return catMap[catKey] || catKey;
+                    };
+
+                    recentTbody.innerHTML = recentDocs.map(doc => {
+                        const pozoClean = doc.pozo_name === '_GENERAL' ? 'Información General' : (doc.pozo_name === '_GERENCIAL' ? 'Gerencial' : doc.pozo_name);
+                        return `
+                            <tr style="font-weight:600; color:#334155;">
+                                <td><span class="badge" style="background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:6px;">${pozoClean}</span></td>
+                                <td><span style="font-size:0.82rem; color:#64748b;"><i class="fa-solid fa-folder" style="margin-right:4px;color:#94a3b8;"></i>${getFriendlyCategory(doc.categoria, doc.well_document_folders)}</span></td>
+                                <td style="max-width:240px; word-break:break-all;">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <i class="fa-solid fa-file" style="color:#2563eb;"></i>
+                                        <span title="${escapeHtml(doc.nombre_archivo)}">${escapeHtml(doc.nombre_archivo)}</span>
+                                    </div>
+                                </td>
+                                <td>${formatSize(doc.file_size)}</td>
+                                <td><span style="font-size:0.82rem; color:#64748b;">${escapeHtml(doc.uploaded_by || 'Admin')}</span></td>
+                                <td><span style="font-size:0.82rem; color:#64748b;"><i class="fa-solid fa-calendar" style="margin-right:4px;color:#94a3b8;"></i>${new Date(doc.created_at).toLocaleDateString('es-ES')}</span></td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            }
+        } catch (recentFetchErr) {
+            console.error('Error al cargar archivos recientes para el dashboard:', recentFetchErr);
+        }
+
+        // 2. Gráfico 1: Espacio por Categoría (Doughnut)
+        const categoriesMap = {
+            'SIMULACIONES': 'Simulaciones',
+            'INFORMES': 'Informes', 'INFORMES_TECNICOS': 'Informes',
+            'PRUEBAS': 'Pruebas', 'PRUEBAS_PRODUCCION': 'Pruebas',
+            'FICHAS': 'Fichas BES', 'FICHAS_BES': 'Fichas BES',
+            'ECHOMETER': 'Echometer', 'REGISTROS_ECHOMETER': 'Echometer',
+            'SENSOR': 'Sensor Fondo', 'DATA_SENSOR': 'Sensor Fondo',
+            'VSD': 'Variador VSD', 'DESCARGA_DATA': 'Variador VSD',
+            'SOPORTES': 'Soportes de Campo', 'SOPORTES_DE_CAMPO': 'Soportes de Campo',
+            'NOVEDADES': 'Novedades',
+            'CONTRATOS': 'Contratos',
+            'FORMATOS': 'Formatos',
+            'MINUTAS': 'Minutas',
+            'SIAHO': 'SIAHO',
+            'FORMATOS_ADMIN': 'Formatos Admin',
+            'INVENTARIO': 'Inventario'
+        };
+
+        const sizeByCategory = {};
+        docs.forEach(d => {
+            const catKey = d.categoria || 'OTROS';
+            const catName = categoriesMap[catKey] || catKey;
+            sizeByCategory[catName] = (sizeByCategory[catName] || 0) + (d.file_size || 0);
+        });
+
+        // Convertir bytes a MB para el gráfico
+        const categoryLabels = [];
+        const categoryValues = [];
+        Object.entries(sizeByCategory).forEach(([label, bytes]) => {
+            categoryLabels.push(label);
+            categoryValues.push((bytes / 1048576).toFixed(2)); // MBs
+        });
+
+        // Destruir instancia anterior para evitar leaks
+        if (categoryChartInstance) categoryChartInstance.destroy();
+
+        const ctxCategory = document.getElementById('storage-category-chart')?.getContext('2d');
+        if (ctxCategory && categoryLabels.length > 0) {
+            categoryChartInstance = new Chart(ctxCategory, {
+                type: 'doughnut',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        data: categoryValues,
+                        backgroundColor: [
+                            '#0284c7', '#16a34a', '#d97706', '#9333ea', 
+                            '#2563eb', '#0d9488', '#b45309', '#ef4444', 
+                            '#db2777', '#4338ca', '#0891b2', '#ea580c', 
+                            '#a21caf', '#4d7c0f', '#64748b'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: { size: 9, weight: '700' },
+                                boxWidth: 10
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.raw} MB`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 3. Gráfico 2: Top 5 Pozos más Pesados (Horizontal Bar)
+        const sizeByWell = {};
+        docs.forEach(d => {
+            const pozo = d.pozo_name || 'SIN POZO';
+            if (pozo !== '_GENERAL' && pozo !== '_GERENCIAL') {
+                sizeByWell[pozo] = (sizeByWell[pozo] || 0) + (d.file_size || 0);
+            }
+        });
+
+        const sortedWells = Object.entries(sizeByWell)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        const wellLabels = sortedWells.map(([pozo]) => pozo);
+        const wellValues = sortedWells.map(([, bytes]) => (bytes / 1048576).toFixed(2)); // MBs
+
+        if (wellsChartInstance) wellsChartInstance.destroy();
+
+        const ctxWells = document.getElementById('storage-wells-chart')?.getContext('2d');
+        if (ctxWells && wellLabels.length > 0) {
+            wellsChartInstance = new Chart(ctxWells, {
+                type: 'bar',
+                data: {
+                    labels: wellLabels,
+                    datasets: [{
+                        label: 'Espacio (MB)',
+                        data: wellValues,
+                        backgroundColor: 'rgba(37, 99, 235, 0.85)',
+                        hoverBackgroundColor: 'rgba(37, 99, 235, 1)',
+                        borderRadius: 6,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.raw} MB`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                font: { size: 9, weight: '600' }
+                            }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: {
+                                font: { size: 9, weight: '700' }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+    } catch (err) {
+        console.error('Error cargando estadísticas de almacenamiento:', err);
+    }
+}
+
+/**
+ * Carga los documentos en la papelera de reciclaje y renderiza la tabla.
+ */
+async function loadAndRenderTrashTable() {
+    const tbody = document.getElementById('trash-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" style="text-align:center; padding:30px; color:#64748b;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:1.4rem; color:#2563eb; margin-bottom:8px;"></i>
+                <p style="margin:0; font-weight:600;">Cargando papelera de reciclaje...</p>
+            </td>
+        </tr>
+    `;
+
+    try {
+        const docs = await getDeletedWellDocuments({ operationalScope: state.activeOperationalScope });
+        
+        // Actualizar el contador en la cabecera
+        const badge = document.getElementById('trash-badge-count');
+        if (badge) badge.innerText = docs.length;
+
+        if (docs.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align:center; padding:48px; color:#64748b;">
+                        <i class="fa-solid fa-trash-arrow-up" style="font-size:2rem; color:#cbd5e1; margin-bottom:10px;"></i>
+                        <p style="margin:0; font-weight:700; font-size:0.95rem;">La papelera está vacía</p>
+                        <span style="font-size:0.82rem;">Los archivos eliminados aparecerán aquí para su restauración o eliminación definitiva.</span>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const formatFileSize = (bytes) => {
+            const num = Number(bytes || 0);
+            if (num >= 1048576) return `${(num / 1048576).toFixed(2)} MB`;
+            if (num >= 1024) return `${(num / 1024).toFixed(1)} KB`;
+            return `${num} Bytes`;
+        };
+
+        const formatShortDate = (isoString) => {
+            if (!isoString) return '--';
+            const d = new Date(isoString);
+            return d.toLocaleString('es-ES', { 
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+        };
+
+        const getFriendlyCategory = (catKey, folderObj) => {
+            if (folderObj && folderObj.name) return folderObj.name;
+            const catMap = {
+                'SIMULACIONES': 'Simulaciones',
+                'INFORMES_TECNICOS': 'Informes Técnicos',
+                'PRUEBAS_PRODUCCION': 'Pruebas de Producción',
+                'FICHAS_BES': 'Fichas Técnicas BES',
+                'REGISTROS_ECHOMETER': 'Registros Echometer',
+                'DATA_SENSOR': 'Data Sensor Fondo',
+                'DESCARGA_DATA': 'Descarga Data VSD',
+                'SOPORTES_DE_CAMPO': 'Soportes de Campo',
+                'NOVEDADES': 'Novedades',
+                'CONTRATOS': 'Contratos',
+                'FORMATOS': 'Formatos',
+                'MINUTAS': 'Minutas',
+                'SIAHO': 'SIAHO',
+                'FORMATOS_ADMIN': 'Formatos Admin',
+                'INVENTARIO': 'Inventario'
+            };
+            return catMap[catKey] || catKey;
+        };
+
+        tbody.innerHTML = docs.map((doc, idx) => {
+            const pozoClean = doc.pozo_name === '_GENERAL' ? 'Información General' : (doc.pozo_name === '_GERENCIAL' ? 'Gerencial' : doc.pozo_name);
+            return `
+                <tr style="font-weight:600; color:#334155;">
+                    <td><span class="badge" style="background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:6px;">${pozoClean}</span></td>
+                    <td><span style="font-size:0.82rem; color:#64748b;"><i class="fa-solid fa-folder" style="margin-right:4px;color:#94a3b8;"></i>${getFriendlyCategory(doc.categoria, doc.well_document_folders)}</span></td>
+                    <td style="max-width:240px; word-break:break-all;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="fa-solid fa-file" style="color:#2563eb;"></i>
+                            <span title="${escapeHtml(doc.nombre_archivo)}">${escapeHtml(doc.nombre_archivo)}</span>
+                        </div>
+                    </td>
+                    <td>${formatFileSize(doc.file_size)}</td>
+                    <td><span style="font-size:0.82rem; color:#64748b;">${escapeHtml(doc.uploaded_by || 'Admin')}</span></td>
+                    <td><span style="font-size:0.82rem; color:#ef4444;"><i class="fa-solid fa-calendar-xmark" style="margin-right:4px;"></i>${formatShortDate(doc.deleted_at)}</span></td>
+                    <td style="text-align:center;">
+                        <div style="display:inline-flex; gap:6px;">
+                            <button type="button" class="btn-restore" data-id="${doc.id}" data-name="${escapeHtml(doc.nombre_archivo)}" style="padding:6px 10px; background:#e6f4ea; border:none; border-radius:6px; color:#137333; cursor:pointer; font-weight:700; display:flex; align-items:center; gap:4px; transition:all 0.15s;" title="Restaurar archivo">
+                                <i class="fa-solid fa-trash-arrow-up"></i>
+                                <span>Restaurar</span>
+                            </button>
+                            <button type="button" class="btn-hard-delete" data-id="${doc.id}" data-path="${escapeHtml(doc.file_path)}" data-name="${escapeHtml(doc.nombre_archivo)}" style="padding:6px 10px; background:#fce8e6; border:none; border-radius:6px; color:#c5221f; cursor:pointer; font-weight:700; display:flex; align-items:center; gap:4px; transition:all 0.15s;" title="Borrar físicamente del almacenamiento">
+                                <i class="fa-solid fa-dumpster-fire"></i>
+                                <span>Eliminar</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        // Vincular acciones de Restauración
+        tbody.querySelectorAll('.btn-restore').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const docId = btn.dataset.id;
+                const docName = btn.dataset.name;
+
+                const result = await Swal.fire({
+                    title: '¿Restaurar Archivo?',
+                    html: `<p style="color:#64748b;">¿Deseas restaurar el archivo <strong>${docName}</strong>? Volverá a aparecer en su pozo y carpeta originales.</p>`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, restaurar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#059669',
+                    cancelButtonColor: '#64748b'
+                });
+
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Restaurando archivo...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    try {
+                        await restoreWellDocument(docId);
+                        Swal.close();
+                        showSuccessToast('Archivo Restaurado', `El documento "${docName}" se ha recuperado con éxito.`);
+                        await loadAndRenderTrashTable();
+                    } catch (err) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error al restaurar',
+                            text: err.message || 'No se pudo recuperar el archivo.'
+                        });
+                    }
+                }
+            });
+        });
+
+        // Vincular acciones de Eliminación Definitiva
+        tbody.querySelectorAll('.btn-hard-delete').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const docId = btn.dataset.id;
+                const docPath = btn.dataset.path;
+                const docName = btn.dataset.name;
+
+                const result = await Swal.fire({
+                    title: '¿ELIMINAR DEFINITIVAMENTE?',
+                    html: `
+                        <div style="color:#64748b; text-align:left;">
+                            <p>Estás a punto de borrar <strong>${docName}</strong> de forma permanente.</p>
+                            <p style="color:#ef4444; font-weight:700;"><i class="fa-solid fa-triangle-exclamation"></i> Esta acción es irreversible y liberará espacio en el servidor de disco.</p>
+                        </div>
+                    `,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, borrar del disco',
+                    cancelButtonText: 'Conservar',
+                    confirmButtonColor: '#dc2626',
+                    cancelButtonColor: '#64748b'
+                });
+
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Borrando del disco físico...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    try {
+                        await permanentlyDeleteWellDocument(docId, docPath);
+                        Swal.close();
+                        showSuccessToast('Archivo Borrado', `El documento "${docName}" ha sido eliminado del Storage y la base de datos.`);
+                        await loadAndRenderTrashTable();
+                    } catch (err) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error al eliminar',
+                            text: err.message || 'No se pudo vaciar el archivo de forma física.'
+                        });
+                    }
+                }
+            });
+        });
+
+    } catch (err) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align:center; padding:30px; color:#ef4444;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; margin-bottom:8px;"></i>
+                    <p style="margin:0; font-weight:700;">Error al obtener papelera</p>
+                    <span style="font-size:0.82rem;">${err.message || 'Error de conexión con base de datos.'}</span>
+                </td>
+            </tr>
+        `;
     }
 }
 
