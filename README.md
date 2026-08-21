@@ -87,3 +87,38 @@ Si persisten los errores HTTP 400 en la consola del navegador por campos omitido
 ```sql
 ALTER TABLE field_tickets ADD COLUMN IF NOT EXISTS submitted_at timestamptz NOT NULL DEFAULT now();
 ```
+
+---
+
+## 🔒 Parches de Seguridad RLS y Sincronización de Niveles (Agosto 18-19, 2026)
+
+Este bloque resume los cambios y parches aplicados para resolver los problemas de permisos al eliminar y asegurar la alimentación automática del consolidado:
+
+### 1. Corrección de Borrado Silencioso y Permisos RLS
+* **Problema:** Los usuarios en rol `admin` no podían eliminar registros de pruebas de nivel desde la interfaz de **Data** (salía un error de falta de permisos), o la web simulaba una eliminación exitosa pero el registro seguía apareciendo al recargar la página.
+* **Soluciones aplicadas:**
+  * Se configuraron validaciones estrictas `.select()` en las funciones de borrado de Supabase ([level-tests-service.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/services/level-tests-service.js), [monitoring-records-service.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/services/monitoring-records-service.js) y [operational-contracts-service.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/services/operational-contracts-service.js)) para forzar un error explícito si el registro no era afectado físicamente.
+  * **Creación de la Política de Eliminación:** Se detectó que la tabla `public.well_level_tests` no tenía una política de tipo `DELETE` definida en RLS. Se creó la política para permitir el borrado a los roles autorizados (`admin` y `supervisor`).
+  * **Sincronización de Roles Existentes:** Se implementó un script SQL para forzar la sincronización segura de los roles de usuario existentes desde `user_metadata` a `app_metadata` (requisito de RLS).
+
+### 2. Alimentación del Consolidado en Dos Direcciones
+* **Cruces Automáticos en JS:** Se actualizó `buildConsolidatedFieldRows` en [field-journey-service.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/services/field-journey-service.js) para buscar y combinar automáticamente las pruebas de nivel (`well_level_tests`) correspondientes al pozo y fecha al momento de publicar jornadas.
+* **Sincronización en Tiempo Real por Triggers:** Se creó [sync_levels_to_consolidated.sql](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/supabase/sync_levels_to_consolidated.sql) que define triggers PostgreSQL. Al insertar, modificar o eliminar registros en `well_level_tests` (Gestión), los cambios se reflejan inmediatamente en las columnas de nivel de las filas ya existentes en el consolidado.
+* **Migración Histórica Única:** Se creó [sync_historical_levels_to_consolidated.sql](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/supabase/sync_historical_levels_to_consolidated.sql) para actualizar retroactivamente todos los registros del pasado.
+
+### 3. Corrección del Selector de Pozos en la pantalla "Data"
+* **Problema 1 (Caché de Autocompletado del Navegador):** Al escribir en el buscador de pozos, salía un globo negro nativo del navegador con sugerencias que tapaba y desconfiguraba el menú desplegable personalizado.
+* **Problema 2 (Pérdida de Listeners en Navegación SPA):** Al entrar por primera vez a la pantalla de **Data** los pozos cargaban bien, pero al navegar a otra sección y regresar, el selector de pozos quedaba totalmente congelado y requería actualizar con F5 para volver a cargar la lista.
+* **Soluciones aplicadas:**
+  * Se agregó `autocomplete="off"` al input de búsqueda en [data.html](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/data.html) para eliminar el globo de sugerencias del navegador.
+  * Se movieron todos los listeners de eventos que estaban sueltos a nivel de módulo en [data-controller.js](file:///c:/Users/johnl/OneDrive/Escritorio/uvservicios/js/modules/data-controller.js) a una función helper `setupDataPageEventListeners()` que es ejecutada en cada inicialización de la página (`initData`), acoplándose de manera limpia al ciclo de vida del router SPA.
+
+### 📱 Estado del Módulo Móvil (Aislado)
+* **Importante:** Las nuevas vistas y controladores creados para la versión de celular (`field-mobile.html`, `css/field-mobile.css`, `js/modules/field/field-mobile-controller.js` y `js/modules/field/field-mobile-design.js`) están **100% aislados** y no tienen referencias o links desde las páginas de producción.
+* Para evitar desplegar este módulo a medias en producción, se recomienda hacer el commit únicamente de los archivos modificados:
+  ```bash
+  git add js/services/level-tests-service.js js/services/operational-contracts-service.js js/services/monitoring-records-service.js js/services/field-journey-service.js stats.html data.html js/modules/data-controller.js README.md
+  git commit -m "Fix delete permissions, sync levels to consolidated, and data page SPA selector listeners"
+  git push origin main
+  ```
+

@@ -141,6 +141,16 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
     if (accessProfile?.isBaseDatos) {
         document.body.classList.add('is-role-base-datos');
         showLinks(['base-datos.html']);
+        hideLinks([
+            'consolidado.html',
+            'data.html',
+            'stats.html',
+            'help.html',
+            'notificacion.html',
+            'monitoring-prep.html',
+            'dashboard-data.html',
+            'campo-admin.html'
+        ]);
     } else {
         document.body.classList.remove('is-role-base-datos');
         hideLinks(['base-datos.html']);

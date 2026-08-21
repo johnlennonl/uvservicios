@@ -173,12 +173,16 @@ export async function deleteFieldWell(id) {
     if (!wellId) throw new Error('No se pudo identificar el pozo a eliminar.');
 
     try {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from(WELLS_TABLE)
             .delete()
-            .eq('id', wellId);
+            .eq('id', wellId)
+            .select();
 
         if (error) throw error;
+        if (!data || data.length === 0) {
+            throw new Error('No tienes permisos suficientes en la base de datos (RLS) para eliminar este pozo, o el pozo ya fue eliminado por otro usuario.');
+        }
         return true;
     } catch (error) {
         throw buildOperationalCatalogError(error);

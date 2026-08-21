@@ -2344,7 +2344,7 @@ function getConsolidatedFieldValue(record = {}, payload = {}, fieldName = '') {
     return record[fieldName] ?? payload[fieldName] ?? '';
 }
 
-function buildConsolidatedFieldRowData(record = {}, profile = null) {
+function buildConsolidatedFieldRowData(record = {}, profile = null, levelTest = null) {
     const payload = record.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
     return Object.fromEntries(REPORT_COLUMNS.map(([label, fieldName]) => {
         let value = '';
@@ -2358,6 +2358,19 @@ function buildConsolidatedFieldRowData(record = {}, profile = null) {
         else if (profile && fieldName === 'motor') value = profile.motor_manufacturer || profile.motor_model || '';
         else if (profile && fieldName === 'sensor') value = profile.sensor_model || '';
         else if (profile && fieldName === 'drainvalue') value = profile.drain_valve || '';
+        else if (fieldName === 'nivel_fluido_ft') {
+            value = levelTest?.nivel_dinamico ?? getConsolidatedFieldValue(record, payload, fieldName);
+        }
+        else if (fieldName === 'sumergencia_ft') {
+            value = levelTest?.sumergencia ?? getConsolidatedFieldValue(record, payload, fieldName);
+        }
+        else if (fieldName === 'pip_echometer_psi') {
+            value = levelTest?.presion_pip ?? getConsolidatedFieldValue(record, payload, fieldName);
+        }
+        else if (fieldName === 'echometer') {
+            const hasLevel = levelTest ? 'SI' : '';
+            value = hasLevel || getConsolidatedFieldValue(record, payload, fieldName) || 'NO';
+        }
         else {
             value = getConsolidatedFieldValue(record, payload, fieldName);
         }
@@ -2378,30 +2391,47 @@ function buildConsolidatedFieldRowHashSeed({ rowData, journeyId, record, index }
 async function buildConsolidatedFieldRows(records = [], journeyId = '') {
     const pozoNames = [...new Set((Array.isArray(records) ? records : []).map(r => String(r.pozo || '').trim().toUpperCase()).filter(Boolean))];
     const besProfilesMap = new Map();
+    const levelTestsMap = new Map();
     
     if (pozoNames.length > 0) {
         try {
-            const { data: profiles, error } = await supabase
-                .from('well_bes_profile')
-                .select('*')
-                .in('pozo_name', pozoNames);
-            if (!error && profiles) {
-                profiles.forEach(p => {
+            const [profilesResult, levelTestsResult] = await Promise.all([
+                supabase
+                    .from('well_bes_profile')
+                    .select('*')
+                    .in('pozo_name', pozoNames),
+                supabase
+                    .from('well_level_tests')
+                    .select('*')
+                    .in('pozo_name', pozoNames)
+            ]);
+
+            if (!profilesResult.error && profilesResult.data) {
+                profilesResult.data.forEach(p => {
                     besProfilesMap.set(String(p.pozo_name).trim().toUpperCase(), p);
                 });
             }
+
+            if (!levelTestsResult.error && levelTestsResult.data) {
+                levelTestsResult.data.forEach(t => {
+                    const key = `${String(t.pozo_name).trim().toUpperCase()}_${t.fecha}`;
+                    levelTestsMap.set(key, t);
+                });
+            }
         } catch (e) {
-            console.warn('Error fetching well_bes_profile in buildConsolidatedFieldRows:', e);
+            console.warn('Error fetching profiles or level tests in buildConsolidatedFieldRows:', e);
         }
     }
 
     return Promise.all((Array.isArray(records) ? records : []).map(async (record, index) => {
         const pozo = String(record.pozo || '').trim().toUpperCase();
         const profile = besProfilesMap.get(pozo) || null;
+        const dateKey = `${pozo}_${record.report_date}`;
+        const levelTest = levelTestsMap.get(dateKey) || null;
         const operationalScope = normalizeOperationalScopeValue(record.operational_scope || record.raw_payload?.operational_scope);
         
         const rowData = {
-            ...buildConsolidatedFieldRowData(record, profile),
+            ...buildConsolidatedFieldRowData(record, profile, levelTest),
             OPERATIONAL_SCOPE: operationalScope
         };
         const rowHashSeed = buildConsolidatedFieldRowHashSeed({ rowData, journeyId, record, index });

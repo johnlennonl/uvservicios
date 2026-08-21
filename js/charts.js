@@ -2,8 +2,7 @@
  * Modulo principal del dashboard.
  * Resuelve filtros, consulta datos y dibuja indicadores y graficas.
  */
-
-import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } from './auth.js';
+import { applyNavigationAccessProfile, logout, getAccessProfile, getSession, getDefaultRouteForAccessProfile } from './auth.js';
 import { getMonitoringData, getLatestDate, getLatestMonitoringRecords, getNeighborRecords, getPozoRecordDates, getPozosHistorySummary, getWellRibbonData } from './data-service.js';
 import { fetchConsolidatedDashboardRows } from './services/consolidado-service.js';
 import { getFieldWellsByScope } from './services/operational-contracts-service.js';
@@ -1125,10 +1124,13 @@ export async function initDashboard() {
         return;
     }
 
+
     const accessProfile = getAccessProfile(session);
     dashboardAccessProfile = accessProfile;
-    if (accessProfile.isFieldOperator) {
-        window.location.href = 'field.html';
+
+    const defaultRoute = getDefaultRouteForAccessProfile(accessProfile);
+    if (defaultRoute !== 'dashboard.html') {
+        window.location.href = defaultRoute;
         return;
     }
 

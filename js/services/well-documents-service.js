@@ -305,6 +305,41 @@ export async function uploadWellDocument({ file, pozoName, category, description
     // Generar ruta única en el Bucket de Storage: contrato/pozo/categoria/timestamp_nombre.ext
     const filePath = `${cleanOperationalScope}/${cleanPozo}/${cleanCategory}/${timeStamp}_${sanitizedName}`;
 
+    // Si es un registro de Echometer y no viene con folderId, autodetectar la subcarpeta correspondiente
+    let resolvedFolderId = folderId;
+    if (cleanCategory === 'REGISTROS_ECHOMETER' && !resolvedFolderId) {
+        try {
+            const fileExt = fileToUpload.name.split('.').pop()?.toLowerCase() || '';
+            const targetSubName = ['pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(fileExt)
+                ? 'INFORMES DE PRUEBAS (PDF)'
+                : 'ARCHIVOS DE DATOS (.028, .TWM)';
+
+            const { data: parentFolder } = await supabase
+                .from('well_document_folders')
+                .select('id')
+                .eq('pozo_name', cleanPozo)
+                .eq('name', 'REGISTROS ECHOMETER (TAM)')
+                .is('parent_id', null)
+                .maybeSingle();
+
+            if (parentFolder) {
+                const { data: subFolder } = await supabase
+                    .from('well_document_folders')
+                    .select('id')
+                    .eq('pozo_name', cleanPozo)
+                    .eq('name', targetSubName)
+                    .eq('parent_id', parentFolder.id)
+                    .maybeSingle();
+
+                if (subFolder) {
+                    resolvedFolderId = subFolder.id;
+                }
+            }
+        } catch (err) {
+            console.warn('[well-documents-service] Error categorizando subcarpeta para Echometer:', err);
+        }
+    }
+
     try {
         // 1. Subir archivo a Supabase Storage Bucket
         const { error: uploadError } = await supabase
@@ -335,7 +370,7 @@ export async function uploadWellDocument({ file, pozoName, category, description
             descripcion: String(description || '').trim(),
             uploaded_by: String(uploadedBy || 'Administrador').trim(),
             fecha_documento: documentDate || new Date().toISOString().split('T')[0],
-            folder_id: folderId || null
+            folder_id: resolvedFolderId || null
         };
 
         let { data: dbData, error: dbError } = await supabase

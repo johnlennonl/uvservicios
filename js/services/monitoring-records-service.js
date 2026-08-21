@@ -244,12 +244,16 @@ export async function deleteRecord(id) {
         throw new Error('No se puede eliminar: El registro no tiene un ID válido asociado.');
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('monitoreo_pozos')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
     if (error) throw error;
+    if (!data || data.length === 0) {
+        throw new Error('No tienes permisos suficientes en la base de datos (RLS) para eliminar este registro, o el registro ya fue eliminado.');
+    }
 }
 
 export async function bulkInsertRecords(records) {

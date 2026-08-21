@@ -1173,38 +1173,23 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                     
                     Swal.fire({
                         title: 'Subiendo Soporte...',
-                        text: 'Cargando archivo del echometer a Supabase Storage.',
+                        text: 'Cargando archivo del echometer y registrando en el expediente del pozo.',
                         allowOutsideClick: false,
                         didOpen: () => { Swal.showLoading(); }
                     });
 
-                    const { supabase } = await import('../supabaseClient.js');
-                    const sanitizeFileName = (name) => {
-                        return String(name)
-                            .normalize('NFD')
-                            .replace(/[\u0300-\u036f]/g, '')
-                            .replace(/[^a-zA-Z0-9._-]/g, '_');
-                    };
+                    const { uploadWellDocument } = await import('../services/well-documents-service.js');
+                    const uploadResult = await uploadWellDocument({
+                        file: file,
+                        pozoName: levelData.pozo_name,
+                        category: 'REGISTROS_ECHOMETER',
+                        description: `Soporte de Prueba de Nivel - Fecha: ${levelData.fecha}`,
+                        uploadedBy: 'Gestión de Pozos',
+                        operationalScope: levelData.operational_scope,
+                        documentDate: levelData.fecha
+                    });
 
-                    const cleanPozo = String(levelData.pozo_name).trim().toUpperCase();
-                    const cleanOperationalScope = String(levelData.operational_scope || 'ceiba_tomoporo').trim().toLowerCase();
-                    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin';
-                    const sanitizedName = sanitizeFileName(file.name);
-                    const timeStamp = Date.now();
-                    const filePath = `${cleanOperationalScope}/${cleanPozo}/REGISTROS_ECHOMETER/${timeStamp}_${sanitizedName}`;
-
-                    const { error: uploadError } = await supabase.storage
-                        .from('expedientes-pozos')
-                        .upload(filePath, file, {
-                            cacheControl: '3600',
-                            upsert: false
-                        });
-
-                    if (uploadError) {
-                        throw new Error(`Error en el almacenamiento de Supabase Storage: ${uploadError.message}`);
-                    }
-
-                    levelData.file_path = filePath;
+                    levelData.file_path = uploadResult.file_path;
                 }
 
                 await saveLevelTest(levelData);

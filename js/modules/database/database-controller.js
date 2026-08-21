@@ -2255,15 +2255,28 @@ function updateSubfolderSelector(parentFolderId, preselectedSubId = '') {
         return;
     }
 
-    // Filtrar subcarpetas que pertenezcan a la carpeta padre
-    const filteredSubs = uploadModalFoldersCache.subFolders.filter(f => f.parent_id === parentFolderId);
+    // Función recursiva para construir opciones con indentación jerárquica
+    const allSubs = uploadModalFoldersCache.subFolders;
+    let optionsHtml = '';
 
-    if (filteredSubs.length === 0) {
+    function buildSubOptions(currentParentId, depth, pathPrefix) {
+        const children = allSubs.filter(f => f.parent_id === currentParentId);
+        children.forEach(child => {
+            const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(depth);
+            const label = pathPrefix ? `${pathPrefix} > 📁 ${child.name}` : `📁 ${child.name}`;
+            optionsHtml += `<option value="${child.id}">${indent}${label}</option>`;
+            // Recursivamente agregar los hijos de esta subcarpeta
+            buildSubOptions(child.id, depth + 1, label);
+        });
+    }
+
+    buildSubOptions(parentFolderId, 0, '');
+
+    if (optionsHtml === '') {
         subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Raíz)</option>';
         subfolderSelect.disabled = true;
     } else {
-        subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Raíz)</option>' + 
-            filteredSubs.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+        subfolderSelect.innerHTML = '<option value="">Ninguna (Guardar en Carpeta Principal)</option>' + optionsHtml;
         subfolderSelect.disabled = false;
 
         if (preselectedSubId) {
