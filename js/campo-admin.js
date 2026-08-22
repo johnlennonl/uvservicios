@@ -3786,10 +3786,8 @@ async function fetchJourneysForFilter(filterKey) {
         });
     }
 
-    // Si hay un término de búsqueda, consultamos en todos los estados para no limitar al usuario a la pestaña activa
-    const statuses = state.searchTerm
-        ? ['submitted', 'under_review', 'approved', 'published', 'rejected', 'archived']
-        : (STATUS_FILTERS[filterKey] || STATUS_FILTERS.pending);
+    // Consultar los estados correspondientes a la pestaña activa respetando el filtro de la pestaña actual
+    const statuses = STATUS_FILTERS[filterKey] || STATUS_FILTERS.pending;
 
     return getAdminFieldJourneys({
         statuses: statuses,
@@ -4050,6 +4048,12 @@ function handleFilterClick(event) {
     const nextFilter = String(button.dataset.statusFilter || 'pending');
     if (!STATUS_FILTERS[nextFilter] || nextFilter === state.filterKey) return;
 
+    // Limpiar buscador al cambiar de pestaña para evitar cruces
+    state.searchTerm = '';
+    if (elements.searchInput) {
+        elements.searchInput.value = '';
+    }
+
     state.filterKey = nextFilter;
     syncActiveFilterButton();
     loadJourneys();
@@ -4223,6 +4227,7 @@ export async function initCampoAdmin() {
         console.error('Error loading profiles in bootstrap:', err);
     }
 
+    syncActiveFilterButton();
     await loadJourneys();
 
     // Hide loader overlay
@@ -4234,4 +4239,14 @@ export async function initCampoAdmin() {
 
 export function destroyCampoAdmin() {
     console.log('[CampoAdmin] Destruyendo bandeja y limpiando recursos...');
+    state.journeys = [];
+    state.selectedJourneyId = '';
+    state.filterKey = 'pending';
+    state.searchTerm = '';
+    state.currentDetail = null;
+    state.autoEditPozoName = null;
+    if (state.searchTimer) {
+        window.clearTimeout(state.searchTimer);
+        state.searchTimer = null;
+    }
 }
