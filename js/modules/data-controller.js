@@ -386,12 +386,12 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 {
                     id: 'day',
                     title: 'Jornada Diurna',
-                    windowLabel: '06:00 a.m. a 06:00 p.m.'
+                    windowLabel: 'Pozos reportados oficialmente en la Guardia Diurna'
                 },
                 {
                     id: 'night',
                     title: 'Jornada Nocturna',
-                    windowLabel: '06:00 p.m. a 06:00 a.m. del día siguiente'
+                    windowLabel: 'Pozos reportados oficialmente en la Guardia Nocturna'
                 }
             ];
 
