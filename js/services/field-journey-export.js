@@ -287,14 +287,17 @@ export async function exportHistoricalFieldReportsToExcel(records = [], filters 
     );
 }
 
-export async function openFieldJourneyPdf(journey, records, reviewLog = []) {
-    const pdfWindow = window.open('', '_blank', 'width=1180,height=820');
+export async function openFieldJourneyPdf(journey, records, reviewLog = [], targetWindow = null) {
+    const pdfWindow = targetWindow || window.open('', '_blank', 'width=1180,height=820');
     if (!pdfWindow) {
         throw new Error('El navegador bloqueó la ventana para exportar a PDF. Habilita los pop-ups para esta página.');
     }
-    pdfWindow.document.open();
-    pdfWindow.document.write('<html><head><title>Generando Reporte...</title><style>body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; text-align: center; } .loader-card { padding: 40px; border-radius: 24px; background: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; } .spinner { width: 50px; height: 50px; border: 5px solid #cbd5e1; border-top-color: #0f766e; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; } @keyframes spin { to { transform: rotate(360deg); } }</style></head><body><div class="loader-card"><div class="spinner"></div><h2 style="margin:0 0 8px; color:#0f172a; font-weight:800;">Generando reporte...</h2><p style="margin:0; color:#64748b; font-size:14px; font-weight:500;">Consolidando datos e imágenes de Supabase.</p></div></body></html>');
-    pdfWindow.document.close();
+    
+    if (!targetWindow) {
+        pdfWindow.document.open();
+        pdfWindow.document.write('<html><head><title>Generando Reporte...</title><style>body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; text-align: center; } .loader-card { padding: 40px; border-radius: 24px; background: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; } .spinner { width: 50px; height: 50px; border: 5px solid #cbd5e1; border-top-color: #0f766e; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; } @keyframes spin { to { transform: rotate(360deg); } }</style></head><body><div class="loader-card"><div class="spinner"></div><h2 style="margin:0 0 8px; color:#0f172a; font-weight:800;">Generando reporte...</h2><p style="margin:0; color:#64748b; font-size:14px; font-weight:500;">Consolidando datos e imágenes de Supabase.</p></div></body></html>');
+        pdfWindow.document.close();
+    }
 
     try {
         const normalizedJourney = normalizeJourney(journey, records);
@@ -314,29 +317,21 @@ export async function openFieldJourneyPdf(journey, records, reviewLog = []) {
         const journeyIdStr = String(journey.id || '');
         const activeWellNames = [...new Set(normalizedRecords.map(r => String(r.pozo || '').trim().toUpperCase()).filter(Boolean))];
 
-        console.log('[pdf-export] journeyIdStr:', journeyIdStr);
-        console.log('[pdf-export] fecha:', normalizedJourney.fecha);
-        console.log('[pdf-export] activeWellNames:', activeWellNames);
-
         let query = supabase
             .from('well_historical_documents')
             .select('*')
             .eq('categoria', 'SOPORTES');
 
         if (journeyIdStr && !journeyIdStr.startsWith('virtual_')) {
-            console.log('[pdf-export] Querying by JORNADA_ID:', journeyIdStr);
             query = query.like('descripcion', `%[JORNADA_ID:${journeyIdStr}]%`);
         } else if (normalizedJourney.fecha && activeWellNames.length > 0) {
-            console.log('[pdf-export] Querying by date/pozo:', normalizedJourney.fecha, activeWellNames);
             query = query.eq('fecha_documento', normalizedJourney.fecha).in('pozo_name', activeWellNames);
         } else {
-            console.log('[pdf-export] No query filters match');
             query = null;
         }
 
         if (query) {
             const { data: allDocs, error: queryErr } = await query;
-            console.log('[pdf-export] Database returned docs:', allDocs, 'Error:', queryErr);
             if (Array.isArray(allDocs) && allDocs.length > 0) {
                 soportesDocs = allDocs;
                 
@@ -456,12 +451,15 @@ export async function openFieldJourneyPdf(journey, records, reviewLog = []) {
         .well { 
             position: relative;
             background: #ffffff; 
-            border: 1.5px solid #e2e8f0; 
+            border: 1.5px solid #cbd5e1; 
             border-radius: 20px; 
             padding: 24px; 
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
             page-break-inside: avoid; 
             break-inside: avoid; 
+        }
+        .well:nth-of-type(even) {
+            background: #f8fafc; /* Fondo gris suave */
         }
         .well::before {
             content: '';
@@ -485,11 +483,15 @@ export async function openFieldJourneyPdf(journey, records, reviewLog = []) {
         }
         .well-head { 
             margin-bottom: 16px; 
-            border-bottom: 2px solid #cbd5e1; 
-            padding-bottom: 12px; 
+            background: #f1f5f9; /* Fondo gris para la cabecera impar */
+            padding: 10px 14px;
+            border-radius: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        .well:nth-of-type(even) .well-head {
+            background: #e0f2fe; /* Fondo azul suave para la cabecera par */
         }
         .well-head h3 { 
             margin: 0; 
@@ -667,8 +669,31 @@ export async function openFieldJourneyPdf(journey, records, reviewLog = []) {
             .well { 
                 border-radius: 12px; 
                 box-shadow: none; 
-                margin-bottom: 30px; 
+                margin-bottom: 16px; 
+                padding: 12px 16px;
+                border: 1px solid #cbd5e1;
             } 
+            .well-head {
+                margin-bottom: 10px;
+                padding: 6px 10px;
+            }
+            .well-table th,
+            .well-table td {
+                padding: 8px 10px;
+            }
+            .well-table {
+                margin-bottom: 8px;
+            }
+            .soportes-container {
+                margin-top: 8px;
+                padding-top: 8px;
+            }
+            .soportes-title {
+                margin-bottom: 6px;
+            }
+            .foto-card img {
+                height: 75px;
+            }
         }
     </style>
 </head>

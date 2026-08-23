@@ -871,10 +871,26 @@
         }
 
         .ticket-tools-actions {
-            display: grid;
-            grid-template-columns: minmax(150px, 1fr) minmax(180px, 1fr) auto;
+            display: flex;
+            flex-wrap: wrap;
             gap: 12px;
-            align-items: end;
+            align-items: flex-end;
+        }
+        .ticket-tools-field {
+            display: block;
+            flex: 1;
+            min-width: 150px;
+        }
+        .ticket-generate-btn {
+            flex-shrink: 0;
+        }
+        .btn-report-toggle-mobile {
+            display: none;
+        }
+        .daily-ticket-header-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .ticket-tools-field span {
@@ -1020,15 +1036,15 @@
             align-items: center;
             gap: 16px;
             padding: 16px 18px;
-            border-bottom: 1px solid #E2E8F0;
-            background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+            border-bottom: 1.5px solid #cbd5e1;
+            background: #f1f5f9; /* Oscurito elegante */
         }
 
         .daily-ticket-history-topbar h3 {
             margin: 0;
-            font-size: 1rem;
+            font-size: 1.05rem;
             font-weight: 800;
-            color: #0F172A;
+            color: #0f766e; /* Color corporativo teal para destacar el pozo */
         }
 
         .daily-ticket-history-topbar p {
@@ -1036,6 +1052,10 @@
             color: #64748B;
             font-size: 0.82rem;
             line-height: 1.45;
+        }
+
+        .daily-ticket-history-card {
+            border: 1.5px solid #cbd5e1 !important;
         }
 
         .daily-ticket-history-table th:last-child,
@@ -1946,9 +1966,50 @@
                 width: 100%;
             }
 
-            .ticket-tools-card,
-            .ticket-tools-actions {
+            .ticket-tools-card {
                 grid-template-columns: 1fr;
+            }
+
+            .ticket-tools-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .ticket-tools-field {
+                width: 100%;
+                flex: none;
+            }
+
+            .ticket-generate-btn {
+                width: 100%;
+                margin-top: 8px;
+            }
+
+            .btn-report-toggle-mobile {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(135deg, #991B1B, #B91C1C);
+                color: #FFFFFF;
+                border: none;
+                padding: 10px 18px;
+                border-radius: 12px;
+                font-weight: 800;
+                font-size: 0.78rem;
+                cursor: pointer;
+                box-shadow: 0 4px 10px rgba(185, 28, 28, 0.15);
+                white-space: nowrap;
+                transition: all 0.2s;
+            }
+
+            .btn-report-toggle-mobile:hover {
+                filter: brightness(1.05);
+            }
+
+            .daily-ticket-header-meta {
+                width: 100%;
+                justify-content: space-between;
+                margin-top: 12px;
             }
 
             .ticket-mode-instructions {

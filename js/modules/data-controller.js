@@ -617,7 +617,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         const container = document.getElementById(`photos-${wellName}`);
                         if (container) {
                             container.innerHTML = `
-                                <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed #cbd5e1;">
+                                <div style="margin-top: 8px; padding: 12px 18px 18px 18px; border-top: 1px dashed #cbd5e1;">
                                     <h4 style="margin: 0 0 10px; font-size: 0.82rem; color: #0f766e; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
                                         📸 Soportes de Campo del Día (${wellPhotos.length})
                                     </h4>
@@ -1068,6 +1068,22 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
                     // --- EXPORTACIÓN TICKET DIARIO A PDF COMPILADO ---
                     if (activeDataView === 'daily-ticket') {
+                        // Open the window synchronously on user click to prevent popup blockers
+                        const pdfWindow = window.open('', '_blank', 'width=1180,height=820');
+                        if (!pdfWindow) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Ventana emergente bloqueada',
+                                text: 'El navegador bloqueó la ventana del PDF. Por favor, permite los popups y ventanas emergentes para este sitio en tu barra de direcciones.'
+                            });
+                            return;
+                        }
+
+                        // Write initial loading state in the popup
+                        pdfWindow.document.open();
+                        pdfWindow.document.write('<html><head><title>Generando Reporte...</title><style>body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; text-align: center; } .loader-card { padding: 40px; border-radius: 24px; background: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; } .spinner { width: 50px; height: 50px; border: 5px solid #cbd5e1; border-top-color: #0f766e; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; } @keyframes spin { to { transform: rotate(360deg); } }</style></head><body><div class="loader-card"><div class="spinner"></div><h2 style="margin:0 0 8px; color:#0f172a; font-weight:800;">Generando reporte...</h2><p style="margin:0; color:#64748b; font-size:14px; font-weight:500;">Consolidando datos e imágenes de Supabase.</p></div></body></html>');
+                        pdfWindow.document.close();
+
                         Swal.fire({
                             title: 'Preparando reporte consolidado...',
                             text: 'Procesando datos y adjuntos fotográficos de la jornada.',
@@ -1127,9 +1143,10 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                             });
 
                             // 4. Generar y abrir el PDF limpio
-                            await openFieldJourneyPdf(virtualJourney, virtualRecords, []);
+                            await openFieldJourneyPdf(virtualJourney, virtualRecords, [], pdfWindow);
                             Swal.close();
                         } catch (err) {
+                            if (pdfWindow) pdfWindow.close();
                             console.error('[pdf-data-export] Error:', err);
                             Swal.fire({
                                 icon: 'error',

@@ -3956,11 +3956,24 @@ async function handleDetailAction(action) {
         }
 
         if (action === 'pdf') {
+            // Open window synchronously to bypass Brave/Chrome popup blockers
+            const pdfWindow = window.open('', '_blank', 'width=1180,height=820');
+            if (!pdfWindow) {
+                await notify('El navegador bloqueó la ventana del PDF. Por favor, habilita las ventanas emergentes en tu navegador.', 'error');
+                return;
+            }
+
+            // Write initial loading state in the popup
+            pdfWindow.document.open();
+            pdfWindow.document.write('<html><head><title>Generando Reporte...</title><style>body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; text-align: center; } .loader-card { padding: 40px; border-radius: 24px; background: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; } .spinner { width: 50px; height: 50px; border: 5px solid #cbd5e1; border-top-color: #0f766e; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; } @keyframes spin { to { transform: rotate(360deg); } }</style></head><body><div class="loader-card"><div class="spinner"></div><h2 style="margin:0 0 8px; color:#0f172a; font-weight:800;">Generando reporte...</h2><p style="margin:0; color:#64748b; font-size:14px; font-weight:500;">Consolidando datos e imágenes de Supabase.</p></div></body></html>');
+            pdfWindow.document.close();
+
             setActionButtonsBusy(true);
             try {
-                await openFieldJourneyPdf(journey, records, state.currentDetail?.reviewLog || []);
+                await openFieldJourneyPdf(journey, records, state.currentDetail?.reviewLog || [], pdfWindow);
                 await notify('Se abrio la vista imprimible para PDF.', 'success');
             } catch (err) {
+                if (pdfWindow) pdfWindow.close();
                 console.error(err);
                 await notify(err.message || 'No se pudo generar el consolidado PDF.', 'error');
             } finally {

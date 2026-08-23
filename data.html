@@ -410,7 +410,10 @@
                         <h2 id="daily-ticket-title">Ticket diario de monitoreo</h2>
                         <p id="daily-ticket-summary">Selecciona una fecha para consolidar los monitoreos realizados en todos los pozos.</p>
                     </div>
-                    <span id="daily-ticket-count" class="daily-ticket-count">0 pozos</span>
+                    <div class="daily-ticket-header-meta">
+                        <span id="daily-ticket-count" class="daily-ticket-count">0 pozos</span>
+                        <button type="button" class="btn-report-toggle-mobile" onclick="document.getElementById('main-view-toggle').click()">Exportar PDF</button>
+                    </div>
                 </div>
                 <div class="daily-ticket-groups" id="daily-ticket-groups">
                     <div class="daily-ticket-empty">Selecciona una fecha y genera el ticket diario para ver los monitoreos agrupados por pozo.</div>
