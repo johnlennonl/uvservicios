@@ -12,13 +12,13 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <!-- Hoja de estilos del Módulo de Servicios -->
-    <link rel="stylesheet" href="servicios-style.css">
+    <link rel="stylesheet" href="servicios-style.css?v=2.2">
 </head>
 <body>
     <!-- Overlay de carga inicial -->
     <div id="loader-overlay" class="loader-overlay">
         <div class="loader-spinner"></div>
-        <p>Iniciando Módulo de Servicios...</p>
+        <p id="loader-text">Iniciando Módulo de Servicios...</p>
     </div>
 
     <!-- Layout Principal: Sidebar + Contenido -->
@@ -32,7 +32,7 @@
                 <img src="../img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" class="svc-sidebar-logo">
                 <div class="svc-sidebar-brand-text">
                     <span class="svc-sidebar-title">UV SERVICIOS</span>
-                    <span class="svc-sidebar-subtitle">Módulo de Servicios</span>
+                    <span class="svc-sidebar-subtitle">Servicios de Campo</span>
                 </div>
             </div>
 
@@ -41,7 +41,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
                     <span>Mis Tickets</span>
                 </button>
-                <button class="svc-nav-link" data-tab="tab-pull-ticket" id="sidebar-pull-button">
+                <button class="svc-nav-link" data-tab="tab-pull-ticket">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
                     <span>Nuevo Reporte PULL</span>
                 </button>
@@ -59,7 +59,7 @@
                     </div>
                 </div>
                 <button id="sidebar-btn-logout" class="svc-sidebar-logout">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2 2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                     <span>Cerrar Sesión</span>
                 </button>
             </div>
@@ -70,26 +70,31 @@
         <!-- ============================================================ -->
         <div class="svc-main-wrapper">
 
-            <!-- Cabecera Premium (solo visible en Móvil/Tablet < 1025px) -->
+            <!-- Cabecera Premium Móvil/Tablet -->
             <header class="main-header svc-mobile-only">
                 <div class="header-logo-section">
                     <img src="../img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" class="app-logo">
                     <div class="logo-text">
                         <h1>UV SERVICIOS</h1>
-                        <span>Módulo de Servicios de Campo</span>
                     </div>
                 </div>
                 <div class="header-user-section">
-                    <div class="user-meta-info">
-                        <span id="user-display-name" class="user-name">Cargando...</span>
-                        <span id="user-display-role" class="user-role-badge">Técnico</span>
+                    <div class="header-user-profile-pill">
+                        <div class="user-avatar-initials" id="mobile-user-avatar">--</div>
+                        <div class="user-profile-details">
+                            <span class="user-profile-name" id="user-display-name">Cargando...</span>
+                            <span class="user-profile-role" id="user-display-role">Técnico</span>
+                        </div>
+                        <button id="btn-logout" class="btn-logout-icon-only" title="Cerrar Sesión">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        </button>
                     </div>
-                    <button id="btn-logout" class="btn-danger-action">Salir</button>
                 </div>
             </header>
 
-            <!-- Navegación por Pestañas (solo visible en Móvil/Tablet < 1025px) -->
-            <nav class="navigation-tabs svc-mobile-only">
+            <!-- Barra de Navegación Inferior Flotante (solo visible en Móvil/Tablet < 1025px) -->
+            <!-- 1. Barra Principal (Dashboard / Bandeja) -->
+            <nav id="navigation-tabs-main" class="navigation-tabs svc-mobile-only">
                 <button class="tab-button active" data-tab="tab-dashboard">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
                     <span>Mis Tickets</span>
@@ -97,6 +102,30 @@
                 <button class="tab-button" data-tab="tab-pull-ticket" id="tab-pull-button">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
                     <span>Nuevo Reporte PULL</span>
+                </button>
+            </nav>
+
+            <!-- 2. Barra del Formulario (Navegación de Secciones del Reporte en Edición) -->
+            <nav id="navigation-tabs-form" class="navigation-tabs svc-mobile-only" style="display: none;">
+                <button type="button" class="tab-button active" onclick="scrollToFormSection('form-sec-info')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span>General</span>
+                </button>
+                <button type="button" class="tab-button" onclick="scrollToFormSection('form-sec-bitacora')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>Bitácora</span>
+                </button>
+                <button type="button" class="tab-button" onclick="scrollToFormSection('form-sec-bes')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                    <span>Equipos</span>
+                </button>
+                <button type="button" class="tab-button" onclick="scrollToFormSection('form-sec-fotos')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                    <span>Fotos</span>
+                </button>
+                <button type="button" class="tab-button" onclick="scrollToFormSection('form-sec-cierre')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    <span>Firmas</span>
                 </button>
             </nav>
 
@@ -135,10 +164,66 @@
 
             <!-- PESTAÑA 2: Formulario de Reporte PULL -->
             <section id="tab-pull-ticket" class="tab-content-panel">
+                <!-- Barra Indicadora de Ticket Activo (Contexto del Técnico) -->
+                <div class="active-ticket-indicator-bar" id="active-ticket-indicator-bar" style="display: none;">
+                    <span class="active-ticket-dot"></span>
+                    <span id="active-ticket-text" class="active-ticket-text">Creando Nuevo Reporte PULL</span>
+                </div>
+
+                <!-- Cabecera Premium Exclusiva para Escritorio/Tablet (min-width: 769px) -->
+                <div class="desktop-form-header" id="desktop-form-header" style="display: none;">
+                    <div class="desktop-header-banner">
+                        <div class="header-left">
+                            <button type="button" class="btn-back-to-dashboard" onclick="switchTab('tab-dashboard')">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                <span>Volver</span>
+                            </button>
+                            <div class="header-title-details">
+                                <span class="header-pre-title">REPORTE TÉCNICO PULL</span>
+                                <h2 class="header-main-title" id="desktop-ticket-title">Creando Nuevo Reporte</h2>
+                            </div>
+                        </div>
+                        <div class="header-right">
+                            <div class="desktop-status-pill" id="desktop-status-pill">
+                                <span class="status-dot pulsing"></span>
+                                <span id="desktop-status-text" class="status-text">Borrador</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navegador de Secciones Desktop -->
+                    <div class="desktop-form-tabs" id="desktop-form-tabs">
+                        <button type="button" class="desktop-tab-button active" onclick="scrollToFormSection('form-sec-info')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                            <span>General</span>
+                        </button>
+                        <button type="button" class="desktop-tab-button" onclick="scrollToFormSection('form-sec-bitacora')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            <span>Bitácora</span>
+                        </button>
+                        <button type="button" class="desktop-tab-button" onclick="scrollToFormSection('form-sec-bes')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                            <span>Equipos</span>
+                        </button>
+                        <button type="button" class="desktop-tab-button" onclick="scrollToFormSection('form-sec-fotos')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                            <span>Fotos</span>
+                        </button>
+                        <button type="button" class="desktop-tab-button" onclick="scrollToFormSection('form-sec-cierre')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                            <span>Firmas</span>
+                        </button>
+                    </div>
+                </div>
+
                 <form id="pull-ticket-form" class="premium-form-layout" onsubmit="return false;">
                     
-                    <!-- Tarjeta 1: Información de Cabecera -->
-                    <div class="form-card-block">
+                    <!-- Carrusel Deslizable Horizontalmente -->
+                    <div class="form-sections-slider-container">
+                        <div class="form-sections-slider" id="form-sections-slider">
+                            
+                            <!-- Tarjeta 1: Información de Cabecera -->
+                            <div class="form-card-block active-slide" id="form-sec-info">
                         <div class="card-header-banner banner-blue">
                             <h3>📋 Información General del Ticket de Servicio</h3>
                         </div>
@@ -193,7 +278,7 @@
                     </div>
 
                     <!-- Tarjeta 2: Registro de Bitácora Hora a Hora (Sección Operaciones) -->
-                    <div class="form-card-block">
+                    <div class="form-card-block" id="form-sec-bitacora">
                         <div class="card-header-banner banner-green">
                             <div class="banner-with-action">
                                 <div>
@@ -253,10 +338,29 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Separador Premium -->
+                        <div class="bitacora-divider"></div>
+
+                        <!-- Sección de Histórico de Bitácora -->
+                        <div class="historical-ops-section">
+                            <h4 class="historical-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                <span>📜 Histórico de Bitácora Operativa</span>
+                            </h4>
+                            <p class="historical-subtitle">Historial cronológico consolidado de todas las actividades guardadas en este ticket de servicio.</p>
+                            
+                            <div class="historical-ops-container" id="historical-ops-container">
+                                <!-- Se inyecta dinámicamente desde JS -->
+                                <div class="empty-historical-state">
+                                    <p>Cargando histórico de bitácora...</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Tarjeta 3: Detalles de los Equipos de Fondo (PULL BES) -->
-                    <div class="form-card-block">
+                    <div class="form-card-block" id="form-sec-bes">
                         <div class="card-header-banner banner-purple">
                             <h3>🔌 Desglose del Equipo de Fondo BES Extraído</h3>
                             <p>Ingrese los parámetros técnicos de los componentes recuperados del pozo.</p>
@@ -324,7 +428,7 @@
                     </div>
 
                     <!-- Tarjeta 4: Registro Fotográfico del Servicio (Pistas y soportes) -->
-                    <div class="form-card-block">
+                    <div class="form-card-block" id="form-sec-fotos">
                         <div class="card-header-banner banner-orange" style="background: var(--banner-orange);">
                             <h3>📸 Registro Fotográfico del Servicio</h3>
                             <p>Suba las imágenes de soporte técnico correspondientes a los componentes del PULL.</p>
@@ -346,7 +450,7 @@
                     </div>
 
                     <!-- Tarjeta 5: Cierre, Diagnósticos y Firmas -->
-                    <div class="form-card-block">
+                    <div class="form-card-block" id="form-sec-cierre">
                         <div class="card-header-banner banner-orange">
                             <h3>📝 Diagnóstico de Falla y Cierre del Ticket</h3>
                         </div>
@@ -402,7 +506,8 @@
                                  </div>
                              </div>
                          </div>
-                     </div>
+                        </div><!-- /#form-sections-slider -->
+                    </div><!-- /.form-sections-slider-container -->
 
                     <!-- Barra de Acciones del Formulario -->
                     <div class="form-actions-wrapper-bar">
@@ -448,6 +553,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <!-- Script Controlador del Módulo -->
-    <script type="module" src="servicios-controller.js"></script>
+    <script type="module" src="servicios-controller.js?v=2.2"></script>
 </body>
 </html>

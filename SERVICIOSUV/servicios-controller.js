@@ -78,7 +78,7 @@ async function initApp() {
             return;
         }
 
-        // 3. Renderizar metadatos de usuario en el header y en el sidebar
+        // 3. Renderizar metadatos de usuario en el header, sidebar y avatar móvil
         const displayName = `${profile.nombre} ${profile.apellido}`;
         const displayRole = userRole === 'servicios' ? 'Técnico de Servicios' : (userRole === 'admin' ? 'Administrador' : 'Supervisor');
 
@@ -91,13 +91,23 @@ async function initApp() {
         if (sidebarName) sidebarName.textContent = displayName;
         if (sidebarRole) sidebarRole.textContent = displayRole;
 
+        // Iniciales para el avatar móvil
+        const mobileAvatar = document.getElementById('mobile-user-avatar');
+        if (mobileAvatar) {
+            mobileAvatar.textContent = (profile.nombre && profile.apellido)
+                ? `${profile.nombre[0]}${profile.apellido[0]}`.toUpperCase()
+                : displayName.slice(0, 2).toUpperCase();
+        }
+
         // Ocultar pantalla de carga
-        document.getElementById('loader-overlay').classList.add('hidden');
+        hideLoader();
 
         // 4. Registrar escuchadores de eventos e inicializar formularios
         setupEventListeners();
+        setupFormScrollObserver();
         buildEquipmentForms();
         loadTicketsList();
+        switchTab('tab-dashboard');
 
     } catch (err) {
         console.error('Error al inicializar aplicación:', err);
@@ -110,11 +120,13 @@ async function initApp() {
  */
 function setupEventListeners() {
     // Manejo de cambio de pestañas (Tabs móvil)
-    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabButtons = document.querySelectorAll('.tab-button[data-tab]');
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             const targetTab = btn.getAttribute('data-tab');
-            switchTab(targetTab);
+            if (targetTab) {
+                switchTab(targetTab);
+            }
         });
     });
 
@@ -222,8 +234,32 @@ function setupEventListeners() {
  */
 function switchTab(tabId) {
     activeTab = tabId;
+
+    // Conmutar barras de navegación inferior según la pestaña activa (solo en Móvil/Tablet <= 1024px)
+    const mainNav = document.getElementById('navigation-tabs-main');
+    const formNav = document.getElementById('navigation-tabs-form');
+    if (mainNav && formNav) {
+        if (tabId === 'tab-pull-ticket') {
+            mainNav.style.setProperty('display', 'none', 'important');
+            if (window.innerWidth <= 1024) {
+                formNav.style.setProperty('display', 'flex', 'important');
+            } else {
+                formNav.style.setProperty('display', 'none', 'important');
+            }
+            // Mover al primer slide ("General") e iniciar estado
+            scrollToFormSection('form-sec-info');
+        } else {
+            if (window.innerWidth <= 1024) {
+                mainNav.style.setProperty('display', 'flex', 'important');
+            } else {
+                mainNav.style.setProperty('display', 'none', 'important');
+            }
+            formNav.style.setProperty('display', 'none', 'important');
+        }
+    }
+
     // Sincronizar tabs móvil
-    document.querySelectorAll('.tab-button').forEach(btn => {
+    document.querySelectorAll('#navigation-tabs-main .tab-button').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
     // Sincronizar nav links del sidebar desktop
@@ -243,6 +279,9 @@ function switchTab(tabId) {
         document.getElementById('ops-tbody-rows').innerHTML = '';
         document.getElementById('pull-total-hours-display').textContent = '0.00 HRS';
         
+        // Ocultar barra de ticket activo
+        hideActiveTicketIndicator();
+        
         // Limpiar firmas del DOM
         clearSavedSignature('uv');
         clearSavedSignature('client');
@@ -253,6 +292,9 @@ function switchTab(tabId) {
         const todayStr = new Date().toISOString().slice(0, 10);
         document.getElementById('pull-ops-date').value = todayStr;
         document.getElementById('pull-date-start').value = todayStr;
+        
+        // Mostrar indicador de ticket activo
+        updateActiveTicketIndicator(null);
         
         // Limpiar registro fotográfico en ticket nuevo
         const previewGrid = document.getElementById('photo-preview-grid');
@@ -418,6 +460,11 @@ function calculateTotalOpsHours() {
 
     const totalHours = totalMinutes / 60;
     document.getElementById('pull-total-hours-display').textContent = `${totalHours.toFixed(2)} HRS`;
+    
+    // Ajustar altura del contenedor deslizable si estamos dentro del formulario
+    if (typeof adjustFormSliderHeight === 'function') {
+        adjustFormSliderHeight();
+    }
 }
 
 /**
@@ -565,7 +612,7 @@ async function loadOperationsForDate(ticketId, reportDate) {
  */
 window.editTicket = async function(ticketId) {
     try {
-        document.getElementById('loader-overlay').classList.remove('hidden');
+        showLoader("Cargando datos del reporte de servicio...");
 
         // 1. Obtener cabecera del ticket
         const { data: ticket, error } = await supabase
@@ -670,12 +717,18 @@ window.editTicket = async function(ticketId) {
         // Cargar soportes fotográficos del ticket
         await loadUploadedPhotos(ticketId);
 
+        // Mostrar indicador de ticket activo
+        updateActiveTicketIndicator(ticket);
+
+        // Cargar el histórico de actividades registradas para este ticket
+        await loadHistoricalOperations(ticketId);
+
         // Cambiar a la pestaña del formulario
         switchTab('tab-pull-ticket');
-        document.getElementById('loader-overlay').classList.add('hidden');
+        hideLoader();
 
     } catch (err) {
-        document.getElementById('loader-overlay').classList.add('hidden');
+        hideLoader();
         Swal.fire({ icon: 'error', title: 'Error al Cargar Ticket', text: err.message });
     }
 };
@@ -698,7 +751,7 @@ async function saveTicket(targetStatus, isSilent = false) {
         }
 
         if (!isSilent) {
-            document.getElementById('loader-overlay').classList.remove('hidden');
+            showLoader(targetStatus === 'completed' ? "Finalizando y enviando reporte técnico..." : "Guardando progreso del reporte...");
         }
 
         // 1. Preparar payload de cabecera
@@ -849,7 +902,7 @@ async function saveTicket(targetStatus, isSilent = false) {
         }
 
         if (!isSilent) {
-            document.getElementById('loader-overlay').classList.add('hidden');
+            hideLoader();
 
             // Mensaje de éxito final
             if (targetStatus === 'completed') {
@@ -868,7 +921,7 @@ async function saveTicket(targetStatus, isSilent = false) {
 
     } catch (err) {
         if (!isSilent) {
-            document.getElementById('loader-overlay').classList.add('hidden');
+            hideLoader();
             console.error('Error al guardar ticket:', err);
             Swal.fire({ icon: 'error', title: 'Error al Guardar', text: err.message });
         } else {
@@ -945,7 +998,7 @@ async function saveOperationsLogOnly() {
 
         if (!currentTicketId) return;
 
-        document.getElementById('loader-overlay').classList.remove('hidden');
+        showLoader("Guardando bitácora diaria...");
 
         // 1. Guardar metadatos de técnicos y spoolers del día
         const technicians = document.getElementById('pull-technicians').value.split(',').map(s => s.trim()).filter(Boolean);
@@ -998,11 +1051,15 @@ async function saveOperationsLogOnly() {
             if (insertOpsError) throw insertOpsError;
         }
 
-        document.getElementById('loader-overlay').classList.add('hidden');
+        hideLoader();
+        
+        // Recargar el histórico consolidado de actividades
+        await loadHistoricalOperations(currentTicketId);
+
         Swal.fire({ icon: 'success', title: 'Bitácora Guardada', text: `Bitácora del día ${reportDate} guardada exitosamente.` });
 
     } catch (err) {
-        document.getElementById('loader-overlay').classList.add('hidden');
+        hideLoader();
         console.error('Error al guardar bitácora diaria:', err);
         Swal.fire({ icon: 'error', title: 'Error', text: err.message });
     }
@@ -1028,7 +1085,7 @@ async function handlePhotoUploads(files) {
 
         if (!currentTicketId) return;
 
-        document.getElementById('loader-overlay').classList.remove('hidden');
+        showLoader("Subiendo imágenes de soporte...");
 
         for (let file of files) {
             const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -1061,7 +1118,7 @@ async function handlePhotoUploads(files) {
         console.error('Error al subir fotos:', err);
         Swal.fire({ icon: 'error', title: 'Error de carga', text: err.message });
     } finally {
-        document.getElementById('loader-overlay').classList.add('hidden');
+        hideLoader();
     }
 }
 
@@ -1117,7 +1174,22 @@ async function loadUploadedPhotos(ticketId) {
                 deletePhoto(doc.id, doc.file_path);
             });
 
+            // Ajustar altura cuando la imagen termine de cargar
+            const img = card.querySelector('img');
+            if (img) {
+                img.addEventListener('load', () => {
+                    if (typeof adjustFormSliderHeight === 'function') {
+                        adjustFormSliderHeight();
+                    }
+                });
+            }
+
             previewGrid.appendChild(card);
+        }
+
+        // Ajustar altura inmediatamente después de renderizar el grid
+        if (typeof adjustFormSliderHeight === 'function') {
+            adjustFormSliderHeight();
         }
 
     } catch (err) {
@@ -1157,7 +1229,7 @@ async function deletePhoto(docId, filePath) {
 
     if (!confirm.isConfirmed) return;
 
-    document.getElementById('loader-overlay').classList.remove('hidden');
+    showLoader("Eliminando soporte fotográfico...");
 
     try {
         // 1. Borrar de Storage
@@ -1182,7 +1254,7 @@ async function deletePhoto(docId, filePath) {
         console.error('Error al borrar foto:', err);
         Swal.fire({ icon: 'error', title: 'Error', text: err.message });
     } finally {
-        document.getElementById('loader-overlay').classList.add('hidden');
+        hideLoader();
     }
 }
 
@@ -1296,6 +1368,9 @@ function saveSignatureFromCanvas() {
     }
     
     closeSignatureModal();
+    if (typeof adjustFormSliderHeight === 'function') {
+        adjustFormSliderHeight();
+    }
 }
 
 function clearSavedSignature(target) {
@@ -1325,5 +1400,238 @@ function clearSavedSignature(target) {
         }
         const btn = document.getElementById('btn-clear-sig-client');
         if (btn) btn.style.display = 'none';
+    }
+    
+    // Ajustar la altura tras borrar la firma
+    if (typeof adjustFormSliderHeight === 'function') {
+        adjustFormSliderHeight();
+    }
+}
+
+/**
+ * Muestra el overlay de carga con un mensaje específico
+ */
+function showLoader(message) {
+    const textEl = document.getElementById('loader-text');
+    if (textEl) textEl.textContent = message;
+    const overlay = document.getElementById('loader-overlay');
+    if (overlay) overlay.classList.remove('hidden');
+}
+
+/**
+ * Oculta el overlay de carga
+ */
+function hideLoader() {
+    const overlay = document.getElementById('loader-overlay');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+/**
+ * Actualiza la información del ticket activo en las cabeceras de móvil y escritorio
+ * @param {Object|null} ticket - Datos del ticket o null si es nuevo
+ */
+function updateActiveTicketIndicator(ticket) {
+    const activeBar = document.getElementById('active-ticket-indicator-bar');
+    const activeText = document.getElementById('active-ticket-text');
+    const desktopHeader = document.getElementById('desktop-form-header');
+    const desktopTitle = document.getElementById('desktop-ticket-title');
+    const desktopStatusText = document.getElementById('desktop-status-text');
+    const desktopStatusPill = document.getElementById('desktop-status-pill');
+
+    if (!ticket) {
+        // Ticket Nuevo
+        if (activeText) activeText.textContent = 'Creando Nuevo Reporte PULL';
+        if (activeBar) activeBar.style.display = 'flex';
+        
+        if (desktopTitle) desktopTitle.textContent = 'Creando Nuevo Reporte';
+        if (desktopStatusText) desktopStatusText.textContent = 'Borrador';
+        if (desktopStatusPill) {
+            desktopStatusPill.className = 'desktop-status-pill';
+        }
+        if (desktopHeader) desktopHeader.style.display = 'block';
+    } else {
+        // Ticket Existente
+        const textStr = `Editando Reporte: <strong>${ticket.well_name}</strong> • Campo: <strong>${ticket.campo || ''}</strong>`;
+        if (activeText) activeText.innerHTML = textStr;
+        if (activeBar) activeBar.style.display = 'flex';
+        
+        if (desktopTitle) {
+            desktopTitle.innerHTML = `Reporte: <strong>${ticket.well_name}</strong> <span style="font-weight:normal; font-size:0.9rem; color:#64748b; margin-left:8px;">Pozo: ${ticket.well_name} • Campo: ${ticket.campo || ''}</span>`;
+        }
+        
+        const isCompleted = ticket.status === 'completado';
+        if (desktopStatusText) {
+            desktopStatusText.textContent = isCompleted ? 'Completado' : 'En Curso';
+        }
+        if (desktopStatusPill) {
+            desktopStatusPill.className = isCompleted ? 'desktop-status-pill status-closed' : 'desktop-status-pill';
+        }
+        if (desktopHeader) desktopHeader.style.display = 'block';
+    }
+}
+
+/**
+ * Oculta los indicadores de ticket activo (móvil y escritorio)
+ */
+function hideActiveTicketIndicator() {
+    const activeBar = document.getElementById('active-ticket-indicator-bar');
+    if (activeBar) activeBar.style.display = 'none';
+    const desktopHeader = document.getElementById('desktop-form-header');
+    if (desktopHeader) desktopHeader.style.display = 'none';
+}
+
+// Control de desplazamiento por clic e índice actual del formulario
+let currentFormIndex = 0;
+
+/**
+ * Muestra la sección del formulario correspondiente con una animación de deslizamiento y desvanecimiento
+ */
+window.scrollToFormSection = function(sectionId) {
+    const sections = ['form-sec-info', 'form-sec-bitacora', 'form-sec-bes', 'form-sec-fotos', 'form-sec-cierre'];
+    const targetIndex = sections.indexOf(sectionId);
+    if (targetIndex === -1) return;
+
+    const slider = document.getElementById('form-sections-slider');
+    if (!slider) return;
+
+    const cards = slider.querySelectorAll('.form-card-block');
+    if (cards.length === 0) return;
+
+    // Determinar dirección de animación
+    const directionClass = targetIndex > currentFormIndex ? 'slide-in-right' : 'slide-in-left';
+
+    cards.forEach((card, idx) => {
+        // Resetear clases de animación y activo para evitar superposiciones
+        card.classList.remove('active-slide', 'slide-in-right', 'slide-in-left');
+        
+        if (idx === targetIndex) {
+            // Aplicar la animación de entrada correspondiente y marcar como activo
+            card.classList.add(directionClass);
+            card.classList.add('active-slide');
+        }
+    });
+
+    // Guardar el índice para la próxima transición
+    currentFormIndex = targetIndex;
+
+    // Desplazar la ventana al inicio del formulario para mantener contexto vertical (solo en móvil)
+    if (window.innerWidth <= 1024) {
+        const formEl = document.getElementById('pull-ticket-form');
+        if (formEl) {
+            const yOffset = -80; // Compensación de la cabecera móvil
+            const y = formEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
+            window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+    }
+
+    // Resaltar el botón correspondiente inmediatamente en la barra de navegación del formulario (Móvil)
+    document.querySelectorAll('#navigation-tabs-form .tab-button').forEach(btn => {
+        const onclickAttr = btn.getAttribute('onclick') || '';
+        btn.classList.toggle('active', onclickAttr.includes(sectionId));
+    });
+
+    // Resaltar el botón correspondiente inmediatamente en la barra de navegación del formulario (Escritorio)
+    document.querySelectorAll('#desktop-form-tabs .desktop-tab-button').forEach(btn => {
+        const onclickAttr = btn.getAttribute('onclick') || '';
+        btn.classList.toggle('active', onclickAttr.includes(sectionId));
+    });
+};
+
+/**
+ * Función vacía para mantener compatibilidad con llamadas de redimensionamiento de firmas y fotos
+ */
+window.adjustFormSliderHeight = function() {
+    // Ya no se requiere calcular alturas manualmente en el layout block
+};
+
+/**
+ * Inicializador de observadores de scroll (desactivado para el layout block)
+ */
+function setupFormScrollObserver() {
+    // Obsoleto en esta versión block
+}
+
+/**
+ * Consulta y carga el feed de la línea temporal de actividades operativas históricas de este ticket
+ */
+async function loadHistoricalOperations(ticketId) {
+    const historicalContainer = document.getElementById('historical-ops-container');
+    if (!historicalContainer) return;
+
+    try {
+        const { data: operations, error } = await supabase
+            .from('service_ticket_operations')
+            .select('*')
+            .eq('ticket_id', ticketId)
+            .order('report_date', { ascending: false })
+            .order('time_start', { ascending: true });
+
+        if (error) throw error;
+
+        historicalContainer.innerHTML = '';
+
+        if (!operations || operations.length === 0) {
+            historicalContainer.innerHTML = `
+                <div class="empty-historical-state">
+                    <p style="margin: 0; color: #94a3b8; font-size: 0.88rem;">No hay registros históricos en la bitácora aún.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Group operations by report_date
+        const groups = {};
+        operations.forEach(op => {
+            const dateKey = op.report_date;
+            if (!groups[dateKey]) {
+                groups[dateKey] = [];
+            }
+            groups[dateKey].push(op);
+        });
+
+        // Build the HTML timeline
+        let html = '<div class="historical-timeline">';
+        
+        for (const [dateVal, opsList] of Object.entries(groups)) {
+            // Format date visually (e.g. YYYY-MM-DD to DD/MM/YYYY)
+            const dateParts = dateVal.split('-');
+            const formattedDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : dateVal;
+
+            html += `
+                <div class="timeline-date-group">
+                    <div class="timeline-date-header">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        <span>Día: ${formattedDate}</span>
+                    </div>
+                    <div class="timeline-ops-list">
+            `;
+
+            opsList.forEach(op => {
+                const normStart = String(op.time_start).slice(0, 5);
+                const normEnd = String(op.time_end).slice(0, 5);
+                html += `
+                    <div class="timeline-op-item">
+                        <div class="op-time-indicator">
+                            <span class="time-badge">${normStart} - ${normEnd}</span>
+                        </div>
+                        <div class="op-description-content">
+                            <p>${op.description}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+        historicalContainer.innerHTML = html;
+
+    } catch (err) {
+        console.error('Error al cargar histórico de bitácora:', err);
+        historicalContainer.innerHTML = `<p style="color: #ef4444; font-size: 0.88rem; padding: 12px; text-align: center;">Error al cargar histórico: ${err.message}</p>`;
     }
 }
