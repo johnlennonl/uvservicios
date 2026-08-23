@@ -583,6 +583,11 @@ h6 {
     color: #15803d;
 }
 
+.badge-servicios {
+    background: #f3e8ff;
+    color: #7c3aed;
+}
+
 .loader-shimmer {
     display: flex;
     flex-direction: column;

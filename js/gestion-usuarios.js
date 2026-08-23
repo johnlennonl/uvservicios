@@ -891,6 +891,7 @@ function getRoleLabel(role) {
         admin: 'Administrador',
         supervisor: 'Supervisor',
         campo: 'Técnico de Campo',
+        servicios: 'Técnico de Servicios',
         cliente_view: 'Cliente (Solo Lectura)',
         base_datos: 'Base de Datos',
         gestor_usuarios: 'Gestor de Accesos'
@@ -903,6 +904,7 @@ function getRoleBadgeClass(role) {
         admin: 'badge-admin',
         supervisor: 'badge-supervisor',
         campo: 'badge-campo',
+        servicios: 'badge-servicios',
         cliente_view: 'badge-cliente',
         base_datos: 'badge-database',
         gestor_usuarios: 'badge-gestor'

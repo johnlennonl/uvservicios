@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UV Servicios - Módulo de Servicios Técnicos</title>
+    
+    <!-- Fuentes premium de Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- SweetAlert2 para alertas interactivas premium -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Hoja de estilos del Módulo de Servicios -->
+    <link rel="stylesheet" href="servicios-style.css">
+</head>
+<body>
+    <!-- Overlay de carga inicial -->
+    <div id="loader-overlay" class="loader-overlay">
+        <div class="loader-spinner"></div>
+        <p>Iniciando Módulo de Servicios...</p>
+    </div>
+
+    <!-- Contenedor Principal con diseño Grid Premium -->
+    <div class="app-container">
+        
+        <!-- Cabecera Premium Estilo Glassmorphism -->
+        <header class="main-header">
+            <div class="header-logo-section">
+                <!-- Logo corporativo UV Servicios -->
+                <img src="../img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" class="app-logo">
+                <div class="logo-text">
+                    <h1>UV SERVICIOS</h1>
+                    <span>Módulo de Servicios de Campo</span>
+                </div>
+            </div>
+            
+            <!-- Perfil del usuario activo y acciones -->
+            <div class="header-user-section">
+                <div class="user-meta-info">
+                    <span id="user-display-name" class="user-name">Cargando...</span>
+                    <span id="user-display-role" class="user-role-badge">Técnico</span>
+                </div>
+                <button id="btn-back-home" class="btn-secondary-action">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    <span>Inicio</span>
+                </button>
+                <button id="btn-logout" class="btn-danger-action">Salir</button>
+            </div>
+        </header>
+
+        <!-- Navegación por Pestañas (Tabs) adaptable a móvil -->
+        <nav class="navigation-tabs">
+            <button class="tab-button active" data-tab="tab-dashboard">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                <span>Mis Tickets</span>
+            </button>
+            <button class="tab-button" data-tab="tab-pull-ticket" id="tab-pull-button">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+                <span>Nuevo Reporte PULL</span>
+            </button>
+        </nav>
+
+        <!-- Contenido principal dinámico -->
+        <main class="main-content">
+            
+            <!-- PESTAÑA 1: Mis Tickets / Bandeja de Entrada -->
+            <section id="tab-dashboard" class="tab-content-panel active">
+                <div class="section-title-bar">
+                    <h2>Historial de Tickets de Servicios</h2>
+                    <p>Monitoreo, edición y consulta de reportes PULL y Arranques activos en campo.</p>
+                </div>
+                
+                <!-- Filtros rápidos para búsqueda -->
+                <div class="filters-card-wrapper">
+                    <div class="search-input-group">
+                        <input type="text" id="search-tickets" placeholder="Buscar por pozo, campo o taladro...">
+                    </div>
+                    <div class="select-input-group">
+                        <select id="filter-type">
+                            <option value="all">Todos los Tipos</option>
+                            <option value="PULL">PULL</option>
+                            <option value="ARRANQUE">Arranque</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Lista de Tickets -->
+                <div id="tickets-list-container" class="tickets-grid-layout">
+                    <!-- Se inyecta dinámicamente desde JS -->
+                    <div class="empty-state-message">
+                        <p>Cargando registros operativos de servicios...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PESTAÑA 2: Formulario de Reporte PULL -->
+            <section id="tab-pull-ticket" class="tab-content-panel">
+                <form id="pull-ticket-form" class="premium-form-layout" onsubmit="return false;">
+                    
+                    <!-- Tarjeta 1: Información de Cabecera -->
+                    <div class="form-card-block">
+                        <div class="card-header-banner banner-blue">
+                            <h3>📋 Información General del Ticket de Servicio</h3>
+                        </div>
+                        <div class="card-form-grid">
+                            <input type="hidden" id="pull-ticket-id">
+                            
+                            <label class="form-input-group">
+                                <span>Tipo de Reporte</span>
+                                <input type="text" id="pull-report-type" value="PULL" readonly class="input-readonly">
+                            </label>
+                            
+                            <label class="form-input-group">
+                                <span>Servicio Realizado</span>
+                                <select id="pull-service-type" required>
+                                    <option value="FALLA ELECTRICA">FALLA ELECTRICA</option>
+                                    <option value="CAMBIO DE EQUIPO">CAMBIO DE EQUIPO</option>
+                                    <option value="MANTENIMIENTO PREVENTIVO">MANTENIMIENTO PREVENTIVO</option>
+                                    <option value="REDIS DISEÑO">REDIS DISEÑO</option>
+                                </select>
+                            </label>
+
+                            <label class="form-input-group">
+                                <span>Pozo (Well Name)</span>
+                                <input type="text" id="pull-well-name" required placeholder="Ej: TOM0029">
+                            </label>
+
+                            <label class="form-input-group">
+                                <span>Campo (Field)</span>
+                                <input type="text" id="pull-campo" required placeholder="Ej: TOMOPORO">
+                            </label>
+
+                            <label class="form-input-group">
+                                <span>Taladro (Rig)</span>
+                                <input type="text" id="pull-rig" required placeholder="Ej: ATLAS1">
+                            </label>
+
+                            <label class="form-input-group">
+                                <span>Compañía Operadora</span>
+                                <input type="text" id="pull-company" value="PETROQUIRIQUIRE S.A." required>
+                            </label>
+
+                            <label class="form-input-group">
+                                <span>Fecha Inicio de Operación</span>
+                                <input type="date" id="pull-date-start" required>
+                            </label>
+
+                            <label class="form-input-group">
+                                <span>Fecha Finalización</span>
+                                <input type="date" id="pull-date-end">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta 2: Registro de Bitácora Hora a Hora (Sección Operaciones) -->
+                    <div class="form-card-block">
+                        <div class="card-header-banner banner-green">
+                            <div class="banner-with-action">
+                                <div>
+                                    <h3>⏱️ Bitácora Operativa Diaria (Hora a Hora)</h3>
+                                    <p>Registra las operaciones del servicio. Cada día se regenera un nuevo reporte diario.</p>
+                                </div>
+                                <!-- Selector de Fecha Operativa para la bitácora de ese día -->
+                                <div class="daily-report-selector-group">
+                                    <label for="pull-ops-date">Fecha Reporte:</label>
+                                    <input type="date" id="pull-ops-date" class="ops-date-picker">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Inputs de Técnicos y Spoolers que cambian día a día -->
+                        <div style="padding: 20px 24px 0 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                            <label class="form-input-group">
+                                <span>Técnicos de Guardia en este Día</span>
+                                <input type="text" id="pull-technicians" required placeholder="Ej: BELARMINO LINARES, JOSE VIVAS" style="font-size: 0.88rem; padding: 10px;">
+                            </label>
+                            <label class="form-input-group">
+                                <span>Personal Spooler Banding en este Día</span>
+                                <input type="text" id="pull-spoolers" required placeholder="Ej: ADRIAN SARMIENTO, EDUARDO VITA, ALBENIS VILLEGAS" style="font-size: 0.88rem; padding: 10px;">
+                            </label>
+                        </div>
+
+                        <!-- Grilla interactiva de actividades hora a hora -->
+                        <div class="operations-logger-wrapper">
+                            <table class="ops-table-logger" id="ops-logger-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 120px;">Empezó (Hora)</th>
+                                        <th style="width: 120px;">Terminó (Hora)</th>
+                                        <th>Descripción de la Actividad Realizada</th>
+                                        <th style="width: 80px; text-align: center;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ops-tbody-rows">
+                                    <!-- Filas inyectadas dinámicamente -->
+                                </tbody>
+                            </table>
+
+                            <div class="ops-summary-action-bar">
+                                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                    <button type="button" class="btn-add-ops-row" id="btn-add-ops-row">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        <span>Agregar Fila Operativa</span>
+                                    </button>
+                                    <button type="button" class="btn-save-ops-day" id="btn-save-ops-day" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 12px 20px; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                                        <span>Guardar Bitácora del Día</span>
+                                    </button>
+                                </div>
+                                <div class="total-hours-pill">
+                                    <span>TOTAL HORAS DEL DÍA:</span>
+                                    <strong id="pull-total-hours-display">0.00 HRS</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta 3: Detalles de los Equipos de Fondo (PULL BES) -->
+                    <div class="form-card-block">
+                        <div class="card-header-banner banner-purple">
+                            <h3>🔌 Desglose del Equipo de Fondo BES Extraído</h3>
+                            <p>Ingrese los parámetros técnicos de los componentes recuperados del pozo.</p>
+                        </div>
+                        
+                        <!-- Contenedor general de componentes estructurados en acordeones responsivos -->
+                        <div class="equipment-accordion-wrapper">
+                            
+                            <!-- Sección Acordeón: Bombas Hidráulicas -->
+                            <div class="equipment-section-card">
+                                <h4 class="equipment-section-title">🌊 Bombas Sumergibles (Pumps)</h4>
+                                <div class="equipment-grid-fields" id="eq-group-pumps">
+                                    <!-- Inyectado desde el controlador -->
+                                </div>
+                            </div>
+
+                            <!-- Sección Acordeón: Separadores e Intakes -->
+                            <div class="equipment-section-card">
+                                <h4 class="equipment-section-title">🌪️ Entrada de Fluido / Separador de Gas</h4>
+                                <div class="equipment-grid-fields" id="eq-group-intakes">
+                                    <!-- Inyectado desde el controlador -->
+                                </div>
+                            </div>
+
+                            <!-- Sección Acordeón: Protectores / Sellos -->
+                            <div class="equipment-section-card">
+                                <h4 class="equipment-section-title">🛡️ Sección de Sellos (Protectores)</h4>
+                                <div class="equipment-grid-fields" id="eq-group-protectors">
+                                    <!-- Inyectado desde el controlador -->
+                                </div>
+                            </div>
+
+                            <!-- Sección Acordeón: Motores Eléctricos -->
+                            <div class="equipment-section-card">
+                                <h4 class="equipment-section-title">⚡ Motores Eléctricos de Fondo</h4>
+                                <div class="equipment-grid-fields" id="eq-group-motors">
+                                    <!-- Inyectado desde el controlador -->
+                                </div>
+                            </div>
+
+                            <!-- Sección Acordeón: Sensor de Fondo -->
+                            <div class="equipment-section-card">
+                                <h4 class="equipment-section-title">💾 Sensor de Fondo (Downhole Sensor)</h4>
+                                <div class="equipment-grid-fields" id="eq-group-sensors">
+                                    <!-- Inyectado desde el controlador -->
+                                </div>
+                            </div>
+
+                            <!-- Sección Acordeón: Cable de Potencia y Capilar -->
+                            <div class="equipment-section-card">
+                                <h4 class="equipment-section-title">🔌 Cable de Potencia & Capilar</h4>
+                                <div class="equipment-grid-fields" id="eq-group-cables">
+                                    <!-- Inyectado desde el controlador -->
+                                </div>
+                            </div>
+
+                            <!-- Sección Acordeón: Válvulas y Adicionales -->
+                            <div class="equipment-section-card">
+                                <h4 class="equipment-section-title">⚙️ Válvulas de Descarga & Drenaje</h4>
+                                <div class="equipment-grid-fields" id="eq-group-valves">
+                                    <!-- Inyectado desde el controlador -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta 4: Registro Fotográfico del Servicio (Pistas y soportes) -->
+                    <div class="form-card-block">
+                        <div class="card-header-banner banner-orange" style="background: var(--banner-orange);">
+                            <h3>📸 Registro Fotográfico del Servicio</h3>
+                            <p>Suba las imágenes de soporte técnico correspondientes a los componentes del PULL.</p>
+                        </div>
+                        <div class="photo-upload-container" style="padding: 24px;">
+                            <!-- Zona de arrastre de archivos premium -->
+                            <div class="drag-drop-area" id="photo-drag-drop-area" style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 30px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s;">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                <p style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">Arrastra tus fotos aquí o haz clic para buscarlas</p>
+                                <span style="font-size: 0.78rem; color: var(--text-muted);">Soporta formatos PNG, JPG y WEBP. Máximo 10MB por archivo.</span>
+                                <input type="file" id="photo-file-input" multiple accept="image/*" style="display: none;">
+                            </div>
+                            
+                            <!-- Grilla con miniaturas de fotos subidas -->
+                            <div class="photo-preview-grid" id="photo-preview-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-top: 24px;">
+                                <!-- Inyectado dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta 5: Cierre, Diagnósticos y Firmas -->
+                    <div class="form-card-block">
+                        <div class="card-header-banner banner-orange">
+                            <h3>📝 Diagnóstico de Falla y Cierre del Ticket</h3>
+                        </div>
+                        <div class="card-form-grid">
+                            
+                            <label class="form-input-group full-width-field">
+                                <span>Causa de Falla Reportada</span>
+                                <textarea id="pull-failure-cause" rows="2" placeholder="Describa la causa principal de la falla del sistema (ej: CABLE REEL MALO - IDO A TIERRA)..."></textarea>
+                            </label>
+
+                            <label class="form-input-group full-width-field">
+                                <span>Comentarios Adicionales del Servicio</span>
+                                <textarea id="pull-additional-comments" rows="3" placeholder="Comentarios y notas técnicas adicionales sobre el izamiento y desmontaje del equipo..."></textarea>
+                            </label>
+
+                            <label class="form-input-group">
+                                <span>Revisado Por (UV Servicios)</span>
+                                <input type="text" id="pull-sig-uv" placeholder="Nombre del Técnico de Campo">
+                            </label>
+
+                            <label class="form-input-group">
+                                <span>Conforme Por (Company Man / Cliente)</span>
+                                <input type="text" id="pull-sig-client" placeholder="Nombre de Supervisor de Cliente">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Barra de Acciones del Formulario -->
+                    <div class="form-actions-wrapper-bar">
+                        <button type="button" id="btn-cancel-ticket" class="btn-cancel-form">Cancelar</button>
+                        <div class="primary-actions-group">
+                            <button type="button" id="btn-save-draft" class="btn-save-draft">
+                                💾 Guardar Borrador
+                            </button>
+                            <button type="button" id="btn-submit-ticket" class="btn-submit-final">
+                                🚀 Finalizar y Enviar Reporte
+                            </button>
+                        </div>
+                    </div>
+
+                </form>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- SDK de Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Script Controlador del Módulo -->
+    <script type="module" src="servicios-controller.js"></script>
+</body>
+</html>

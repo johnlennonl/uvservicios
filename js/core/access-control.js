@@ -2,6 +2,7 @@ export const ACCESS_ROLES = Object.freeze({
     ADMIN: 'admin',
     SUPERVISOR: 'supervisor',
     CAMPO: 'campo',
+    SERVICIOS: 'servicios',
     CLIENTE_VIEW: 'cliente_view',
     BASE_DATOS: 'base_datos',
     GESTOR_USUARIOS: 'gestor_usuarios'
@@ -41,6 +42,7 @@ export function getAccessProfile(sessionOrUser) {
     const role = resolveAccessRole(user);
     const isReadOnly = role === ACCESS_ROLES.CLIENTE_VIEW;
     const isFieldOperator = role === ACCESS_ROLES.CAMPO;
+    const isServicesOperator = role === ACCESS_ROLES.SERVICIOS;
     const isSupervisor = role === ACCESS_ROLES.SUPERVISOR;
     const isAdmin = role === ACCESS_ROLES.ADMIN;
     const isBaseDatos = role === ACCESS_ROLES.BASE_DATOS || email.includes('baseuv');
@@ -51,19 +53,20 @@ export function getAccessProfile(sessionOrUser) {
         role,
         isReadOnly,
         isFieldOperator,
+        isServicesOperator,
         isBaseDatos,
         isGestorUsuarios,
-        canViewDashboard: !isGestorUsuarios,
-        canViewConsolidado: !isGestorUsuarios,
+        canViewDashboard: !isGestorUsuarios && !isServicesOperator,
+        canViewConsolidado: !isGestorUsuarios && !isServicesOperator,
         canModifyConsolidadoBase: isAdmin || isSupervisor,
         canViewManagement: isAdmin || isSupervisor,
         canEditData: isAdmin || isSupervisor,
         canCreateFieldReports: isAdmin || isSupervisor || isFieldOperator,
         canViewFieldModule: isAdmin || isSupervisor || isFieldOperator,
-        canViewFieldHistory: !isGestorUsuarios,
+        canViewFieldHistory: !isGestorUsuarios && !isServicesOperator,
         canViewJourneyModule: isAdmin || isSupervisor || isFieldOperator,
-        canViewJourneyHistory: !isGestorUsuarios,
-        canViewStats: !isGestorUsuarios,
+        canViewJourneyHistory: !isGestorUsuarios && !isServicesOperator,
+        canViewStats: !isGestorUsuarios && !isServicesOperator,
         canViewBaseDatos: isBaseDatos,
         canManageUsers: isGestorUsuarios || isAdmin
     };
@@ -80,6 +83,10 @@ export function getDefaultRouteForAccessProfile(accessProfile) {
 
     if (accessProfile?.isGestorUsuarios) {
         return 'gestion-usuarios.html';
+    }
+
+    if (accessProfile?.role === ACCESS_ROLES.SERVICIOS) {
+        return 'SERVICIOSUV/servicios.html';
     }
 
     return 'dashboard.html';
@@ -204,6 +211,25 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
     } else {
         document.body.classList.remove('access-gestor-usuarios');
         hideLinks(['gestion-usuarios.html']);
+    }
+
+    if (accessProfile?.role === ACCESS_ROLES.SERVICIOS) {
+        document.body.classList.add('access-servicios');
+        hideLinks([
+            'dashboard.html',
+            'consolidado.html',
+            'data.html',
+            'stats.html',
+            'dashboard-data.html',
+            'campo-admin.html',
+            'field.html',
+            'jornada.html',
+            'jornada-history.html',
+            'notificacion.html',
+            'help.html',
+            'monitoring-prep.html',
+            'base-datos.html'
+        ]);
     }
 
     document.body.classList.add('access-nav-ready');
