@@ -39,11 +39,219 @@ body {
     overflow-x: hidden;
 }
 
-/* Contenedor Principal de la App */
-.app-container {
+/* ====================================================================
+   LAYOUT PRINCIPAL: Sidebar + Contenido (Desktop Grid)
+   ==================================================================== */
+.svc-dashboard-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: 100vh;
+}
+
+/* Wrapper del contenido principal (header móvil + tabs + main) */
+.svc-main-wrapper {
     max-width: 1400px;
+    width: 100%;
     margin: 0 auto;
     padding: 20px;
+}
+
+/* ====================================================================
+   SIDEBAR PREMIUM (Dark Slate — estilo consistente con data.html)
+   ==================================================================== */
+.svc-sidebar {
+    display: none; /* Oculto por defecto (móvil) */
+    background: #0F172A;
+    color: #94A3B8;
+    padding: 28px 18px;
+    flex-direction: column;
+    gap: 32px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    border-right: 1px solid #1E293B;
+    z-index: 100;
+    overflow-y: auto;
+}
+
+/* --- Marca / Logo del Sidebar --- */
+.svc-sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 4px 20px 4px;
+    border-bottom: 1px solid #1E293B;
+}
+.svc-sidebar-logo {
+    width: 46px;
+    height: 46px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+    transition: opacity 0.3s ease;
+}
+.svc-sidebar-logo:hover { opacity: 0.8; }
+.svc-sidebar-brand-text {
+    display: flex;
+    flex-direction: column;
+}
+.svc-sidebar-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: #F8FAFC;
+    line-height: 1.15;
+}
+.svc-sidebar-subtitle {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* --- Navegación del Sidebar --- */
+.svc-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.svc-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #94A3B8;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    font-family: inherit;
+}
+.svc-nav-link svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+.svc-nav-link:hover {
+    color: #F8FAFC;
+    background: #1E293B;
+}
+.svc-nav-link.active {
+    color: #FFFFFF;
+    background: #1E293B;
+    border: 1px solid #334155;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
+}
+.svc-nav-link.active svg {
+    opacity: 1;
+    color: #38BDF8;
+}
+
+/* --- Footer del Sidebar (Usuario + Logout) --- */
+.svc-sidebar-footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 20px;
+    border-top: 1px solid #1E293B;
+}
+.svc-sidebar-user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px;
+}
+.svc-sidebar-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #1E293B;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid #334155;
+}
+.svc-sidebar-avatar svg {
+    color: #64748B;
+}
+.svc-sidebar-user-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.svc-sidebar-username {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #E2E8F0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.svc-sidebar-role-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #7C3AED;
+    background: rgba(124, 58, 237, 0.15);
+    padding: 2px 8px;
+    border-radius: 20px;
+    display: inline-block;
+    align-self: flex-start;
+    margin-top: 2px;
+}
+.svc-sidebar-logout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 0;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.82rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #F87171;
+    background: transparent;
+    border: 1px solid #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+.svc-sidebar-logout svg {
+    width: 18px;
+    height: 18px;
+    opacity: 1;
+}
+.svc-sidebar-logout:hover {
+    background: #7F1D1D;
+    color: white;
+    border-color: #991B1B;
+}
+
+/* ====================================================================
+   DESKTOP: Mostrar Sidebar, ocultar Header/Tabs móvil
+   ==================================================================== */
+@media (min-width: 1025px) {
+    .svc-dashboard-layout {
+        grid-template-columns: 260px 1fr;
+    }
+    .svc-sidebar {
+        display: flex;
+    }
+    .svc-mobile-only {
+        display: none !important;
+    }
+    .svc-main-wrapper {
+        padding: 30px 40px;
+    }
 }
 
 /* Loader Overlay */

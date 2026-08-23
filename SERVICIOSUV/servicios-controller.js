@@ -70,9 +70,18 @@ async function initApp() {
             return;
         }
 
-        // 3. Renderizar metadatos de usuario en el header
-        document.getElementById('user-display-name').textContent = `${profile.nombre} ${profile.apellido}`;
-        document.getElementById('user-display-role').textContent = userRole === 'servicios' ? 'Técnico de Servicios' : (userRole === 'admin' ? 'Administrador' : 'Supervisor');
+        // 3. Renderizar metadatos de usuario en el header y en el sidebar
+        const displayName = `${profile.nombre} ${profile.apellido}`;
+        const displayRole = userRole === 'servicios' ? 'Técnico de Servicios' : (userRole === 'admin' ? 'Administrador' : 'Supervisor');
+
+        document.getElementById('user-display-name').textContent = displayName;
+        document.getElementById('user-display-role').textContent = displayRole;
+
+        // Sidebar user info (desktop)
+        const sidebarName = document.getElementById('sidebar-user-name');
+        const sidebarRole = document.getElementById('sidebar-user-role');
+        if (sidebarName) sidebarName.textContent = displayName;
+        if (sidebarRole) sidebarRole.textContent = displayRole;
 
         // Ocultar pantalla de carga
         document.getElementById('loader-overlay').classList.add('hidden');
@@ -92,11 +101,20 @@ async function initApp() {
  * Configura los eventos del DOM (botones, cambio de pestañas, etc.)
  */
 function setupEventListeners() {
-    // Manejo de cambio de pestañas (Tabs)
+    // Manejo de cambio de pestañas (Tabs móvil)
     const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             const targetTab = btn.getAttribute('data-tab');
+            switchTab(targetTab);
+        });
+    });
+
+    // Manejo de navegación del Sidebar (Desktop)
+    const sidebarLinks = document.querySelectorAll('.svc-nav-link');
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            const targetTab = link.getAttribute('data-tab');
             switchTab(targetTab);
         });
     });
@@ -142,11 +160,20 @@ function setupEventListeners() {
 
 
 
-    // Botón de deslogueo
+    // Botón de deslogueo (header móvil)
     document.getElementById('btn-logout').addEventListener('click', async () => {
         await supabase.auth.signOut();
         window.location.href = '../index.html';
     });
+
+    // Botón de deslogueo (sidebar desktop)
+    const sidebarLogout = document.getElementById('sidebar-btn-logout');
+    if (sidebarLogout) {
+        sidebarLogout.addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            window.location.href = '../index.html';
+        });
+    }
 
     // Botón de cancelar / volver a la bandeja
     document.getElementById('btn-cancel-ticket').addEventListener('click', () => switchTab('tab-dashboard'));
@@ -173,9 +200,15 @@ function setupEventListeners() {
  */
 function switchTab(tabId) {
     activeTab = tabId;
+    // Sincronizar tabs móvil
     document.querySelectorAll('.tab-button').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
+    // Sincronizar nav links del sidebar desktop
+    document.querySelectorAll('.svc-nav-link').forEach(link => {
+        link.classList.toggle('active', link.getAttribute('data-tab') === tabId);
+    });
+    // Sincronizar paneles de contenido
     document.querySelectorAll('.tab-content-panel').forEach(panel => {
         panel.classList.toggle('active', panel.getAttribute('id') === tabId);
     });
@@ -415,7 +448,7 @@ async function loadTicketsList() {
                     </div>
                     <div class="card-actions-row">
                         ${ticket.status === 'draft' ? `
-                            <button class="btn-edit-card" onclick="editTicket('${ticket.id}')">✏️ Editar Borrador</button>
+                            <button class="btn-edit-card" onclick="editTicket('${ticket.id}')">✏️ Editar Progreso</button>
                         ` : `
                             <button class="btn-edit-card" onclick="editTicket('${ticket.id}')">👁️ Ver Detalles</button>
                         `}
@@ -768,7 +801,7 @@ async function saveTicket(targetStatus, isSilent = false) {
                     switchTab('tab-dashboard');
                 });
             } else {
-                Swal.fire({ icon: 'success', title: 'Borrador Guardado', text: 'Los cambios se almacenaron de forma segura en la base de datos.' });
+                Swal.fire({ icon: 'success', title: 'Progreso Guardado', text: 'Los cambios se almacenaron de forma segura en la base de datos.' });
             }
         }
 
