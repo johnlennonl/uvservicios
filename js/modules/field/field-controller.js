@@ -674,7 +674,7 @@ async function resolveFieldOperationalContext(session) {
     if (userId) {
         const { data } = await supabase
             .from('profiles')
-            .select('nombre, apellido, operational_scope')
+            .select('nombre, apellido')
             .eq('id', userId)
             .single();
         profile = data || null;
@@ -3013,6 +3013,7 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             const { data: allDocs, error: docsError } = await supabase
                 .from('well_historical_documents')
                 .select('*')
+                .is('deleted_at', null)
                 .like('descripcion', `%[JORNADA_ID:${journeyIdStr}]%`);
 
             if (docsError) throw docsError;
@@ -3529,7 +3530,21 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             const filePath = btn.dataset.filePath;
             if (!docId) return;
 
-            if (!confirm('¿Estás seguro de eliminar este archivo adjunto?')) return;
+            if (window.Swal) {
+                const result = await window.Swal.fire({
+                    title: '¿Eliminar adjunto?',
+                    text: '¿Estás seguro de eliminar este archivo soporte?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#64748b'
+                });
+                if (!result.isConfirmed) return;
+            } else {
+                if (!confirm('¿Estás seguro de eliminar este archivo adjunto?')) return;
+            }
 
             try {
                 btn.disabled = true;

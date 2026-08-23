@@ -1510,7 +1510,7 @@ export async function getFieldSubmittedJourneys(options = {}) {
     let query = supabase
         .from('field_journeys')
         .select('*')
-        .eq('submitted_by_user_id', session.user.id)
+        .ilike('submitted_by_email', session.user.email)
         .in('id', scopedJourneyIds)
         .order('journey_date', { ascending: false })
         .order('updated_at', { ascending: false })
@@ -1577,7 +1577,7 @@ export async function getFieldSubmittedJourneyDetail(journeyId) {
                 .from('field_journeys')
                 .select('*')
                 .eq('id', normalizedJourneyId)
-                .eq('submitted_by_user_id', session.user.id)
+                .ilike('submitted_by_email', session.user.email)
                 .maybeSingle(),
             supabase
                 .from('field_journey_records')
@@ -1681,7 +1681,7 @@ export async function getLatestFieldJourneyDraft() {
         const { data: journey, error: journeyError } = await supabase
             .from('field_journeys')
             .select('*')
-            .eq('submitted_by_user_id', session.user.id)
+            .ilike('submitted_by_email', session.user.email)
             .eq('operational_scope', operationalScope)
             .eq('status', 'draft')
             .order('updated_at', { ascending: false })
@@ -1882,7 +1882,7 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
                 const { data: duplicate } = await supabase
                     .from('field_journeys')
                     .select('id, status')
-                    .eq('submitted_by_user_id', session.user.id)
+                    .ilike('submitted_by_email', session.user.email)
                     .eq('journey_date', journeyDate)
                     .eq('jornada', shift)
                     .in('status', ['submitted', 'under_review', 'rejected'])

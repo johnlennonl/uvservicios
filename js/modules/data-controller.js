@@ -4,6 +4,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
         import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord, getWellBESProfile, getWellLevelTests, deleteLevelTest } from '../data-service.js';
         import { getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from '../services/operational-scope-context.js';
         import { supabase } from '../supabaseClient.js';
+        import { openFieldJourneyPdf } from '../services/field-journey-export.js';
 
         let activePozo = null;
         let currentRecordData = [];
@@ -384,10 +385,40 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                     <td><b>${formatMonitoringNumberCell(record.frecuencia)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Hz</span></td>
                     <td><b>${formatMonitoringTextCell(record.sentido_giro ?? record.giro, '--')}</b></td>
                     <td><b>${formatMonitoringNumberCell(record.corriente_motor)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Amp</span></td>
-                    <td><b>${formatMonitoringTextCell(record.pip)}</b> <span style="color:#9CA3AF; font-size:0.7rem;">PSI</span> <br> <span style="color:#EF4444;">${formatMonitoringTextCell(record.tm)}°F</span></td>
-                    <td><span style="color:#2563EB;">T: ${formatMonitoringTextCell(record.presion_thp)}</span> / <span style="color:#06B6D4;">C: ${formatMonitoringTextCell(record.presion_chp)}</span> <br> <span style="color:#F59E0B;">LF: ${formatMonitoringTextCell(record.presion_lf ?? record.lf, '--')}</span></td>
-                    <td style="font-family: monospace;">${formatMonitoringTextCell(record.vsd_a)} / ${formatMonitoringTextCell(record.vsd_b, '0')} / ${formatMonitoringTextCell(record.vsd_c, '0')}</td>
-                    <td><span style="color:${['RUN', 'RUN / ATENCION AL CLIENTE'].includes(String(record.estatus).toUpperCase().trim()) ? '#38A169' : '#E53E3E'}; font-weight: 800;">${formatMonitoringTextCell(record.estatus)}</span></td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; line-height: 1.2;">
+                            <div><span style="color: #64748b; font-weight: 600; margin-right: 4px;">PIP:</span><span style="font-weight: 700; color: #0f172a;">${formatMonitoringTextCell(record.pip, '--')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">PSI</span></div>
+                            <div><span style="color: #be123c; font-weight: 600; margin-right: 4px;">TM:</span><span style="font-weight: 700; color: #e11d48;">${formatMonitoringTextCell(record.tm, '--')}</span> <span style="font-size: 0.7rem; color: #f43f5e;">°F</span></div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; line-height: 1.2;">
+                            <div><span style="color: #2563eb; font-weight: 600; margin-right: 4px;">THP:</span><span style="font-weight: 700; color: #1e40af;">${formatMonitoringTextCell(record.presion_thp, '--')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">PSI</span></div>
+                            <div><span style="color: #0d9488; font-weight: 600; margin-right: 4px;">CHP:</span><span style="font-weight: 700; color: #0f766e;">${formatMonitoringTextCell(record.presion_chp, '--')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">PSI</span></div>
+                            <div><span style="color: #ea580c; font-weight: 600; margin-right: 4px;">LF:</span><span style="font-weight: 700; color: #c2410c;">${formatMonitoringTextCell(record.presion_lf ?? record.lf, '--')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">PSI</span></div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; gap: 2px; font-family: monospace; font-size: 0.8rem; line-height: 1.2;">
+                            <div><span style="color: #64748b; font-weight: 600; margin-right: 4px;">A:</span><span style="font-weight: 700; color: #0f172a;">${formatMonitoringTextCell(record.vsd_a, '0')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">Amp</span></div>
+                            <div><span style="color: #64748b; font-weight: 600; margin-right: 4px;">B:</span><span style="font-weight: 700; color: #0f172a;">${formatMonitoringTextCell(record.vsd_b, '0')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">Amp</span></div>
+                            <div><span style="color: #64748b; font-weight: 600; margin-right: 4px;">C:</span><span style="font-weight: 700; color: #0f172a;">${formatMonitoringTextCell(record.vsd_c, '0')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">Amp</span></div>
+                        </div>
+                    </td>
+                    <td>
+                        ${(() => {
+                            const isRun = ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(String(record.estatus).toUpperCase().trim());
+                            const bgColor = isRun ? '#dcfce7' : '#fee2e2';
+                            const textColor = isRun ? '#15803d' : '#b91c1c';
+                            const dotColor = isRun ? '#22c55e' : '#ef4444';
+                            return `
+                                <span style="display: inline-flex; align-items: center; gap: 6px; background: ${bgColor}; color: ${textColor}; padding: 4px 10px; border-radius: 9999px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; border: 1px solid ${isRun ? '#bbf7d0' : '#fecaca'}; letter-spacing: 0.05em; line-height: 1; white-space: nowrap;">
+                                    <span style="width: 6px; height: 6px; border-radius: 50%; background: ${dotColor}; display: inline-block;"></span>
+                                    ${formatMonitoringTextCell(record.estatus)}
+                                </span>
+                            `;
+                        })()}
+                    </td>
                     <td style="text-align: right; white-space: nowrap;">
                         <button class="btn-action btn-view" onclick="openFullDataModal('${escapeHtml(recordId)}')" style="background: #E0E7FF; color: #4338CA;">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; vertical-align:text-bottom; margin-right:4px;">
@@ -448,7 +479,19 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                                 <article class="history-card daily-ticket-history-card">
                                     <div class="daily-ticket-history-topbar">
                                         <div>
-                                            <h3>${escapeHtml(group.pozoName)}</h3>
+                                            <h3 style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #0f766e; flex-shrink: 0;">
+                                                    <path d="M6 22L12 5L18 22" />
+                                                    <path d="M3 6h15" />
+                                                    <path d="M3 6C2 5.5 1 4.5 1 3" />
+                                                    <path d="M1.5 3v13" />
+                                                    <path d="M12 6l5 9" />
+                                                    <circle cx="17" cy="15" r="2" />
+                                                    <path d="M2 22h20" />
+                                                </svg>
+                                                <span>${escapeHtml(group.pozoName)}</span>
+                                                <span style="font-size: 0.68rem; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #bae6fd; display: inline-flex; align-items: center; gap: 4px;">⚡ BES</span>
+                                            </h3>
                                             <p>Historial operativo consolidado del pozo para esta jornada.</p>
                                         </div>
                                         <span class="daily-ticket-group-count">${group.records.length} registros</span>
@@ -473,6 +516,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                                             </tbody>
                                         </table>
                                     </div>
+                                    <div id="photos-${escapeHtml(group.pozoName)}"></div>
                                 </article>
                             `).join('')}
                     </div>
@@ -510,12 +554,147 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                     groups: currentTicketGroups
                 }];
                 renderDailyTicket();
+                loadAndRenderDailyTicketPhotos(ticketDate);
             } catch (err) {
                 currentRecordData = [];
                 currentTicketGroups = [];
                 currentTicketShiftGroups = [];
                 Swal.fire({ icon: 'error', title: 'Error BD', text: err.message });
                 renderDailyTicket();
+            }
+        }
+
+        async function loadAndRenderDailyTicketPhotos(ticketDate) {
+            const activeWellNames = [...new Set(currentRecordData.map(r => String(r.pozo_name || r.pozo || '').trim().toUpperCase()).filter(Boolean))];
+            if (activeWellNames.length === 0) return;
+
+            // Inyectar estilos CSS para animación de spinner y placeholder si no existen
+            if (!document.getElementById('watermark-spinner-styles')) {
+                const styleEl = document.createElement('style');
+                styleEl.id = 'watermark-spinner-styles';
+                styleEl.textContent = `
+                    @keyframes watermark-loader-rotate {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                    .watermark-loader-spinner {
+                        width: 20px;
+                        height: 20px;
+                        border: 2px.5 solid #e2e8f0;
+                        border-top: 2.5px solid #0f766e;
+                        border-radius: 50%;
+                        animation: watermark-loader-rotate 0.8s linear infinite;
+                    }
+                `;
+                document.head.appendChild(styleEl);
+            }
+
+            try {
+                const { data: photos } = await supabase
+                    .from('well_historical_documents')
+                    .select('*')
+                    .eq('categoria', 'SOPORTES')
+                    .is('deleted_at', null)
+                    .eq('fecha_documento', ticketDate)
+                    .in('pozo_name', activeWellNames);
+
+                if (Array.isArray(photos) && photos.length > 0) {
+                    const { getDocumentDownloadUrls } = await import('../services/well-documents-service.js');
+                    
+                    const filePaths = photos.map(p => p.file_path).filter(Boolean);
+                    const urlsMap = await getDocumentDownloadUrls(filePaths);
+
+                    const photosByWell = {};
+                    for (const photo of photos) {
+                        const wName = String(photo.pozo_name || '').trim().toUpperCase();
+                        if (wName) {
+                            if (!photosByWell[wName]) photosByWell[wName] = [];
+                            photosByWell[wName].push(photo);
+                        }
+                    }
+
+                    for (const [wellName, wellPhotos] of Object.entries(photosByWell)) {
+                        const container = document.getElementById(`photos-${wellName}`);
+                        if (container) {
+                            container.innerHTML = `
+                                <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed #cbd5e1;">
+                                    <h4 style="margin: 0 0 10px; font-size: 0.82rem; color: #0f766e; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                                        📸 Soportes de Campo del Día (${wellPhotos.length})
+                                    </h4>
+                                    <div class="daily-ticket-photo-thumbnails" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    </div>
+                                </div>
+                            `;
+                            const thumbnailsDiv = container.querySelector('.daily-ticket-photo-thumbnails');
+                            
+                            for (const photo of wellPhotos) {
+                                if (photo.file_path && urlsMap[photo.file_path]) {
+                                    const rawUrl = urlsMap[photo.file_path];
+                                    
+                                    const wrapper = document.createElement('div');
+                                    wrapper.style = 'width: 76px; height: 76px; position: relative; border-radius: 12px; border: 1px solid #cbd5e1; background: #f1f5f9; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;';
+                                    
+                                    wrapper.onmouseenter = () => { wrapper.style.transform = 'scale(1.05)'; wrapper.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; };
+                                    wrapper.onmouseleave = () => { wrapper.style.transform = 'scale(1)'; wrapper.style.boxShadow = 'none'; };
+                                    
+                                    // 1. Spinner de carga individual
+                                    const spinner = document.createElement('div');
+                                    spinner.className = 'watermark-loader-spinner';
+                                    wrapper.appendChild(spinner);
+                                    
+                                    // 2. Imagen real con carga asíncrona nativa
+                                    const img = document.createElement('img');
+                                    img.src = rawUrl;
+                                    img.alt = photo.nombre_archivo;
+                                    img.title = `Haga clic para ver: ${photo.nombre_archivo}`;
+                                    img.style = 'width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s; position: absolute; top: 0; left: 0; display: block;';
+                                    
+                                    img.onload = () => {
+                                        img.style.opacity = '1';
+                                        spinner.style.display = 'none';
+                                    };
+                                    
+                                    img.onclick = () => {
+                                        Swal.fire({
+                                            title: photo.nombre_archivo || 'Foto Soporte',
+                                            html: `
+                                                <div style="position: relative; display: inline-block; max-width: 100%; overflow: hidden; border-radius: 16px; border: 1px solid #cbd5e1; background: #f1f5f9; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
+                                                    <img src="${rawUrl}" style="max-width: 100%; max-height: 70vh; display: block; border-radius: 16px;">
+                                                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; align-items: center; justify-content: center;">
+                                                        <!-- Logo corporativo centrado sin rotar -->
+                                                        <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" style="width: 32%; opacity: 0.16; filter: grayscale(100%);">
+                                                        <!-- Badge en esquina inferior derecha -->
+                                                        <span style="position: absolute; bottom: 12px; right: 12px; font-size: 0.7rem; font-weight: 800; color: rgba(255,255,255,0.92); background: rgba(15, 118, 110, 0.78); backdrop-filter: blur(4px); padding: 4px 10px; border-radius: 6px; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1;">UV SERVICIOS</span>
+                                                    </div>
+                                                </div>
+                                            `,
+                                            showCloseButton: true,
+                                            showConfirmButton: false,
+                                            width: 'auto',
+                                            maxWidth: '95%'
+                                        });
+                                    };
+                                    wrapper.appendChild(img);
+                                    
+                                    // 3. Marca de agua visual por CSS overlay
+                                    const overlay = document.createElement('div');
+                                    overlay.style = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; align-items: center; justify-content: center;';
+                                    overlay.innerHTML = `
+                                        <!-- Logo corporativo centrado sin rotar -->
+                                        <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" style="width: 38%; opacity: 0.16; filter: grayscale(100%); pointer-events: none;">
+                                        <!-- Badge UV en miniatura -->
+                                        <span style="position: absolute; bottom: 4px; right: 4px; font-size: 8px; font-weight: 800; color: rgba(255,255,255,0.9); background: rgba(15, 118, 110, 0.75); padding: 1px 4px; border-radius: 4px; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; border: 0.5px solid rgba(255,255,255,0.2); line-height: 1;">UV</span>
+                                    `;
+                                    wrapper.appendChild(overlay);
+                                    
+                                    thumbnailsDiv.appendChild(wrapper);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('[daily-ticket-photos] Error fetching photos:', err);
             }
         }
 
@@ -871,7 +1050,8 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             const mainViewToggleEl = document.getElementById('main-view-toggle');
             if (mainViewToggleEl) {
                 mainViewToggleEl.addEventListener('click', async () => {
-                    if (activeDataView === 'daily-ticket' && !document.getElementById('ticket-date')?.value) {
+                    const ticketDate = document.getElementById('ticket-date')?.value;
+                    if (activeDataView === 'daily-ticket' && !ticketDate) {
                         Swal.fire({ icon: 'info', title: 'Fecha requerida', text: 'Selecciona una fecha antes de exportar el ticket diario.' });
                         return;
                     }
@@ -883,6 +1063,80 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
                     if (activeDataView === 'history' && !activePozo) {
                         Swal.fire({ icon: 'info', title: 'Selecciona un pozo', text: 'Primero selecciona un pozo o cambia al modo ticket diario.' });
+                        return;
+                    }
+
+                    // --- EXPORTACIÓN TICKET DIARIO A PDF COMPILADO ---
+                    if (activeDataView === 'daily-ticket') {
+                        Swal.fire({
+                            title: 'Preparando reporte consolidado...',
+                            text: 'Procesando datos y adjuntos fotográficos de la jornada.',
+                            allowOutsideClick: false,
+                            didOpen: () => { Swal.showLoading(); }
+                        });
+
+                        try {
+                            const ticketDateStr = String(ticketDate || '').trim();
+                            const ticketShiftLabel = getTicketShiftLabel();
+                            const shiftKey = ticketShiftLabel.toLowerCase().includes('diurna') ? 'Diurna' : 'Nocturna';
+
+                            // 1. Obtener la locación activa del switcher de la UI
+                            const activeContractName = document.getElementById('data-operational-scope-switcher')?.textContent?.trim() || 'Consolidado General';
+
+                            // 2. Construir la jornada virtual para la consolidación
+                             const virtualJourney = {
+                                 id: 'virtual_' + ticketDateStr + '_' + shiftKey,
+                                 locacion_jornada: activeContractName,
+                                 journey_date: ticketDateStr,
+                                 jornada: shiftKey,
+                                 equipo_guardia: 'Telemetría / Consolidado',
+                                 first_report_time: currentRecordData[0]?.hora || '',
+                                 last_report_time: currentRecordData[currentRecordData.length - 1]?.hora || ''
+                             };
+
+                            // 3. Mapear los registros operativos de la pantalla al formato que consume el PDF
+                            const virtualRecords = currentRecordData.map(r => {
+                                const pozoName = r.pozo_name || r.pozo || '';
+                                const payload = {
+                                    pozo: pozoName,
+                                    fecha: r.fecha || ticketDateStr,
+                                    hora: r.hora || '',
+                                    estatus: r.estatus || 'Sin estatus',
+                                    frecuencia: r.frecuencia || '',
+                                    i_motor: r.corriente_motor || '',
+                                    v_motor: r.voltaje_motor || r.v_motor || '',
+                                    out_vsd: r.voltaje_salida_vsd || r.out_vsd || '',
+                                    pip_psi: r.pip || '',
+                                    tm_f: r.tm || '',
+                                    thp_psi: r.presion_thp || '',
+                                    chp_psi: r.presion_chp || '',
+                                    lf_psi: r.presion_lf || r.lf || '',
+                                    i_vsd_a: r.vsd_a || '',
+                                    i_vsd_b: r.vsd_b || '',
+                                    i_vsd_c: r.vsd_c || '',
+                                    sentido_giro: r.sentido_giro || r.giro || ''
+                                };
+                                return {
+                                    id: r.id || r.ID || '',
+                                    journey_id: virtualJourney.id,
+                                    pozo: pozoName,
+                                    report_date: r.fecha || ticketDateStr,
+                                    report_time: r.hora || '',
+                                    raw_payload: payload
+                                };
+                            });
+
+                            // 4. Generar y abrir el PDF limpio
+                            await openFieldJourneyPdf(virtualJourney, virtualRecords, []);
+                            Swal.close();
+                        } catch (err) {
+                            console.error('[pdf-data-export] Error:', err);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error al generar reporte',
+                                text: 'No se pudo generar el reporte PDF: ' + (err.message || err)
+                            });
+                        }
                         return;
                     }
 

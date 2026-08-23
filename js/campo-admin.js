@@ -3957,8 +3957,15 @@ async function handleDetailAction(action) {
 
         if (action === 'pdf') {
             setActionButtonsBusy(true);
-            openFieldJourneyPdf(journey, records);
-            await notify('Se abrio la vista imprimible para PDF.', 'success');
+            try {
+                await openFieldJourneyPdf(journey, records, state.currentDetail?.reviewLog || []);
+                await notify('Se abrio la vista imprimible para PDF.', 'success');
+            } catch (err) {
+                console.error(err);
+                await notify(err.message || 'No se pudo generar el consolidado PDF.', 'error');
+            } finally {
+                setActionButtonsBusy(false);
+            }
             return;
         }
 

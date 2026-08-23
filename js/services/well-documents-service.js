@@ -495,6 +495,142 @@ export async function getDocumentDownloadUrl(filePath = '', expiresInSeconds = 3
 }
 
 /**
+ * Obtiene múltiples URLs firmadas en lote (batch) de forma eficiente.
+ * 
+ * @param {string[]} filePaths - Lista de rutas de archivos.
+ * @returns {Promise<Object>} Mapa asociando cada filePath con su URL firmada o pública.
+ */
+export async function getDocumentDownloadUrls(filePaths = [], expiresInSeconds = 3600) {
+    if (!Array.isArray(filePaths) || !filePaths.length) return {};
+
+    const results = {};
+    const missingPaths = [];
+
+    for (const path of filePaths) {
+        if (!path) continue;
+        if (signedUrlsCache.has(path)) {
+            results[path] = signedUrlsCache.get(path);
+        } else {
+            missingPaths.push(path);
+        }
+    }
+
+    if (missingPaths.length > 0) {
+        try {
+            const { data, error } = await supabase
+                .storage
+                .from(BUCKET_NAME)
+                .createSignedUrls(missingPaths, expiresInSeconds);
+
+            if (!error && Array.isArray(data)) {
+                for (const item of data) {
+                    if (item.signedUrl) {
+                        const pathKey = item.path || missingPaths.find(p => p.includes(item.signedUrl.split('?')[0].split('/').pop()));
+                        const resolvedPath = pathKey || item.path;
+                        if (resolvedPath) {
+                            signedUrlsCache.set(resolvedPath, item.signedUrl);
+                            results[resolvedPath] = item.signedUrl;
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn('[well-documents-service] Error generating batch signed URLs:', err);
+        }
+    }
+
+    // Fallback checks
+    for (const path of filePaths) {
+        if (!path) continue;
+        if (!results[path]) {
+            const { data } = supabase
+                .storage
+                .from(BUCKET_NAME)
+                .getPublicUrl(path);
+            results[path] = data?.publicUrl || '#';
+        }
+    }
+
+    return results;
+}
+
+/**
+ * Aplica de forma dinámica una marca de agua semitransparente sobre una imagen utilizando un Canvas HTML5.
+ * 
+ * @param {string} imageUrl - URL origen de la imagen.
+ * @param {string} watermarkText - Texto a incrustar como marca de agua.
+ * @returns {Promise<string>} Data URL (base64) de la imagen procesada con la marca de agua integrada.
+ */
+export function applyWatermarkToImage(imageUrl, watermarkText = 'UV SERVICIOS') {
+    return new Promise((resolve) => {
+        if (!imageUrl || imageUrl === '#') {
+            resolve(imageUrl);
+            return;
+        }
+
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; // Evita errores de Canvas manchado (CORS)
+        
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    resolve(imageUrl);
+                    return;
+                }
+
+                // Dibujar imagen original
+                ctx.drawImage(img, 0, 0);
+
+                // Configuración de marca de agua principal
+                const fontSize = Math.max(16, Math.floor(canvas.width * 0.04));
+                ctx.font = `bold ${fontSize}px 'Outfit', 'Inter', sans-serif`;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+                ctx.lineWidth = Math.max(1, fontSize / 12);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Rotar el contexto para marca de agua diagonal en el centro
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(-28 * Math.PI / 180);
+
+                // Dibujar texto principal
+                ctx.fillText(watermarkText, 0, 0);
+                ctx.strokeText(watermarkText, 0, 0);
+
+                // Reestablecer transformaciones
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+                // Dibujar marca de agua secundaria en esquina inferior derecha
+                ctx.font = `bold ${Math.max(11, fontSize / 1.8)}px 'Outfit', 'Inter', sans-serif`;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.22)';
+                ctx.lineWidth = 1;
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(watermarkText, canvas.width - 25, canvas.height - 25);
+                ctx.strokeText(watermarkText, canvas.width - 25, canvas.height - 25);
+
+                resolve(canvas.toDataURL('image/jpeg', 0.85));
+            } catch (e) {
+                console.warn('[Watermark] Canvas processing failed, falling back to original URL:', e);
+                resolve(imageUrl);
+            }
+        };
+
+        img.onerror = () => {
+            resolve(imageUrl);
+        };
+
+        img.src = imageUrl;
+    });
+}
+
+/**
  * Elimina un documento tanto de Supabase Storage como de la tabla de la base de datos.
  * 
  * @param {string} documentId - ID del registro en well_historical_documents.

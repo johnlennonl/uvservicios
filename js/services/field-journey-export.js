@@ -1,3 +1,5 @@
+import { supabase } from '../supabaseClient.js';
+
 export const REPORT_COLUMNS = [
     ['POZO', 'pozo'],
     ['CAMPO', 'campo'],
@@ -285,48 +287,365 @@ export async function exportHistoricalFieldReportsToExcel(records = [], filters 
     );
 }
 
-export function openFieldJourneyPdf(journey, records, reviewLog = []) {
-    const normalizedJourney = normalizeJourney(journey, records);
-    const normalizedRecords = sortJourneyRecords(records.map(normalizeRecordForExport));
-    if (normalizedRecords.length === 0) {
-        throw new Error('La jornada no tiene pozos para exportar.');
+export async function openFieldJourneyPdf(journey, records, reviewLog = []) {
+    const pdfWindow = window.open('', '_blank', 'width=1180,height=820');
+    if (!pdfWindow) {
+        throw new Error('El navegador bloqueó la ventana para exportar a PDF. Habilita los pop-ups para esta página.');
+    }
+    pdfWindow.document.open();
+    pdfWindow.document.write('<html><head><title>Generando Reporte...</title><style>body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; text-align: center; } .loader-card { padding: 40px; border-radius: 24px; background: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; } .spinner { width: 50px; height: 50px; border: 5px solid #cbd5e1; border-top-color: #0f766e; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; } @keyframes spin { to { transform: rotate(360deg); } }</style></head><body><div class="loader-card"><div class="spinner"></div><h2 style="margin:0 0 8px; color:#0f172a; font-weight:800;">Generando reporte...</h2><p style="margin:0; color:#64748b; font-size:14px; font-weight:500;">Consolidando datos e imágenes de Supabase.</p></div></body></html>');
+    pdfWindow.document.close();
+
+    try {
+        const normalizedJourney = normalizeJourney(journey, records);
+        const normalizedRecords = sortJourneyRecords(records.map(normalizeRecordForExport));
+        if (normalizedRecords.length === 0) {
+            throw new Error('La jornada no tiene pozos para exportar.');
+        }
+
+    const isVirtual = String(journey.id || '').startsWith('virtual_');
+    const reportTitle = isVirtual ? 'Ticket Diario de Monitoreo' : 'Reporte de acompañamiento pozos con bombas electrosumergibles';
+    const documentTitle = isVirtual ? 'Ticket Diario' : 'Consolidado Campo';
+    const logoUrl = window.location.origin + '/img/UV-SERVICES-Logo-vectorial-sin-fondo.webp';
+
+    // 1. Obtener documentos de soporte vinculados a esta jornada en Supabase
+    let soportesDocs = [];
+    try {
+        const journeyIdStr = String(journey.id || '');
+        const activeWellNames = [...new Set(normalizedRecords.map(r => String(r.pozo || '').trim().toUpperCase()).filter(Boolean))];
+
+        console.log('[pdf-export] journeyIdStr:', journeyIdStr);
+        console.log('[pdf-export] fecha:', normalizedJourney.fecha);
+        console.log('[pdf-export] activeWellNames:', activeWellNames);
+
+        let query = supabase
+            .from('well_historical_documents')
+            .select('*')
+            .eq('categoria', 'SOPORTES');
+
+        if (journeyIdStr && !journeyIdStr.startsWith('virtual_')) {
+            console.log('[pdf-export] Querying by JORNADA_ID:', journeyIdStr);
+            query = query.like('descripcion', `%[JORNADA_ID:${journeyIdStr}]%`);
+        } else if (normalizedJourney.fecha && activeWellNames.length > 0) {
+            console.log('[pdf-export] Querying by date/pozo:', normalizedJourney.fecha, activeWellNames);
+            query = query.eq('fecha_documento', normalizedJourney.fecha).in('pozo_name', activeWellNames);
+        } else {
+            console.log('[pdf-export] No query filters match');
+            query = null;
+        }
+
+        if (query) {
+            const { data: allDocs, error: queryErr } = await query;
+            console.log('[pdf-export] Database returned docs:', allDocs, 'Error:', queryErr);
+            if (Array.isArray(allDocs) && allDocs.length > 0) {
+                soportesDocs = allDocs;
+                
+                // 2. Obtener URLs firmadas en lote (batch)
+                const { getDocumentDownloadUrls } = await import('./well-documents-service.js');
+                const filePaths = soportesDocs.map(d => d.file_path).filter(Boolean);
+                const urlsMap = await getDocumentDownloadUrls(filePaths);
+                
+                for (const doc of soportesDocs) {
+                    if (doc.file_path && urlsMap[doc.file_path]) {
+                        doc.signedUrl = urlsMap[doc.file_path];
+                    }
+                }
+            }
+        }
+    } catch (docErr) {
+        console.warn('[pdf-export] Error consultando soportes fotográficos:', docErr);
     }
 
     const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Consolidado Campo</title>
+    <title>${escapeHtml(documentTitle)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Inter, Arial, sans-serif; margin: 24px; color: #0f172a; background: #f8fafc; }
-        .sheet { display: grid; gap: 18px; }
-        .hero { background: linear-gradient(180deg, #ffffff, #ecfeff); border: 1px solid #cbd5e1; border-radius: 22px; padding: 22px; }
-        .hero h1 { margin: 0 0 6px; font-size: 24px; }
-        .hero p { margin: 0; color: #475569; }
-        .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-        .tag { display: inline-flex; padding: 7px 10px; border-radius: 999px; background: #e2e8f0; color: #0f172a; font-size: 12px; font-weight: 700; }
-        .well { background: #ffffff; border: 1px solid #dbeafe; border-radius: 22px; padding: 18px; break-inside: avoid; }
-        .well-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
-        .well-head h2 { margin: 4px 0; font-size: 20px; }
-        .well-head p { margin: 0; color: #64748b; }
-        .section { margin-top: 14px; }
-        .section h3 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: #0f766e; }
-        .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-        .item { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; }
-        .item.long { grid-column: span 3; }
-        .item strong { display: block; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
-        .item span { font-size: 13px; color: #0f172a; line-height: 1.5; white-space: pre-wrap; }
-        @media print { body { margin: 12px; background: #ffffff; } .hero, .well { box-shadow: none; } }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            padding: 30px; 
+            color: #0f172a; 
+            background: #f8fafc; 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact; 
+        }
+        .sheet { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+            max-width: 1100px; 
+            margin: 0 auto; 
+        }
         
-        /* Estilos de la Bitácora (Pulso) */
-        .pulse-section { margin-top: 24px; border: 1px solid #cbd5e1; border-radius: 22px; padding: 22px; background: #ffffff; break-inside: avoid; }
-        .pulse-section h2 { margin: 0 0 6px; font-size: 20px; color: #1e3a8a; }
-        .pulse-section p.subtitle { margin: 0 0 16px; color: #64748b; font-size: 13px; }
-        .pulse-timeline { display: flex; flex-direction: column; gap: 14px; position: relative; padding-left: 20px; border-left: 2px solid #cbd5e1; margin-left: 10px; }
-        .pulse-item { position: relative; margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
-        .pulse-node { position: absolute; left: -27px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; border: 2px solid #ffffff; box-shadow: 0 0 0 2px #cbd5e1; }
-        .pulse-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .pulse-tag { font-weight: 700; text-transform: uppercase; font-size: 11px; padding: 3px 8px; border-radius: 999px; }
+        /* Encabezado Corporativo Premium */
+        .hero { 
+            background: linear-gradient(135deg, #1e3a8a, #0f766e); 
+            border-radius: 24px; 
+            padding: 32px; 
+            color: #ffffff; 
+            box-shadow: 0 10px 25px -5px rgba(15, 118, 110, 0.2); 
+            border: none;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+        .hero-text {
+            flex: 1;
+        }
+        .hero-logo {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(4px);
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; bottom: 0; left: 0;
+            background: radial-gradient(circle at 80% 20%, rgba(255,255,255,0.15) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .hero h1 { 
+            margin: 0 0 10px; 
+            font-family: 'Outfit', sans-serif; 
+            font-size: 28px; 
+            font-weight: 800; 
+            letter-spacing: -0.02em; 
+            text-transform: uppercase; 
+        }
+        .hero p { 
+            margin: 0; 
+            color: #ccfbf1; 
+            font-size: 15px; 
+            font-weight: 500; 
+            opacity: 0.95; 
+        }
+        .meta { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 12px; 
+            margin-top: 20px; 
+        }
+        .tag { 
+            display: inline-flex; 
+            align-items: center; 
+            padding: 8px 16px; 
+            border-radius: 999px; 
+            background: rgba(255, 255, 255, 0.15); 
+            color: #ffffff; 
+            font-size: 12px; 
+            font-weight: 600; 
+            backdrop-filter: blur(4px); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+        }
+        
+        /* Tarjeta de Pozo */
+        .well { 
+            position: relative;
+            background: #ffffff; 
+            border: 1.5px solid #e2e8f0; 
+            border-radius: 20px; 
+            padding: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
+            page-break-inside: avoid; 
+            break-inside: avoid; 
+        }
+        .well::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 220px;
+            height: 220px;
+            background-image: url('img/UV-SERVICES-Logo-vectorial-sin-fondo.webp');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+            opacity: 0.032; /* Muy sutil para que no afecte la lectura de los números */
+            pointer-events: none;
+            z-index: 0;
+        }
+        .well-head, .well-table, .soportes-container {
+            position: relative;
+            z-index: 1;
+        }
+        .well-head { 
+            margin-bottom: 16px; 
+            border-bottom: 2px solid #cbd5e1; 
+            padding-bottom: 12px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .well-head h3 { 
+            margin: 0; 
+            font-family: 'Outfit', sans-serif; 
+            font-size: 18px; 
+            color: #1e3a8a; 
+            font-weight: 800; 
+            letter-spacing: -0.01em; 
+        }
+        
+        /* Tabla de Parámetros */
+        .well-table { 
+            width: 100%; 
+            border-collapse: separate; 
+            border-spacing: 0; 
+            margin-bottom: 16px; 
+            font-size: 12px; 
+            text-align: left; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            border: 1px solid #cbd5e1; 
+        }
+        .well-table th { 
+            background: #f8fafc; 
+            padding: 12px 14px; 
+            font-weight: 700; 
+            color: #475569; 
+            border-bottom: 2px solid #cbd5e1; 
+            text-transform: uppercase; 
+            font-size: 10px; 
+            letter-spacing: 0.05em; 
+        }
+        .well-table td { 
+            padding: 12px 14px; 
+            color: #0f172a; 
+            border-bottom: 1px solid #e2e8f0; 
+            vertical-align: middle; 
+        }
+        .well-table tr:last-child td { 
+            border-bottom: none; 
+        }
+        
+        /* Fotos de Soporte */
+        .soportes-container { 
+            break-inside: avoid; 
+            page-break-inside: avoid; 
+            margin-top: 18px; 
+            padding-top: 16px; 
+            border-top: 1px dashed #cbd5e1; 
+        }
+        .soportes-title { 
+            color: #0f766e; 
+            font-family: 'Outfit', sans-serif; 
+            font-size: 12px; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            letter-spacing: 0.06em; 
+            margin: 0 0 12px; 
+            text-align: left; 
+        }
+        .soportes-grid { 
+            display: flex; 
+            gap: 16px; 
+            flex-wrap: wrap; 
+        }
+        .foto-card { 
+            flex: 1; 
+            min-width: 130px; 
+            max-width: 180px; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 14px; 
+            overflow: hidden; 
+            background: #ffffff; 
+            padding: 6px; 
+            box-sizing: border-box; 
+            text-align: center; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+        }
+        .foto-card img { 
+            width: 100%; 
+            height: 110px; 
+            object-fit: cover; 
+            border-radius: 10px; 
+            display: block; 
+            margin-bottom: 6px; 
+        }
+        .foto-card span { 
+            font-size: 9px; 
+            color: #475569; 
+            font-weight: 600; 
+            display: block; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+        }
+
+        /* Bitácora / Audit trail */
+        .pulse-section { 
+            margin-top: 24px; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 24px; 
+            padding: 24px; 
+            background: #ffffff; 
+            break-inside: avoid; 
+            page-break-inside: avoid; 
+        }
+        .pulse-section h2 { 
+            margin: 0 0 6px; 
+            font-family: 'Outfit', sans-serif; 
+            font-size: 18px; 
+            color: #1e3a8a; 
+            font-weight: 800; 
+        }
+        .pulse-section p.subtitle { 
+            margin: 0 0 20px; 
+            color: #64748b; 
+            font-size: 13px; 
+        }
+        .pulse-timeline { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 16px; 
+            position: relative; 
+            padding-left: 20px; 
+            border-left: 2px solid #cbd5e1; 
+            margin-left: 10px; 
+        }
+        .pulse-item { 
+            position: relative; 
+            font-size: 13px; 
+            line-height: 1.5; 
+        }
+        .pulse-node { 
+            position: absolute; 
+            left: -27px; 
+            top: 4px; 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            background: #3b82f6; 
+            border: 2px solid #ffffff; 
+            box-shadow: 0 0 0 2px #cbd5e1; 
+        }
+        .pulse-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 4px; 
+        }
+        .pulse-tag { 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            font-size: 10px; 
+            padding: 4px 10px; 
+            border-radius: 999px; 
+        }
         .pulse-tag.tag-blue { background: #e0f2fe; color: #0369a1; }
         .pulse-tag.tag-amber { background: #fef3c7; color: #d97706; }
         .pulse-tag.tag-emerald { background: #d1fae5; color: #059669; }
@@ -335,20 +654,54 @@ export function openFieldJourneyPdf(journey, records, reviewLog = []) {
         .pulse-time { color: #64748b; font-size: 11px; }
         .pulse-comment { font-weight: 600; color: #0f172a; margin-top: 2px; }
         .pulse-user { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+        @media print { 
+            body { 
+                padding: 0; 
+                background: #ffffff; 
+            } 
+            .hero { 
+                box-shadow: none; 
+                border-radius: 0; 
+            } 
+            .well { 
+                border-radius: 12px; 
+                box-shadow: none; 
+                margin-bottom: 30px; 
+            } 
+        }
     </style>
 </head>
 <body>
     <div class="sheet">
         <section class="hero">
-            <h1>Reporte de acompañamiento pozos con bombas electrosumergibles</h1>
-            <p>${escapeHtml(normalizedJourney.locacion_jornada || 'Locacion no definida')} · ${escapeHtml(normalizedJourney.fecha || '--')} · ${escapeHtml(normalizedJourney.jornada || '--')}</p>
-            <div class="meta">
-                <span class="tag">Equipo: ${escapeHtml(normalizedJourney.equipo_guardia || '--')}</span>
-                <span class="tag">Ventana: ${escapeHtml(normalizedJourney.firstHour || '--')} a ${escapeHtml(normalizedJourney.lastHour || '--')}</span>
-                <span class="tag">${escapeHtml(String(normalizedJourney.reportCount || normalizedRecords.length))} pozo(s)</span>
+            <div class="hero-text">
+                <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #ccfbf1; margin-bottom: 6px;">
+                    UV SERVICES
+                </div>
+                <h1>${escapeHtml(reportTitle)}</h1>
+                <p>${escapeHtml(normalizedJourney.locacion_jornada || 'Locacion no definida')} · ${escapeHtml(normalizedJourney.fecha || '--')} · ${escapeHtml(normalizedJourney.jornada || '--')}</p>
+                <div class="meta">
+                    <span class="tag">Equipo: ${escapeHtml(normalizedJourney.equipo_guardia || '--')}</span>
+                    <span class="tag">Ventana: ${escapeHtml(normalizedJourney.firstHour || '--')} a ${escapeHtml(normalizedJourney.lastHour || '--')}</span>
+                    <span class="tag">${escapeHtml(String(normalizedJourney.reportCount || normalizedRecords.length))} pozo(s)</span>
+                </div>
             </div>
+            <img src="${logoUrl}" alt="UV SERVICES" class="hero-logo" onerror="this.style.display='none'">
         </section>
-        ${normalizedRecords.map(record => buildPdfWellMarkup(normalizedJourney, record)).join('')}
+        ${(() => {
+            const grouped = {};
+            for (const record of normalizedRecords) {
+                const pName = String(record.pozo || '').trim().toUpperCase();
+                if (pName) {
+                    if (!grouped[pName]) grouped[pName] = [];
+                    grouped[pName].push(record);
+                }
+            }
+            return Object.keys(grouped).sort().map(pozoName => {
+                return buildPdfWellMarkup(normalizedJourney, pozoName, grouped[pozoName], soportesDocs);
+            }).join('');
+        })()}
         
         <!-- PULSO DE LA JORNADA (AUDIT TRAIL / BITÁCORA) -->
         ${reviewLog && reviewLog.length > 0 ? `
@@ -414,29 +767,161 @@ export function openFieldJourneyPdf(journey, records, reviewLog = []) {
 </body>
 </html>`;
 
-    const pdfWindow = window.open('', '_blank', 'width=1180,height=820');
-    if (!pdfWindow) {
-        throw new Error('El navegador bloqueo la ventana para exportar a PDF.');
-    }
-
     pdfWindow.document.open();
     pdfWindow.document.write(html);
     pdfWindow.document.close();
     pdfWindow.focus();
+    } catch (err) {
+        console.error('[pdf-export] Error:', err);
+        pdfWindow.document.open();
+        pdfWindow.document.write(`<html><head><title>Error al Generar Reporte</title><style>body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #dc2626; text-align: center; } .error-card { padding: 40px; border-radius: 24px; background: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #fee2e2; max-width: 500px; } .btn-close { padding: 10px 24px; background: #ef4444; color: #fff; border: none; border-radius: 12px; font-weight:700; cursor:pointer; font-size:14px; transition: background 0.2s; margin-top:20px; } .btn-close:hover { background: #dc2626; }</style></head><body><div class="error-card"><h2 style="margin:0 0 12px; font-weight:800;">❌ Error al generar el reporte</h2><p style="margin:0; color:#475569; font-size:14px; line-height:1.5;">${escapeHtml(err.message || err)}</p><button class="btn-close" onclick="window.close()">Cerrar Ventana</button></div></body></html>`);
+        pdfWindow.document.close();
+        throw err;
+    }
 }
 
-function buildPdfWellMarkup(journey, record) {
+function buildPdfWellMarkup(journey, pozoName, recordsList = [], soportesDocs = []) {
+    const wellSoportes = soportesDocs.filter(d => 
+        String(d.pozo_name || '').trim().toUpperCase() === String(pozoName || '').trim().toUpperCase()
+    );
+
+    // Deduplicate photos by file_path to prevent rendering identical uploads multiple times
+    const uniqueSoportes = [];
+    const seenPaths = new Set();
+    for (const doc of wellSoportes) {
+        const path = String(doc.file_path || '').trim();
+        if (path && !seenPaths.has(path)) {
+            seenPaths.add(path);
+            uniqueSoportes.push(doc);
+        }
+    }
+
+    let soportesHtml = '';
+    if (uniqueSoportes.length > 0) {
+        soportesHtml = `
+            <div class="soportes-container">
+                <h4 class="soportes-title">Soportes Fotográficos</h4>
+                <div class="soportes-grid">
+                    ${uniqueSoportes.map(doc => `
+                        <div class="foto-card" style="page-break-inside: avoid; break-inside: avoid;">
+                            <div style="position: relative; width: 100%; height: 110px; border-radius: 10px; overflow: hidden; margin-bottom: 6px;">
+                                <img src="${doc.signedUrl || '#'}" alt="Soporte ${escapeHtml(doc.nombre_archivo)}" onerror="this.src='img/placeholder-image.png'" style="width: 100%; height: 100%; object-fit: cover; border-radius: 0; display: block; margin: 0 !important;">
+                                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; align-items: center; justify-content: center;">
+                                    <!-- Logo corporativo centrado sin rotar -->
+                                    <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" style="width: 38%; opacity: 0.16; filter: grayscale(100%); pointer-events: none; height: auto !important; margin: 0 !important;">
+                                    <!-- Badge UV en miniatura -->
+                                    <span style="position: absolute; bottom: 4px; right: 4px; font-size: 8px; font-weight: 800; color: rgba(255,255,255,0.9); background: rgba(15, 118, 110, 0.75); padding: 1px 4px; border-radius: 4px; font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; border: 0.5px solid rgba(255,255,255,0.2); line-height: 1;">UV</span>
+                                </div>
+                            </div>
+                            <span title="${escapeHtml(doc.nombre_archivo)}">
+                                ${escapeHtml(doc.nombre_archivo || 'Foto Soporte')}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    } else {
+        soportesHtml = `
+            <div class="soportes-container" style="padding-top: 10px; border-top: 1px dashed #e2e8f0; margin-top: 14px;">
+                <span style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                    📸 Soportes Fotográficos: No se registraron evidencias visuales para este pozo.
+                </span>
+            </div>
+        `;
+    }
+
+    // Render each reading as a separate row in the same table
+    const rowsHtml = recordsList.map(record => {
+        const FreqVal = record.frecuencia ? `${record.frecuencia} Hz` : '--';
+        const GiroVal = record.sentido_giro || record.giro || '--';
+        const CurrentVal = record.i_motor || record.corriente_motor ? `${record.i_motor || record.corriente_motor} Amp` : '--';
+        
+        const PipStr = record.pip_psi || record.pip ? String(record.pip_psi || record.pip).trim() : '--';
+        const TmStr = record.tm_f || record.tm ? String(record.tm_f || record.tm).trim() : '--';
+        
+        const ThpStr = record.thp_psi || record.presion_thp ? String(record.thp_psi || record.presion_thp).trim() : '--';
+        const ChpStr = record.chp_psi || record.presion_chp ? String(record.chp_psi || record.presion_chp).trim() : '--';
+        const LfStr = record.lf_psi || record.presion_lf || record.lf ? String(record.lf_psi || record.presion_lf || record.lf).trim() : '--';
+
+        const VsdA = record.i_vsd_a || record.vsd_a || '0';
+        const VsdB = record.i_vsd_b || record.vsd_b || '0';
+        const VsdC = record.i_vsd_c || record.vsd_c || '0';
+
+        const isRun = ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(String(record.estatus).toUpperCase().trim());
+
+        return `
+            <tr>
+                <td style="font-weight: 700;">${escapeHtml(record.fecha || journey.fecha || '--')}<br><span style="font-size: 10px; color: #64748b; font-weight: 500;">${escapeHtml(record.hora || '--')}</span></td>
+                <td style="font-weight: 700;">${escapeHtml(FreqVal)}</td>
+                <td style="font-weight: 700;">${escapeHtml(GiroVal)}</td>
+                <td style="font-weight: 700;">${escapeHtml(CurrentVal)}</td>
+                <td>
+                    <div style="display: flex; flex-direction: column; gap: 2px; font-size: 11px; line-height: 1.2;">
+                        <div><span style="color: #64748b; font-weight: 600; margin-right: 2px;">PIP:</span><span style="font-weight: 700;">${escapeHtml(PipStr)}</span> <span style="font-size: 9px; color: #94a3b8;">PSI</span></div>
+                        <div><span style="color: #be123c; font-weight: 600; margin-right: 2px;">TM:</span><span style="font-weight: 700; color: #e11d48;">${escapeHtml(TmStr)}</span> <span style="font-size: 9px; color: #f43f5e;">°F</span></div>
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; flex-direction: column; gap: 2px; font-size: 11px; line-height: 1.2;">
+                        <div><span style="color: #2563eb; font-weight: 600; margin-right: 2px;">THP:</span><span style="font-weight: 700; color: #1e40af;">${escapeHtml(ThpStr)}</span> <span style="font-size: 9px; color: #94a3b8;">PSI</span></div>
+                        <div><span style="color: #0d9488; font-weight: 600; margin-right: 2px;">CHP:</span><span style="font-weight: 700; color: #0f766e;">${escapeHtml(ChpStr)}</span> <span style="font-size: 9px; color: #94a3b8;">PSI</span></div>
+                        <div><span style="color: #ea580c; font-weight: 600; margin-right: 2px;">LF:</span><span style="font-weight: 700; color: #c2410c;">${escapeHtml(LfStr)}</span> <span style="font-size: 9px; color: #94a3b8;">PSI</span></div>
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; flex-direction: column; gap: 2px; font-family: monospace; font-size: 11px; line-height: 1.2;">
+                        <div><span style="color: #64748b; font-weight: 600; margin-right: 2px;">A:</span><span style="font-weight: 700;">${escapeHtml(VsdA)}</span> <span style="font-size: 9px; color: #94a3b8;">Amp</span></div>
+                        <div><span style="color: #64748b; font-weight: 600; margin-right: 2px;">B:</span><span style="font-weight: 700;">${escapeHtml(VsdB)}</span> <span style="font-size: 9px; color: #94a3b8;">Amp</span></div>
+                        <div><span style="color: #64748b; font-weight: 600; margin-right: 2px;">C:</span><span style="font-weight: 700;">${escapeHtml(VsdC)}</span> <span style="font-size: 9px; color: #94a3b8;">Amp</span></div>
+                    </div>
+                </td>
+                <td>
+                    <span style="display: inline-flex; align-items: center; gap: 4px; background: ${isRun ? '#dcfce7' : '#fee2e2'}; color: ${isRun ? '#15803d' : '#b91c1c'}; padding: 3px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800; text-transform: uppercase; border: 1px solid ${isRun ? '#bbf7d0' : '#fecaca'}; letter-spacing: 0.05em; line-height: 1; white-space: nowrap;">
+                        <span style="width: 5px; height: 5px; border-radius: 50%; background: ${isRun ? '#22c55e' : '#ef4444'}; display: inline-block;"></span>
+                        ${escapeHtml(record.estatus || '--')}
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
     return `
         <article class="well">
             <div class="well-head">
-                <div>
-                    <span class="tag">Vista estilo PDF</span>
-                    <h2>${escapeHtml(String(record.pozo || '').toUpperCase())}</h2>
-                    <p>${escapeHtml(record.campo || '--')} · ${escapeHtml(record.fecha || journey.fecha || '--')} · ${escapeHtml(record.hora || '--')}</p>
-                </div>
-                <span class="tag">${escapeHtml(record.estatus || 'Sin estatus')}</span>
+                <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #0f766e; flex-shrink: 0; margin-top: -1px;">
+                        <path d="M6 22L12 5L18 22" />
+                        <path d="M3 6h15" />
+                        <path d="M3 6C2 5.5 1 4.5 1 3" />
+                        <path d="M1.5 3v13" />
+                        <path d="M12 6l5 9" />
+                        <circle cx="17" cy="15" r="2" />
+                        <path d="M2 22h20" />
+                    </svg>
+                    <span>POZO: ${escapeHtml(String(pozoName).toUpperCase())}</span>
+                    <span style="font-size: 9px; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #bae6fd; margin-left: 6px; display: inline-flex; align-items: center; gap: 2px; line-height: 1;">⚡ BES</span>
+                </h3>
+                <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo UV" style="height: 20px; width: auto; margin: 0; opacity: 0.85;">
             </div>
-            ${WELL_PREVIEW_SECTIONS.map(section => buildPdfSectionMarkup(section, record)).join('')}
+            <table class="well-table">
+                <thead>
+                    <tr>
+                        <th>FECHA/HORA</th>
+                        <th>FRECUENCIA</th>
+                        <th>GIRO</th>
+                        <th>CORRIENTE M.</th>
+                        <th>PIP/TM</th>
+                        <th>PRESIONES (THP/CHP/LF)</th>
+                        <th>VSD A/B/C</th>
+                        <th>ESTATUS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+            ${soportesHtml}
         </article>
     `;
 }
