@@ -1201,7 +1201,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                                             <h3 style="margin-top: 0; color: #1E293B; border-bottom: 2px solid #3B82F6; padding-bottom: 10px; margin-bottom: 15px;">
                                                 Registro: ${formatVal(record.fecha)} ${formatVal(record.hora)}
                                             </h3>
-                                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                                            <div class="print-detailed-card-grid">
                                     `;
 
                                     for (const [key, value] of Object.entries(mergedData)) {
@@ -1233,7 +1233,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         document.body.classList.add('view-mode-report');
                         if (activeDataView === 'history') document.body.classList.add('view-mode-report-history');
 
-                        document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER A LA WEB';
+                        document.getElementById('main-view-toggle').querySelector('span').textContent = 'VOLVER A DATA';
 
                         setTimeout(printDataReport, 500);
                     } else {

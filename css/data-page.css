@@ -1917,6 +1917,11 @@
                 display: none;
             }
 
+            body.view-mode-report .btn-report-toggle {
+                display: block !important;
+                z-index: 9999 !important;
+            }
+
             .main-container {
                 padding: 20px 15px 176px 15px;
             }
@@ -2537,4 +2542,20 @@
                         box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.2);
                     }
                 }
+
+.print-detailed-card-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+@media (max-width: 768px) {
+    .print-detailed-card-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .print-detailed-card-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
 

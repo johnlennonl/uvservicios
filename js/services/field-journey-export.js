@@ -658,6 +658,10 @@ export async function openFieldJourneyPdf(journey, records, reviewLog = [], targ
         .pulse-user { font-size: 11px; color: #64748b; margin-top: 2px; }
 
         @media print { 
+            @page {
+                size: landscape;
+                margin: 10mm;
+            }
             body { 
                 padding: 0; 
                 background: #ffffff; 
