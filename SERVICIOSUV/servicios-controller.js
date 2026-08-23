@@ -140,10 +140,7 @@ function setupEventListeners() {
         });
     }
 
-    // Botón de salir del módulo y volver a inicio
-    document.getElementById('btn-back-home').addEventListener('click', () => {
-        window.location.href = '../data.html';
-    });
+
 
     // Botón de deslogueo
     document.getElementById('btn-logout').addEventListener('click', async () => {
