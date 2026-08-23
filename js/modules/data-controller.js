@@ -298,13 +298,33 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             return date.toISOString().slice(0, 10);
         }
 
-        function getOperationalShiftForRecord(record = {}) {
+        function getOperationalShiftForRecord(record = {}, journeyMap = null) {
             const rawDate = String(record.fecha || '').slice(0, 10);
             const rawTime = String(record.hora || '00:00').slice(0, 5);
             const [hourText = '0', minuteText = '0'] = rawTime.split(':');
             const minutes = (Number(hourText) * 60) + Number(minuteText);
             if (!rawDate || !Number.isFinite(minutes)) return null;
 
+            // Respect explicitly defined shift value (e.g. Diurna/Nocturna)
+            let shiftVal = record.jornada;
+            if (!shiftVal && journeyMap) {
+                const key = `${String(record.pozo_name || '').trim().toUpperCase()}@${rawTime}`;
+                shiftVal = journeyMap.get(key);
+            }
+
+            if (shiftVal) {
+                const cleanJornada = String(shiftVal).toLowerCase();
+                if (cleanJornada.includes('diurna')) {
+                    return { operationalDate: rawDate, shift: 'day' };
+                } else if (cleanJornada.includes('nocturna')) {
+                    return {
+                        operationalDate: minutes < 360 ? addDaysToIsoDate(rawDate, -1) : rawDate,
+                        shift: 'night'
+                    };
+                }
+            }
+
+            // Fallback to strict hour-based calculation if not defined
             if (minutes >= 360 && minutes < 1080) {
                 return { operationalDate: rawDate, shift: 'day' };
             }
@@ -315,9 +335,49 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             };
         }
 
-        function filterRecordsByOperationalDate(records = [], ticketDate) {
+        async function getJornadaMapForDate(ticketDate) {
+            const map = new Map();
+            try {
+                // 1. Fetch journeys for the date
+                const { data: journeys, error: journeysError } = await supabase
+                    .from('field_journeys')
+                    .select('id, jornada')
+                    .eq('journey_date', ticketDate);
+
+                if (journeysError) throw journeysError;
+
+                if (journeys && journeys.length > 0) {
+                    const journeyIds = journeys.map(j => j.id);
+                    const journeyShiftMap = new Map(journeys.map(j => [j.id, j.jornada]));
+
+                    // 2. Fetch records for those journeys
+                    const { data: records, error: recordsError } = await supabase
+                        .from('field_journey_records')
+                        .select('pozo, report_time, journey_id')
+                        .in('journey_id', journeyIds);
+
+                    if (recordsError) throw recordsError;
+
+                    if (records && records.length > 0) {
+                        records.forEach(r => {
+                            const shiftVal = journeyShiftMap.get(r.journey_id);
+                            if (shiftVal) {
+                                const cleanTime = String(r.report_time || '00:00').slice(0, 5);
+                                const key = `${String(r.pozo || '').trim().toUpperCase()}@${cleanTime}`;
+                                map.set(key, shiftVal);
+                            }
+                        });
+                    }
+                }
+            } catch (err) {
+                console.warn('Error fetching journeys and records for shift mapping:', err);
+            }
+            return map;
+        }
+
+        function filterRecordsByOperationalDate(records = [], ticketDate, journeyMap = null) {
             return records
-                .map(record => ({ ...record, _operationalShift: getOperationalShiftForRecord(record) }))
+                .map(record => ({ ...record, _operationalShift: getOperationalShiftForRecord(record, journeyMap) }))
                 .filter(record => record._operationalShift?.operationalDate === ticketDate);
         }
 
@@ -1192,7 +1252,8 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 const data = activeScopePozoNames.length > 0
                     ? await getMonitoringData(activeScopePozoNames, ticketDate, nextDate)
                     : [];
-                const operationalRecords = filterRecordsByOperationalDate(data, ticketDate);
+                const journeyMap = await getJornadaMapForDate(ticketDate);
+                const operationalRecords = filterRecordsByOperationalDate(data, ticketDate, journeyMap);
                 const selectedShiftGroup = getSelectedTicketShiftGroup(operationalRecords);
                 currentRecordData = selectedShiftGroup.records;
                 currentTicketGroups = groupMonitoringRecordsByPozo(currentRecordData);
