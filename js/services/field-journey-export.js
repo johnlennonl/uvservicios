@@ -730,11 +730,12 @@ export async function openFieldJourneyPdf(journey, records, reviewLog = [], targ
         /* Mobile responsive overrides for on-screen viewing */
         @media (max-width: 768px) {
             body { padding: 10px; }
-            .hero { padding: 18px; border-radius: 16px; flex-direction: column; text-align: center; }
-            .hero-logo { width: 60px; height: 60px; }
-            .hero-text h1 { font-size: 1rem; }
+            .hero { padding: 18px; border-radius: 16px; flex-direction: row; text-align: left; align-items: center; justify-content: space-between; gap: 12px; }
+            .hero-logo { width: 70px; height: 70px; padding: 6px; border-radius: 14px; flex-shrink: 0; }
+            .hero-text h1 { font-size: 1.15rem; line-height: 1.25; margin-bottom: 6px; }
             .hero-text p { font-size: 0.75rem; }
-            .meta .tag { font-size: 9px; padding: 3px 8px; }
+            .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+            .meta .tag { font-size: 8.5px; padding: 3px 8px; margin: 0; }
             .well-table { font-size: 10px; }
             .well-table th, .well-table td { padding: 6px 5px; }
             .well-head h3 span { font-size: 0.85rem; }
@@ -969,14 +970,17 @@ function buildPdfWellMarkup(journey, pozoName, recordsList = [], soportesDocs = 
         <article class="well">
             <div class="well-head">
                 <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #0f766e; flex-shrink: 0; margin-top: -1px;">
-                        <path d="M6 22L12 5L18 22" />
-                        <path d="M3 6h15" />
-                        <path d="M3 6C2 5.5 1 4.5 1 3" />
-                        <path d="M1.5 3v13" />
-                        <path d="M12 6l5 9" />
-                        <circle cx="17" cy="15" r="2" />
-                        <path d="M2 22h20" />
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #0f766e; flex-shrink: 0; margin-top: -1px;">
+                        <rect x="9" y="1" width="6" height="2.5" rx="0.5" />
+                        <line x1="12" y1="3.5" x2="12" y2="5" />
+                        <line x1="9" y1="5" x2="15" y2="5" />
+                        <line x1="10" y1="5" x2="10" y2="16" />
+                        <line x1="14" y1="5" x2="14" y2="16" />
+                        <path d="M11.2 5 Q11.8 9 11.2 12 Q10.6 15 11.2 16" stroke-dasharray="1.5 1" stroke-width="0.9" />
+                        <rect x="9.5" y="16" width="5" height="6" rx="1.2" fill="currentColor" opacity="0.12" />
+                        <line x1="10.5" y1="17.2" x2="10.5" y2="21" stroke-width="0.7" />
+                        <line x1="12" y1="17.2" x2="12" y2="21" stroke-width="0.7" />
+                        <line x1="13.5" y1="17.2" x2="13.5" y2="21" stroke-width="0.7" />
                     </svg>
                     <span>POZO: ${escapeHtml(String(pozoName).toUpperCase())}</span>
                     <span style="font-size: 9px; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #bae6fd; margin-left: 6px; display: inline-flex; align-items: center; gap: 2px; line-height: 1;">⚡ BES</span>

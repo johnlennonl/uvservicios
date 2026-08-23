@@ -480,21 +480,30 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                                     <div class="daily-ticket-history-topbar">
                                         <div>
                                             <h3 style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #0f766e; flex-shrink: 0;">
-                                                    <path d="M6 22L12 5L18 22" />
-                                                    <path d="M3 6h15" />
-                                                    <path d="M3 6C2 5.5 1 4.5 1 3" />
-                                                    <path d="M1.5 3v13" />
-                                                    <path d="M12 6l5 9" />
-                                                    <circle cx="17" cy="15" r="2" />
-                                                    <path d="M2 22h20" />
+                                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #0f766e; flex-shrink: 0;">
+                                                    <rect x="9" y="1" width="6" height="2.5" rx="0.5" />
+                                                    <line x1="12" y1="3.5" x2="12" y2="5" />
+                                                    <line x1="9" y1="5" x2="15" y2="5" />
+                                                    <line x1="10" y1="5" x2="10" y2="16" />
+                                                    <line x1="14" y1="5" x2="14" y2="16" />
+                                                    <path d="M11.2 5 Q11.8 9 11.2 12 Q10.6 15 11.2 16" stroke-dasharray="1.5 1" stroke-width="0.9" />
+                                                    <rect x="9.5" y="16" width="5" height="6" rx="1.2" fill="currentColor" opacity="0.12" />
+                                                    <line x1="10.5" y1="17.2" x2="10.5" y2="21" stroke-width="0.7" />
+                                                    <line x1="12" y1="17.2" x2="12" y2="21" stroke-width="0.7" />
+                                                    <line x1="13.5" y1="17.2" x2="13.5" y2="21" stroke-width="0.7" />
                                                 </svg>
                                                 <span>${escapeHtml(group.pozoName)}</span>
                                                 <span style="font-size: 0.68rem; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #bae6fd; display: inline-flex; align-items: center; gap: 4px;">⚡ BES</span>
                                             </h3>
                                             <p>Historial operativo consolidado del pozo para esta jornada.</p>
                                         </div>
-                                        <span class="daily-ticket-group-count">${group.records.length} registros</span>
+                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                            <button class="btn-well-detail-tab" data-pozo="${escapeHtml(group.pozoName)}" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 10px; border: 1.5px solid #0f766e; background: linear-gradient(135deg, #f0fdfa, #ccfbf1); color: #0f766e; font-weight: 700; font-size: 0.72rem; cursor: pointer; text-transform: uppercase; letter-spacing: 0.04em; transition: all 0.2s; font-family: inherit;">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                Ver Detalles
+                                            </button>
+                                            <span class="daily-ticket-group-count">${group.records.length} registros</span>
+                                        </div>
                                     </div>
                                     <div style="overflow-x: auto;">
                                         <table class="history-table daily-ticket-history-table">
@@ -523,6 +532,644 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 </section>
             `;
             }).join('');
+
+            // Attach event delegation for "Ver Detalles" buttons
+            document.querySelectorAll('.btn-well-detail-tab').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    const pozoName = btn.getAttribute('data-pozo');
+                    const group = currentTicketGroups.find(g => g.pozoName === pozoName);
+                    if (group) openWellDetailTab(pozoName, group.records);
+                };
+            });
+        }
+
+        async function openWellDetailTab(pozoName, records) {
+            // Open tab synchronously to avoid popup blocker
+            const detailWindow = window.open('', '_blank');
+            if (!detailWindow) {
+                Swal.fire({ icon: 'warning', title: 'Popup Bloqueado', text: 'Por favor permite ventanas emergentes para ver la ficha técnica.' });
+                return;
+            }
+
+            const ticketDate = document.getElementById('ticket-date')?.value || '';
+            const ticketShiftLabel = getTicketShiftLabel();
+            const escHtml = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            const formatVal = (v) => (v !== null && v !== undefined && v !== '') ? v : '--';
+
+            // Show loading state
+            detailWindow.document.write('<html><head><title>Cargando ficha...</title><style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;color:#334155;}</style></head><body><div style="text-align:center;"><div style="width:40px;height:40px;border:3px solid #e2e8f0;border-top:3px solid #0f766e;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div><p style="font-weight:600;">Cargando ficha técnica de ' + escHtml(pozoName) + '...</p></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style></body></html>');
+
+            try {
+                // Fetch extended data for all records
+                let allExtendedRecords = [];
+                for (const record of records) {
+                    let extraData = {};
+                    const cleanTime = String(record.hora || '').substring(0, 5);
+
+                    const { data: fieldData } = await supabase
+                        .from('field_journey_records')
+                        .select('report_time, raw_payload')
+                        .eq('pozo', pozoName)
+                        .eq('report_date', record.fecha);
+
+                    if (fieldData && fieldData.length > 0) {
+                        const match = fieldData.find(f => String(f.report_time || '').substring(0, 5) === cleanTime) || fieldData[0];
+                        extraData = match.raw_payload || {};
+                    } else {
+                        const { data: excelData } = await supabase
+                            .from('consolidated_dashboard_operational')
+                            .select('row_data, report_time')
+                            .eq('pozo', pozoName)
+                            .eq('report_date', record.fecha);
+
+                        if (excelData && excelData.length > 0) {
+                            const exactMatch = excelData.find(r => String(r.report_time || '').substring(0, 5) === cleanTime) || excelData[0];
+                            extraData = exactMatch.row_data || {};
+                        }
+                    }
+                    allExtendedRecords.push({ ...extraData, ...record });
+                }
+
+                // Fetch all documents for this pozo on this date
+                let photosHtml = '';
+                let attachmentsHtml = '';
+                try {
+                    const { data: allDocs } = await supabase
+                        .from('well_historical_documents')
+                        .select('*')
+                        .is('deleted_at', null)
+                        .eq('fecha_documento', ticketDate)
+                        .eq('pozo_name', pozoName.toUpperCase());
+
+                    if (Array.isArray(allDocs) && allDocs.length > 0) {
+                        const { getDocumentDownloadUrls } = await import('../services/well-documents-service.js');
+                        const filePaths = allDocs.map(p => p.file_path).filter(Boolean);
+                        const urlsMap = await getDocumentDownloadUrls(filePaths);
+
+                        // Classify documents
+                        const photos = allDocs.filter(d => d.categoria === 'SOPORTES');
+                        const echometerDocs = allDocs.filter(d => d.categoria === 'REGISTROS_ECHOMETER');
+                        const sensorDocs = allDocs.filter(d => d.categoria === 'DATA_SENSOR_FONDO');
+                        const vsdDocs = allDocs.filter(d => d.categoria === 'VOLCADOS_VSD');
+
+                        // 1. Build Photos section
+                        if (photos.length > 0) {
+                            const photoCards = photos.map(p => {
+                                const url = urlsMap[p.file_path];
+                                if (!url) return '';
+                                return `<div class="photo-card"><img src="${url}" alt="${escHtml(p.nombre_archivo)}" loading="lazy"><span class="photo-label">${escHtml(p.nombre_archivo)}</span></div>`;
+                            }).filter(Boolean).join('');
+
+                            if (photoCards) {
+                                photosHtml = `
+                                <section class="detail-section" style="background: #f0fdfa; border-color: #99f6e4;">
+                                    <h3 style="color: #0f766e;">📸 Soportes Fotográficos de Campo (${photos.length})</h3>
+                                    <div class="photo-grid">${photoCards}</div>
+                                </section>`;
+                            }
+                        }
+
+                        // 2. Build Attachments section
+                        let attachmentCards = '';
+
+                        // Render Echometer
+                        echometerDocs.forEach(d => {
+                            const url = urlsMap[d.file_path] || '#';
+                            attachmentCards += `
+                                <div class="attachment-card cat-echometer">
+                                    <div class="attachment-icon">📈</div>
+                                    <div class="attachment-info">
+                                        <span class="attachment-type">Registro Echometer / Nivel</span>
+                                        <strong class="attachment-name" title="${escHtml(d.nombre_archivo)}">${escHtml(d.nombre_archivo)}</strong>
+                                    </div>
+                                    <a href="${url}" target="_blank" download class="btn-download">Descargar</a>
+                                </div>
+                            `;
+                        });
+
+                        // Render Sensor de Fondo
+                        sensorDocs.forEach(d => {
+                            const url = urlsMap[d.file_path] || '#';
+                            attachmentCards += `
+                                <div class="attachment-card cat-sensor">
+                                    <div class="attachment-icon">💾</div>
+                                    <div class="attachment-info">
+                                        <span class="attachment-type">Data Sensor de Fondo</span>
+                                        <strong class="attachment-name" title="${escHtml(d.nombre_archivo)}">${escHtml(d.nombre_archivo)}</strong>
+                                    </div>
+                                    <a href="${url}" target="_blank" download class="btn-download">Descargar</a>
+                                </div>
+                            `;
+                        });
+
+                        // Render VSD Dumps
+                        vsdDocs.forEach(d => {
+                            const url = urlsMap[d.file_path] || '#';
+                            attachmentCards += `
+                                <div class="attachment-card cat-vsd">
+                                    <div class="attachment-icon">⚡</div>
+                                    <div class="attachment-info">
+                                        <span class="attachment-type">Volcado de Variador VSD</span>
+                                        <strong class="attachment-name" title="${escHtml(d.nombre_archivo)}">${escHtml(d.nombre_archivo)}</strong>
+                                    </div>
+                                    <a href="${url}" target="_blank" download class="btn-download">Descargar</a>
+                                </div>
+                            `;
+                        });
+
+                        if (attachmentCards) {
+                            attachmentsHtml = `
+                            <section class="detail-section attachments-section" style="background: #f8fafc; border-color: #e2e8f0;">
+                                <h3 style="color: #475569;">📁 Archivos Técnicos de Campo del Día</h3>
+                                <div class="attachments-grid">${attachmentCards}</div>
+                            </section>`;
+                        }
+                    }
+                } catch (e) { console.warn('Documents fetch error:', e); }
+
+                // PARAM_SECTIONS reuse
+                const SECTIONS = [
+                    { id: 'jornada', title: '📋 Jornada', color: '#1E3A8A', bg: '#EFF6FF', border: '#BFDBFE', fields: [
+                        { key: 'tecnico_1', label: 'Técnico 1' },
+                        { key: 'tecnico_2', label: 'Técnico 2' },
+                        { key: 'equipo_guardia', label: 'Equipo de Guardia' },
+                        { key: 'locacion_jornada', label: 'Locación de la Jornada' },
+                        { key: 'jornada', label: 'Jornada' },
+                        { key: 'pozo', label: 'Pozo' },
+                        { key: 'campo', label: 'Campo' },
+                        { key: 'fecha', label: 'Fecha' },
+                        { key: 'hora', label: 'Hora' }
+                    ]},
+                    { id: 'info_general', title: '📍 Información General', color: '#0F766E', bg: '#F0FDF4', border: '#99F6E4', fields: [
+                        { key: 'ef', label: 'EF' },
+                        { key: 'estado', label: 'Estado' },
+                        { key: 'categoria', label: 'Categoría' },
+                        { key: 'potencial', label: 'Potencial', unit: 'BPD' },
+                        { key: 'bruta', label: 'Bruta', unit: 'BPD' },
+                        { key: 'neta', label: 'Neta', unit: 'BPD' },
+                        { key: 'ays_percentage', label: '% AyS', unit: '%' },
+                        { key: 'actividad', label: 'Actividad' },
+                        { key: 'estatus', label: 'Estatus' }
+                    ]},
+                    { id: 'parametros_operacionales', title: '⚙️ Parámetros Operacionales', color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', fields: [
+                        { key: 'frecuencia', label: 'Frecuencia', unit: 'Hz' },
+                        { key: 'modo_operacion', label: 'Modo de Operación' },
+                        { key: 'sentido_giro', label: 'Sentido de Giro' },
+                        { key: 'i_motor', label: 'I Motor', unit: 'A' },
+                        { key: 'v_motor', label: 'V Motor', unit: 'V' },
+                        { key: 'out_vsd', label: 'Out VSD', unit: 'V' },
+                        { key: 'i_vsd_a', label: 'I VSD A', unit: 'A' },
+                        { key: 'i_vsd_b', label: 'I VSD B', unit: 'A' },
+                        { key: 'i_vsd_c', label: 'I VSD C', unit: 'A' },
+                        { key: 'prom_i_vsd', label: 'Prom I VSD', unit: 'A' },
+                        { key: 'desv_fase_a', label: 'ABS IA PROM VSD', unit: '%' },
+                        { key: 'desv_fase_b', label: 'ABS IB PROM VSD', unit: '%' },
+                        { key: 'desv_fase_c', label: 'ABS IC PROM VSD', unit: '%' },
+                        { key: 'max_desviacion_vsd', label: 'MAXIMO ABS I VSD', unit: '%' },
+                        { key: 'desbalance_corriente_vsd', label: '% Desbalance Corriente VSD', unit: '%' },
+                        { key: 'posee_sensor_fondo', label: 'Posee Sensor de Fondo' },
+                        { key: 'descarga_datas_sensor', label: 'Descargó Data del Sensor' },
+                        { key: 'pip_psi', label: 'PIP', unit: 'psi' },
+                        { key: 'pd_psi', label: 'PD', unit: 'psi' },
+                        { key: 'ti_f', label: 'Ti', unit: '°F' },
+                        { key: 'tm_f', label: 'Tm', unit: '°F' },
+                        { key: 'vx_g', label: 'Vx', unit: 'G' },
+                        { key: 'vy_g', label: 'Vy', unit: 'G' },
+                        { key: 'vz_g', label: 'Vz', unit: 'G' }
+                    ]},
+                    { id: 'sistema_bes', title: '🔌 Sistema BES', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', fields: [
+                        { key: 'amp_nominal_motor', label: 'Amp Nominal Motor', unit: 'A' },
+                        { key: 'volt_nominal_motor', label: 'Volt Nominal Motor', unit: 'V' },
+                        { key: 'frec_max_hz', label: 'Frec Max', unit: 'Hz' },
+                        { key: 'low_speed_hz', label: 'Low Speed', unit: 'Hz' },
+                        { key: 'ul_a', label: 'UL', unit: 'A' },
+                        { key: 'ol_a', label: 'OL', unit: 'A' },
+                        { key: 'i_limit_a', label: 'I-Limit', unit: 'A' },
+                        { key: 'tiempo_desaceleracion_seg', label: 'Tiempo de Desaceleración', unit: 'seg' },
+                        { key: 'low_pip_shutdown_psi', label: 'Low PIP Shutdown', unit: 'psi' },
+                        { key: 'max_high_temp_shutdown_f', label: 'Max High Temp. Shutdown', unit: '°F' }
+                    ]},
+                    { id: 'superficie', title: '🏗️ Superficie & Equipamiento', color: '#475569', bg: '#F1F5F9', border: '#CBD5E1', fields: [
+                        { key: 'baja_datos', label: 'Descargó Data del VDF' },
+                        { key: 'vsd_kva', label: 'VSD', unit: 'kVA' },
+                        { key: 'marca_vsd', label: 'Marca VSD' },
+                        { key: 'modelo_vsd', label: 'Modelo VSD' },
+                        { key: 'tx_kva', label: 'Tx', unit: 'kVA' },
+                        { key: 'tap_v', label: 'Tap', unit: 'V' },
+                        { key: 'rt', label: 'R.T' },
+                        { key: 'estado_tx', label: 'Estado del Tx' },
+                        { key: 'estado_vsd', label: 'Estado del VSD' },
+                        { key: 'estado_panel_sensor_choques', label: 'Estado Panel Sensor / Choques' },
+                        { key: 'estado_aterramiento', label: 'Estado del Aterramiento' },
+                        { key: 'condicion_cableado', label: 'Condición del Cableado' },
+                        { key: 'condicion_caseta', label: 'Condición de la Jaula' },
+                        { key: 'temperatura_caseta', label: 'Temperatura de la Caseta del VDF', unit: '°C' },
+                        { key: 'estado_fosa_porcentaje', label: 'Estado de Fosa', unit: '%' },
+                        { key: 'estado_biw_conector', label: 'Estado del BIW/Conector' },
+                        { key: 'estado_manometros', label: 'Estado de Manómetros' },
+                        { key: 'estado_cabezal', label: 'Estado del Cabezal' },
+                        { key: 'estado_tomamuestras', label: 'Estado de Tomamuestras' },
+                        { key: 'estado_caja_venteo', label: 'Estado Caja de Venteo' }
+                    ]},
+                    { id: 'presiones_superficie', title: '📈 Presiones de Superficie & Echometer', color: '#0D9488', bg: '#F0FDF4', border: '#BBF7D0', fields: [
+                        { key: 'echometer', label: 'Echometer' },
+                        { key: 'thp_psi', label: 'THP', unit: 'psi' },
+                        { key: 'chp_psi', label: 'CHP', unit: 'psi' },
+                        { key: 'lf_psi', label: 'LF', unit: 'psi' },
+                        { key: 'cond_chp', label: 'Cond. CHP' },
+                        { key: 'nivel_fluido_ft', label: 'Nivel de Fluido', unit: 'ft' },
+                        { key: 'sumergencia_ft', label: 'Sumergencia', unit: 'ft' },
+                        { key: 'pip_echometer_psi', label: 'PIP Echometer', unit: 'psi' },
+                        { key: 'diagnostico', label: 'Diagnóstico' }
+                    ]},
+                    { id: 'prueba_electrica', title: '⚡ Prueba Eléctrica', color: '#B91C1C', bg: '#FEF2F2', border: '#FECACA', fields: [
+                        { key: 'resistencia_ab_ohm', label: 'Resistencia A-B', unit: 'Ohm' },
+                        { key: 'resistencia_bc_ohm', label: 'Resistencia B-C', unit: 'Ohm' },
+                        { key: 'resistencia_ca_ohm', label: 'Resistencia C-A', unit: 'Ohm' },
+                        { key: 'aislamiento_fase_tierra_mohm', label: 'Aislamiento Fase-Tierra', unit: 'MOhm' }
+                    ]},
+                    { id: 'tx_bobina_primaria', title: '🌀 Tx Bobina Primaria', color: '#4F46E5', bg: '#E0E7FF', border: '#C7D2FE', fields: [
+                        { key: 'ff_x1_x2_v', label: 'FASE-FASE X1-X2', unit: 'V' },
+                        { key: 'ff_x2_x3_v', label: 'FASE-FASE X2-X3', unit: 'V' },
+                        { key: 'ff_x3_x1_v', label: 'FASE-FASE X3-X1', unit: 'V' },
+                        { key: 'promedio_fase_fase', label: 'PROMEDIO F-F PRIMARIO', unit: 'V' },
+                        { key: 'desv_ff_x1_x2', label: 'ABS X1-X2 PROM', unit: 'V' },
+                        { key: 'desv_ff_x2_x3', label: 'ABS X3-X2 PROM', unit: 'V' },
+                        { key: 'desv_ff_x3_x1', label: 'ABS X3-X1 PROM', unit: 'V' },
+                        { key: 'max_desviacion_ff', label: 'MAX ABS F-F PRIMARIO', unit: 'V' },
+                        { key: 'desbalance_fase_fase', label: '% DESBALANCE FASE/FASE', unit: '%' },
+                        { key: 'ft_x1_tierra_v', label: 'FASE-TIERRA X1-X2', unit: 'V' },
+                        { key: 'ft_x2_tierra_v', label: 'FASE-TIERRA X2-X3', unit: 'V' },
+                        { key: 'ft_x3_tierra_v', label: 'FASE-TIERRA X3-X1', unit: 'V' },
+                        { key: 'promedio_fase_tierra', label: 'PROMEDIO FASE/TIERRA', unit: 'V' },
+                        { key: 'desv_ft_x1_tierra', label: 'ABS X1-X2 FASE TIERRA PRIMARIO', unit: 'V' },
+                        { key: 'desv_ft_x2_tierra', label: 'ABS X2-X3 FASE TIERRA PRIMARIO', unit: 'V' },
+                        { key: 'desv_ft_x3_tierra', label: 'ABS X3-X1 FASE TIERRA PRIMARIO', unit: 'V' },
+                        { key: 'max_desviacion_ft', label: 'MAX ABS F-T PRIMARIO', unit: 'V' },
+                        { key: 'desbalance_fase_tierra', label: '% DESBALANCE FASE/TIERRA', unit: '%' },
+                        { key: 'corriente_x1_x2_amp', label: 'CORRIENTE X1-X2', unit: 'A' },
+                        { key: 'corriente_x2_x3_amp', label: 'CORRIENTE X2-X3', unit: 'A' },
+                        { key: 'corriente_x3_x1_amp', label: 'CORRIENTE X3-X1', unit: 'A' },
+                        { key: 'promedio_corriente_primaria', label: 'PROMEDIO CORRIENTE PRIMARIO', unit: 'A' },
+                        { key: 'desv_corriente_x1_x2', label: 'ABS CORRIENTE X1-X2 PROMEDIO', unit: 'A' },
+                        { key: 'desv_corriente_x2_x3', label: 'ABS CORRIENTE X2-X3 PROMEDIO', unit: 'A' },
+                        { key: 'desv_corriente_x3_x1', label: 'ABS CORRIENTE X3-X1 PROMEDIO', unit: 'A' },
+                        { key: 'max_desviacion_corriente_primaria', label: 'MAX ABS CORRIENTE PROMEDIO PRIMARIO', unit: 'A' },
+                        { key: 'desbalance_corriente_primaria', label: '% DESBALANCE CORRIENTE', unit: '%' }
+                    ]},
+                    { id: 'tx_bobina_secundaria', title: '🌀 Tx Bobina Secundaria', color: '#0891B2', bg: '#ECFEFF', border: '#C5F2F7', fields: [
+                        { key: 'sec_ff_h1_h2_v', label: 'FASE-FASE H1-H2', unit: 'V' },
+                        { key: 'sec_ff_h2_h3_v', label: 'FASE-FASE H2-H3', unit: 'V' },
+                        { key: 'sec_ff_h3_h1_v', label: 'FASE-FASE H3-H1', unit: 'V' },
+                        { key: 'sec_promedio_fase_fase', label: 'PROMEDIO FASE/FASE', unit: 'V' },
+                        { key: 'sec_desv_ff_h1_h2', label: 'ABS F-F H1-H2 PROMEDIO', unit: 'V' },
+                        { key: 'sec_desv_ff_h2_h3', label: 'ABS F-F H2-H3 PROMEDIO', unit: 'V' },
+                        { key: 'sec_desv_ff_h3_h1', label: 'ABS F-F H3-H1 PROMEDIO', unit: 'V' },
+                        { key: 'sec_max_desviacion_ff', label: 'MAX ABS F-F PROMEDIO SECUNDARIO', unit: 'V' },
+                        { key: 'sec_desbalance_fase_fase', label: '% DESBALANCE FASE/FASE', unit: '%' },
+                        { key: 'sec_ft_h1_tierra_v', label: 'FASE-TIERRA H1-H2', unit: 'V' },
+                        { key: 'sec_ft_h2_tierra_v', label: 'FASE-TIERRA H2-H3', unit: 'V' },
+                        { key: 'sec_ft_h3_tierra_v', label: 'FASE-TIERRA H3-H1', unit: 'V' },
+                        { key: 'sec_promedio_fase_tierra', label: 'PROMEDIO FASE-TIERRA', unit: 'V' },
+                        { key: 'sec_desv_ft_h1_h2', label: 'ABS F-T H1-H2 PROMEDIO', unit: 'V' },
+                        { key: 'sec_desv_ft_h2_h3', label: 'ABS F-T H2-H3 PROMEDIO', unit: 'V' },
+                        { key: 'sec_desv_ft_h3_h1', label: 'ABS F-T H3-H1 PROMEDIO', unit: 'V' },
+                        { key: 'sec_max_desviacion_ft', label: 'MAX ABS F-T PROMEDIO SECUNDARIO', unit: 'V' },
+                        { key: 'sec_desbalance_fase_tierra', label: '% DESBALANCE FASE/TIERRA', unit: '%' },
+                        { key: 'corriente_h1_h2_amp', label: 'CORRIENTE H1-H2', unit: 'A' },
+                        { key: 'corriente_h2_h3_amp', label: 'CORRIENTE H2-H3', unit: 'A' },
+                        { key: 'corriente_h3_h1_amp', label: 'CORRIENTE H3-H1', unit: 'A' },
+                        { key: 'sec_promedio_corriente', label: 'PROMEDIO CORRIENTE SECUNDARIO', unit: 'A' },
+                        { key: 'sec_desv_corriente_h1_h2', label: 'ABS CORRIENTE H1-H2 PROMEDIO', unit: 'A' },
+                        { key: 'sec_desv_corriente_h2_h3', label: 'ABS CORRIENTE H2-H3 PROMEDIO', unit: 'A' },
+                        { key: 'sec_desv_corriente_h3_h1', label: 'ABS CORRIENTE H3-H1 PROMEDIO', unit: 'A' },
+                        { key: 'sec_max_desviacion_corriente', label: 'MAXIMO ABS CORRIENTE PROMEDIO SECUNDARIO', unit: 'A' },
+                        { key: 'desbalance_corriente_secundaria', label: '% DESBALANCE CORRIENTE', unit: '%' }
+                    ]},
+                    { id: 'indicadores_operacionales', title: '📊 Indicadores Operacionales', color: '#0284C7', bg: '#F0F9FF', border: '#BAE6FD', fields: [
+                        { key: 'relacion_a_con_a_nom', label: 'Relación A. Con. / A. Nom' },
+                        { key: 'porcentaje_amp', label: '% Amp', unit: '%' },
+                        { key: 'relacion_v_mot_v_nom', label: 'Relación V. Mot / V. Nom' },
+                        { key: 'porcentaje_volt', label: '% Volt', unit: '%' },
+                        { key: 'pd_max_psi', label: 'PD Max', unit: 'psi' },
+                        { key: 'delta_presion_psi', label: 'Delta Presión', unit: 'psi' },
+                        { key: 'porcentaje_delta_presion', label: '% Delta Presión', unit: '%' },
+                        { key: 'relacion_tm_t_max', label: 'Tm / T Max Permisible' },
+                        { key: 'porcentaje_temp', label: '% Temp', unit: '%' },
+                        { key: 'relacion_pip_min_pip', label: 'PIP Min / PIP' },
+                        { key: 'porcentaje_pip', label: '% PIP', unit: '%' }
+                    ]},
+                    { id: 'observaciones_sec', title: '📝 Observaciones', color: '#16A34A', bg: '#F0FDF4', border: '#BBF7D0', fields: [
+                        { key: 'observaciones_pozo', label: 'Observaciones del Pozo' }
+                    ]}
+                ];
+
+                const excludeKeys = new Set(['id', 'ID', 'deleted_at', 'user_id', 'is_historical', 'pozo_id', 'row_data', 'raw_payload', 'created_at', 'updated_at', 'synced_at', 'operational_scope']);
+                const cleanStr = str => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+                function renderRecordSections(dataObj, isWellRun = true) {
+                    const processedCleanKeys = new Set();
+                    let sectionsHtml = '';
+
+                    const normalizeMap = {};
+                    for (const [k, v] of Object.entries(dataObj)) {
+                        if (v !== null && v !== undefined && v !== '') {
+                            const ck = cleanStr(k);
+                            if (!normalizeMap[ck]) normalizeMap[ck] = { origKey: k, value: v };
+                        }
+                    }
+
+                    SECTIONS.forEach(sec => {
+                        // If well is OFF, only show allowed sections
+                        if (!isWellRun && !['jornada', 'info_general', 'presiones_superficie', 'observaciones_sec'].includes(sec.id)) {
+                            return;
+                        }
+
+                        let cardsHtml = '';
+                        sec.fields.forEach(f => {
+                            // If well is OFF, only allow diagnostico field in presiones_superficie section
+                            if (!isWellRun && sec.id === 'presiones_superficie' && f.key !== 'diagnostico') {
+                                return;
+                            }
+
+                            const targetCk = cleanStr(f.key);
+                            const match = normalizeMap[targetCk];
+                            if (match && !processedCleanKeys.has(targetCk)) {
+                                processedCleanKeys.add(targetCk);
+                                const rawVal = match.value;
+                                let valStr = String(rawVal);
+                                let badgeHtml = '';
+
+                                if (targetCk === 'estatus') {
+                                    const normSt = String(rawVal).toUpperCase().trim();
+                                    if (normSt === 'RUN' || normSt === 'RUN / ATENCION AL CLIENTE') {
+                                        badgeHtml = '<span class="status-badge run">🟢 RUN</span>';
+                                    } else if (normSt === 'OFF' || normSt === 'OFF / ATENCION AL CLIENTE' || normSt === 'PARADA MANUAL') {
+                                        badgeHtml = '<span class="status-badge off">🔴 OFF</span>';
+                                    } else {
+                                        badgeHtml = '<span class="status-badge other">' + escHtml(valStr) + '</span>';
+                                    }
+                                    valStr = '';
+                                } else if (f.unit) {
+                                    const num = Number(rawVal);
+                                    if (!isNaN(num)) {
+                                        valStr = (num % 1 === 0 ? num.toFixed(0) : num.toFixed(1)) + ' <small class="unit">' + f.unit + '</small>';
+                                    } else {
+                                        valStr += ' <small class="unit">' + f.unit + '</small>';
+                                    }
+                                }
+
+                                const isLongText = ['observacionespozo', 'observaciones', 'diagnostico', 'actividad'].includes(targetCk);
+                                cardsHtml += '<div class="param-card" style="' + (isLongText ? 'grid-column: 1 / -1;' : '') + '">' +
+                                    '<span class="param-label">' + escHtml(f.label) + '</span>' +
+                                    (badgeHtml ? badgeHtml : '<strong class="param-value" style="' + (isLongText ? 'font-size: 0.98rem; font-weight: 600; line-height: 1.5; display: block; margin-top: 4px;' : '') + '">' + valStr + '</strong>') +
+                                    '</div>';
+                            }
+                        });
+
+                        if (cardsHtml) {
+                            let secTitle = sec.title;
+                            let secColor = sec.color;
+                            let secBg = sec.bg;
+                            let secBorder = sec.border;
+                            if (!isWellRun && sec.id === 'presiones_superficie') {
+                                secTitle = '🩺 Diagnóstico';
+                                secColor = '#15803D';
+                                secBg = '#F0FDF4';
+                                secBorder = '#86EFAC';
+                            }
+                            sectionsHtml += '<div class="detail-section" style="background: ' + secBg + '; border-color: ' + secBorder + ';">' +
+                                '<h3 style="color: ' + secColor + ';">' + secTitle + '</h3>' +
+                                '<div class="param-grid">' + cardsHtml + '</div>' +
+                                '</div>';
+                        }
+                    });
+
+                    return sectionsHtml;
+                }
+
+                // Build records HTML
+                let recordsBodyHtml = '';
+                allExtendedRecords.forEach((rec, idx) => {
+                    const isRun = ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(String(rec.estatus || '').toUpperCase().trim());
+                    recordsBodyHtml += `
+                        <div class="record-block">
+                            <div class="record-header">
+                                <div class="record-header-left">
+                                    <span class="record-time">${formatVal(rec.fecha)} · ${formatVal(rec.hora)}</span>
+                                    <span class="record-badge ${isRun ? 'run' : 'off'}">${isRun ? '🟢 RUN' : '🔴 OFF'}</span>
+                                </div>
+                                <span class="record-index">Registro ${idx + 1} de ${allExtendedRecords.length}</span>
+                            </div>
+                            ${renderRecordSections(rec, isRun)}
+                        </div>
+                    `;
+                });
+
+                // Generate full HTML
+                const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha Técnica · ${escHtml(pozoName)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 24px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .sheet { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; padding-bottom: 80px; }
+
+        /* Hero Header */
+        .hero {
+            background: linear-gradient(135deg, #1e3a8a 0%, #0f766e 100%);
+            border-radius: 20px;
+            padding: 28px 32px;
+            color: #ffffff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 350px;
+            height: 350px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.04);
+        }
+        .hero-kicker { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #99f6e4; margin-bottom: 4px; }
+        .hero h1 { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 900; margin-bottom: 4px; }
+        .hero p { font-size: 0.82rem; color: #ccfbf1; font-weight: 500; }
+        .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .hero-tag { font-size: 10px; font-weight: 700; padding: 4px 12px; border-radius: 9999px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; backdrop-filter: blur(6px); text-transform: uppercase; letter-spacing: 0.04em; }
+        .hero-logo { width: 80px; height: 80px; object-fit: contain; flex-shrink: 0; filter: brightness(0) invert(1); opacity: 0.9; }
+
+        /* Record blocks */
+        .record-block { background: #ffffff; border-radius: 16px; padding: 24px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 2px solid #e2e8f0; flex-wrap: wrap; gap: 8px; }
+        .record-header-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .record-time { font-weight: 800; font-size: 1rem; color: #1e293b; }
+        .record-badge { font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .record-badge.run { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .record-badge.off { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+        .record-index { font-size: 0.75rem; color: #94a3b8; font-weight: 600; }
+
+        /* Sections */
+        .detail-section { border-radius: 14px; padding: 16px; border: 1px solid; margin-bottom: 14px; }
+        .detail-section h3 { font-size: 0.82rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
+        .param-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+        .param-card { background: #ffffff; padding: 10px 12px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .param-label { display: block; font-size: 0.68rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 3px; }
+        .param-value { color: #0f172a; font-size: 0.95rem; font-weight: 800; word-break: break-word; }
+        .unit { font-size: 0.72rem; color: #94a3b8; font-weight: 600; }
+        .status-badge { font-size: 0.78rem; font-weight: 800; padding: 3px 10px; border-radius: 12px; display: inline-block; }
+        .status-badge.run { background: #dcfce7; color: #15803d; }
+        .status-badge.off { background: #fee2e2; color: #b91c1c; }
+        .status-badge.other { background: #f1f5f9; color: #475569; }
+
+        /* Photos */
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+        .photo-card { border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background: #fff; }
+        .photo-card img { width: 100%; height: 160px; object-fit: cover; display: block; }
+        .photo-label { display: block; padding: 6px 10px; font-size: 0.7rem; font-weight: 600; color: #64748b; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Attachments */
+        .attachments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+        .attachment-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .attachment-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .attachment-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .attachment-type { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; color: #64748b; }
+        .attachment-name { font-size: 0.82rem; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .btn-download {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            background: #0f766e;
+            color: #fff;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .btn-download:hover { background: #0d9488; }
+
+        /* Categorized colors */
+        .cat-echometer { background: #f0fdf4; border-color: #bbf7d0; }
+        .cat-echometer .attachment-icon { background: #dcfce7; color: #15803d; }
+        .cat-sensor { background: #f5f3ff; border-color: #ddd6fe; }
+        .cat-sensor .attachment-icon { background: #e0e7ff; color: #7c3aed; }
+        .cat-vsd { background: #fffbeb; border-color: #fde68a; }
+        .cat-vsd .attachment-icon { background: #fef3c7; color: #d97706; }
+
+        /* Buttons */
+        .floating-actions { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 99999; }
+        .btn-float { padding: 12px 24px; border-radius: 50px; font-weight: 800; font-size: 0.8rem; cursor: pointer; border: none; text-transform: uppercase; letter-spacing: 0.04em; font-family: 'Inter', system-ui, sans-serif; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: all 0.2s; }
+        .btn-float:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+        .btn-back { background: linear-gradient(135deg, #dc2626, #b91c1c); color: #fff; }
+        .btn-print { background: linear-gradient(135deg, #0f766e, #0d9488); color: #fff; }
+
+        @media print {
+            @page { size: landscape; margin: 8mm; }
+            body { padding: 0; background: #fff; }
+            .floating-actions { display: none !important; }
+            .sheet { padding-bottom: 0; }
+            .hero { border-radius: 0; }
+            .record-block { box-shadow: none; page-break-inside: avoid; }
+            .detail-section { page-break-inside: avoid; }
+            .photo-card img { height: 120px; }
+            .attachments-section { display: none !important; }
+        }
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .hero { flex-direction: column; text-align: center; padding: 20px; border-radius: 16px; }
+            .hero-logo { width: 50px; height: 50px; }
+            .hero h1 { font-size: 1.1rem; }
+            .param-grid { grid-template-columns: repeat(2, 1fr); }
+            .photo-grid { grid-template-columns: repeat(2, 1fr); }
+            .attachments-grid { grid-template-columns: repeat(2, 1fr); }
+            .floating-actions { flex-direction: column; width: calc(100% - 32px); }
+            .btn-float { text-align: center; }
+        }
+        @media (max-width: 480px) {
+            .param-grid { grid-template-columns: 1fr; }
+            .photo-grid { grid-template-columns: 1fr; }
+            .attachments-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sheet">
+        <section class="hero">
+            <div>
+                <div class="hero-kicker">UV SERVICES · Ficha Técnica Individual</div>
+                <h1>POZO: ${escHtml(pozoName.toUpperCase())}</h1>
+                <p>Reporte operativo detallado con todos los parámetros BES registrados.</p>
+                <div class="hero-meta">
+                    <span class="hero-tag">⚡ BES</span>
+                    <span class="hero-tag">📅 ${escHtml(ticketDate)}</span>
+                    <span class="hero-tag">☀️ ${escHtml(ticketShiftLabel)}</span>
+                    <span class="hero-tag">${allExtendedRecords.length} registro(s)</span>
+                </div>
+            </div>
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" class="hero-logo" alt="UV Servicios">
+        </section>
+
+        ${recordsBodyHtml}
+        ${photosHtml}
+        ${attachmentsHtml}
+    </div>
+
+    <div class="floating-actions">
+        <button class="btn-float btn-back" onclick="window.close()">← Volver a Data</button>
+    </div>
+</body>
+</html>`;
+
+                detailWindow.document.open();
+                detailWindow.document.write(html);
+                detailWindow.document.close();
+            } catch (err) {
+                console.error('Error generating well detail tab:', err);
+                detailWindow.document.open();
+                detailWindow.document.write('<html><body style="font-family:system-ui;padding:40px;text-align:center;"><h2>Error</h2><p>' + escHtml(err.message) + '</p><button onclick="window.close()" style="margin-top:20px;padding:10px 20px;cursor:pointer;">Cerrar</button></body></html>');
+                detailWindow.document.close();
+            }
         }
 
         async function loadDailyTicketData() {
