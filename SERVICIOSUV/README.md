@@ -20,6 +20,13 @@ Recientemente hemos aplicado mejoras críticas de usabilidad y diseño premium p
    - Para alinear la interfaz con el estado real del trabajo de campo ("Servicio en Curso"), se eliminó el concepto de "Borrador".
    - Los botones ahora muestran **"Guardar Progreso"** y **"Editar Progreso"**, y las alertas interactivas muestran **"Progreso Guardado"**, haciendo la terminología más intuitiva para el personal técnico.
 
+4. **Visibilidad Completa de Tickets (Traspaso de Guardias)**:
+   - Se removió el filtro restrictivo de consulta en el frontend que limitaba a los técnicos a ver únicamente los tickets que ellos mismos habían creado (`created_by = auth.uid()`).
+   - Esto soluciona la desaparición de tickets en curso que fueron creados originalmente por supervisores, administradores o compañeros de guardias anteriores, facilitando el trabajo continuo y el traspaso de turnos.
+
+5. **✍️ Firma Digital Táctil (Canvas Pad)**:
+   - Implementación de un modal interactivo con lienzo canvas HTML5 y soporte táctil para registrar firmas digitales del Técnico y del Cliente, sustituyendo las cajas de texto tradicionales.
+
 ---
 
 ## 🏗️ Arquitectura del Módulo

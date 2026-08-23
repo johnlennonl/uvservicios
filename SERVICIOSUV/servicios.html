@@ -362,17 +362,47 @@
                                 <textarea id="pull-additional-comments" rows="3" placeholder="Comentarios y notas técnicas adicionales sobre el izamiento y desmontaje del equipo..."></textarea>
                             </label>
 
-                            <label class="form-input-group">
-                                <span>Revisado Por (UV Servicios)</span>
-                                <input type="text" id="pull-sig-uv" placeholder="Nombre del Técnico de Campo">
-                            </label>
+                             <!-- Firma UV Servicios (Técnico) -->
+                             <div class="form-input-group signature-container-block">
+                                 <span>Revisado Por (UV Servicios)</span>
+                                 <input type="text" id="pull-sig-uv" placeholder="Nombre del Técnico de Campo" required>
+                                 <div class="signature-canvas-wrapper">
+                                     <div class="signature-preview-box" id="sig-uv-preview-box">
+                                         <span class="no-sig-text">Sin firma registrada</span>
+                                         <img id="sig-uv-img" src="" alt="Firma UV" style="display: none;">
+                                     </div>
+                                     <div class="signature-actions">
+                                         <button type="button" class="btn-signature-draw" id="btn-draw-sig-uv">
+                                             ✏️ Dibujar Firma
+                                         </button>
+                                         <button type="button" class="btn-signature-clear" id="btn-clear-sig-uv" style="display: none;">
+                                             🗑️ Borrar
+                                         </button>
+                                     </div>
+                                 </div>
+                             </div>
 
-                            <label class="form-input-group">
-                                <span>Conforme Por (Company Man / Cliente)</span>
-                                <input type="text" id="pull-sig-client" placeholder="Nombre de Supervisor de Cliente">
-                            </label>
-                        </div>
-                    </div>
+                             <!-- Firma Cliente (Company Man) -->
+                             <div class="form-input-group signature-container-block">
+                                 <span>Conforme Por (Company Man / Cliente)</span>
+                                 <input type="text" id="pull-sig-client" placeholder="Nombre de Supervisor de Cliente" required>
+                                 <div class="signature-canvas-wrapper">
+                                     <div class="signature-preview-box" id="sig-client-preview-box">
+                                         <span class="no-sig-text">Sin firma registrada</span>
+                                         <img id="sig-client-img" src="" alt="Firma Cliente" style="display: none;">
+                                     </div>
+                                     <div class="signature-actions">
+                                         <button type="button" class="btn-signature-draw" id="btn-draw-sig-client">
+                                             ✏️ Dibujar Firma
+                                         </button>
+                                         <button type="button" class="btn-signature-clear" id="btn-clear-sig-client" style="display: none;">
+                                             🗑️ Borrar
+                                         </button>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
 
                     <!-- Barra de Acciones del Formulario -->
                     <div class="form-actions-wrapper-bar">
@@ -393,6 +423,26 @@
         </main>
         </div><!-- /.svc-main-wrapper -->
     </div><!-- /.svc-dashboard-layout -->
+
+    <!-- Modal de Firma Digital Canvas -->
+    <div id="signature-modal" class="signature-modal-overlay hidden">
+        <div class="signature-modal-content">
+            <div class="signature-modal-header">
+                <h3>✍️ Dibujar Firma Digital</h3>
+                <p>Use el dedo, stylus o mouse sobre la zona gris para dibujar su firma.</p>
+            </div>
+            <div class="signature-modal-body">
+                <canvas id="signature-canvas" width="460" height="200"></canvas>
+            </div>
+            <div class="signature-modal-footer">
+                <button type="button" class="btn-modal-clear" id="btn-modal-clear">🧹 Limpiar</button>
+                <div class="modal-action-group">
+                    <button type="button" class="btn-modal-cancel" id="btn-modal-cancel">Cancelar</button>
+                    <button type="button" class="btn-modal-save" id="btn-modal-save">Aceptar Firma</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- SDK de Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

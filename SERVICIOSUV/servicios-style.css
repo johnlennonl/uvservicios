@@ -1033,3 +1033,216 @@ body {
         text-align: center;
     }
 }
+
+/* ====================================================================
+   FIRMA DIGITAL / CANVAS SIGNATURE PAD
+   ==================================================================== */
+.signature-container-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.signature-canvas-wrapper {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.signature-preview-box {
+    height: 100px;
+    background: #f8fafc;
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.signature-preview-box .no-sig-text {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.signature-preview-box img {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    background: #ffffff; /* Contrast backdrop */
+    padding: 4px;
+}
+
+.signature-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-signature-draw {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: inherit;
+}
+
+.btn-signature-draw:hover {
+    background: #dbeafe;
+}
+
+.btn-signature-clear {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn-signature-clear:hover {
+    background: #fee2e2;
+}
+
+/* Modal de Firma */
+.signature-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s ease;
+}
+
+.signature-modal-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.signature-modal-content {
+    background: #ffffff;
+    border-radius: var(--border-radius-lg);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    width: 90%;
+    max-width: 500px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.signature-modal-header h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #1e3a8a;
+}
+
+.signature-modal-header p {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.signature-modal-body {
+    display: flex;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8fafc;
+}
+
+#signature-canvas {
+    background: #ffffff;
+    display: block;
+    cursor: crosshair;
+    max-width: 100%;
+    height: auto;
+}
+
+.signature-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-modal-clear {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn-modal-clear:hover {
+    background: #e2e8f0;
+}
+
+.modal-action-group {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-modal-cancel {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    background: #ffffff;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn-modal-cancel:hover {
+    background: #f8fafc;
+}
+
+.btn-modal-save {
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    background: var(--primary-color);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn-modal-save:hover {
+    background: var(--primary-hover);
+}

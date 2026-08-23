@@ -15,6 +15,14 @@ let currentTicketStatus = 'draft';
 let userRole = 'cliente_view';
 let activeTab = 'tab-dashboard';
 
+// Estado del signature canvas interactivo
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
+let currentSignatureTarget = null; // 'uv' o 'client'
+let signatureCanvas = null;
+let signatureCtx = null;
+
 // Configuración de los componentes BES de fondo para autogeneración de campos
 const EQUIPMENT_SCHEMA = [
     { category: 'PUMP', label: 'Bomba', count: 3, fields: ['manufacturer', 'series', 'stages', 'type', 'length', 'serial_number', 'rotation', 'housing', 'status_condition', 'comments'] },
@@ -193,6 +201,20 @@ function setupEventListeners() {
             await loadOperationsForDate(currentTicketId, selectedDate);
         }
     });
+
+    // Eventos para firma digital (lienzo canvas)
+    document.getElementById('btn-draw-sig-uv').addEventListener('click', () => openSignatureModal('uv'));
+    document.getElementById('btn-draw-sig-client').addEventListener('click', () => openSignatureModal('client'));
+    document.getElementById('btn-clear-sig-uv').addEventListener('click', () => clearSavedSignature('uv'));
+    document.getElementById('btn-clear-sig-client').addEventListener('click', () => clearSavedSignature('client'));
+
+    // Eventos del modal de firma
+    document.getElementById('btn-modal-clear').addEventListener('click', () => clearSignatureCanvas());
+    document.getElementById('btn-modal-cancel').addEventListener('click', () => closeSignatureModal());
+    document.getElementById('btn-modal-save').addEventListener('click', () => saveSignatureFromCanvas());
+
+    // Inicializar canvas de dibujo
+    initSignatureCanvas();
 }
 
 /**
@@ -220,6 +242,11 @@ function switchTab(tabId) {
         document.getElementById('pull-ticket-form').reset();
         document.getElementById('ops-tbody-rows').innerHTML = '';
         document.getElementById('pull-total-hours-display').textContent = '0.00 HRS';
+        
+        // Limpiar firmas del DOM
+        clearSavedSignature('uv');
+        clearSavedSignature('client');
+        
         loadTicketsList();
     } else if (tabId === 'tab-pull-ticket' && !currentTicketId) {
         // Inicializar fecha por defecto en la bitácora
@@ -230,6 +257,10 @@ function switchTab(tabId) {
         // Limpiar registro fotográfico en ticket nuevo
         const previewGrid = document.getElementById('photo-preview-grid');
         if (previewGrid) previewGrid.innerHTML = '';
+        
+        // Limpiar firmas del DOM para nuevo ticket
+        clearSavedSignature('uv');
+        clearSavedSignature('client');
         
         addOpsRow(); // Iniciar con una fila operativa vacía
     }
@@ -403,10 +434,7 @@ async function loadTicketsList() {
             .select('id, well_name, campo, date_start, rig, report_type, status, company')
             .order('created_at', { ascending: false });
 
-        // Si es rol de servicios, solo ve sus propios tickets (opcional según RLS, pero lo forzamos visualmente)
-        if (userRole === 'servicios') {
-            query = query.eq('created_by', currentUser.id);
-        }
+        // Obtenemos todos los tickets (el RLS de la base de datos permite lectura de todos a usuarios autenticados)
 
         const { data: tickets, error } = await query;
         if (error) throw error;
@@ -564,8 +592,37 @@ window.editTicket = async function(ticketId) {
         
         // Cargar firmas
         const sigs = ticket.signatures || {};
-        document.getElementById('pull-sig-uv').value = sigs.uv || '';
-        document.getElementById('pull-sig-client').value = sigs.client || '';
+        document.getElementById('pull-sig-uv').value = sigs.uv_name || sigs.uv || '';
+        document.getElementById('pull-sig-client').value = sigs.client_name || sigs.client || '';
+
+        // Cargar imágenes de firma
+        const uvImg = document.getElementById('sig-uv-img');
+        const uvPreview = document.getElementById('sig-uv-preview-box');
+        if (sigs.uv_signature) {
+            uvImg.src = sigs.uv_signature;
+            uvImg.style.display = 'block';
+            uvPreview.querySelector('.no-sig-text').style.display = 'none';
+            document.getElementById('btn-clear-sig-uv').style.display = 'inline-block';
+        } else {
+            uvImg.src = '';
+            uvImg.style.display = 'none';
+            uvPreview.querySelector('.no-sig-text').style.display = 'block';
+            document.getElementById('btn-clear-sig-uv').style.display = 'none';
+        }
+
+        const clientImg = document.getElementById('sig-client-img');
+        const clientPreview = document.getElementById('sig-client-preview-box');
+        if (sigs.client_signature) {
+            clientImg.src = sigs.client_signature;
+            clientImg.style.display = 'block';
+            clientPreview.querySelector('.no-sig-text').style.display = 'none';
+            document.getElementById('btn-clear-sig-client').style.display = 'inline-block';
+        } else {
+            clientImg.src = '';
+            clientImg.style.display = 'none';
+            clientPreview.querySelector('.no-sig-text').style.display = 'block';
+            document.getElementById('btn-clear-sig-client').style.display = 'none';
+        }
 
         // 2. Cargar bitácora diaria para la fecha de inicio por defecto
         document.getElementById('pull-ops-date').value = ticket.date_start;
@@ -649,7 +706,11 @@ async function saveTicket(targetStatus, isSilent = false) {
         const spoolers = document.getElementById('pull-spoolers').value.split(',').map(s => s.trim()).filter(Boolean);
         const signatures = {
             uv: document.getElementById('pull-sig-uv').value.trim(),
-            client: document.getElementById('pull-sig-client').value.trim()
+            uv_name: document.getElementById('pull-sig-uv').value.trim(),
+            uv_signature: document.getElementById('sig-uv-img').style.display === 'block' ? document.getElementById('sig-uv-img').src : null,
+            client: document.getElementById('pull-sig-client').value.trim(),
+            client_name: document.getElementById('pull-sig-client').value.trim(),
+            client_signature: document.getElementById('sig-client-img').style.display === 'block' ? document.getElementById('sig-client-img').src : null
         };
 
         const headerData = {
@@ -1122,5 +1183,147 @@ async function deletePhoto(docId, filePath) {
         Swal.fire({ icon: 'error', title: 'Error', text: err.message });
     } finally {
         document.getElementById('loader-overlay').classList.add('hidden');
+    }
+}
+
+/**
+ * ====================================================================
+ * GESTIÓN DE FIRMAS DIGITALES (HTML5 CANVAS)
+ * ====================================================================
+ */
+function initSignatureCanvas() {
+    signatureCanvas = document.getElementById('signature-canvas');
+    if (!signatureCanvas) return;
+    signatureCtx = signatureCanvas.getContext('2d');
+    
+    // Configurar estilo de trazo (línea suave)
+    signatureCtx.strokeStyle = '#0F172A'; // Slate-900
+    signatureCtx.lineWidth = 3;
+    signatureCtx.lineCap = 'round';
+    signatureCtx.lineJoin = 'round';
+
+    // Obtener coordenadas adaptadas al escalado CSS (max-width)
+    function getCoords(e) {
+        const rect = signatureCanvas.getBoundingClientRect();
+        const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+        const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+        
+        return {
+            x: (clientX - rect.left) * (signatureCanvas.width / rect.width),
+            y: (clientY - rect.top) * (signatureCanvas.height / rect.height)
+        };
+    }
+
+    function startDrawing(e) {
+        e.preventDefault();
+        isDrawing = true;
+        const coords = getCoords(e);
+        lastX = coords.x;
+        lastY = coords.y;
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const coords = getCoords(e);
+        signatureCtx.beginPath();
+        signatureCtx.moveTo(lastX, lastY);
+        signatureCtx.lineTo(coords.x, coords.y);
+        signatureCtx.stroke();
+        lastX = coords.x;
+        lastY = coords.y;
+    }
+
+    function stopDrawing() {
+        isDrawing = false;
+    }
+
+    // Eventos Mouse
+    signatureCanvas.addEventListener('mousedown', startDrawing);
+    signatureCanvas.addEventListener('mousemove', draw);
+    signatureCanvas.addEventListener('mouseup', stopDrawing);
+    signatureCanvas.addEventListener('mouseleave', stopDrawing);
+
+    // Eventos Touch para móvil y tablet
+    signatureCanvas.addEventListener('touchstart', startDrawing, { passive: false });
+    signatureCanvas.addEventListener('touchmove', draw, { passive: false });
+    signatureCanvas.addEventListener('touchend', stopDrawing);
+}
+
+function openSignatureModal(target) {
+    currentSignatureTarget = target;
+    const modal = document.getElementById('signature-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        // Limpiar el lienzo cada vez que se abre
+        clearSignatureCanvas();
+    }
+}
+
+function closeSignatureModal() {
+    const modal = document.getElementById('signature-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    currentSignatureTarget = null;
+}
+
+function clearSignatureCanvas() {
+    if (signatureCtx && signatureCanvas) {
+        signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+    }
+}
+
+function saveSignatureFromCanvas() {
+    if (!signatureCanvas || !currentSignatureTarget) return;
+    
+    // Obtener la imagen base64
+    const dataUrl = signatureCanvas.toDataURL();
+    
+    // Renderizar previsualización en el DOM
+    if (currentSignatureTarget === 'uv') {
+        const img = document.getElementById('sig-uv-img');
+        img.src = dataUrl;
+        img.style.display = 'block';
+        document.getElementById('sig-uv-preview-box').querySelector('.no-sig-text').style.display = 'none';
+        document.getElementById('btn-clear-sig-uv').style.display = 'inline-block';
+    } else if (currentSignatureTarget === 'client') {
+        const img = document.getElementById('sig-client-img');
+        img.src = dataUrl;
+        img.style.display = 'block';
+        document.getElementById('sig-client-preview-box').querySelector('.no-sig-text').style.display = 'none';
+        document.getElementById('btn-clear-sig-client').style.display = 'inline-block';
+    }
+    
+    closeSignatureModal();
+}
+
+function clearSavedSignature(target) {
+    if (target === 'uv') {
+        const img = document.getElementById('sig-uv-img');
+        if (img) {
+            img.src = '';
+            img.style.display = 'none';
+        }
+        const box = document.getElementById('sig-uv-preview-box');
+        if (box) {
+            const txt = box.querySelector('.no-sig-text');
+            if (txt) txt.style.display = 'block';
+        }
+        const btn = document.getElementById('btn-clear-sig-uv');
+        if (btn) btn.style.display = 'none';
+    } else if (target === 'client') {
+        const img = document.getElementById('sig-client-img');
+        if (img) {
+            img.src = '';
+            img.style.display = 'none';
+        }
+        const box = document.getElementById('sig-client-preview-box');
+        if (box) {
+            const txt = box.querySelector('.no-sig-text');
+            if (txt) txt.style.display = 'block';
+        }
+        const btn = document.getElementById('btn-clear-sig-client');
+        if (btn) btn.style.display = 'none';
     }
 }
