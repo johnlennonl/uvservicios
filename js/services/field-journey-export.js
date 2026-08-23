@@ -698,10 +698,53 @@ export async function openFieldJourneyPdf(journey, records, reviewLog = [], targ
             .foto-card img {
                 height: 75px;
             }
+            .btn-back-to-data {
+                display: none !important;
+            }
+        }
+        /* Floating back button (visible on screen, hidden on print) */
+        .btn-back-to-data {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: #ffffff;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 50px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            cursor: pointer;
+            z-index: 99999;
+            box-shadow: 0 8px 24px rgba(185, 28, 28, 0.45);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-family: 'Inter', system-ui, sans-serif;
+            transition: all 0.2s;
+        }
+        .btn-back-to-data:hover {
+            transform: translateX(-50%) translateY(-3px);
+            box-shadow: 0 12px 30px rgba(185, 28, 28, 0.55);
+        }
+        /* Mobile responsive overrides for on-screen viewing */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .hero { padding: 18px; border-radius: 16px; flex-direction: column; text-align: center; }
+            .hero-logo { width: 60px; height: 60px; }
+            .hero-text h1 { font-size: 1rem; }
+            .hero-text p { font-size: 0.75rem; }
+            .meta .tag { font-size: 9px; padding: 3px 8px; }
+            .well-table { font-size: 10px; }
+            .well-table th, .well-table td { padding: 6px 5px; }
+            .well-head h3 span { font-size: 0.85rem; }
+            .soportes-grid { gap: 6px; }
+            .foto-card { min-width: 80px; }
         }
     </style>
 </head>
 <body>
+    <button class="btn-back-to-data" onclick="window.close()">← VOLVER A DATA</button>
     <div class="sheet">
         <section class="hero">
             <div class="hero-text">
@@ -792,7 +835,14 @@ export async function openFieldJourneyPdf(journey, records, reviewLog = [], targ
         </section>
         ` : ''}
     </div>
-    <script>window.addEventListener('load', () => window.print());</script>
+    <script>
+        window.addEventListener('load', () => {
+            // Only auto-print on desktop; on mobile let the user review first
+            if (window.innerWidth > 768) {
+                window.print();
+            }
+        });
+    </script>
 </body>
 </html>`;
 
