@@ -588,6 +588,11 @@ h6 {
     color: #7c3aed;
 }
 
+.badge-gerencial {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
 .loader-shimmer {
     display: flex;
     flex-direction: column;

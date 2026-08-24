@@ -3533,6 +3533,7 @@ async function renderDetail(detail) {
             const { data: allDocs, error: docsError } = await supabase
                 .from('well_historical_documents')
                 .select('*')
+                .is('deleted_at', null)
                 .like('descripcion', `%[JORNADA_ID:${journeyIdStr}]%`);
 
             if (docsError) throw docsError;
@@ -3835,7 +3836,7 @@ function buildEmptyStateMessage() {
     const frontendRole = diagnostics.frontendRole || 'sin rol';
     const dbRole = diagnostics.dbRole || 'sin rol';
 
-    if (diagnostics.canViewManagementFromFrontend && !['admin', 'supervisor'].includes(dbRole)) {
+    if (diagnostics.canViewManagementFromFrontend && !['admin', 'supervisor', 'gerencial'].includes(dbRole)) {
         return `Supabase esta viendo tu sesion como ${dbRole}, aunque el frontend te muestra como ${frontendRole}. Eso hace que la base no te devuelva la bandeja administrativa.`;
     }
 

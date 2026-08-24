@@ -173,30 +173,102 @@ const state = {
 };
 
 /**
+ * Determina si el usuario actual tiene permisos de escritura en la sección activa (Pozo, General o Gerencial)
+ */
+function canUserWriteInCurrentSection() {
+    if (!state.userSession) return false;
+    const accessProfile = getAccessProfile(state.userSession);
+    const activeSection = state.activePozo; // '_GENERAL', '_GERENCIAL' o nombre de pozo
+
+    if (accessProfile.role === 'admin' || accessProfile.role === 'supervisor') {
+        return true; // Admins y supervisores tienen acceso total
+    }
+
+    if (accessProfile.isGerencial) {
+        // Gerencial solo puede escribir en su sección
+        return activeSection === '_GERENCIAL';
+    }
+
+    if (accessProfile.isBaseDatos) {
+        // El rol base_datos (DBA) tiene acceso total a pozos, general y gerencial según matriz
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Sincroniza la visibilidad de los botones de acción de escritura (Nueva Carpeta y Cargar Documento)
+ */
+function syncWriteActionButtons() {
+    const btnCreateFolder = document.getElementById('btn-create-folder');
+    const btnOpenUpload = document.getElementById('btn-open-upload-modal');
+    
+    const canWrite = canUserWriteInCurrentSection();
+    
+    // Solo mostrar "Nueva Carpeta" si hay un pozo/sección activo y no estamos en la vista raíz de pozos
+    if (btnCreateFolder) {
+        const isFoldersVisible = !document.getElementById('view-folders-container').hidden;
+        const isFilesVisible = !document.getElementById('view-files-container').hidden;
+        if (state.activePozo && (isFoldersVisible || isFilesVisible)) {
+            btnCreateFolder.style.display = canWrite ? 'inline-flex' : 'none';
+        } else {
+            btnCreateFolder.style.display = 'none';
+        }
+    }
+    
+    // Mostrar "Cargar Documento" según permisos de escritura
+    if (btnOpenUpload) {
+        btnOpenUpload.style.display = canWrite ? 'inline-flex' : 'none';
+    }
+}
+
+/**
  * Inicialización principal al cargar el documento HTML.
  */
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // 1. Verificar si la sesión ya fue validada con PIN en index.html
-        const isPinVerified = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) === 'true';
-        if (!isPinVerified) {
-            // Redirigir a inicio de sesión si no se ha validado el PIN
+        // 1. Cargar perfil de usuario primero para conocer su rol antes de exigir PIN
+        state.userSession = await getSession();
+        if (!state.userSession) {
             window.location.href = 'index.html';
             return;
         }
-        state.isPinVerified = true;
 
-        // 2. Cargar perfil de usuario
-        state.userSession = await getSession();
-        if (state.userSession) {
-            const accessProfile = getAccessProfile(state.userSession);
-            applyNavigationAccessProfile(accessProfile);
+        const accessProfile = getAccessProfile(state.userSession);
+
+        // 2. Verificar si la sesión fue validada con PIN (el rol gerencial no lo requiere)
+        const isPinVerified = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) === 'true';
+        if (!isPinVerified && !accessProfile.isGerencial) {
+            window.location.href = 'index.html';
+            return;
+        }
+        state.isPinVerified = isPinVerified || accessProfile.isGerencial;
+
+        applyNavigationAccessProfile(accessProfile);
+            
+            // Si el perfil es el del rol Gerencial, habilitamos el botón Volver
+            const btnPortal = document.getElementById('sidebar-link-portal');
+            const btnPortalMobile = document.getElementById('mobile-link-portal');
+            const statusPillMobile = document.getElementById('mobile-status-pill-db');
+            if (btnPortal) {
+                btnPortal.style.display = accessProfile.isGerencial ? 'flex' : 'none';
+            }
+            if (btnPortalMobile) {
+                if (accessProfile.isGerencial) {
+                    btnPortalMobile.style.display = 'flex';
+                    if (statusPillMobile) statusPillMobile.style.display = 'none';
+                } else {
+                    btnPortalMobile.style.display = 'none';
+                    if (statusPillMobile) statusPillMobile.style.display = 'flex';
+                }
+            }
+
             state.operationalScopeContext = await initOperationalScopeContext(state.userSession, accessProfile);
             state.activeOperationalScope = normalizeOperationalScope(state.operationalScopeContext.activeScope);
             renderOperationalScopeSwitcher(document.getElementById('database-operational-scope-switcher'), state.operationalScopeContext, {
                 onChange: () => window.location.reload()
             });
-        }
 
         // 3. Inicializar navegación instantánea y carga en segundo plano
         loadDatabaseModule();
@@ -283,9 +355,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('view-search-results-container').hidden = true;
                 document.getElementById('view-trash-container').hidden = true;
 
-                // Ocultar botón Nueva Carpeta
-                const btnCreateFolder = document.getElementById('btn-create-folder');
-                if (btnCreateFolder) btnCreateFolder.style.display = 'none';
+                // Sincronizar visibilidad de botones de acción de escritura
+                syncWriteActionButtons();
 
                 // Mostrar el dashboard
                 document.getElementById('view-storage-dashboard-container').hidden = false;
@@ -307,6 +378,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             mobBtnStorage?.addEventListener('click', goStorage);
         };
         setupSectionNavigation();
+        syncWriteActionButtons();
         // Ocultar el loader inicial con animación suave
         setTimeout(() => {
             const loader = document.getElementById('premium-loader');
@@ -649,9 +721,8 @@ function renderWellsView(filterText = '') {
     document.getElementById('view-folders-container').hidden = true;
     document.getElementById('view-files-container').hidden = true;
 
-    // Asegurar que el botón Nueva Carpeta esté oculto en la vista general de pozos
-    const btnCreateFolder = document.getElementById('btn-create-folder');
-    if (btnCreateFolder) btnCreateFolder.style.display = 'none';
+    // Sincronizar visibilidad de botones de acción de escritura
+    syncWriteActionButtons();
 
     updateBreadcrumb();
 
@@ -968,9 +1039,8 @@ async function openFoldersView(pozoName) {
     const filesResultsContainer = document.getElementById('folders-search-files-results');
     if (filesResultsContainer) filesResultsContainer.style.display = 'none';
 
-    // Mostrar el botón de Nueva Carpeta
-    const btnCreateFolder = document.getElementById('btn-create-folder');
-    if (btnCreateFolder) btnCreateFolder.style.display = 'inline-flex';
+    // Sincronizar visibilidad de botones de acción de escritura
+    syncWriteActionButtons();
 
     updateBreadcrumb();
 
@@ -1082,7 +1152,7 @@ function renderFoldersGrid(searchTerm = '') {
                             <i class="${config.icon}"></i>
                         </div>
                         <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV" class="card-uv-mini-logo" style="margin-left:auto;">
-                        ${!isDefault ? `
+                        ${(!isDefault && canUserWriteInCurrentSection()) ? `
                         <button type="button" class="btn-folder-actions" onclick="event.stopPropagation(); showFolderActions('${folder.id}', '${escapeHtml(folder.name)}')" title="Opciones" style="background:none; border:none; color:#64748b; font-size:1.15rem; cursor:pointer; margin-left:10px; display:flex; align-items:center; width:28px; height:28px; border-radius:50%; justify-content:center; transition:background 0.2s;" onmouseover="this.style.background='#e2e8f0';" onmouseout="this.style.background='none';">
                             <i class="fa-solid fa-ellipsis-vertical"></i>
                         </button>
@@ -1268,7 +1338,7 @@ function renderSubfoldersGrid(searchTerm = '') {
                             <i class="${iconClass}"></i>
                         </div>
                         <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV" class="card-uv-mini-logo" style="margin-left:auto; max-height:22px;">
-                        ${!isSubDefault ? `
+                        ${(!isSubDefault && canUserWriteInCurrentSection()) ? `
                         <button type="button" class="btn-folder-actions" onclick="event.stopPropagation(); showFolderActions('${sub.id}', '${escapeHtml(sub.name)}')" title="Opciones" style="background:none; border:none; color:#64748b; font-size:1.15rem; cursor:pointer; margin-left:10px; display:flex; align-items:center; width:28px; height:28px; border-radius:50%; justify-content:center; transition:background 0.2s;" onmouseover="this.style.background='#e2e8f0';" onmouseout="this.style.background='none';">
                             <i class="fa-solid fa-ellipsis-vertical"></i>
                         </button>
@@ -1594,6 +1664,7 @@ function restoreActiveView() {
         else if (state.activePozo === '_GERENCIAL') syncSidebar('sidebar-link-gerencial');
         else syncSidebar('sidebar-link-pozos');
     }
+    syncWriteActionButtons();
 }
 
 async function openFolderView(folderId, folderName) {
@@ -1621,9 +1692,8 @@ async function openFolderView(folderId, folderName) {
     document.getElementById('view-folders-container').hidden = true;
     document.getElementById('view-files-container').hidden = false;
 
-    // Asegurar visibilidad del botón Nueva Carpeta
-    const btnCreateFolder = document.getElementById('btn-create-folder');
-    if (btnCreateFolder) btnCreateFolder.style.display = 'inline-flex';
+    // Sincronizar visibilidad de botones de acción de escritura
+    syncWriteActionButtons();
 
     updateBreadcrumb();
 
@@ -1857,6 +1927,7 @@ async function fetchAndRenderFiles() {
                                                 <i class="fa-solid fa-download"></i>
                                                 <span>DESCARGAR</span>
                                             </a>
+                                            ${canUserWriteInCurrentSection() ? `
                                             <button type="button" class="btn-edit-doc" data-id="${escapeHtml(doc.id)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" data-date="${escapeHtml(initialDate)}" data-description="${escapeHtml(doc.descripcion || '')}" title="Editar documento">
                                                 <i class="fa-solid fa-pen"></i>
                                                 <span>EDITAR</span>
@@ -1865,6 +1936,7 @@ async function fetchAndRenderFiles() {
                                                 <i class="fa-solid fa-trash-can"></i>
                                                 <span>ELIMINAR</span>
                                             </button>
+                                            ` : ''}
                                         </div>
                                     </td>
                                 </tr>

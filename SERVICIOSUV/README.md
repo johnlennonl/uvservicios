@@ -27,6 +27,19 @@ Recientemente hemos aplicado mejoras críticas de usabilidad y diseño premium p
 5. **✍️ Firma Digital Táctil (Canvas Pad)**:
    - Implementación de un modal interactivo con lienzo canvas HTML5 y soporte táctil para registrar firmas digitales del Técnico y del Cliente, sustituyendo las cajas de texto tradicionales.
 
+6. **Optimización Móvil y Tablet Premium (PWA-Style)**:
+   - Conversión de pestañas de navegación superiores en una **Barra de Navegación Inferior Flotante** táctil en color blanco glassmorphism, brindando una ergonomía móvil óptima.
+   - Rediseño de la bitácora hora a hora en pantallas celulares, mostrándola como una **Línea de Tiempo (Timeline)** vertical con alineación matemática mejorada y botones de eliminación circulares en color rojo.
+   - Apilamiento vertical responsivo para la barra de resumen de la bitácora (evitando desbordes y wraps de botones).
+   - Efecto de iluminación pulsante en azul eléctrico para destacar tickets activos en curso.
+
+7. **🎚️ Carrusel Deslizable Horizontalmente (Side-to-Side Slider)**:
+   - Reemplazo del desplazamiento vertical largo por un carrusel deslizable horizontalmente. El técnico navega por las 5 secciones del formulario deslizándolas de lado a lado.
+   - El carrusel incluye ajuste dinámico de altura (`will-change: height`) para evitar espacios vacíos o cortes de contenido, y scrolls automáticos al inicio de cada tarjeta al cambiar de pestaña.
+
+8. **🏷️ Barra Indicadora de Ticket Activo**:
+   - Inserción de una píldora contextual fija que muestra en tiempo real si el técnico está creando un reporte nuevo o editando un ticket específico (ej: *"Editando Reporte: TOM0008 • Campo: TOMOPORO"*), manteniendo siempre la ubicación y contexto del pozo abierto.
+
 ---
 
 ## 🏗️ Arquitectura del Módulo

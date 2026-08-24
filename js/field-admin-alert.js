@@ -347,10 +347,10 @@ async function refreshFieldAdminAlert() {
 
         isFirstCheck = false;
 
-        // Se desactivan las alertas emergentes (Toasts) temporariamente por petición del usuario.
-        // if (journeysToNotify.length) {
-        //     showNewJourneyToast(journeysToNotify);
-        // }
+        // Se activan las alertas emergentes (Toasts) premium para notificar nuevas jornadas
+        if (journeysToNotify.length) {
+            showNewJourneyToast(journeysToNotify);
+        }
 
         unseenJourneys.forEach(journey => {
             const journeyId = String(journey.id || '').trim();

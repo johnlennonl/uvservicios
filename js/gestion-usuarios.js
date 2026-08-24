@@ -276,6 +276,18 @@ function getSelectedOperationalScopes(selectEl) {
 
 function syncUserScopeSelectMode(roleSelect, scopeSelect, helpEl) {
     if (!roleSelect || !scopeSelect) return;
+
+    // Ocultar la selección de contrato para roles que tienen acceso global por defecto
+    const isGlobalRole = ['admin', 'supervisor', 'base_datos', 'gestor_usuarios', 'gerencial'].includes(roleSelect.value);
+    const scopeContainer = scopeSelect.closest('label');
+    if (scopeContainer) {
+        if (isGlobalRole) {
+            scopeContainer.style.display = 'none';
+        } else {
+            scopeContainer.style.display = 'block';
+        }
+    }
+
     const allowAllContractsOption = roleSelect.value === 'cliente_view';
     let selectedScopes = getSelectedOperationalScopes(scopeSelect);
     if (scopeSelect.dataset.selectedScopes) {
@@ -892,11 +904,12 @@ function getRoleLabel(role) {
         supervisor: 'Supervisor',
         campo: 'Técnico de Campo',
         servicios: 'Técnico de Servicios',
-        cliente_view: 'Cliente (Solo Lectura)',
+        cliente_view: 'Cliente',
         base_datos: 'Base de Datos',
-        gestor_usuarios: 'Gestor de Accesos'
+        gestor_usuarios: 'Gestor de Accesos',
+        gerencial: 'Gerencial / Dirección'
     };
-    return labels[role] || role || 'Cliente (Solo Lectura)';
+    return labels[role] || role || 'Cliente';
 }
 
 function getRoleBadgeClass(role) {
@@ -907,7 +920,8 @@ function getRoleBadgeClass(role) {
         servicios: 'badge-servicios',
         cliente_view: 'badge-cliente',
         base_datos: 'badge-database',
-        gestor_usuarios: 'badge-gestor'
+        gestor_usuarios: 'badge-gestor',
+        gerencial: 'badge-gerencial'
     };
     return classes[role] || 'badge-cliente';
 }

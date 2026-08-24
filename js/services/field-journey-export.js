@@ -320,6 +320,7 @@ export async function openFieldJourneyPdf(journey, records, reviewLog = [], targ
         let query = supabase
             .from('well_historical_documents')
             .select('*')
+            .is('deleted_at', null)
             .eq('categoria', 'SOPORTES');
 
         if (journeyIdStr && !journeyIdStr.startsWith('virtual_')) {

@@ -5,7 +5,8 @@ export const ACCESS_ROLES = Object.freeze({
     SERVICIOS: 'servicios',
     CLIENTE_VIEW: 'cliente_view',
     BASE_DATOS: 'base_datos',
-    GESTOR_USUARIOS: 'gestor_usuarios'
+    GESTOR_USUARIOS: 'gestor_usuarios',
+    GERENCIAL: 'gerencial' // Nuevo Rol Gerencial
 });
 
 const ALLOWED_ACCESS_ROLES = new Set(Object.values(ACCESS_ROLES));
@@ -47,6 +48,7 @@ export function getAccessProfile(sessionOrUser) {
     const isAdmin = role === ACCESS_ROLES.ADMIN;
     const isBaseDatos = role === ACCESS_ROLES.BASE_DATOS || email.includes('baseuv');
     const isGestorUsuarios = role === ACCESS_ROLES.GESTOR_USUARIOS;
+    const isGerencial = role === ACCESS_ROLES.GERENCIAL; // Nuevo
 
     return {
         email,
@@ -56,10 +58,11 @@ export function getAccessProfile(sessionOrUser) {
         isServicesOperator,
         isBaseDatos,
         isGestorUsuarios,
+        isGerencial, // Nuevo
         canViewDashboard: !isGestorUsuarios && !isServicesOperator,
         canViewConsolidado: !isGestorUsuarios && !isServicesOperator,
         canModifyConsolidadoBase: isAdmin || isSupervisor,
-        canViewManagement: isAdmin || isSupervisor,
+        canViewManagement: isAdmin || isSupervisor || isGerencial, // Gerencial puede ver gestión/jornadas
         canEditData: isAdmin || isSupervisor,
         canCreateFieldReports: isAdmin || isSupervisor || isFieldOperator,
         canViewFieldModule: isAdmin || isSupervisor || isFieldOperator,
@@ -67,7 +70,7 @@ export function getAccessProfile(sessionOrUser) {
         canViewJourneyModule: isAdmin || isSupervisor || isFieldOperator,
         canViewJourneyHistory: !isGestorUsuarios && !isServicesOperator,
         canViewStats: !isGestorUsuarios && !isServicesOperator,
-        canViewBaseDatos: isBaseDatos,
+        canViewBaseDatos: isBaseDatos || isGerencial, // Gerencial puede ver base-datos.html
         canManageUsers: isGestorUsuarios || isAdmin
     };
 }
@@ -145,9 +148,15 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
         });
     };
 
-    if (accessProfile?.isBaseDatos) {
-        document.body.classList.add('is-role-base-datos');
+    if (accessProfile?.isBaseDatos || accessProfile?.isGerencial) {
         showLinks(['base-datos.html']);
+        document.body.classList.add('is-role-base-datos');
+    } else {
+        hideLinks(['base-datos.html']);
+        document.body.classList.remove('is-role-base-datos');
+    }
+
+    if (accessProfile?.isBaseDatos) {
         hideLinks([
             'consolidado.html',
             'data.html',
@@ -158,9 +167,6 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
             'dashboard-data.html',
             'campo-admin.html'
         ]);
-    } else {
-        document.body.classList.remove('is-role-base-datos');
-        hideLinks(['base-datos.html']);
     }
 
     if (!accessProfile?.canViewManagement && !accessProfile?.isReadOnly) {

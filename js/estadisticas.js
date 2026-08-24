@@ -325,6 +325,7 @@ async function loadData() {
             const { data: documentData, error: documentsError } = await supabase
                 .from('well_historical_documents')
                 .select('id, pozo_name, categoria, nombre_archivo, descripcion, uploaded_by, created_at')
+                .is('deleted_at', null)
                 .in('pozo_name', state.activeScopePozoNames)
                 .in('categoria', ['REGISTROS_ECHOMETER', 'VOLCADOS_VSD', 'DATA_SENSOR_FONDO', 'SOPORTES'])
                 .gte('created_at', `${start}T00:00:00.000Z`)

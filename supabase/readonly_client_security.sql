@@ -23,7 +23,7 @@ returns boolean
 language sql
 stable
 as $$
-    select public.get_access_role() in ('admin', 'supervisor');
+    select public.get_access_role() in ('admin', 'supervisor', 'gerencial');
 $$;
 
 alter table if exists public.monitoreo_pozos enable row level security;

@@ -92,26 +92,34 @@ export async function getSession() {
             const profile = getAccessProfile(data.session);
             applyNavigationAccessProfile(profile);
 
-            // Buscar elementos del header para pintar el usuario activo dinámicamente
+            // Buscar elementos del header y sidebar para pintar el usuario activo dinámicamente
             const headerNameEl = document.getElementById('header-user-name');
             const headerRoleEl = document.getElementById('header-user-role');
-            if (headerNameEl && headerRoleEl) {
+            const sidebarNameEl = document.getElementById('sidebar-user-name');
+            const sidebarRoleEl = document.getElementById('sidebar-user-role');
+
+            if (headerNameEl || headerRoleEl || sidebarNameEl || sidebarRoleEl) {
                 const labels = {
                     admin: 'Administrador del Sistema',
                     supervisor: 'Supervisor',
                     campo: 'Técnico de Campo',
-                    cliente_view: 'Cliente (Solo Lectura)',
+                    cliente_view: 'Cliente',
                     base_datos: 'Administrador Base de Datos',
-                    gestor_usuarios: 'Gestor de Accesos'
+                    gestor_usuarios: 'Gestor de Accesos',
+                    gerencial: 'Gerencial / Dirección'
                 };
                 
-                const currentName = headerNameEl.textContent.trim();
+                const roleLabel = labels[profile.role] || profile.role || 'Cliente';
                 const userEmail = data.session.user.email;
 
-                // Si ya está cargado el nombre real, no hacemos nada para evitar parpadeos y consultas redundantes
+                if (headerRoleEl) headerRoleEl.textContent = roleLabel;
+                if (sidebarRoleEl) sidebarRoleEl.textContent = roleLabel;
+                
+                const currentName = headerNameEl ? headerNameEl.textContent.trim() : (sidebarNameEl ? sidebarNameEl.textContent.trim() : '');
+                
                 if (!currentName || currentName === 'Cargando...' || currentName === userEmail) {
-                    headerRoleEl.textContent = labels[profile.role] || profile.role || 'Cliente (Solo Lectura)';
-                    headerNameEl.textContent = userEmail; // Fallback inicial
+                    if (headerNameEl) headerNameEl.textContent = userEmail;
+                    if (sidebarNameEl) sidebarNameEl.textContent = userEmail;
 
                     // Intentar traer el nombre real
                     supabase
@@ -121,7 +129,9 @@ export async function getSession() {
                         .single()
                         .then(({ data: userProf }) => {
                             if (userProf?.nombre) {
-                                headerNameEl.textContent = `${userProf.nombre} ${userProf.apellido || ''}`.trim();
+                                const fullName = `${userProf.nombre} ${userProf.apellido || ''}`.trim();
+                                if (headerNameEl) headerNameEl.textContent = fullName;
+                                if (sidebarNameEl) sidebarNameEl.textContent = fullName;
                             }
                         });
                 }
@@ -130,7 +140,7 @@ export async function getSession() {
             console.warn('Error aplicando perfil de navegación:', e);
         }
     }
-    return data.session;
+    return data?.session || null;
 }
 
 export { applyNavigationAccessProfile, getAccessProfile, getDefaultRouteForAccessProfile };

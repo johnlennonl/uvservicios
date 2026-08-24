@@ -17,7 +17,7 @@ returns boolean
 language sql
 stable
 as $$
-    select public.get_access_role() in ('admin', 'supervisor');
+    select public.get_access_role() in ('admin', 'supervisor', 'gerencial');
 $$;
 
 create table if not exists public.consolidated_dashboard_general (

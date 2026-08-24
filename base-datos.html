@@ -43,6 +43,12 @@
         <aside class="sidebar">
             <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" class="sidebar-logo" width="180" height="180">
             <nav id="db-nav-links" style="display: flex; flex-direction: column; gap: 8px;">
+                <button type="button" id="sidebar-link-portal" class="nav-link" style="background: transparent; border: 1px solid transparent; width: 100%; text-align: left; cursor: pointer; display: none; align-items: center; gap: 12px; font-family: inherit;" onclick="window.location.href='dashboard.html'">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+                    </svg>
+                    Volver al Portal
+                </button>
                 <button type="button" id="sidebar-link-pozos" class="nav-link active" style="background: transparent; border: 1px solid transparent; width: 100%; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px; font-family: inherit;">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
@@ -69,12 +75,26 @@
                     Almacenamiento
                 </button>
             </nav>
-            <button id="logout-btn" class="nav-link" style="margin-top: auto; cursor: pointer;">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Cerrar Sesión
-            </button>
+            <div class="sidebar-footer">
+                <div class="sidebar-user-info">
+                    <div class="sidebar-avatar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <div class="sidebar-user-meta">
+                        <span id="sidebar-user-name" class="sidebar-username">Cargando...</span>
+                        <span id="sidebar-user-role" class="sidebar-role-badge">...</span>
+                    </div>
+                </div>
+                <button id="logout-btn" class="sidebar-logout">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Cerrar Sesión
+                </button>
+            </div>
         </aside>
 
         <!-- Contenido Principal -->
@@ -86,7 +106,10 @@
                     <span class="mobile-app-bar-title">Base Datos</span>
                 </div>
                 <div class="mobile-app-bar-right">
-                    <div class="mobile-status-pill">
+                    <a id="mobile-link-portal" href="dashboard.html" class="btn-back-portal-mobile" style="display: none; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem; color: #1e3a8a; background: #e2e8f0; border-radius: 8px; text-decoration: none; font-weight: 700;">
+                        <i class="fa-solid fa-arrow-left"></i> Portal
+                    </a>
+                    <div id="mobile-status-pill-db" class="mobile-status-pill">
                         <span class="status-dot"></span>
                         <span>Online</span>
                     </div>
@@ -525,7 +548,7 @@
             <span>Salir</span>
         </button>
     </nav>
-    <script type="module" src="js/modules/database/database-controller.js?v=20260820-0958"></script>
+    <script type="module" src="js/modules/database/database-controller.js?v=20260824-0845"></script>
 </body>
 
 </html>

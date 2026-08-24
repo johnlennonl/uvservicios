@@ -680,7 +680,7 @@ async function resolveFieldOperationalContext(session) {
         profile = data || null;
     }
 
-    if (['admin', 'supervisor', 'gestor_usuarios', 'base_datos'].includes(CURRENT_ACCESS_PROFILE?.role)) {
+    if (['admin', 'supervisor', 'gestor_usuarios', 'base_datos', 'gerencial'].includes(CURRENT_ACCESS_PROFILE?.role)) {
         return { scopeKey: activeScope, profile };
     }
 

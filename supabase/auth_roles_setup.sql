@@ -15,7 +15,7 @@ returns boolean
 language sql
 stable
 as $$
-    select public.get_access_role() in ('admin', 'supervisor');
+    select public.get_access_role() in ('admin', 'supervisor', 'gerencial');
 $$;
 
 create or replace function public.is_read_only_client()

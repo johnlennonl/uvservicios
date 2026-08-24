@@ -25,7 +25,7 @@ function formatContractName(name) {
 }
 
 function canUseAllContracts(accessProfile) {
-    return ['admin', 'supervisor', 'gestor_usuarios', 'base_datos'].includes(accessProfile?.role);
+    return ['admin', 'supervisor', 'gestor_usuarios', 'base_datos', 'gerencial'].includes(accessProfile?.role);
 }
 
 function applyOperationalScopeTheme(scopeKey) {
