@@ -566,11 +566,13 @@
             <div class="stats-tabs-bar" role="tablist">
                 <button type="button" class="stats-tab-btn active" id="tab-btn-overview" data-target="overview-section" role="tab" aria-selected="true">
                     <i class="fa-solid fa-chart-pie" style="margin-right: 6px;"></i>
-                    <span>Resumen General e Informes</span>
+                    <span class="tab-text-desktop">Resumen General e Informes</span>
+                    <span class="tab-text-mobile">Resumen</span>
                 </button>
                 <button type="button" class="stats-tab-btn" id="tab-btn-custom-reports" data-target="custom-reports-section" role="tab" aria-selected="false">
                     <i class="fa-solid fa-sliders" style="margin-right: 6px;"></i>
-                    <span>Reportes Personalizados</span>
+                    <span class="tab-text-desktop">Reportes Personalizados</span>
+                    <span class="tab-text-mobile">Reportes</span>
                     <span class="stats-tab-badge">Pro</span>
                 </button>
             </div>
@@ -961,26 +963,38 @@
 
                     <!-- SECCIÓN 2: ECHOMETER Y ADJUNTOS DE CAMPO -->
                     <div class="corp-card field-attachments-report" style="margin-top: 24px;" data-html2pdf-ignore>
-                        <div class="chart-header">
+                        <div class="chart-header" style="margin-bottom: 20px;">
                             <h3>Echometer y Adjuntos de Campo</h3>
                             <p>Mediciones acústicas y volcados VSD efectivamente ejecutados/subidos por operadores. No incluye niveles estáticos, dinámicos teóricos ni simulaciones.</p>
                         </div>
-                        <div class="attachments-kpi-row">
-                            <div>
-                                <span>Echometer ejecutados</span>
-                                <strong id="kpi-echometer-ejecutados">0</strong>
+                        
+                        <!-- Layout Analítico (KPIs + Gráfico de Barras) -->
+                        <div class="attachments-analytics-layout" style="margin-bottom: 24px;">
+                            <div class="attachments-kpis-col">
+                                <div class="attachments-kpi-item">
+                                    <span>Echometer ejecutados</span>
+                                    <strong id="kpi-echometer-ejecutados">0</strong>
+                                </div>
+                                <div class="attachments-kpi-item">
+                                    <span>Volcados VSD subidos</span>
+                                    <strong id="kpi-vsd-adjuntos">0</strong>
+                                </div>
+                                <div class="attachments-kpi-item">
+                                    <span>Soportes fotográficos</span>
+                                    <strong id="kpi-soportes-adjuntos">0</strong>
+                                </div>
                             </div>
-                            <div>
-                                <span>Volcados VSD subidos</span>
-                                <strong id="kpi-vsd-adjuntos">0</strong>
-                            </div>
-                            <div>
-                                <span>Soportes fotográficos</span>
-                                <strong id="kpi-soportes-adjuntos">0</strong>
+                            <div class="attachments-chart-col">
+                                <div style="font-size: 0.72rem; font-weight: 800; color: #64748B; text-transform: uppercase; margin-bottom: 8px;">Tasa de Cobertura de Adjuntos</div>
+                                <div style="height: 140px; position: relative;">
+                                    <canvas id="chart-attachments-progress"></canvas>
+                                </div>
                             </div>
                         </div>
-                        <div id="field-attachments-summary-list" class="attachments-summary-list">
-                            <!-- cards inserted via JS -->
+
+                        <!-- Contenedor para la Tabla Ejecutiva de Adjuntos -->
+                        <div id="field-attachments-summary-list" class="attachments-summary-table-wrap">
+                            <!-- table inserted via JS -->
                         </div>
                     </div>
 

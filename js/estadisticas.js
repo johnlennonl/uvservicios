@@ -740,14 +740,30 @@ function normalizeInterestEventTitle(value = '') {
 }
 
 function renderInterestPointItem(group = {}) {
+    const diagnosticText = String(group.diagnostic || '').toUpperCase();
+    let cardAccentClass = 'diagnostic-card-default';
+
+    // Determinar la clase de color según la categoría del diagnóstico
+    if (diagnosticText.includes('ELECTRICA')) {
+        cardAccentClass = 'diagnostic-card-blue';
+    } else if (diagnosticText.includes('GENERADOR')) {
+        cardAccentClass = 'diagnostic-card-orange';
+    } else if (diagnosticText.includes('FUERA DE SERVICIO')) {
+        cardAccentClass = 'diagnostic-card-red';
+    } else if (diagnosticText.includes('DESBALANCEADO')) {
+        cardAccentClass = 'diagnostic-card-purple';
+    } else if (diagnosticText.includes('SUBCARGA')) {
+        cardAccentClass = 'diagnostic-card-cyan';
+    }
+
     const pozoRows = [...(group.pozoStats || new Map()).values()]
-        .sort((left, right) => right.count - left.count || left.pozoName.localeCompare(right.pozoName))
-        .slice(0, 6);
-    const hiddenPozos = Math.max(0, (group.pozoStats?.size || 0) - pozoRows.length);
-    const pozoRowsHtml = pozoRows.map(row => {
+        .sort((left, right) => right.count - left.count || left.pozoName.localeCompare(right.pozoName));
+        
+    const pozoRowsHtml = pozoRows.map((row, index) => {
         const timestamps = [...row.timestamps].slice(0, 3);
+        const isHidden = index >= 6;
         return `
-            <div class="interest-point-pozo-row">
+            <div class="interest-point-pozo-row ${isHidden ? 'pozo-row-hidden' : ''}" style="${isHidden ? 'display: none;' : ''}">
                 <div class="interest-point-pozo-main">
                     <strong>${escapeHtml(row.pozoName)}</strong>
                     <span>${row.count} evento${row.count === 1 ? '' : 's'}</span>
@@ -756,25 +772,56 @@ function renderInterestPointItem(group = {}) {
             </div>
         `;
     }).join('');
+
+    const hiddenPozosCount = Math.max(0, pozoRows.length - 6);
     const supportDetails = [...(group.details || new Set())].slice(0, 3);
     const supportDetailsHtml = supportDetails.length
         ? `<div class="interest-point-support"><span>Notas asociadas desde Campo</span>${supportDetails.map(detail => `<p>${escapeHtml(detail)}</p>`).join('')}</div>`
         : '';
 
+    const groupSafeId = 'group-' + String(group.diagnostic).toLowerCase().replace(/[^a-z0-9]/g, '-');
+
     return `
-        <li>
+        <li id="${groupSafeId}" class="interest-point-category-card ${cardAccentClass}">
             <div class="interest-point-header">
                 <strong>${escapeHtml(group.diagnostic)}</strong>
                 <span>${group.records?.length || 0} evento${(group.records?.length || 0) === 1 ? '' : 's'} en ${group.pozoStats?.size || 0} pozo${(group.pozoStats?.size || 0) === 1 ? '' : 's'}</span>
             </div>
             <div class="interest-point-pozo-list">
                 ${pozoRowsHtml}
-                ${hiddenPozos ? `<div class="interest-point-more">+ ${hiddenPozos} pozo${hiddenPozos === 1 ? '' : 's'} adicional${hiddenPozos === 1 ? '' : 'es'}</div>` : ''}
+                ${hiddenPozosCount ? `
+                    <button type="button" class="interest-point-more-btn" onclick="toggleExtraPozos('${groupSafeId}', this, ${hiddenPozosCount})">
+                        <i class="fa-solid fa-angles-down" style="margin-right: 6px;"></i> + ${hiddenPozosCount} pozo${hiddenPozosCount === 1 ? '' : 's'} adicional${hiddenPozosCount === 1 ? '' : 'es'}
+                    </button>
+                ` : ''}
             </div>
             ${supportDetailsHtml}
         </li>
     `;
 }
+
+// Controlar expansión/contracción de pozos adicionales en la web
+window.toggleExtraPozos = function(groupSafeId, buttonEl, extraCount) {
+    const cardEl = document.getElementById(groupSafeId);
+    if (!cardEl) return;
+
+    const hiddenRows = cardEl.querySelectorAll('.pozo-row-hidden');
+    const isExpanding = !buttonEl.classList.contains('expanded');
+    buttonEl.classList.toggle('expanded');
+
+    if (isExpanding) {
+        hiddenRows.forEach(row => {
+            row.style.display = 'block';
+            row.style.animation = 'fadeIn 0.25s ease forwards';
+        });
+        buttonEl.innerHTML = `<i class="fa-solid fa-angles-up" style="margin-right: 6px;"></i> Mostrar menos`;
+    } else {
+        hiddenRows.forEach(row => {
+            row.style.display = 'none';
+        });
+        buttonEl.innerHTML = `<i class="fa-solid fa-angles-down" style="margin-right: 6px;"></i> + ${extraCount} pozo${extraCount === 1 ? '' : 's'} adicional${extraCount === 1 ? '' : 'es'}`;
+    }
+};
 
 // Normalizar variantes de nombre de campo
 function normalizeCampo(raw) {
@@ -787,11 +834,12 @@ function normalizeCampo(raw) {
 
 // Renderizado de Gráficos (Chart.js) — Informe mensual corporativo.
 function renderCharts() {
-    // Destruir gráficos anteriores
-    Object.values(state.charts).forEach(chart => {
+    // Destruir gráficos anteriores (excluyendo el gráfico de cobertura de adjuntos para evitar colisión de ciclos de vida)
+    Object.entries(state.charts).forEach(([key, chart]) => {
+        if (key === 'attachmentsProgress') return;
         if (chart && typeof chart.destroy === 'function') chart.destroy();
+        delete state.charts[key];
     });
-    state.charts = {};
 
     const donutOptions = {
         responsive: true,
@@ -1154,45 +1202,127 @@ function renderAttachmentsSummary() {
     if (vsdKpi) vsdKpi.textContent = vsdCount;
     if (supportKpi) supportKpi.textContent = supportCount;
 
+    // Instanciar gráfico de cobertura de adjuntos
+    const ctx = document.getElementById('chart-attachments-progress')?.getContext('2d');
+    if (ctx) {
+        if (state.charts.attachmentsProgress) {
+            state.charts.attachmentsProgress.destroy();
+        }
+
+        const totalWells = rows.length || 1;
+        const countEcho = rows.filter(row => row.echometer || row.echoDocs > 0).length;
+        const countVsd = rows.filter(row => row.dataVsd || row.vsdDocs > 0).length;
+        const countPics = rows.filter(row => row.supportDocs > 0).length;
+
+        state.charts.attachmentsProgress = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Echómetro', 'Volcado VSD', 'Soportes'],
+                datasets: [{
+                    label: 'Pozos con datos',
+                    data: [countEcho, countVsd, countPics],
+                    backgroundColor: ['rgba(16, 185, 129, 0.85)', 'rgba(37, 99, 235, 0.85)', 'rgba(139, 92, 246, 0.85)'],
+                    borderRadius: 6,
+                    barThickness: 14
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: totalWells,
+                        ticks: { stepSize: Math.ceil(totalWells / 4), color: '#64748b', font: { family: 'Outfit', size: 10, weight: 600 } },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    y: {
+                        ticks: { color: '#0f172a', font: { family: 'Outfit', size: 11, weight: 700 } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
     if (!rows.length) {
         list.innerHTML = '<div class="attachments-empty-state">Sin Echometer, volcados VSD o soportes cargados en este período.</div>';
         return;
     }
 
-    list.innerHTML = rows.map(row => {
+    const tableRows = rows.map(row => {
         const hasEcho = row.echometer || row.echoDocs > 0;
         const hasVsd = row.dataVsd || row.vsdDocs > 0;
+        
+        // Calcular porcentaje de completitud (33.3% por cada tipo de adjunto)
+        let completeness = 0;
+        if (hasEcho) completeness += 33.3;
+        if (hasVsd) completeness += 33.3;
+        if (row.supportDocs > 0) completeness += 33.4;
+        completeness = Math.round(completeness);
+
+        const echoBadge = hasEcho 
+            ? `<span class="badge-attachment-ok" title="${row.echoDocs} archivo(s)"><i class="fa-solid fa-circle-check"></i> ${row.echoDocs || 1} ejec.</span>`
+            : `<span class="badge-attachment-empty"><i class="fa-solid fa-circle-minus"></i> Sin dato</span>`;
+
+        const vsdBadge = hasVsd
+            ? `<span class="badge-attachment-ok" title="${row.vsdDocs} archivo(s)"><i class="fa-solid fa-circle-check"></i> ${row.vsdDocs || 1} subido</span>`
+            : `<span class="badge-attachment-empty"><i class="fa-solid fa-circle-minus"></i> Sin dato</span>`;
+
+        const supportBadge = row.supportDocs > 0
+            ? `<span class="badge-attachment-info"><i class="fa-solid fa-camera"></i> ${row.supportDocs} fotos</span>`
+            : `<span class="badge-attachment-empty"><i class="fa-solid fa-circle-minus"></i> Sin fotos</span>`;
+
+        let progressColor = '#eab308'; // Amarillo (bajo)
+        if (completeness > 80) progressColor = '#10b981'; // Verde (alto)
+        else if (completeness > 40) progressColor = '#2563eb'; // Azul (medio)
+
+        const formattedDate = row.fecha && row.fecha !== '—' ? row.fecha.split('-').reverse().join('/') : '—';
+
         return `
-            <article class="attachment-well-card">
-                <div class="attachment-well-head">
-                    <div>
-                        <strong>${escapeHtml(row.pozo)}</strong>
-                        <span>${escapeHtml(row.campo || '—')} · ${escapeHtml(row.fecha || '—')}</span>
+            <tr>
+                <td style="font-weight: 800; color: #0f172a; padding: 10px 14px; font-size: 0.84rem;">${escapeHtml(row.pozo)}</td>
+                <td style="color: #475569; padding: 10px 14px; font-size: 0.82rem;">${escapeHtml(row.campo || '—')}</td>
+                <td style="color: #64748b; font-size: 0.78rem; padding: 10px 14px;">${escapeHtml(formattedDate)}</td>
+                <td style="padding: 10px 14px; text-align: center;">${echoBadge}</td>
+                <td style="padding: 10px 14px; text-align: center;">${vsdBadge}</td>
+                <td style="padding: 10px 14px; text-align: center;">${supportBadge}</td>
+                <td style="padding: 10px 14px; vertical-align: middle; width: 140px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="flex-grow: 1; height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; position: relative;">
+                            <div style="width: ${completeness}%; height: 100%; background: ${progressColor}; border-radius: 999px;"></div>
+                        </div>
+                        <span style="font-size: 0.76rem; font-weight: 800; color: #0f172a; min-width: 32px; text-align: right;">${completeness}%</span>
                     </div>
-                    <span class="attachment-well-badge ${hasEcho || hasVsd || row.supportDocs ? 'is-active' : ''}">
-                        ${hasEcho || hasVsd || row.supportDocs ? 'Con soporte' : 'Sin soporte'}
-                    </span>
-                </div>
-                <div class="attachment-well-metrics">
-                    <div class="attachment-metric ${hasEcho ? 'is-ok' : ''}">
-                        <span>Echometer</span>
-                        <strong>${hasEcho ? 'Ejecutado' : 'No registrado'}</strong>
-                        <small>${row.echoDocs ? `${row.echoDocs} archivo(s)` : 'Sin archivo'}</small>
-                    </div>
-                    <div class="attachment-metric ${hasVsd ? 'is-ok' : ''}">
-                        <span>Data VSD / Sensor</span>
-                        <strong>${hasVsd ? 'Subido' : 'No registrado'}</strong>
-                        <small>${row.vsdDocs ? `${row.vsdDocs} archivo(s)` : 'Sin archivo'}</small>
-                    </div>
-                    <div class="attachment-metric ${row.supportDocs ? 'is-ok' : ''}">
-                        <span>Soportes</span>
-                        <strong>${row.supportDocs || 0}</strong>
-                        <small>foto(s) / evidencia</small>
-                    </div>
-                </div>
-            </article>
+                </td>
+            </tr>
         `;
     }).join('');
+
+    list.innerHTML = `
+        <div class="stats-table-responsive" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+            <table class="stats-table" style="width: 100%; border-collapse: collapse; text-align: left; font-family: 'Outfit', sans-serif;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Pozo</th>
+                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Campo</th>
+                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Última Visita</th>
+                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 120px;">Echometer</th>
+                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 120px;">Volcados VSD</th>
+                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 110px;">Soportes</th>
+                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; width: 130px;">Completitud</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        </div>
+    `;
 }
 
 // Renderiza la lista de pozos que quedaron en estado OFF
@@ -1319,15 +1449,21 @@ function renderAlertasTable(filterText, selectedPozos, selectedStatus) {
         
         const isRun = ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(estatus);
         const isOff = ['OFF', 'PARADA MANUAL', 'OFF / ATENCION AL CLIENTE'].includes(estatus);
+
+        // Abreviar textos largos para que quepan perfectamente en el badge sin superponerse
+        const estatusVisual = estatus
+            .replace('RUN / ATENCION AL CLIENTE', 'RUN (Atención)')
+            .replace('OFF / ATENCION AL CLIENTE', 'OFF (Atención)')
+            .replace('PARADA MANUAL', 'OFF (Manual)');
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="font-weight:600;white-space:nowrap;">${pozo}</td>
-            <td style="white-space:nowrap;color:#64748B;">${campo}</td>
-            <td style="white-space:nowrap;color:#64748B;">${fecha}</td>
-            <td style="white-space:nowrap;text-align:center;">
-                <span class="pozo-option-state ${isRun ? 'active-run' : isOff ? 'inactive-off' : 'inactive'}">
-                    ${estatus}
+            <td style="font-weight:600;white-space:nowrap;width:100px;">${pozo}</td>
+            <td style="white-space:nowrap;color:#64748B;width:110px;">${campo}</td>
+            <td style="white-space:nowrap;color:#64748B;width:105px;">${fecha}</td>
+            <td style="width:130px;text-align:center;padding:10px 8px;">
+                <span class="pozo-option-state ${isRun ? 'active-run' : isOff ? 'inactive-off' : 'inactive'}" title="${estatus}">
+                    ${estatusVisual}
                 </span>
             </td>
             <td title="${obs.replace(/"/g, '&quot;')}">${obs}</td>
