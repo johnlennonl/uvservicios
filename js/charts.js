@@ -442,11 +442,33 @@ function formatAuthorName(email, userId) {
     const firstPart = email.split('@')[0];
     if (!firstPart) return 'Ingeniería';
     
-    // Separamos por punto, guión o guión bajo y capitalizamos cada fragmento
-    const parts = firstPart.split(/[\._-]/);
-    return parts
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
+    // Si contiene separadores (punto, guión, guión bajo), dividir por ellos
+    if (/[\._-]/.test(firstPart)) {
+        return firstPart.split(/[\._-]/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }
+
+    // Si contiene mayúsculas internas (camelCase), dividir por ellas
+    // Ejemplo: "JoseBarreto" → "Jose Barreto"
+    if (/[a-z][A-Z]/.test(firstPart)) {
+        return firstPart.replace(/([a-z])([A-Z])/g, '$1 $2')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }
+
+    // Heurística: intentar separar nombres pegados en minúscula
+    // Buscar patrones donde termina una vocal y empieza una consonante típica de apellido
+    const lowerName = firstPart.toLowerCase();
+    const nameBreakMatch = lowerName.match(/^([a-záéíóú]{3,}?)((?:b|c|d|f|g|h|l|m|n|p|r|s|t|v|z)[a-záéíóú]+)$/i);
+    if (nameBreakMatch) {
+        const [, nombre, apellido] = nameBreakMatch;
+        return `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)} ${apellido.charAt(0).toUpperCase()}${apellido.slice(1)}`;
+    }
+
+    // Último recurso: capitalizar todo como una sola palabra
+    return firstPart.charAt(0).toUpperCase() + firstPart.slice(1).toLowerCase();
 }
 
 function renderTrendAnnotationPanelList() {

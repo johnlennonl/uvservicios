@@ -789,11 +789,13 @@ body.trend-annotation-panel-open {
         flex-direction: column !important;
         align-items: flex-start !important;
         gap: 6px !important;
+        padding: 14px !important;
     }
 
     .trend-annotation-item-top small {
         text-align: left !important;
-        margin-top: 4px !important;
+        margin-top: 2px !important;
+        font-size: 0.72rem !important;
     }
 
     .trend-annotation-item p {
@@ -801,9 +803,9 @@ body.trend-annotation-panel-open {
         visibility: visible !important;
         opacity: 1 !important;
         height: auto !important;
-        margin: 12px 14px !important;
+        margin: 10px 14px !important;
         padding: 10px 12px !important;
-        font-size: 0.85rem !important;
+        font-size: 0.82rem !important;
         line-height: 1.4 !important;
     }
 
@@ -811,14 +813,35 @@ body.trend-annotation-panel-open {
         display: flex !important;
         flex-direction: column !important;
         align-items: stretch !important;
-        gap: 12px !important;
+        gap: 10px !important;
         padding: 0 14px 14px !important;
     }
 
-    .trend-annotation-item footer > div:first-child {
+    /* Avatar + Nombre: SIEMPRE en fila horizontal, incluso en móvil */
+    .annotation-author-info {
         display: flex !important;
-        flex-direction: column !important;
-        gap: 4px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    .annotation-author-avatar {
+        width: 30px !important;
+        height: 30px !important;
+    }
+
+    .annotation-author-initial {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 0.74rem !important;
+    }
+
+    .annotation-author-info b {
+        font-size: 0.78rem !important;
+    }
+
+    .annotation-author-info small {
+        font-size: 0.68rem !important;
     }
 
     .trend-annotation-item-actions {
@@ -831,7 +854,8 @@ body.trend-annotation-panel-open {
     .trend-annotation-item-actions button {
         width: 100% !important;
         min-height: 36px !important;
-        font-size: 0.78rem !important;
+        justify-content: center !important;
+        font-size: 0.76rem !important;
     }
 
     .trend-annotation-pagination {
@@ -846,6 +870,39 @@ body.trend-annotation-panel-open {
     .trend-annotation-pagination button {
         grid-row: 2;
         width: 100%;
+    }
+}
+
+/* ── Tablet: Annotation cards (561px - 1024px) ── */
+@media (min-width: 561px) and (max-width: 1024px) {
+    .trend-annotation-drawer {
+        max-width: 420px;
+    }
+
+    .annotation-author-info {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    .annotation-author-avatar,
+    .annotation-author-initial {
+        width: 32px;
+        height: 32px;
+    }
+
+    .trend-annotation-item-top {
+        padding: 14px 16px;
+    }
+
+    .trend-annotation-item p {
+        font-size: 0.84rem;
+    }
+
+    .trend-annotation-item-actions button {
+        min-height: 32px;
+        font-size: 0.74rem;
     }
 }
 
