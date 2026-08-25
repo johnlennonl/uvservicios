@@ -423,12 +423,14 @@ body.access-protected-nav:not(.access-nav-ready) a[href="jornada-history.html"] 
     margin-left: auto;
     padding: 0 6px;
     border-radius: 999px;
-    background: #EF4444;
+    background: #ff3b30; /* Rojo iOS vibrante premium */
     color: #FFFFFF;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     font-weight: 800;
     line-height: 1;
-    border: 1.5px solid #0F172A;
+    border: none;
+    box-shadow: 0 0 8px rgba(255, 59, 48, 0.4);
+    font-family: 'Outfit', sans-serif;
 }
 
 .field-admin-alert-badge[hidden] {
@@ -439,33 +441,34 @@ body.access-protected-nav:not(.access-nav-ready) a[href="jornada-history.html"] 
     position: relative;
 }
 
-.field-admin-has-alert .field-admin-alert-badge {
-    animation: field-admin-badge-pulse 1.8s ease-in-out infinite;
+/* Badge de Notificación Premium en Mobile Bottom Nav (estilo iOS nativo) */
+.mobile-bottom-nav .mobile-nav-link {
+    position: relative; /* Clave para posicionar el badge de forma absoluta */
 }
 
-/* Efecto latido neón brutal en el icono de Campo en el sidebar */
+.mobile-bottom-nav .field-admin-alert-badge {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(6px); /* Centra y desplaza al extremo del icono */
+    margin: 0;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 12px;
+    background: #ff3b30;
+    color: #FFFFFF;
+    border: 2px solid #FFFFFF; /* Anillo blanco de separación */
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(255, 59, 48, 0.35);
+    z-index: 10;
+}
+
+/* Color destacado rojo en el icono de Campo en el sidebar */
 .field-admin-has-alert svg {
-    animation: field-icon-pulse 1.8s ease-in-out infinite;
-    color: #EF4444 !important;
-}
-
-@keyframes field-admin-badge-pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.15);
-    }
-}
-
-@keyframes field-icon-pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.12);
-        color: #F87171 !important;
-    }
+    color: #ff3b30 !important;
 }
 
 .auth-page {
@@ -1720,13 +1723,13 @@ html.lenis, html.lenis body {
     flex-direction: row !important;
     align-items: center !important;
     justify-content: flex-start !important;
-    width: min(340px, calc(100vw - 32px)) !important;
-    max-width: min(340px, calc(100vw - 32px)) !important;
+    width: 340px !important;
+    max-width: calc(100vw - 32px) !important;
     background: transparent !important;
     box-shadow: none !important;
     border: none !important;
     padding: 10px !important;
-    margin: 0 !important;
+    margin: 16px 20px 16px 16px !important;
     overflow: visible !important;
     animation: field-toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
     touch-action: pan-y !important;
@@ -1739,10 +1742,7 @@ html.lenis, html.lenis body {
 }
 
 .field-admin-toast-container {
-    width: 360px !important;
-    max-width: 100vw !important;
     z-index: 99999999 !important;
-    padding-right: 12px !important;
 }
 
 @keyframes field-toast-slide-in {
@@ -1894,4 +1894,560 @@ html.lenis, html.lenis body {
 .field-admin-toast .swal2-close:hover {
     background: rgba(255, 255, 255, 0.15) !important;
     color: #FFFFFF !important;
+}
+
+/* ==========================================================================
+   USER PROFILE MODAL STYLES (PREMIUM GLASSMORPHIC)
+   ========================================================================== */
+/* ==========================================================================
+   USER PROFILE MODAL STYLES (PREMIUM FLAT DESIGN - HIGH PERFORMANCE)
+   ========================================================================== */
+.user-profile-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.85); /* Fondo sólido semi-translúcido, sin blur para máximo rendimiento */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: profile-modal-fade-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.user-profile-modal-overlay.is-closing {
+    animation: profile-modal-fade-out 0.18s ease-in forwards;
+}
+
+@keyframes profile-modal-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes profile-modal-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+.user-profile-modal-card {
+    background: #1e293b; /* Color sólido plano */
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    box-shadow: none; /* Diseño 100% plano sin sombras */
+    border-radius: 16px;
+    width: min(520px, calc(100vw - 32px));
+    padding: 28px 30px;
+    position: relative;
+    color: #F8FAFC;
+    box-sizing: border-box;
+    animation: profile-card-slide-in 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.user-profile-modal-overlay.is-closing .user-profile-modal-card {
+    animation: profile-card-slide-out 0.18s ease-in forwards;
+}
+
+@keyframes profile-card-slide-in {
+    from { transform: scale(0.95) translateY(12px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes profile-card-slide-out {
+    from { transform: scale(1) translateY(0); opacity: 1; }
+    to { transform: scale(0.96) translateY(8px); opacity: 0; }
+}
+
+.user-profile-modal-close {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94A3B8;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    line-height: 1;
+}
+
+.user-profile-modal-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #FFFFFF;
+}
+
+.user-profile-modal-header {
+    margin-bottom: 22px;
+}
+
+.user-profile-modal-header h3 {
+    font-size: 1.35rem;
+    font-weight: 800;
+    margin: 0 0 6px 0;
+    color: #FFFFFF;
+    letter-spacing: -0.02em;
+}
+
+.user-profile-modal-header p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #94A3B8;
+    line-height: 1.4;
+}
+
+/* Sección de Foto de Perfil */
+.user-profile-avatar-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 22px;
+    width: 100%;
+}
+
+.user-profile-avatar-wrapper {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid #2563eb; /* Borde plano azul premium */
+    background: #0f172a;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-profile-avatar-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.user-profile-avatar-inner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Placeholder premium con iniciales */
+.profile-modal-avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    color: #3b82f6;
+    font-size: 2.2rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    font-family: 'Outfit', sans-serif;
+}
+
+.user-profile-avatar-hover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: #FFFFFF;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    border-radius: 50%;
+    box-sizing: border-box;
+}
+
+.user-profile-avatar-wrapper:hover .user-profile-avatar-hover {
+    opacity: 1;
+}
+
+.user-profile-avatar-hover svg {
+    width: 20px;
+    height: 20px;
+    color: #3b82f6;
+}
+
+.avatar-help-text {
+    font-size: 0.75rem;
+    color: #64748b;
+    text-align: center;
+}
+
+/* Formulario */
+.user-profile-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.user-profile-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 480px) {
+    .user-profile-form-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+}
+
+.user-profile-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.user-profile-input-group span {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.user-profile-input-group input {
+    background: #0f172a;
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: #FFFFFF;
+    outline: none;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.user-profile-input-group input:focus {
+    border-color: #2563eb;
+    background: #0f172a;
+}
+
+.user-profile-input-group input.input-disabled {
+    background: rgba(15, 23, 42, 0.4);
+    border-color: rgba(255, 255, 255, 0.04);
+    color: #64748B;
+    cursor: not-allowed;
+}
+
+.read-only-fields {
+    background: rgba(15, 23, 42, 0.2);
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px dashed rgba(255, 255, 255, 0.05);
+}
+
+/* Botón Cambiar Contraseña Plegable */
+.btn-profile-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
+    padding: 10px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.btn-profile-secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #FFFFFF;
+}
+
+.btn-profile-secondary.active {
+    background: rgba(37, 99, 235, 0.1);
+    border-color: rgba(37, 99, 235, 0.25);
+    color: #3b82f6;
+}
+
+.btn-profile-secondary svg {
+    width: 16px;
+    height: 16px;
+}
+
+.password-change-section {
+    background: rgba(15, 23, 42, 0.3);
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    animation: profile-section-slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes profile-section-slide-down {
+    from { transform: translateY(-6px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Botones del Modal */
+.user-profile-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 18px;
+}
+
+.btn-profile-cancel {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #94A3B8;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-profile-cancel:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #FFFFFF;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.btn-profile-submit {
+    background: #2563eb;
+    border: 1px solid #1d4ed8;
+    color: #FFFFFF;
+    padding: 9px 22px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    box-shadow: none; /* Flat design, sin sombras */
+}
+
+.btn-profile-submit:hover {
+    background: #1d4ed8;
+    border-color: #1e40af;
+}
+
+.btn-profile-submit:disabled {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.05);
+    color: #475569;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Contenedor del Input de Contraseña con Ojito */
+.password-input-container {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-container input {
+    padding-right: 40px !important; /* Espacio para el botón del ojito */
+}
+
+.btn-toggle-password-visibility {
+    position: absolute;
+    right: 12px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+    z-index: 5;
+}
+
+.btn-toggle-password-visibility:hover {
+    color: #94a3b8;
+}
+
+.btn-toggle-password-visibility svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Avatar de Perfil en la Cabecera Móvil (Mobile Top App Bar) */
+.mobile-app-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mobile-profile-avatar-wrapper {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid #FFFFFF; /* Borde blanco de alto contraste sobre cabecera azul */
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-profile-avatar-wrapper:hover {
+    transform: scale(1.05);
+    border-color: #3b82f6; /* Se ilumina en azul al hacer hover */
+}
+
+.mobile-profile-avatar-wrapper:active {
+    transform: scale(0.92);
+}
+
+.mobile-profile-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mobile-profile-avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #2563eb, #d97706); /* Degradado premium de azul corporativo a dorado/ámbar */
+    color: #FFFFFF;
+    font-size: 0.95rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.02em;
+}
+
+/* Scroll interno premium para el Modal en Dispositivos Móviles y Tablets */
+.user-profile-modal-card {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 40px); /* Límite para evitar salir del viewport */
+    overflow: hidden; /* Fija la tarjeta exterior */
+}
+
+.user-profile-modal-form {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+}
+
+.user-profile-modal-body {
+    overflow-y: auto; /* Permite scroll vertical interno */
+    padding-right: 6px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Personalizar barra de scroll interna en navegadores WebKit */
+.user-profile-modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.user-profile-modal-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.user-profile-modal-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+}
+
+.user-profile-modal-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Espaciado del footer de acciones fijo abajo */
+.user-profile-modal-actions {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Tooltip Premium animado para alertas pendientes (Desktop) */
+@media (min-width: 1025px) {
+    [data-tooltip] {
+        position: relative;
+    }
+
+    [data-tooltip]::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 125%; /* Flota por encima del item */
+        left: 50%;
+        transform: translateX(-50%) translateY(6px); /* Inicia un poco más abajo */
+        background: rgba(15, 23, 42, 0.95); /* Fondo oscuro con cristal */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #FFFFFF;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        font-family: 'Outfit', sans-serif;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        z-index: 999999;
+    }
+
+    [data-tooltip]::before {
+        content: '';
+        position: absolute;
+        bottom: 113%;
+        left: 50%;
+        transform: translateX(-50%) translateY(6px);
+        border-width: 6px;
+        border-style: solid;
+        border-color: rgba(15, 23, 42, 0.95) transparent transparent transparent;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        z-index: 999999;
+    }
+
+    [data-tooltip]:hover::after,
+    [data-tooltip]:hover::before {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0); /* Se desliza suavemente hacia arriba */
+    }
 }

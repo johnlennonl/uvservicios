@@ -5,9 +5,27 @@ import { getAdminFieldJourneys } from './services/field-journey-service.js';
 const FIELD_ADMIN_ALERT_SELECTOR = 'a[href="campo-admin.html"], a[href$="/campo-admin.html"]';
 const FIELD_ADMIN_ALERT_REFRESH_MS = 60000;
 const FIELD_ADMIN_ALERT_STORAGE_KEY = 'uv-field-admin-alert-state-v1';
+const FIELD_ADMIN_ALERT_SESSION_KEY = 'uv-field-admin-alert-session-v1';
 
 let latestPendingJourneys = [];
 let isFirstCheck = true;
+
+function getSessionNotifiedIds() {
+    try {
+        const raw = sessionStorage.getItem(FIELD_ADMIN_ALERT_SESSION_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
+    }
+}
+
+function markIdsAsSessionNotified(ids) {
+    try {
+        const current = getSessionNotifiedIds();
+        const updated = Array.from(new Set([...current, ...ids]));
+        sessionStorage.setItem(FIELD_ADMIN_ALERT_SESSION_KEY, JSON.stringify(updated));
+    } catch {}
+}
 
 function createJourneyAlertVersion(journey) {
     const updatedAt = String(
@@ -284,9 +302,13 @@ function paintFieldAdminAlert(count) {
         badge.hidden = !hasAlert;
         badge.textContent = formatBadgeCount(safeCount);
         target.classList.toggle('field-admin-has-alert', hasAlert);
-        target.setAttribute('title', hasAlert
-            ? `${safeCount} jornada${safeCount === 1 ? '' : 's'} pendiente${safeCount === 1 ? '' : 's'} por revisar en Campo`
-            : 'Campo');
+        if (hasAlert) {
+            target.removeAttribute('title'); // Elimina el tooltip feo del navegador
+            target.setAttribute('data-tooltip', `${safeCount} jornada${safeCount === 1 ? '' : 's'} pendiente${safeCount === 1 ? '' : 's'}`);
+        } else {
+            target.removeAttribute('data-tooltip');
+            target.setAttribute('title', 'Campo');
+        }
         target.setAttribute('aria-label', label);
     });
 }
@@ -336,11 +358,18 @@ async function refreshFieldAdminAlert() {
             return state.seenVersions[journeyId] !== createJourneyAlertVersion(journey);
         });
 
+        // Filtrar para no notificar jornadas que ya fueron notificadas o descartadas en la sesión de navegación actual
+        const sessionNotifiedIds = new Set(getSessionNotifiedIds());
+        const unseenAndUnnotified = unseenJourneys.filter(journey => {
+            const journeyId = String(journey.id || '').trim();
+            return !sessionNotifiedIds.has(journeyId);
+        });
+
         // Si es la primera verificación de la sesión de página, notificamos todas las no leídas.
         // En consultas automáticas posteriores en segundo plano, solo notificamos las recién llegadas.
         const journeysToNotify = isFirstCheck
-            ? unseenJourneys
-            : unseenJourneys.filter(journey => {
+            ? unseenAndUnnotified
+            : unseenAndUnnotified.filter(journey => {
                 const journeyId = String(journey.id || '').trim();
                 return state.notifiedVersions[journeyId] !== createJourneyAlertVersion(journey);
             });
@@ -350,6 +379,9 @@ async function refreshFieldAdminAlert() {
         // Se activan las alertas emergentes (Toasts) premium para notificar nuevas jornadas
         if (journeysToNotify.length) {
             showNewJourneyToast(journeysToNotify);
+            // Registrar los IDs en sessionStorage para evitar que vuelvan a alertar en esta sesión de navegación
+            const notifiedIds = journeysToNotify.map(j => String(j.id || '').trim()).filter(Boolean);
+            markIdsAsSessionNotified(notifiedIds);
         }
 
         unseenJourneys.forEach(journey => {

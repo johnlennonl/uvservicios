@@ -32,6 +32,60 @@ let trendAnnotationPanelState = {
     isLoading: false,
     error: null
 };
+
+// Variables para evitar clics accidentales al scrollear o arrastrar (drag/zoom) en las gráficas
+let isScrollingOrDragging = false;
+let touchStartPageY = 0;
+let touchStartPageX = 0;
+let isMouseDown = false;
+let mouseDownX = 0;
+let mouseDownY = 0;
+
+// Registrar listeners táctiles globales para detectar deslizamiento (scroll) en móvil/tablet
+window.addEventListener('touchstart', (e) => {
+    isScrollingOrDragging = false;
+    if (e.touches && e.touches[0]) {
+        touchStartPageY = e.touches[0].pageY;
+        touchStartPageX = e.touches[0].pageX;
+    }
+}, { passive: true });
+
+window.addEventListener('touchmove', (e) => {
+    if (e.touches && e.touches[0]) {
+        const deltaY = Math.abs(e.touches[0].pageY - touchStartPageY);
+        const deltaX = Math.abs(e.touches[0].pageX - touchStartPageX);
+        if (deltaY > 8 || deltaX > 8) {
+            isScrollingOrDragging = true;
+        }
+    }
+}, { passive: true });
+
+// Registrar listeners de ratón para detectar arrastre (drag/zoom) en desktop
+window.addEventListener('mousedown', (e) => {
+    isMouseDown = true;
+    isScrollingOrDragging = false;
+    mouseDownX = e.pageX;
+    mouseDownY = e.pageY;
+}, { passive: true });
+
+window.addEventListener('mousemove', (e) => {
+    if (isMouseDown) {
+        const deltaX = Math.abs(e.pageX - mouseDownX);
+        const deltaY = Math.abs(e.pageY - mouseDownY);
+        if (deltaX > 5 || deltaY > 5) {
+            isScrollingOrDragging = true;
+        }
+    }
+}, { passive: true });
+
+window.addEventListener('mouseup', () => {
+    isMouseDown = false;
+    // Retrasar el reseteo para permitir que el callback click de ApexCharts se ejecute primero
+    setTimeout(() => {
+        isScrollingOrDragging = false;
+    }, 150);
+}, { passive: true });
+
 const FOCUSED_TREND_RECORD_COUNT = 15;
 const MONITORING_RECORD_WINDOW = 30;
 const TREND_WINDOW_STORAGE_KEY = 'uv-trend-window-mode';
@@ -1960,6 +2014,9 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
                     if (event?.target?.style) event.target.style.cursor = 'pointer';
                 },
                 click: async (event, chartContext, config) => {
+                    // Evitar clics accidentales si el usuario está deslizando la pantalla (scroll) o arrastrando (drag/zoom) la gráfica
+                    if (isScrollingOrDragging) return;
+
                     // Evitar clicks si se interactúa con la barra de herramientas (toolbar)
                     const isToolbarClick = event?.target?.closest('.apexcharts-toolbar');
                     if (isToolbarClick) return;

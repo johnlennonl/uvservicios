@@ -135,6 +135,77 @@ export async function getSession() {
                             }
                         });
                 }
+
+                // Cargar avatar personalizado y configurar el evento click en la tarjeta de perfil
+                const sidebarAvatarEl = document.querySelector('.sidebar-user-info img') || document.getElementById('sidebar-user-avatar');
+                if (sidebarAvatarEl) {
+                    import('./services/profile-service.js').then(({ resolveUserAvatarUrl }) => {
+                        resolveUserAvatarUrl(data.session.user.id).then(url => {
+                            if (url) sidebarAvatarEl.src = url;
+                        });
+                    });
+                }
+
+                const userCardEl = document.querySelector('.sidebar-user-info') || document.getElementById('sidebar-user-card');
+                if (userCardEl && !userCardEl.dataset.profileListenerAttached) {
+                    userCardEl.dataset.profileListenerAttached = 'true';
+                    userCardEl.style.cursor = 'pointer';
+                    userCardEl.addEventListener('click', () => {
+                        import('./services/profile-service.js').then(({ openUserProfileModal }) => {
+                            openUserProfileModal();
+                        });
+                    });
+                }
+
+                // Inyectar avatar de perfil en el mobile top app bar (reemplazando la píldora Online)
+                const mobileRightBar = document.querySelector('.mobile-app-bar-right');
+                if (mobileRightBar) {
+                    let mobileTrigger = document.getElementById('mobile-profile-trigger');
+                    if (!mobileTrigger) {
+                        mobileTrigger = document.createElement('div');
+                        mobileTrigger.id = 'mobile-profile-trigger';
+                        mobileTrigger.className = 'mobile-profile-avatar-wrapper';
+                        mobileTrigger.style.cursor = 'pointer';
+
+                        const portalLink = document.getElementById('mobile-link-portal');
+                        if (portalLink) {
+                            mobileRightBar.innerHTML = '';
+                            mobileRightBar.appendChild(portalLink);
+                            mobileRightBar.appendChild(mobileTrigger);
+                        } else {
+                            mobileRightBar.innerHTML = '';
+                            mobileRightBar.appendChild(mobileTrigger);
+                        }
+
+                        mobileTrigger.addEventListener('click', () => {
+                            import('./services/profile-service.js').then(({ openUserProfileModal }) => {
+                                openUserProfileModal();
+                            });
+                        });
+                    }
+
+                    // Cargar imagen o inicial en el avatar móvil
+                    import('./services/profile-service.js').then(({ resolveUserAvatarUrl, getLocalAvatar }) => {
+                        resolveUserAvatarUrl(data.session.user.id).then(url => {
+                            const local = getLocalAvatar(data.session.user.id);
+                            const isDefault = !local && (!url || url.includes('default-avatar.webp'));
+
+                            if (isDefault) {
+                                supabase
+                                    .from('profiles')
+                                    .select('nombre')
+                                    .eq('id', data.session.user.id)
+                                    .single()
+                                    .then(({ data: userProf }) => {
+                                        const letter = userProf?.nombre ? userProf.nombre.charAt(0).toUpperCase() : (data.session.user.email ? data.session.user.email.charAt(0).toUpperCase() : '?');
+                                        mobileTrigger.innerHTML = `<div class="mobile-profile-avatar-placeholder">${letter}</div>`;
+                                    });
+                            } else {
+                                mobileTrigger.innerHTML = `<img src="${url}" alt="Profile" class="mobile-profile-avatar-img">`;
+                            }
+                        });
+                    });
+                }
             }
         } catch (e) {
             console.warn('Error aplicando perfil de navegación:', e);
