@@ -61,6 +61,9 @@ export async function login(email, password) {
                 });
         }
 
+        // Limpiar completamente el sessionStorage al iniciar sesión con éxito para evitar datos cacheados obsoletos
+        sessionStorage.clear();
+
         return { success: true, user: data.user };
     } catch (err) {
         console.error('Supabase Auth Error:', err);
@@ -76,6 +79,15 @@ export async function logout() {
     sessionStorage.removeItem('uv-selected-pozo');
     sessionStorage.removeItem('uv-stats-monitoring-detail-state');
     localStorage.removeItem('uv-stats-monitoring-state');
+    // Limpiar caché de identidad del usuario para evitar datos cruzados entre cuentas
+    sessionStorage.removeItem('uv-user-fullname');
+    sessionStorage.removeItem('uv-user-firstname');
+    // Limpiar todas las claves de avatar cacheadas
+    Object.keys(sessionStorage).forEach(key => {
+        if (key.startsWith('uv-user-avatar-url:')) {
+            sessionStorage.removeItem(key);
+        }
+    });
     const { error } = await supabase.auth.signOut();
     if (error) console.error('Sign out error:', error);
     window.location.href = 'index.html';
@@ -116,6 +128,17 @@ export async function getSession() {
                 if (sidebarRoleEl) sidebarRoleEl.textContent = roleLabel;
                 
                 // Intentar cargar nombre y saludo dinámico usando caché de sesión para performance
+                // Validar que la caché pertenece al usuario actual (evita datos cruzados entre cuentas)
+                const currentUserId = data.session.user.id;
+                const cachedUserId = sessionStorage.getItem('uv-user-id');
+                
+                // Si el usuario cambió, limpiar caché de identidad anterior
+                if (cachedUserId && cachedUserId !== currentUserId) {
+                    sessionStorage.removeItem('uv-user-fullname');
+                    sessionStorage.removeItem('uv-user-firstname');
+                    sessionStorage.removeItem('uv-user-id');
+                }
+
                 const cachedFullName = sessionStorage.getItem('uv-user-fullname');
                 const cachedFirstName = sessionStorage.getItem('uv-user-firstname');
 
@@ -146,13 +169,14 @@ export async function getSession() {
                     supabase
                         .from('profiles')
                         .select('nombre, apellido')
-                        .eq('id', data.session.user.id)
+                        .eq('id', currentUserId)
                         .single()
                         .then(({ data: userProf }) => {
                             if (userProf?.nombre) {
                                 const fullName = `${userProf.nombre} ${userProf.apellido || ''}`.trim();
                                 const firstName = userProf.nombre.trim().split(' ')[0];
                                 
+                                sessionStorage.setItem('uv-user-id', currentUserId);
                                 sessionStorage.setItem('uv-user-fullname', fullName);
                                 sessionStorage.setItem('uv-user-firstname', firstName);
 
