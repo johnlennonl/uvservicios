@@ -1046,13 +1046,28 @@ function setupExportButtons() {
 
             // Expandir papel a 1050px y redibujar gráficos para ocupar la hoja A4 completa
             paperElement.classList.add('is-generating-pdf');
+            
+            // Inyectar pies de página dinámicos para el reporte multi-página
+            const pages = paperElement.querySelectorAll('.pdf-page');
+            pages.forEach((page, index) => {
+                const footer = document.createElement('div');
+                footer.className = 'pdf-custom-footer';
+                footer.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%; font-size: 0.72rem; color: #94a3b8; font-weight: 600; font-family: 'Outfit', sans-serif;">
+                        <span>UV Servicios · Reporte Ejecutivo de Monitoreo (Confidencial)</span>
+                        <span>Página ${index + 1} de ${pages.length}</span>
+                    </div>
+                `;
+                page.appendChild(footer);
+            });
+
             window.dispatchEvent(new Event('resize'));
 
-            // Esperar brevemente a que los gráficos ajusten su ancho a 1050px
-            await new Promise(resolve => setTimeout(resolve, 150));
+            // Esperar a que los gráficos ajusten su ancho a 1050px y redibujen con total nitidez
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             const opt = {
-                margin:       [8, 8, 8, 8],
+                margin:       [10, 10, 10, 10],
                 filename:     `Reporte_Monitoreo_UV_${new Date().toISOString().slice(0,10)}.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
@@ -1066,6 +1081,9 @@ function setupExportButtons() {
                 console.error('Error generando PDF con html2pdf:', err);
                 window.print();
             } finally {
+                // Remover los pies de página inyectados
+                paperElement.querySelectorAll('.pdf-custom-footer').forEach(f => f.remove());
+                
                 paperElement.classList.remove('is-generating-pdf');
                 window.dispatchEvent(new Event('resize'));
                 btnPrint.disabled = false;

@@ -1246,7 +1246,7 @@ body.is-role-base-datos a[href="base-datos.html"] {
   width: 794px;
   background: #ffffff;
   color: #0f172a;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif !important; /* Forzar Outfit para consistencia premium */
   pointer-events: none;
 }
 
@@ -1257,12 +1257,39 @@ body.is-role-base-datos a[href="base-datos.html"] {
 
 .monthly-pdf-page {
   width: 794px;
-  min-height: 1123px;
+  height: 1123px; /* Forzar dimensiones físicas A4 */
+  max-height: 1123px;
   padding: 46px;
   background: #ffffff;
   page-break-after: always;
   break-after: page;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative; /* Para el posicionamiento de la marca de agua */
+  z-index: 1;
+}
+
+.monthly-pdf-page::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+  background-image: url('../img/UV-SERVICES-Logo-vectorial-sin-fondo.webp');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.035; /* Opacidad sutil para acabado premium de marca de agua */
+  pointer-events: none;
+  z-index: -1; /* Renderizar al fondo */
+}
+
+.monthly-pdf-page > * {
+  position: relative;
+  z-index: 2; /* Encima de la marca de agua */
 }
 
 .monthly-pdf-page:last-child {
@@ -1273,14 +1300,16 @@ body.is-role-base-datos a[href="base-datos.html"] {
 .monthly-pdf-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #e2e8f0;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-left: 4px solid #2563eb; /* Acento corporativo azul */
+  padding-left: 18px;
+  background: linear-gradient(to right, rgba(37, 99, 235, 0.015), transparent);
 }
 
 .monthly-pdf-header img {
-  width: 58px;
-  height: 58px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
   flex: 0 0 auto;
 }
@@ -1291,7 +1320,7 @@ body.is-role-base-datos a[href="base-datos.html"] {
   display: block;
   color: #2563eb;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1300,17 +1329,18 @@ body.is-role-base-datos a[href="base-datos.html"] {
 .monthly-pdf-section-title h2,
 .monthly-pdf-page-title h2 {
   margin: 2px 0 0;
-  color: #0a2540;
+  color: #0f172a;
   font-size: 22px;
   line-height: 1.1;
-  font-weight: 800;
+  font-weight: 900;
+  letter-spacing: -0.02em;
 }
 
 .monthly-pdf-header p,
 .monthly-pdf-page-title p,
 .monthly-pdf-card-head p {
   margin: 4px 0 0;
-  color: #64748b;
+  color: #475569;
   font-size: 11px;
   line-height: 1.35;
 }
@@ -1520,9 +1550,10 @@ body.is-role-base-datos a[href="base-datos.html"] {
 
 .monthly-pdf-chart-card img {
   display: block;
-  width: 100%;
-  height: calc(100% - 48px);
-  margin-top: 8px;
+  width: auto;
+  max-width: 100%;
+  height: 240px !important; /* Altura fija para mantener proporciones redondas de Chart.js */
+  margin: 12px auto 0 auto;
   object-fit: contain;
 }
 
@@ -3952,31 +3983,97 @@ mark {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 20px;
-  padding: 24px;
+  padding: 30px;
   margin-top: 16px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   overflow: hidden;
+  font-family: 'Outfit', sans-serif !important; /* Forzar Outfit para reporte premium */
 }
 
+/* ── Estructuración en Páginas Físicas para PDF ── */
+.pdf-page {
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+}
+
+/* En modo normal, agregamos un margen de separación visual entre páginas del editor */
+.custom-report-paper .pdf-page + .pdf-page-break + .pdf-page {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 2px dashed #e2e8f0;
+}
+
+.pdf-page-break {
+  display: block;
+  height: 0;
+  margin: 0;
+  border: none;
+}
+
+/* Títulos de sección internos del reporte */
+.pdf-page-section-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  letter-spacing: -0.01em;
+}
+
+/* Footer corporativo de cada página */
+.pdf-custom-footer {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  display: block;
+}
+
+/* Ajustes específicos cuando se está compilando a PDF */
+.is-generating-pdf .pdf-page {
+  height: 185mm !important; /* Ajuste preciso para A4 Horizontal descontando márgenes */
+  max-height: 185mm !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+.is-generating-pdf .pdf-page-break {
+  page-break-before: always !important;
+  break-before: always !important;
+  height: 0 !important;
+  display: block !important;
+}
+
+.is-generating-pdf .custom-report-paper .pdf-page + .pdf-page-break + .pdf-page {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  border-top: none !important;
+}
+
+/* ── Cabecera Corporativa de Alto Impacto ── */
 .custom-report-header {
-  border-bottom: 2px solid #f1f5f9;
-  padding-bottom: 20px;
+  border-left: 4px solid #2563eb;
+  padding-left: 18px;
+  padding-bottom: 6px;
   margin-bottom: 24px;
+  background: linear-gradient(to right, rgba(37, 99, 235, 0.015), transparent);
 }
 
 .custom-report-brand {
   display: flex;
   align-items: center;
   gap: 20px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .custom-report-kicker {
-  font-size: 0.78rem;
-  font-weight: 800;
+  font-size: 0.76rem;
+  font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #2563eb;
@@ -3984,15 +4081,16 @@ mark {
 }
 
 .custom-report-header h1 {
-  font-size: 1.45rem;
+  font-size: 1.55rem;
   font-weight: 800;
   color: #0f172a;
-  margin: 2px 0 4px 0;
+  margin: 3px 0 5px 0;
+  letter-spacing: -0.02em;
 }
 
 .custom-report-header p {
   font-size: 0.88rem;
-  color: #64748b;
+  color: #475569;
   margin: 0;
 }
 
@@ -4002,82 +4100,95 @@ mark {
   gap: 12px;
   background: #f8fafc;
   padding: 14px 18px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid #e2e8f0;
 }
 
 .meta-pill span {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   color: #64748b;
+  letter-spacing: 0.03em;
 }
 
 .meta-pill strong {
   display: block;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 800;
   color: #0f172a;
   margin-top: 2px;
 }
 
-/* KPIs de Métricas */
+/* ── KPIs de Métricas Rediseñados ── */
 .custom-kpis-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .custom-kpi-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.015);
+  transition: all 0.2s ease;
 }
 
 .custom-kpi-label {
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.74rem;
+  font-weight: 800;
   text-transform: uppercase;
   color: #64748b;
   display: block;
+  letter-spacing: 0.04em;
 }
 
 .custom-kpi-value {
-  font-size: 1.55rem;
-  font-weight: 800;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #0f172a;
   display: block;
   margin: 4px 0 8px 0;
+  letter-spacing: -0.02em;
 }
 
 .custom-kpi-value small {
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
+  color: #475569;
 }
 
 .custom-kpi-subgrid {
   display: flex;
   justify-content: space-between;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   color: #475569;
   border-top: 1px dashed #e2e8f0;
   padding-top: 8px;
+  font-weight: 600;
 }
 
+/* ── Contenedor de Gráficos ApexCharts ── */
 .custom-charts-container {
   display: grid;
-  gap: 24px;
-  margin-bottom: 28px;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.is-generating-pdf .custom-charts-container {
+  grid-template-columns: repeat(2, 1fr) !important; /* Dos gráficos lado a lado en PDF horizontal */
 }
 
 .custom-chart-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  padding: 18px 20px;
+  border-radius: 14px;
+  padding: 16px 20px;
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
@@ -4085,10 +4196,17 @@ mark {
 }
 
 .chart-card-header h3 {
-  font-size: 1.05rem;
+  font-size: 0.98rem;
   font-weight: 800;
   color: #0f172a;
-  margin: 0 0 14px 0;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.01em;
+}
+
+/* ── Tabla de Datos Detallada Estilo Premium ── */
+.custom-report-table-wrap {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .custom-report-table-scroll {
@@ -4097,6 +4215,39 @@ mark {
   overflow-x: auto;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
+}
+
+.custom-report-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.custom-report-table-wrap th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  letter-spacing: 0.02em;
+}
+
+.custom-report-table-wrap td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  font-weight: 500;
+}
+
+.custom-report-table-wrap tr:nth-child(even) {
+  background: #f8fafc; /* Zebra striping */
+}
+
+.custom-report-table-wrap tr:last-child td {
+  border-bottom: none;
 }
 
 .is-generating-pdf .custom-report-table-scroll,
@@ -4114,7 +4265,7 @@ mark {
   width: 1050px !important;
   max-width: 1050px !important;
   min-width: 1050px !important;
-  padding: 24px !important;
+  padding: 30px !important;
   margin: 0 !important;
   border: none !important;
   box-shadow: none !important;
@@ -4125,7 +4276,7 @@ mark {
 }
 
 .is-generating-pdf .custom-kpis-grid {
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+  grid-template-columns: repeat(4, 1fr) !important;
 }
 
 .is-generating-pdf .custom-chart-card {

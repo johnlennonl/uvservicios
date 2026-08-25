@@ -179,9 +179,12 @@ export async function initEstadisticas() {
     // 6. Configurar Botón de Exportación PDF
     const btnExportPdf = document.getElementById('btn-export-pdf');
     if (btnExportPdf) {
-        btnExportPdf.hidden = true;
-        btnExportPdf.setAttribute('aria-hidden', 'true');
-        btnExportPdf.style.display = 'none';
+        btnExportPdf.hidden = false;
+        btnExportPdf.removeAttribute('aria-hidden');
+        btnExportPdf.style.display = 'inline-flex';
+        btnExportPdf.addEventListener('click', () => {
+            exportarPDF();
+        });
     }
 
     // 8. Configurar filtros de la tabla de alertas operativas
@@ -1522,15 +1525,20 @@ function getChartImage(chartKey) {
 function createPdfChartImage(chartKey, sourceChart) {
     if (typeof Chart === 'undefined') return sourceChart?.canvas?.toDataURL('image/png', 1) || '';
 
+    const isDoughnut = ['visitasCampo', 'motivoVisita', 'diagnosticos'].includes(chartKey);
     const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = chartKey === 'diagnosticoCampo' ? 340 : 320;
+    if (isDoughnut) {
+        canvas.width = 440;
+        canvas.height = 360;
+    } else {
+        canvas.width = 640;
+        canvas.height = chartKey === 'diagnosticoCampo' ? 340 : 320;
+    }
     const context = canvas.getContext('2d');
     if (!context) return sourceChart?.canvas?.toDataURL('image/png', 1) || '';
 
     const type = sourceChart.config?.type || 'bar';
     const data = JSON.parse(JSON.stringify(sourceChart.data || {}));
-    const isDoughnut = ['visitasCampo', 'motivoVisita', 'diagnosticos'].includes(chartKey);
     const isHorizontal = chartKey === 'diagnosticoCampo';
     const showLegend = chartKey !== 'diagnosticos' && chartKey !== 'nivelesPozo';
 
@@ -1539,10 +1547,11 @@ function createPdfChartImage(chartKey, sourceChart) {
         data,
         options: {
             responsive: false,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
+            aspectRatio: isDoughnut ? 1.22 : (chartKey === 'diagnosticoCampo' ? 1.88 : 2.0),
             animation: false,
             indexAxis: isHorizontal ? 'y' : 'x',
-            cutout: isDoughnut ? '58%' : undefined,
+            cutout: isDoughnut ? '55%' : undefined,
             plugins: {
                 legend: {
                     display: showLegend,
@@ -1551,7 +1560,7 @@ function createPdfChartImage(chartKey, sourceChart) {
                         color: '#475569',
                         boxWidth: 10,
                         boxHeight: 10,
-                        font: { family: 'Inter', size: 11, weight: 700 },
+                        font: { family: 'Inter', size: 10, weight: 700 },
                         usePointStyle: true,
                         pointStyle: 'circle'
                     }
@@ -1561,13 +1570,13 @@ function createPdfChartImage(chartKey, sourceChart) {
                 x: {
                     stacked: chartKey === 'modoCampo' || chartKey === 'diagnosticoCampo',
                     beginAtZero: true,
-                    ticks: { color: '#64748b', font: { family: 'Inter', size: 10, weight: 700 }, maxRotation: chartKey === 'nivelesPozo' ? 35 : 0, minRotation: chartKey === 'nivelesPozo' ? 20 : 0 },
+                    ticks: { color: '#64748b', font: { family: 'Inter', size: 9, weight: 700 }, maxRotation: chartKey === 'nivelesPozo' ? 35 : 0, minRotation: chartKey === 'nivelesPozo' ? 20 : 0 },
                     grid: { color: '#eef2f7' }
                 },
                 y: {
                     stacked: chartKey === 'modoCampo' || chartKey === 'diagnosticoCampo',
                     beginAtZero: true,
-                    ticks: { color: '#64748b', font: { family: 'Inter', size: 10, weight: 700 } },
+                    ticks: { color: '#64748b', font: { family: 'Inter', size: 9, weight: 700 } },
                     grid: { color: '#eef2f7' }
                 }
             }
@@ -1602,19 +1611,57 @@ function renderPdfChartCard(title, subtitle, chartKey) {
     `;
 }
 
-function renderPdfInterestPoints(points = []) {
-    if (!points.length) return '<li>Sin eventos criticos registrados en el periodo seleccionado.</li>';
-    return points.map(group => {
-        const pozos = [...(group.pozos || new Set())].sort().join(', ') || 'Sin pozo identificado';
-        const details = [...(group.details || new Set())].slice(0, 2);
+function renderPdfInterestPointsPageHTML(eventsChunk, pageNum, totalPages) {
+    const rows = eventsChunk.map(evt => {
+        const dateStr = evt.fecha ? evt.fecha.split('-').reverse().join('/') : '--';
+        const timeStr = evt.hora ? evt.hora.slice(0, 5) : '--';
         return `
-            <li>
-                <strong>${escapeHtml(group.diagnostic)}</strong>
-                <span>${group.records?.length || 0} evento(s) · Pozos: ${escapeHtml(pozos)}</span>
-                ${details.length ? `<em>${details.map(escapeHtml).join(' / ')}</em>` : ''}
-            </li>
+            <tr>
+                <td style="font-weight: 700; white-space: nowrap; color: #475569; padding: 7px 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.74rem;">${escapeHtml(dateStr)} ${escapeHtml(timeStr)}</td>
+                <td style="font-weight: 800; color: #0f172a; padding: 7px 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.74rem;">${escapeHtml(evt.pozo)}</td>
+                <td style="font-weight: 800; color: #2563eb; padding: 7px 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.74rem;">${escapeHtml(evt.diagnostico)}</td>
+                <td style="color: #334155; font-size: 0.71rem; padding: 7px 12px; border-bottom: 1px solid #f1f5f9; line-height: 1.35;">${escapeHtml(evt.comentario)}</td>
+            </tr>
         `;
     }).join('');
+
+    const subtitleText = totalPages > 1 
+        ? `Parte ${pageNum} de ${totalPages} · Lista cronológica de alertas operativas en el periodo.`
+        : 'Lista cronológica de alertas operativas (fallas eléctricas, subcargas, paradas y fallas de generadores).';
+
+    return `
+        <!-- PÁGINA DE EVENTOS CRÍTICOS -->
+        <section class="monthly-pdf-page monthly-pdf-page-events">
+            <div class="monthly-pdf-page-title" style="border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px;">
+                <span>Trazabilidad Técnica</span>
+                <h2>Puntos de Interés y Eventos Críticos</h2>
+                <p>${subtitleText}</p>
+            </div>
+            <div style="flex-grow: 1;">
+                ${eventsChunk.length === 0 ? `
+                    <div style="padding: 30px; text-align: center; color: #64748b; font-size: 0.88rem; font-weight: 600; border: 1px dashed #e2e8f0; border-radius: 12px; margin-top: 14px;">
+                        Sin eventos críticos registrados en el periodo seleccionado.
+                    </div>
+                ` : `
+                    <div style="overflow: hidden; border: 1px solid #e2e8f0; border-radius: 10px; margin-top: 14px; background: #ffffff;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: 'Outfit', sans-serif;">
+                            <thead>
+                                <tr style="background: #f8fafc;">
+                                    <th style="width: 120px; font-weight: 800; text-transform: uppercase; font-size: 0.68rem; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #475569; letter-spacing: 0.02em;">Fecha / Hora</th>
+                                    <th style="width: 80px; font-weight: 800; text-transform: uppercase; font-size: 0.68rem; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #475569; letter-spacing: 0.02em;">Pozo</th>
+                                    <th style="width: 160px; font-weight: 800; text-transform: uppercase; font-size: 0.68rem; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #475569; letter-spacing: 0.02em;">Categoría de Falla</th>
+                                    <th style="font-weight: 800; text-transform: uppercase; font-size: 0.68rem; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #475569; letter-spacing: 0.02em;">Observaciones / Comentario Técnico</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows}
+                            </tbody>
+                        </table>
+                    </div>
+                `}
+            </div>
+        </section>
+    `;
 }
 
 function renderPdfFieldCards(rows = []) {
@@ -1647,9 +1694,71 @@ function renderPdfFieldCards(rows = []) {
 
 function buildMonthlyPdfDocument() {
     const data = getMonthlyPdfData();
+    
+    // Extraer todos los eventos críticos individuales
+    const events = [];
+    data.interestPoints.forEach(group => {
+        (group.records || []).forEach(record => {
+            events.push({
+                fecha: record.fecha || '',
+                hora: record.hora || '',
+                pozo: record.pozo_name || '',
+                diagnostico: group.diagnostic || '',
+                comentario: record.observaciones || record.diagnostico || 'Monitoreo de parámetros'
+            });
+        });
+    });
+
+    // Ordenar cronológicamente (más recientes primero)
+    events.sort((a, b) => {
+        const dateA = new Date(`${a.fecha}T${a.hora || '00:00:00'}`);
+        const dateB = new Date(`${b.fecha}T${b.hora || '00:00:00'}`);
+        return dateB - dateA;
+    });
+
+    // Dividir los eventos en chunks dinámicos según su longitud de texto para que nunca se corten
+    const chunks = [];
+    let currentChunk = [];
+    let currentWeight = 0;
+    const maxWeightPerPage = 17; // Peso máximo seguro por página A4
+
+    events.forEach(evt => {
+        const commentLength = String(evt.comentario || '').length;
+        let weight = 1;
+        if (commentLength > 160) {
+            weight = 3.5; // Texto muy largo (ocupa 3-4 líneas)
+        } else if (commentLength > 70) {
+            weight = 2; // Texto medio (ocupa 2 líneas)
+        }
+
+        // Si agregar este evento supera el límite seguro de la página, creamos una nueva
+        if (currentWeight + weight > maxWeightPerPage && currentChunk.length > 0) {
+            chunks.push(currentChunk);
+            currentChunk = [evt];
+            currentWeight = weight;
+        } else {
+            currentChunk.push(evt);
+            currentWeight += weight;
+        }
+    });
+    if (currentChunk.length > 0) {
+        chunks.push(currentChunk);
+    }
+
+    // Generar el marcado de las páginas de eventos
+    let eventsPagesHTML = '';
+    if (chunks.length === 0) {
+        eventsPagesHTML = renderPdfInterestPointsPageHTML([], 1, 1);
+    } else {
+        chunks.forEach((chunk, index) => {
+            eventsPagesHTML += renderPdfInterestPointsPageHTML(chunk, index + 1, chunks.length);
+        });
+    }
+
     const documentElement = document.createElement('div');
     documentElement.className = 'monthly-pdf-document';
     documentElement.innerHTML = `
+        <!-- PÁGINA 1: Portada y KPIs de Métricas -->
         <section class="monthly-pdf-page monthly-pdf-page-summary">
             <header class="monthly-pdf-header">
                 <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios">
@@ -1666,7 +1775,8 @@ function buildMonthlyPdfDocument() {
                 <div><span>Emision</span><strong>${escapeHtml(data.generatedAt)}</strong></div>
                 <div><span>Generado por</span><strong>${escapeHtml(data.userEmail)}</strong></div>
             </div>
-            <article class="monthly-pdf-section monthly-pdf-brief">
+            
+            <article class="monthly-pdf-section monthly-pdf-brief" style="margin-bottom: 24px;">
                 <div class="monthly-pdf-section-title">
                     <span>Resumen de Actividades</span>
                     <h2>${escapeHtml(data.monthLabel)}</h2>
@@ -1687,20 +1797,22 @@ function buildMonthlyPdfDocument() {
                         <div><dt>Actividad</dt><dd>TOMA DE PARAMETROS OPERATIVOS</dd></div>
                     </dl>
                 </div>
-                <div class="monthly-pdf-points">
-                    <h3>Puntos de interes</h3>
-                    <ul>${renderPdfInterestPoints(data.interestPoints)}</ul>
-                </div>
             </article>
-            <div class="monthly-pdf-kpi-grid">
+
+            <div class="monthly-pdf-kpi-grid" style="margin-top: auto;">
                 ${renderPdfKpiCard('Total visitas registradas', data.total, 'blue')}
                 ${renderPdfKpiCard('Pozos sin falla', `${data.sinFallaPercent}%`, 'green')}
                 ${renderPdfKpiCard('Pozos unicos monitoreados', data.pozosUnicos.size, 'purple')}
                 ${renderPdfKpiCard('Niveles ejecutados', data.nivelesEjecutados, 'orange')}
             </div>
         </section>
+
+        <!-- PÁGINAS DINÁMICAS DE PUNTOS DE INTERÉS -->
+        ${eventsPagesHTML}
+
+        <!-- PÁGINA 3 (Siguiente): Gráficos Analíticos -->
         <section class="monthly-pdf-page monthly-pdf-page-charts">
-            <div class="monthly-pdf-page-title">
+            <div class="monthly-pdf-page-title" style="margin-bottom: 20px;">
                 <span>Analitica Operativa</span>
                 <h2>Graficos principales</h2>
             </div>
@@ -1711,12 +1823,14 @@ function buildMonthlyPdfDocument() {
                 ${renderPdfChartCard(`Grafico 4. Diagnostico de falla ${data.contractName}`, 'Distribucion de diagnosticos segun jornadas aprobadas.', 'diagnosticos')}
             </div>
         </section>
+
+        <!-- PÁGINA 4 (Siguiente): Comparativo Ejecutivo y Detalle de Campos -->
         <section class="monthly-pdf-page monthly-pdf-page-detail">
-            <div class="monthly-pdf-page-title">
+            <div class="monthly-pdf-page-title" style="margin-bottom: 16px;">
                 <span>Comparativo por Campo</span>
                 <h2>Detalle ejecutivo operativo</h2>
             </div>
-            <div class="monthly-pdf-chart-grid monthly-pdf-chart-grid-compact">
+            <div class="monthly-pdf-chart-grid monthly-pdf-chart-grid-compact" style="margin-bottom: 16px;">
                 ${renderPdfChartCard('Estado Operativo por Campo', 'Comparativo de pozos en RUN y OFF por campo.', 'modoCampo')}
                 ${renderPdfChartCard('Diagnostico Operativo por Campo', 'RUN/sin falla, perdida de senal y otros diagnosticos.', 'diagnosticoCampo')}
             </div>
@@ -2070,14 +2184,10 @@ async function exportarPDF() {
     };
 
     try {
-        if (hasNativePdfExport) {
-            exportNativeMonthlyPdf(filename);
-            closePdfGenerationModal();
-            showPdfGenerationResult('success', 'Reporte generado', 'El PDF mensual fue preparado y descargado correctamente.');
-            return;
-        }
-
         resizeReportCharts();
+        // Esperar brevemente a que los gráficos se redibujen con el ancho correcto
+        await new Promise(resolve => setTimeout(resolve, 350));
+
         await waitForPdfLayout();
         pdfDocument = buildMonthlyPdfDocument();
         pdfDocument.style.position = 'relative';

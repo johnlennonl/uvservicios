@@ -112,7 +112,6 @@
             transform: translateY(-1px);
             box-shadow: 0 6px 18px rgba(0, 82, 204, 0.35);
         }
-        #btn-export-pdf,
         .btn-export-pdf[hidden] {
             display: none !important;
         }
@@ -606,7 +605,7 @@
                             </select>
                         </label>
                     </div>
-                    <button type="button" id="btn-export-pdf" class="btn-export-pdf" hidden aria-hidden="true">
+                    <button type="button" id="btn-export-pdf" class="btn-export-pdf">
                         <i class="fa-solid fa-file-pdf"></i>
                         <span>Exportar Reporte Mensual PDF</span>
                     </button>
@@ -1262,34 +1261,48 @@
 
                     <!-- Encabezado Imprimible del Reporte -->
                     <div class="custom-report-paper" id="custom-report-paper">
-                        <header class="custom-report-header">
-                            <div class="custom-report-brand">
-                                <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" width="140" height="140">
-                                <div>
-                                    <span class="custom-report-kicker">Reporte Personalizado de Monitoreo</span>
-                                    <h1 id="custom-paper-title">Reporte Ejecutivo de Pozos</h1>
-                                    <p id="custom-paper-subtitle">Análisis gráfico temporal y trazabilidad operativa de parámetros seleccionados.</p>
+                        <!-- PÁGINA 1: Portada y KPIs Ejecutivos -->
+                        <div class="pdf-page page-1">
+                            <header class="custom-report-header">
+                                <div class="custom-report-brand">
+                                    <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV Servicios" width="140" height="140">
+                                    <div>
+                                        <span class="custom-report-kicker">Reporte Personalizado de Monitoreo</span>
+                                        <h1 id="custom-paper-title">Reporte Ejecutivo de Pozos</h1>
+                                        <p id="custom-paper-subtitle">Análisis gráfico temporal y trazabilidad operativa de parámetros seleccionados.</p>
+                                    </div>
                                 </div>
+                                <div class="custom-report-meta-grid">
+                                    <div class="meta-pill"><span>Pozo(s)</span><strong id="meta-wells-val">--</strong></div>
+                                    <div class="meta-pill"><span>Rango</span><strong id="meta-range-val">--</strong></div>
+                                    <div class="meta-pill"><span>Variables</span><strong id="meta-vars-val">0</strong></div>
+                                    <div class="meta-pill"><span>Total Lecturas</span><strong id="meta-records-val">0</strong></div>
+                                    <div class="meta-pill"><span>Emisión</span><strong id="meta-date-val">--</strong></div>
+                                </div>
+                            </header>
+
+                            <!-- Tarjetas Resumen de Métricas -->
+                            <div id="custom-report-kpis-grid" class="custom-kpis-grid"></div>
+                        </div>
+
+                        <!-- SALTO DE PÁGINA -->
+                        <div class="pdf-page-break"></div>
+
+                        <!-- PÁGINA 2: Gráficos Analíticos -->
+                        <div class="pdf-page page-2">
+                            <h2 class="pdf-page-section-title"><i class="fas fa-chart-line" style="color: #2563eb; margin-right: 8px;"></i>Análisis Gráfico de Tendencias</h2>
+                            <div id="custom-report-charts-container" class="custom-charts-container"></div>
+                        </div>
+
+                        <!-- SALTO DE PÁGINA -->
+                        <div class="pdf-page-break"></div>
+
+                        <!-- PÁGINA 3: Detalle de Tabla de Lecturas -->
+                        <div class="pdf-page page-3">
+                            <div class="custom-report-table-wrap">
+                                <h2 class="pdf-page-section-title" style="margin-bottom: 12px;"><i class="fas fa-table" style="color: #2563eb; margin-right: 8px;"></i>Detalle de Lecturas de Monitoreo</h2>
+                                <div id="custom-report-table-holder"></div>
                             </div>
-                            <div class="custom-report-meta-grid">
-                                <div class="meta-pill"><span>Pozo(s)</span><strong id="meta-wells-val">--</strong></div>
-                                <div class="meta-pill"><span>Rango</span><strong id="meta-range-val">--</strong></div>
-                                <div class="meta-pill"><span>Variables</span><strong id="meta-vars-val">0</strong></div>
-                                <div class="meta-pill"><span>Total Lecturas</span><strong id="meta-records-val">0</strong></div>
-                                <div class="meta-pill"><span>Emisión</span><strong id="meta-date-val">--</strong></div>
-                            </div>
-                        </header>
-
-                        <!-- Tarjetas Resumen de Métricas -->
-                        <div id="custom-report-kpis-grid" class="custom-kpis-grid"></div>
-
-                        <!-- Contenedor de Gráficos ApexCharts -->
-                        <div id="custom-report-charts-container" class="custom-charts-container"></div>
-
-                        <!-- Tabla de Datos -->
-                        <div class="custom-report-table-wrap">
-                            <h3 style="font-size:1.05rem; font-weight:800; color:#0f172a; margin-bottom:10px;">Detalle de Lecturas de Monitoreo</h3>
-                            <div id="custom-report-table-holder"></div>
                         </div>
                     </div>
                 </div>
