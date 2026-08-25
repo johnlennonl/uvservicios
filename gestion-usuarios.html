@@ -140,9 +140,14 @@
             <!-- PAGE HERO -->
             <header class="page-hero">
                 <div class="page-hero-copy">
-                    <span style="font-size: 0.72rem; color: #2563eb; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Acceso Gestor</span>
-                    <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--text-title); margin: 4px 0 0 0;">Gestión de Accesos y Usuarios</h1>
-                    <p style="font-size: 0.88rem; color: var(--text-muted); margin: 4px 0 0 0; font-weight: 500;">Administra los perfiles, accesos y roles del sistema.</p>
+                    <span class="campo-admin-kicker">Gestión de Accesos</span>
+                    <h1 id="welcome-title">Gestión de Accesos y Usuarios</h1>
+                    <div id="user-info-header" style="margin-top: 6px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                        <span id="header-dynamic-subtitle" style="margin: 0; color: var(--text-muted);">Administración y control de permisos de usuario.</span>
+                        <span style="color: var(--border-color)">|</span>
+                        <span id="header-user-role" style="text-transform: uppercase; font-size: 0.72rem; background: var(--bg-header); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-color); color: var(--text-body);">...</span>
+                        <span id="header-user-name" style="display: none;">Cargando...</span>
+                    </div>
                 </div>
                 <div class="page-hero-actions">
                     <div class="system-status-widget">

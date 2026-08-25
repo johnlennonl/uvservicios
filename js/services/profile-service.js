@@ -42,18 +42,25 @@ export async function resolveUserAvatarUrl(userId) {
     const local = getLocalAvatar(userId);
     if (local) return local;
 
-    // 2. Intentar obtener de Supabase Storage
+    // 2. Intentar obtener de la caché de sesión
+    const sessionCacheKey = `uv-user-avatar-url:${userId}`;
+    const cachedUrl = sessionStorage.getItem(sessionCacheKey);
+    if (cachedUrl) return cachedUrl;
+
+    // 3. Consultar columna avatar_url de la tabla profiles
     try {
-        const { data } = supabase.storage.from('avatars').getPublicUrl(`${userId}.webp`);
-        if (data?.publicUrl) {
-            // Verificar si la URL pública responde (hacer HEAD request rápido para saber si existe el archivo)
-            const response = await fetch(data.publicUrl, { method: 'HEAD' }).catch(() => null);
-            if (response && response.ok) {
-                return data.publicUrl;
-            }
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', userId)
+            .single();
+        
+        if (!error && data?.avatar_url) {
+            sessionStorage.setItem(sessionCacheKey, data.avatar_url);
+            return data.avatar_url;
         }
     } catch (err) {
-        console.warn('Error resolviendo avatar de Supabase Storage:', err);
+        console.warn('Error resolviendo avatar desde profiles:', err);
     }
 
     return 'img/default-avatar.webp';
@@ -413,15 +420,35 @@ export async function openUserProfileModal() {
                 if (passErr) throw passErr;
             }
 
-            // 4. Refrescar visualmente el sidebar en caliente
+            // 4. Refrescar visualmente el sidebar, header y saludo en caliente
             const fullName = `${newNombre} ${newApellido}`.trim();
+            const firstName = newNombre.trim().split(' ')[0];
+
+            sessionStorage.setItem('uv-user-fullname', fullName);
+            sessionStorage.setItem('uv-user-firstname', firstName);
+
             const sidebarNameEl = document.getElementById('sidebar-user-name');
             const headerNameEl = document.getElementById('header-user-name');
-            const sidebarAvatarEl = document.querySelector('.sidebar-user-info img');
+            const sidebarAvatarEl = document.querySelector('.sidebar-user-info img') || document.querySelector('.sidebar-avatar img');
+            const welcomeTitleEl = document.getElementById('welcome-title');
 
             if (sidebarNameEl) sidebarNameEl.textContent = fullName;
             if (headerNameEl) headerNameEl.textContent = fullName;
             if (sidebarAvatarEl) sidebarAvatarEl.src = finalAvatarUrl;
+
+            // Actualizar saludo en caliente si el elemento existe en el dashboard
+            if (welcomeTitleEl) {
+                const hour = new Date().getHours();
+                let greeting = '¡Hola';
+                if (hour >= 6 && hour < 12) {
+                    greeting = '¡Buenos días';
+                } else if (hour >= 12 && hour < 19) {
+                    greeting = '¡Buenas tardes';
+                } else {
+                    greeting = '¡Buenas noches';
+                }
+                welcomeTitleEl.innerHTML = `${greeting}, <span style="color: #2563eb;">${firstName}</span>! 👋`;
+            }
 
             closeModal();
 

@@ -1513,39 +1513,108 @@
             width: 100%;
             border-collapse: collapse;
             text-align: left;
+            font-family: 'Outfit', sans-serif !important;
         }
 
         .history-table th {
             background: #F8FAFC;
-            padding: 16px;
-            font-size: 0.75rem;
+            padding: 12px 16px;
+            font-family: 'Outfit', sans-serif !important;
+            font-size: 0.72rem;
             text-transform: uppercase;
             color: #64748B;
-            font-weight: 800;
-            border-bottom: 2px solid #E2E8F0;
+            font-weight: 700;
+            border-bottom: 2.5px solid #E2E8F0;
+            letter-spacing: 0.05em;
         }
 
         .history-table td {
-            padding: 16px;
+            padding: 12px 16px;
             border-bottom: 1px solid #F1F5F9;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             color: #334155;
             vertical-align: middle;
         }
 
+        .history-table tr {
+            cursor: pointer !important;
+        }
+
         .history-table tr:nth-child(even) {
-            background-color: rgba(241, 245, 249, 0.4);
+            background-color: rgba(241, 245, 249, 0.3);
         }
 
         .history-table tr:hover {
             background: #EFF6FF;
-            box-shadow: inset 4px 0 0 #3B82F6;
+            box-shadow: inset 3.5px 0 0 #2563EB;
         }
 
-        .history-table td:first-child {
-            font-weight: 800;
+        /* Columna de Fecha/Hora */
+        .history-table td.cell-date {
+            background-color: rgba(248, 250, 252, 0.55);
+            min-width: 110px;
+        }
+
+        .history-table .date-main {
+            font-family: 'Outfit', sans-serif !important;
+            font-size: 0.86rem;
+            font-weight: 700;
+            color: #1E293B;
+            letter-spacing: -0.01em;
+            display: block;
+        }
+
+        .history-table .time-sub {
+            font-family: 'Outfit', sans-serif !important;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #64748B;
+            display: block;
+            margin-top: 1px;
+        }
+
+        /* Valores numéricos y unidades */
+        .history-table .value-highlight {
+            font-family: 'Outfit', sans-serif !important;
+            font-size: 0.9rem;
+            font-weight: 700;
             color: #0F172A;
-            background-color: rgba(248, 250, 252, 0.7);
+        }
+
+        .history-table .unit-label {
+            font-family: 'Outfit', sans-serif !important;
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: #64748B;
+            margin-left: 2px;
+        }
+
+        /* Badges planos de giro y estado */
+        .history-table .value-badge-plain {
+            font-family: 'Outfit', sans-serif !important;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: #F1F5F9 !important;
+            color: #475569 !important;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid #E2E8F0;
+            display: inline-block;
+        }
+
+        /* Telemetría (PIP/TM, Presiones, Fases VSD) */
+        .history-table .telemetry-item .val,
+        .history-table .vsd-phase .val {
+            font-family: 'Outfit', sans-serif !important;
+            font-size: 0.86rem;
+            font-weight: 700;
+            color: #0F172A;
+        }
+
+        .history-table .telemetry-item .lbl,
+        .history-table .telemetry-item .uni,
+        .history-table .vsd-phase .lbl {
+            font-family: 'Outfit', sans-serif !important;
         }
 
         .btn-action {
@@ -2556,6 +2625,512 @@
 @media (max-width: 480px) {
     .print-detailed-card-grid {
         grid-template-columns: 1fr !important;
+    }
+}
+
+/* ━━━━━━━━ REDISEÑO PREMIUM DATA (BAKER HUGHES STYLE) ━━━━━━━━ */
+
+/* Ficha Rápida del Pozo Rediseñada */
+.selected-pozo-profile-card {
+    background: #FFFFFF !important;
+    border-radius: 16px !important;
+    border: 1px solid #E2E8F0 !important;
+    padding: 24px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+}
+
+.selected-pozo-profile-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    gap: 16px !important;
+    margin-top: 20px !important;
+}
+
+.selected-pozo-profile-pill {
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    min-width: 0 !important;
+}
+
+.selected-pozo-profile-pill:hover {
+    background: #FFFFFF !important;
+    border-color: #CBD5E1 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04) !important;
+    transform: translateY(-2px) !important;
+}
+
+.selected-pozo-profile-pill .spec-icon {
+    width: 20px !important;
+    height: 20px !important;
+    color: #2563EB !important;
+    background: #EFF6FF !important;
+    padding: 8px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+}
+
+.selected-pozo-profile-pill:nth-child(2n) .spec-icon {
+    color: #D97706 !important;
+    background: #FFF7ED !important;
+}
+
+.selected-pozo-profile-pill .spec-details {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    min-width: 0 !important;
+}
+
+.selected-pozo-profile-pill .spec-details span {
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    color: #64748B !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+
+.selected-pozo-profile-pill .spec-details strong {
+    font-size: 0.88rem !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+    font-family: 'Outfit', sans-serif !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Barra de Pestañas Segmentadas */
+.history-mode-toggle {
+    background: #F1F5F9 !important;
+    padding: 4px !important;
+    border-radius: 999px !important;
+    display: inline-flex !important;
+    gap: 4px !important;
+    align-items: center !important;
+    border: 1px solid #E2E8F0 !important;
+}
+
+.history-mode-btn {
+    border: none !important;
+    background: transparent !important;
+    color: #64748B !important;
+    border-radius: 999px !important;
+    padding: 8px 16px !important;
+    font-size: 0.76rem !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.history-mode-btn svg {
+    flex-shrink: 0 !important;
+    color: #64748B !important;
+    transition: color 0.25s ease !important;
+}
+
+.history-mode-btn:hover {
+    color: #2563EB !important;
+    background: rgba(37, 99, 235, 0.08) !important;
+}
+
+.history-mode-btn:hover svg {
+    color: #2563EB !important;
+}
+
+.history-mode-btn.active {
+    color: #FFFFFF !important;
+    background: #2563EB !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+}
+
+.history-mode-btn.active svg {
+    color: #FFFFFF !important;
+}
+
+/* Tabla de Datos Premium */
+.cell-date {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+}
+
+.cell-date .date-main {
+    font-weight: 700 !important;
+    color: #0F172A !important;
+    font-size: 0.85rem !important;
+}
+
+.cell-date .time-sub {
+    font-size: 0.75rem !important;
+    color: #64748B !important;
+    font-weight: 500 !important;
+}
+
+.cell-freq .value-highlight,
+.cell-current .value-highlight {
+    font-size: 0.9rem !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+}
+
+.cell-freq .unit-label,
+.cell-current .unit-label {
+    font-size: 0.72rem !important;
+    color: #94A3B8 !important;
+    font-weight: 600 !important;
+    margin-left: 2px !important;
+}
+
+.cell-giro .value-badge-plain {
+    font-size: 0.76rem !important;
+    font-weight: 700 !important;
+    color: #334155 !important;
+    background: #F1F5F9 !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+}
+
+/* Bloques de Telemetría (Presiones y PIP/TM) */
+.telemetry-block-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+
+.telemetry-block-group.horizontal {
+    flex-direction: row !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+}
+
+.telemetry-item {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+}
+
+.telemetry-item .lbl {
+    font-size: 0.68rem !important;
+    text-transform: uppercase !important;
+    font-weight: 800 !important;
+    opacity: 0.75 !important;
+}
+
+.telemetry-item .val {
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 800 !important;
+}
+
+.telemetry-item .uni {
+    font-size: 0.65rem !important;
+    font-weight: 600 !important;
+    opacity: 0.5 !important;
+}
+
+/* Colores específicos de telemetría */
+.telemetry-item.pip {
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+    color: #334155 !important;
+}
+
+.telemetry-item.tm {
+    background: #FFF1F2 !important;
+    border: 1px solid #FFE4E6 !important;
+    color: #E11D48 !important;
+}
+
+.telemetry-item.thp {
+    background: #EFF6FF !important;
+    border: 1px solid #DBEAFE !important;
+    color: #2563EB !important;
+}
+
+.telemetry-item.chp {
+    background: #F0FDF4 !important;
+    border: 1px solid #DCFCE7 !important;
+    color: #16A34A !important;
+}
+
+.telemetry-item.lf {
+    background: #FFF7ED !important;
+    border: 1px solid #FFEDD5 !important;
+    color: #EA580C !important;
+}
+
+/* Bloques VSD (Corriente por Fase) */
+.vsd-grid-block {
+    display: flex !important;
+    gap: 4px !important;
+}
+
+.vsd-phase {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 6px !important;
+    padding: 4px 6px !important;
+    min-width: 32px !important;
+}
+
+.vsd-phase .lbl {
+    font-size: 0.6rem !important;
+    font-weight: 800 !important;
+    color: #64748B !important;
+    line-height: 1 !important;
+    margin-bottom: 2px !important;
+}
+
+.vsd-phase .val {
+    font-size: 0.76rem !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+    font-family: 'Outfit', sans-serif !important;
+    line-height: 1 !important;
+}
+
+/* Badge de Estatus LED */
+.status-badge-premium {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 5px 12px !important;
+    border-radius: 999px !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+}
+
+.status-badge-premium .status-dot {
+    width: 6px !important;
+    height: 6px !important;
+    border-radius: 50% !important;
+    display: inline-block !important;
+}
+
+.status-run {
+    background: #DCFCE7 !important;
+    color: #15803D !important;
+    border: 1px solid #BBF7D0 !important;
+}
+
+.status-run .status-dot {
+    background: #22C55E !important;
+    box-shadow: 0 0 8px #22C55E !important;
+    animation: status-led-pulse 1.6s infinite ease-in-out !important;
+}
+
+.status-off {
+    background: #FEE2E2 !important;
+    color: #B91C1C !important;
+    border: 1px solid #FECACA !important;
+}
+
+.status-off .status-dot {
+    background: #EF4444 !important;
+}
+
+@keyframes status-led-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.45;
+    }
+}
+
+/* Botón Ver Premium */
+.btn-view-premium {
+    background: #EFF6FF !important;
+    color: #2563EB !important;
+    border: 1px solid #DBEAFE !important;
+    border-radius: 8px !important;
+    padding: 6px 12px !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.btn-view-premium svg {
+    width: 14px !important;
+    height: 14px !important;
+    color: currentColor !important;
+}
+
+.btn-view-premium:hover {
+    background: #2563EB !important;
+    color: #FFFFFF !important;
+    border-color: #2563EB !important;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2) !important;
+}
+
+/* Botones de acción complementarios */
+.btn-edit-premium {
+    background: #FFF7ED !important;
+    color: #D97706 !important;
+    border: 1px solid #FFEDD5 !important;
+    border-radius: 8px !important;
+    padding: 6px 12px !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    margin-left: 4px !important;
+}
+
+.btn-edit-premium:hover {
+    background: #D97706 !important;
+    color: #FFFFFF !important;
+    border-color: #D97706 !important;
+}
+
+.btn-delete-premium {
+    background: #FFF1F2 !important;
+    color: #E11D48 !important;
+    border: 1px solid #FFE4E6 !important;
+    border-radius: 8px !important;
+    padding: 6px 12px !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    margin-left: 4px !important;
+}
+
+.btn-delete-premium:hover {
+    background: #E11D48 !important;
+    color: #FFFFFF !important;
+    border-color: #E11D48 !important;
+}
+
+/* Loader Premium de Transición */
+#history-table-wrapper {
+    transition: min-height 0.2s ease !important;
+    will-change: transform !important;
+}
+
+#history-table-wrapper:has(.premium-loader-container.active) {
+    min-height: 280px !important;
+}
+
+.premium-loader-container {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(2px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 14px !important;
+    z-index: 99 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.2s ease !important;
+    border-radius: 8px !important;
+}
+
+.premium-loader-container.active {
+    opacity: 1 !important;
+    pointer-events: all !important;
+}
+
+.simple-spinner {
+    width: 42px !important;
+    height: 42px !important;
+    border: 3px solid rgba(37, 99, 235, 0.12) !important;
+    border-radius: 50% !important;
+    border-top-color: #2563EB !important;
+    animation: spin-simple-loader 0.8s linear infinite !important;
+}
+
+.premium-loader-text {
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    color: #475569 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    animation: pulse-text-fade 1.5s ease-in-out infinite !important;
+    font-family: 'Outfit', sans-serif !important;
+}
+
+/* Efecto de desvanecimiento suave de la tabla al cargar */
+#history-table {
+    transition: opacity 0.2s ease, filter 0.2s ease !important;
+}
+
+#history-table.loading-fade {
+    opacity: 0.25 !important;
+    filter: blur(1.5px) !important;
+    pointer-events: none !important;
+}
+
+@keyframes spin-simple-loader {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse-text-fade {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+/* Estilos Premium para los filtros integrados en la cabecera */
+.history-filter-wrap select#filter-date:hover {
+    border-color: #CBD5E1 !important;
+    background-color: #F8FAFC !important;
+}
+
+.history-filter-wrap select#filter-date:focus {
+    border-color: #3B82F6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+    background-color: #FFFFFF !important;
+}
+
+/* Adaptación responsiva móvil */
+@media (max-width: 768px) {
+    .history-card div[style*="justify-content: space-between"] {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+    }
+    
+    .history-filter-wrap {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+    
+    .history-filter-wrap select#filter-date,
+    .history-filter-wrap input#input-specific-date {
+        flex: 1 !important;
     }
 }
 

@@ -7,13 +7,14 @@
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="./img/pwa-icon-192.png">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>UV Servicios | Base de Datos</title>
     <meta name="description" content="Base de datos historica de UV Servicios para consultar registros operativos y mediciones tecnicas BES por pozo, fecha y modo de analisis.">
     <link rel="icon" type="image/png" href="./img/pwa-icon-192.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/data-page.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -149,8 +150,20 @@
 
             <header class="page-hero">
                 <div class="page-hero-copy">
-                    <h1>Base de Datos Histórica</h1>
-                    <p>Explorador maestro de registros técnicos por pozo.</p>
+                    <span class="campo-admin-kicker">Telemetría Histórica</span>
+                    <h1 id="welcome-title">Base de Datos Histórica</h1>
+                    <div id="user-info-header" style="margin-top: 6px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                        <span id="header-dynamic-subtitle" style="margin: 0; color: var(--text-muted);">Consulta y descarga de registros operativos BES.</span>
+                        <span style="color: var(--border-color)">|</span>
+                        <span id="header-user-role" style="text-transform: uppercase; font-size: 0.72rem; background: var(--bg-header); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-color); color: var(--text-body);">...</span>
+                        <span id="header-user-name" style="display: none;">Cargando...</span>
+                        <span style="color: var(--border-color)">|</span>
+                        <button type="button" class="section-help-trigger" data-help-section="data" style="background: none; border: none; padding: 0; color: #3b82f6; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; transition: color 0.2s;" aria-label="Ayuda" title="Ver guía de ayuda">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" style="width: 16px; height: 16px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="page-hero-actions">
                     <div id="data-operational-scope-switcher"></div>
@@ -282,52 +295,88 @@
                     </div>
                     <div class="selected-pozo-profile-grid">
                         <div class="selected-pozo-profile-pill">
-                            <span>Pozo</span>
-                            <strong id="selected-pozo-profile-pozo">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                            <div class="spec-details">
+                                <span>Pozo</span>
+                                <strong id="selected-pozo-profile-pozo">--</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Bomba</span>
-                            <strong id="selected-pozo-profile-pump">Pendiente por configurar</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><circle cx="12" cy="12" r="3" /></svg>
+                            <div class="spec-details">
+                                <span>Bomba</span>
+                                <strong id="selected-pozo-profile-pump">Pendiente por configurar</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Fabricante bomba</span>
-                            <strong id="selected-pozo-profile-pump-maker">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                            <div class="spec-details">
+                                <span>Fabricante bomba</span>
+                                <strong id="selected-pozo-profile-pump-maker">--</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Modelo / Serial</span>
-                            <strong id="selected-pozo-profile-pump-model">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <div class="spec-details">
+                                <span>Modelo / Serial</span>
+                                <strong id="selected-pozo-profile-pump-model">--</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Succión (ft)</span>
-                            <strong id="selected-pozo-profile-suction">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 13l-7 7-7-7m14-6l-7 7-7-7" /></svg>
+                            <div class="spec-details">
+                                <span>Succión (ft)</span>
+                                <strong id="selected-pozo-profile-suction">--</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Bomba multifásica</span>
-                            <strong id="selected-pozo-profile-multiphase">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.67" /></svg>
+                            <div class="spec-details">
+                                <span>Bomba multifásica</span>
+                                <strong id="selected-pozo-profile-multiphase">--</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Separador de gas</span>
-                            <strong id="selected-pozo-profile-gas-separator">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                            <div class="spec-details">
+                                <span>Separador de gas</span>
+                                <strong id="selected-pozo-profile-gas-separator">--</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Sellos</span>
-                            <strong id="selected-pozo-profile-seals">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                            <div class="spec-details">
+                                <span>Sellos</span>
+                                <strong id="selected-pozo-profile-seals">--</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Motor</span>
-                            <strong id="selected-pozo-profile-motor">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            <div class="spec-details">
+                                <span>Motor</span>
+                                <strong id="selected-pozo-profile-motor">--</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Sensor / Cable</span>
-                            <strong id="selected-pozo-profile-sensor">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.09 9a3 3 0 015.82 1c0 2-3 3-3 3m-3-9h6m-6 2h6m-6 2h6M12 17h.01M12 12h.01" /></svg>
+                            <div class="spec-details">
+                                <span>Sensor / Cable</span>
+                                <strong id="selected-pozo-profile-sensor">--</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Drain Valve</span>
-                            <strong id="selected-pozo-profile-drain-valve">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                            <div class="spec-details">
+                                <span>Drain Valve</span>
+                                <strong id="selected-pozo-profile-drain-valve">--</strong>
+                            </div>
                         </div>
                         <div class="selected-pozo-profile-pill">
-                            <span>Instalación</span>
-                            <strong id="selected-pozo-profile-installed">--</strong>
+                            <svg class="spec-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <div class="spec-details">
+                                <span>Instalación</span>
+                                <strong id="selected-pozo-profile-installed">--</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -337,23 +386,35 @@
             <div class="tools-section" style="display: none; margin-bottom: 15px; justify-content: flex-end; gap: 10px;"
                 id="tools-section">
                 <div class="history-mode-toggle" id="history-mode-toggle">
-                    <button type="button" id="btn-operational-history" class="history-mode-btn active">Historial Operativo</button>
-                    <button type="button" id="btn-technical-history" class="history-mode-btn">Historial de Medición Técnica</button>
-                    <button type="button" id="btn-level-history" class="history-mode-btn">📈 Pruebas de Nivel (Echó.)</button>
-                    <button type="button" id="btn-echometer-history" class="history-mode-btn">📈 Archivos Echometer</button>
-                    <button type="button" id="btn-sensor-history" class="history-mode-btn">📊 Data Sensor de Fondo</button>
-                    <button type="button" id="btn-vsd-history" class="history-mode-btn">⚡ Descarga de Data VSD</button>
-                    <button type="button" id="btn-soportes-history" class="history-mode-btn">📸 Soportes de Campo</button>
+                    <button type="button" id="btn-operational-history" class="history-mode-btn active">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                        <span>Historial Operativo</span>
+                    </button>
+                    <button type="button" id="btn-technical-history" class="history-mode-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        <span>Historial de Medición Técnica</span>
+                    </button>
+                    <button type="button" id="btn-level-history" class="history-mode-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                        <span>Pruebas de Nivel (Echó.)</span>
+                    </button>
+                    <button type="button" id="btn-echometer-history" class="history-mode-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        <span>Archivos Echometer</span>
+                    </button>
+                    <button type="button" id="btn-sensor-history" class="history-mode-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
+                        <span>Data Sensor de Fondo</span>
+                    </button>
+                    <button type="button" id="btn-vsd-history" class="history-mode-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                        <span>Descarga de Data VSD</span>
+                    </button>
+                    <button type="button" id="btn-soportes-history" class="history-mode-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2 2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        <span>Soportes de Campo</span>
+                    </button>
                 </div>
-                <select id="filter-date"
-                    style="padding: 10px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; cursor: pointer; background: white;">
-                    <option value="ALL" selected>Todos los tiempos</option>
-                    <option value="7">Últimos 7 Días</option>
-                    <option value="30">Últimos 30 Días</option>
-                    <option value="SPECIFIC">Fecha Específica...</option>
-                </select>
-                <input type="date" id="input-specific-date"
-                    style="display: none; padding: 9px 15px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.85rem; outline: none; background: white;">
             </div>
 
             <section class="ticket-tools-section" id="ticket-tools-section" style="display: none;">
@@ -388,19 +449,33 @@
                 </div>
             </section>
 
-            <!-- Tabla principal del historial -->
             <section class="history-card" id="history-container" style="display: none;">
                 <div
                     style="padding: 16px; border-bottom: 1px solid #E2E8F0; display: flex; flex-direction: column; gap: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h2 id="table-title" style="margin:0; font-size: 1rem; font-weight: 800; color: #1F2937;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+                        <h2 id="table-title" style="margin:0; font-size: 1rem; font-weight: 800; color: #1F2937; flex: 1; min-width: 200px;">
                             Historial</h2>
-                        <span id="record-count"
-                            style="font-size: 0.8rem; background: #E0E7FF; color: #4338CA; padding: 4px 10px; border-radius: 20px; font-weight: 700;">0
-                            Registros</span>
+                        <div class="history-filter-wrap" style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+                            <select id="filter-date"
+                                style="padding: 6px 12px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.8rem; outline: none; cursor: pointer; background: white; height: 32px; transition: all 0.2s;">
+                                <option value="ALL" selected>Todos los tiempos</option>
+                                <option value="7">Últimos 7 Días</option>
+                                <option value="30">Últimos 30 Días</option>
+                                <option value="SPECIFIC">Fecha Específica...</option>
+                            </select>
+                            <input type="date" id="input-specific-date"
+                                style="display: none; padding: 5px 12px; border-radius: 8px; border: 1.5px solid #E2E8F0; font-weight: 700; color: #475569; font-size: 0.8rem; outline: none; background: white; height: 32px; box-sizing: border-box;">
+                            <span id="record-count"
+                                style="font-size: 0.8rem; background: #E0E7FF; color: #4338CA; padding: 6px 12px; border-radius: 20px; font-weight: 700; height: 32px; display: inline-flex; align-items: center; box-sizing: border-box; white-space: nowrap;">0
+                                Registros</span>
+                        </div>
                     </div>
                 </div>
-                <div style="overflow-x: auto;">
+                <div style="overflow-x: auto; position: relative;" id="history-table-wrapper">
+                    <div class="premium-loader-container" id="history-premium-loader">
+                        <div class="simple-spinner"></div>
+                        <span class="premium-loader-text">Cargando...</span>
+                    </div>
                     <table class="history-table" id="history-table">
                         <thead id="history-table-head">
                             <tr>

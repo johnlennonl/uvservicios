@@ -14,7 +14,7 @@
     <link rel="icon" type="image/png" href="./img/pwa-icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard-page.css">
     <link rel="stylesheet" href="css/stats-page.css">
@@ -543,12 +543,20 @@
 
             <header class="page-hero">
                 <div class="page-hero-copy">
-                    <div class="client-portal-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        <span>Portal de Reportes de Gestión e Informes &middot; UV Servicios</span>
+                    <span class="campo-admin-kicker">Análisis Estadístico</span>
+                    <h1 id="welcome-title">Estadísticas de Monitoreo</h1>
+                    <div id="user-info-header" style="margin-top: 6px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                        <span id="header-dynamic-subtitle" style="margin: 0; color: var(--text-muted);">Gráficos de tendencia, métricas y analítica BES.</span>
+                        <span style="color: var(--border-color)">|</span>
+                        <span id="header-user-role" style="text-transform: uppercase; font-size: 0.72rem; background: var(--bg-header); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-color); color: var(--text-body);">...</span>
+                        <span id="header-user-name" style="display: none;">Cargando...</span>
+                        <span style="color: var(--border-color)">|</span>
+                        <button type="button" class="section-help-trigger" data-help-section="stats" style="background: none; border: none; padding: 0; color: #3b82f6; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; transition: color 0.2s;" aria-label="Ayuda" title="Ver guía de ayuda">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" style="width: 16px; height: 16px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </button>
                     </div>
-                    <h1>Estadísticas de Monitoreo</h1>
-                    <p style="color: #64748B;">Resumen y analítica mensual de la actividad operativa e incidencias técnicas de los campos.</p>
                 </div>
                 <div class="page-hero-actions">
                     <div id="stats-operational-scope-switcher"></div>

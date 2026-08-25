@@ -441,53 +441,93 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
             return `
                 <tr>
-                    <td><b>${formatMonitoringTextCell(record.fecha)}</b> <br> <span style="font-size:0.75rem; color:#64748B;">${formatMonitoringTextCell(record.hora)}</span></td>
-                    <td><b>${formatMonitoringNumberCell(record.frecuencia)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Hz</span></td>
-                    <td><b>${formatMonitoringTextCell(record.sentido_giro ?? record.giro, '--')}</b></td>
-                    <td><b>${formatMonitoringNumberCell(record.corriente_motor)}</b> <span style="font-size:0.75rem; color:#9CA3AF;">Amp</span></td>
-                    <td>
-                        <div style="display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; line-height: 1.2;">
-                            <div><span style="color: #64748b; font-weight: 600; margin-right: 4px;">PIP:</span><span style="font-weight: 700; color: #0f172a;">${formatMonitoringTextCell(record.pip, '--')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">PSI</span></div>
-                            <div><span style="color: #be123c; font-weight: 600; margin-right: 4px;">TM:</span><span style="font-weight: 700; color: #e11d48;">${formatMonitoringTextCell(record.tm, '--')}</span> <span style="font-size: 0.7rem; color: #f43f5e;">°F</span></div>
+                    <td class="cell-date">
+                        <span class="date-main">${formatMonitoringTextCell(record.fecha)}</span>
+                        <span class="time-sub">${formatMonitoringTextCell(record.hora)}</span>
+                    </td>
+                    <td class="cell-freq">
+                        <span class="value-highlight">${formatMonitoringNumberCell(record.frecuencia)}</span>
+                        <span class="unit-label">Hz</span>
+                    </td>
+                    <td class="cell-giro">
+                        <span class="value-badge-plain">${formatMonitoringTextCell(record.sentido_giro ?? record.giro, '--')}</span>
+                    </td>
+                    <td class="cell-current">
+                        <span class="value-highlight">${formatMonitoringNumberCell(record.corriente_motor)}</span>
+                        <span class="unit-label">Amp</span>
+                    </td>
+                    <td class="cell-pip-tm">
+                        <div class="telemetry-block-group">
+                            <div class="telemetry-item pip">
+                                <span class="lbl">PIP</span>
+                                <span class="val">${formatMonitoringTextCell(record.pip, '--')}</span>
+                                <span class="uni">PSI</span>
+                            </div>
+                            <div class="telemetry-item tm">
+                                <span class="lbl">TM</span>
+                                <span class="val">${formatMonitoringTextCell(record.tm, '--')}</span>
+                                <span class="uni">°F</span>
+                            </div>
                         </div>
                     </td>
-                    <td>
-                        <div style="display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; line-height: 1.2;">
-                            <div><span style="color: #2563eb; font-weight: 600; margin-right: 4px;">THP:</span><span style="font-weight: 700; color: #1e40af;">${formatMonitoringTextCell(record.presion_thp, '--')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">PSI</span></div>
-                            <div><span style="color: #0d9488; font-weight: 600; margin-right: 4px;">CHP:</span><span style="font-weight: 700; color: #0f766e;">${formatMonitoringTextCell(record.presion_chp, '--')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">PSI</span></div>
-                            <div><span style="color: #ea580c; font-weight: 600; margin-right: 4px;">LF:</span><span style="font-weight: 700; color: #c2410c;">${formatMonitoringTextCell(record.presion_lf ?? record.lf, '--')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">PSI</span></div>
+                    <td class="cell-presion">
+                        <div class="telemetry-block-group horizontal">
+                            <div class="telemetry-item thp">
+                                <span class="lbl">THP</span>
+                                <span class="val">${formatMonitoringTextCell(record.presion_thp, '--')}</span>
+                                <span class="uni">PSI</span>
+                            </div>
+                            <div class="telemetry-item chp">
+                                <span class="lbl">CHP</span>
+                                <span class="val">${formatMonitoringTextCell(record.presion_chp, '--')}</span>
+                                <span class="uni">PSI</span>
+                            </div>
+                            <div class="telemetry-item lf">
+                                <span class="lbl">LF</span>
+                                <span class="val">${formatMonitoringTextCell(record.presion_lf ?? record.lf, '--')}</span>
+                                <span class="uni">PSI</span>
+                            </div>
                         </div>
                     </td>
-                    <td>
-                        <div style="display: flex; flex-direction: column; gap: 2px; font-family: monospace; font-size: 0.8rem; line-height: 1.2;">
-                            <div><span style="color: #64748b; font-weight: 600; margin-right: 4px;">A:</span><span style="font-weight: 700; color: #0f172a;">${formatMonitoringTextCell(record.vsd_a, '0')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">Amp</span></div>
-                            <div><span style="color: #64748b; font-weight: 600; margin-right: 4px;">B:</span><span style="font-weight: 700; color: #0f172a;">${formatMonitoringTextCell(record.vsd_b, '0')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">Amp</span></div>
-                            <div><span style="color: #64748b; font-weight: 600; margin-right: 4px;">C:</span><span style="font-weight: 700; color: #0f172a;">${formatMonitoringTextCell(record.vsd_c, '0')}</span> <span style="font-size: 0.7rem; color: #94a3b8;">Amp</span></div>
+                    <td class="cell-vsd">
+                        <div class="vsd-grid-block">
+                            <div class="vsd-phase a">
+                                <span class="lbl">A</span>
+                                <span class="val">${formatMonitoringTextCell(record.vsd_a, '0')}</span>
+                            </div>
+                            <div class="vsd-phase b">
+                                <span class="lbl">B</span>
+                                <span class="val">${formatMonitoringTextCell(record.vsd_b, '0')}</span>
+                            </div>
+                            <div class="vsd-phase c">
+                                <span class="lbl">C</span>
+                                <span class="val">${formatMonitoringTextCell(record.vsd_c, '0')}</span>
+                            </div>
                         </div>
                     </td>
-                    <td>
+                    <td class="cell-status">
                         ${(() => {
                             const isRun = ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(String(record.estatus).toUpperCase().trim());
-                            const bgColor = isRun ? '#dcfce7' : '#fee2e2';
-                            const textColor = isRun ? '#15803d' : '#b91c1c';
-                            const dotColor = isRun ? '#22c55e' : '#ef4444';
+                            const statusClass = isRun ? 'status-run' : 'status-off';
                             return `
-                                <span style="display: inline-flex; align-items: center; gap: 6px; background: ${bgColor}; color: ${textColor}; padding: 4px 10px; border-radius: 9999px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; border: 1px solid ${isRun ? '#bbf7d0' : '#fecaca'}; letter-spacing: 0.05em; line-height: 1; white-space: nowrap;">
-                                    <span style="width: 6px; height: 6px; border-radius: 50%; background: ${dotColor}; display: inline-block;"></span>
-                                    ${formatMonitoringTextCell(record.estatus)}
+                                <span class="status-badge-premium ${statusClass}">
+                                    <span class="status-dot"></span>
+                                    <span>${formatMonitoringTextCell(record.estatus)}</span>
                                 </span>
                             `;
                         })()}
                     </td>
-                    <td style="text-align: right; white-space: nowrap;">
-                        <button class="btn-action btn-view" onclick="openFullDataModal('${escapeHtml(recordId)}')" style="background: #E0E7FF; color: #4338CA;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; vertical-align:text-bottom; margin-right:4px;">
+                    <td class="cell-actions" style="text-align: right; white-space: nowrap;">
+                        <button class="btn-action btn-view-premium" onclick="openFullDataModal('${escapeHtml(recordId)}')" aria-label="Ver detalles">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
-                            </svg> Ver
+                            </svg>
+                            <span>Ver</span>
                         </button>
-                        ${includeActions && currentAccessProfile.canEditData ? `<button class="btn-action btn-edit" data-id="${escapeHtml(recordId)}" style="background: #DBEAFE; color: #1E40AF;">Editar</button>
-                        <button class="btn-action btn-delete" data-id="${escapeHtml(recordId)}">Borrar</button>` : ''}
+                        ${includeActions && currentAccessProfile.canEditData ? `
+                        <button class="btn-action btn-edit-premium" data-id="${escapeHtml(recordId)}">Editar</button>
+                        <button class="btn-action btn-delete-premium" data-id="${escapeHtml(recordId)}">Borrar</button>` : ''}
                     </td>
                 </tr>
             `;
@@ -1984,6 +2024,17 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
         async function loadPozoData() {
             if (!activePozo) return;
 
+            const loader = document.getElementById('history-premium-loader');
+            const table = document.getElementById('history-table');
+            const tbody = document.getElementById('history-body');
+            
+            if (tbody) tbody.innerHTML = ''; // Limpiar filas previas inmediatamente
+
+            loader?.classList.add('active');
+            table?.classList.add('loading-fade');
+
+            const minTimePromise = new Promise(resolve => setTimeout(resolve, 600));
+
             if (activeHistoryMode === 'echometer' || activeHistoryMode === 'sensor' || activeHistoryMode === 'vsd' || activeHistoryMode === 'soportes') {
                 document.getElementById('table-title').textContent = activeHistoryMode === 'echometer'
                     ? `Archivos Echometer: ${activePozo}`
@@ -1992,7 +2043,16 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                     : activeHistoryMode === 'vsd'
                     ? `Descarga de Data VSD: ${activePozo}`
                     : `Soportes Fotográficos de Campo: ${activePozo}`;
-                await loadPozoDocumentFiles(activePozo, activeHistoryMode);
+                
+                try {
+                    await Promise.all([
+                        loadPozoDocumentFiles(activePozo, activeHistoryMode),
+                        minTimePromise
+                    ]);
+                } finally {
+                    loader?.classList.remove('active');
+                    table?.classList.remove('loading-fade');
+                }
                 return;
             }
 
@@ -2013,19 +2073,24 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                     startStr = d.toISOString().split('T')[0];
                 }
 
-                let data = [];
+                let fetchPromise;
                 if (activeHistoryMode === 'technical') {
-                    data = await getTechnicalHistory(activePozo, startStr, endStr);
+                    fetchPromise = getTechnicalHistory(activePozo, startStr, endStr);
                 } else if (activeHistoryMode === 'level') {
-                    const rawTests = await getWellLevelTests(activePozo);
-                    data = (rawTests || []).filter(t => {
-                        if (startStr && t.fecha < startStr) return false;
-                        if (endStr && t.fecha > endStr) return false;
-                        return true;
-                    });
+                    fetchPromise = (async () => {
+                        const rawTests = await getWellLevelTests(activePozo);
+                        return (rawTests || []).filter(t => {
+                            if (startStr && t.fecha < startStr) return false;
+                            if (endStr && t.fecha > endStr) return false;
+                            return true;
+                        });
+                    })();
                 } else {
-                    data = await getMonitoringData([activePozo], startStr, endStr);
+                    fetchPromise = getMonitoringData([activePozo], startStr, endStr);
                 }
+
+                const [data] = await Promise.all([fetchPromise, minTimePromise]);
+
                 currentRecordData = data;
                 document.getElementById('record-count').textContent = `${data.length} Registros`;
                 document.getElementById('table-title').textContent = activeHistoryMode === 'technical'
@@ -2036,6 +2101,9 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 renderTable();
             } catch (err) {
                 Swal.fire({ icon: 'error', title: 'Error BD', text: err.message });
+            } finally {
+                loader?.classList.remove('active');
+                table?.classList.remove('loading-fade');
             }
         }
 

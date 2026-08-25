@@ -14,8 +14,7 @@
     <meta name="description"
         content="Seccion independiente para registrar el consolidado historico UV, importar el Excel operativo viejo y preparar exportaciones con la estructura oficial.">
     <link rel="icon" type="image/png" href="./img/pwa-icon-192.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard-page.css">
     <link rel="stylesheet" href="css/consolidado-page.css">
@@ -162,23 +161,20 @@
 
             <header class="page-hero">
                 <div class="page-hero-copy">
-                    <span class="consolidado-kicker"
-                        style="background: rgba(37, 99, 235, 0.1); color: #1D4ED8; font-weight: 800; padding: 6px 12px; border-radius: 999px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; display: inline-flex;">Histórico
-                        Operacional</span>
-                    <h1
-                        style="margin-top: 10px; font-size: 1.6rem; font-weight: 800; color: var(--text-title); margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
-                        Consolidado Maestro UV
-                        <button type="button" id="consolidado-help-trigger" class="consolidado-help-trigger"
-                            aria-label="Ayuda" title="Ver guía de ayuda">
-                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"
-                                style="width: 20px; height: 20px;">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <span class="campo-admin-kicker">Consolidado de Campo</span>
+                    <h1 id="welcome-title">Consolidado Maestro UV</h1>
+                    <div id="user-info-header" style="margin-top: 6px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                        <span id="header-dynamic-subtitle" style="margin: 0; color: var(--text-muted);">Reporte unificado y estado de pozos activos.</span>
+                        <span style="color: var(--border-color)">|</span>
+                        <span id="header-user-role" style="text-transform: uppercase; font-size: 0.72rem; background: var(--bg-header); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-color); color: var(--text-body);">...</span>
+                        <span id="header-user-name" style="display: none;">Cargando...</span>
+                        <span style="color: var(--border-color)">|</span>
+                        <button type="button" class="section-help-trigger" data-help-section="consolidado" style="background: none; border: none; padding: 0; color: #3b82f6; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; transition: color 0.2s;" aria-label="Ayuda" title="Ver guía de ayuda">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" style="width: 16px; height: 16px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </button>
-                    </h1>
-                    <p style="color: var(--text-muted); font-size: 0.9rem; margin: 5px 0 0 0;">Generación, exportación y
-                        mantenimiento del histórico consolidado de operaciones.</p>
+                    </div>
                 </div>
                 <div class="page-hero-actions">
                     <div id="consolidado-operational-scope-switcher"></div>

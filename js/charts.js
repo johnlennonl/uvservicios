@@ -3,6 +3,7 @@
  * Resuelve filtros, consulta datos y dibuja indicadores y graficas.
  */
 import { applyNavigationAccessProfile, logout, getAccessProfile, getSession, getDefaultRouteForAccessProfile } from './auth.js';
+import { supabase } from './supabaseClient.js';
 import { getMonitoringData, getLatestDate, getLatestMonitoringRecords, getNeighborRecords, getPozoRecordDates, getPozosHistorySummary, getWellRibbonData } from './data-service.js';
 import { fetchConsolidatedDashboardRows } from './services/consolidado-service.js';
 import { getFieldWellsByScope } from './services/operational-contracts-service.js';
@@ -32,6 +33,7 @@ let trendAnnotationPanelState = {
     isLoading: false,
     error: null
 };
+let trendAnnotationProfilesCache = {};
 
 // Variables para evitar clics accidentales al scrollear o arrastrar (drag/zoom) en las gráficas
 let isScrollingOrDragging = false;
@@ -228,6 +230,36 @@ async function loadTrendAnnotationPanelPage(page = 1) {
             pageSize: trendAnnotationPanelState.pageSize
         });
 
+        // Consultar perfiles reales (nombre + apellido) en lote desde Supabase
+        const uniqueUserIds = [
+            ...new Set(
+                (result.data || [])
+                    .map(ann => ann.updated_by_user_id || ann.created_by_user_id)
+                    .filter(Boolean)
+            )
+        ];
+        // Solo consultamos IDs que no estén ya en caché
+        const uncachedIds = uniqueUserIds.filter(id => !trendAnnotationProfilesCache[id]);
+        if (uncachedIds.length > 0) {
+            try {
+                const { data: profilesList } = await supabase
+                    .from('profiles')
+                    .select('id, nombre, apellido, avatar_url')
+                    .in('id', uncachedIds);
+                if (profilesList) {
+                    profilesList.forEach(p => {
+                        trendAnnotationProfilesCache[p.id] = {
+                            nombre: p.nombre || '',
+                            apellido: p.apellido || '',
+                            avatar_url: p.avatar_url || ''
+                        };
+                    });
+                }
+            } catch (err) {
+                console.warn('Error resolviendo nombres de perfil para anotaciones:', err);
+            }
+        }
+
         trendAnnotationPanelState = {
             ...trendAnnotationPanelState,
             items: result.data,
@@ -397,6 +429,26 @@ function setTrendAnnotationPanelOpen(isOpen) {
     if (isOpen) loadTrendAnnotationPanelPage(trendAnnotationPanelState.page || 1);
 }
 
+function formatAuthorName(email, userId) {
+    // 1. Si tenemos el ID en caché de perfiles, retornamos nombre real de Supabase
+    if (userId && trendAnnotationProfilesCache[userId]) {
+        const p = trendAnnotationProfilesCache[userId];
+        if (p.nombre || p.apellido) {
+            return `${p.nombre} ${p.apellido}`.trim();
+        }
+    }
+
+    if (!email) return 'Ingeniería';
+    const firstPart = email.split('@')[0];
+    if (!firstPart) return 'Ingeniería';
+    
+    // Separamos por punto, guión o guión bajo y capitalizamos cada fragmento
+    const parts = firstPart.split(/[\._-]/);
+    return parts
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+}
+
 function renderTrendAnnotationPanelList() {
     ensureTrendAnnotationPanel();
     const list = document.getElementById('trend-annotation-panel-list');
@@ -439,11 +491,21 @@ function renderTrendAnnotationPanelList() {
     }
 
     const listMarkup = panelAnnotations.map(annotation => {
-        const author = annotation.updated_by_email || annotation.created_by_email || 'Ingeniería';
+        const email = annotation.updated_by_email || annotation.created_by_email || '';
+        const userId = annotation.updated_by_user_id || annotation.created_by_user_id || '';
+        const author = formatAuthorName(email, userId);
         const auditDate = annotation.updated_at || annotation.created_at;
         const pointValue = annotation.point_value === null || annotation.point_value === undefined
             ? '--'
             : `${Number(annotation.point_value).toLocaleString('es-VE')}${getAnnotationUnit(annotation.variable_key)}`;
+
+        // Resolver avatar o inicial del autor
+        const profile = userId ? trendAnnotationProfilesCache[userId] : null;
+        const avatarUrl = profile?.avatar_url || '';
+        const authorInitial = author.charAt(0).toUpperCase();
+        const avatarMarkup = avatarUrl && !avatarUrl.includes('default-avatar')
+            ? `<img class="annotation-author-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(author)}" loading="lazy" />`
+            : `<span class="annotation-author-initial">${escapeHtml(authorInitial)}</span>`;
 
         return `
             <article class="trend-annotation-item" data-annotation-id="${escapeHtml(annotation.id)}">
@@ -456,9 +518,12 @@ function renderTrendAnnotationPanelList() {
                 </div>
                 <p>${escapeHtml(annotation.comment)}</p>
                 <footer>
-                    <div>
-                        <b>${escapeHtml(author)}</b>
-                        <small>${escapeHtml(formatAnnotationAuditDate(auditDate))}</small>
+                    <div class="annotation-author-info">
+                        ${avatarMarkup}
+                        <div>
+                            <b>${escapeHtml(author)}</b>
+                            <small>${escapeHtml(formatAnnotationAuditDate(auditDate))}</small>
+                        </div>
                     </div>
                     ${canManageChartAnnotations() ? `
                         <div class="trend-annotation-item-actions">
@@ -479,7 +544,8 @@ function renderTrendAnnotationPanelList() {
         </nav>
     `;
 
-    list.innerHTML = `${paginationMarkup}${listMarkup}${paginationMarkup}`;
+    // Renderizamos la lista de anotaciones primero, y colocamos la paginación únicamente en la parte inferior
+    list.innerHTML = `${listMarkup}${paginationMarkup}`;
 }
 
 async function handleTrendAnnotationPanelClick(event) {

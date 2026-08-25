@@ -276,6 +276,11 @@ export async function navigate(url, pushState = true) {
         // Hacer scroll al inicio de la página al cambiar de sección
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
+        // Refrescar cabeceras y saludo dinámico de usuario en la nueva vista
+        import('../auth.js').then(({ getSession }) => {
+            getSession().catch(() => null);
+        });
+
     } catch (error) {
         console.error('[Router] Transición fallida, ejecutando navegación de respaldo:', error);
         document.body.classList.remove('spa-navigating');
@@ -317,6 +322,8 @@ function ensureScrollToTopButton() {
 /**
  * Inicializa el motor de scroll inercial suave Lenis.
  */
+let lenisRafId = null;
+
 function initLenis() {
     if (typeof Lenis === 'undefined') {
         console.warn('[Router] La librería Lenis no está disponible globalmente.');
@@ -326,14 +333,18 @@ function initLenis() {
     if (lenisInstance) {
         lenisInstance.destroy();
     }
+    
+    if (lenisRafId) {
+        cancelAnimationFrame(lenisRafId);
+    }
 
     lenisInstance = new Lenis({
-        duration: 1.2,
+        duration: 1.0,
         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Curva expoOut premium
         orientation: 'vertical',
         gestureOrientation: 'vertical',
         smoothWheel: true,
-        wheelMultiplier: 1,
+        wheelMultiplier: 0.95,
         touchMultiplier: 1.5,
         infinite: false,
     });
@@ -342,10 +353,10 @@ function initLenis() {
     function raf(time) {
         if (lenisInstance) {
             lenisInstance.raf(time);
-            requestAnimationFrame(raf);
+            lenisRafId = requestAnimationFrame(raf);
         }
     }
-    requestAnimationFrame(raf);
+    lenisRafId = requestAnimationFrame(raf);
 }
 
 // Mapa para almacenar los estados de animación activa de contenedores internos
