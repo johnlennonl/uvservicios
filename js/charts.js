@@ -898,16 +898,6 @@ function getPozoSummary(pozoName) {
 
 function applyDashboardAccessProfile(accessProfile) {
     applyNavigationAccessProfile(accessProfile);
-
-    if (!accessProfile?.isReadOnly) return;
-
-    const heroCopy = document.querySelector('.page-hero-copy');
-    if (heroCopy && !heroCopy.querySelector('.access-role-badge')) {
-        const badge = document.createElement('span');
-        badge.className = 'access-role-badge';
-        badge.textContent = 'Panel de Visualizacion';
-        heroCopy.appendChild(badge);
-    }
 }
 
 // Renderiza el selector personalizado del pozo y conserva el estado de cada opcion.

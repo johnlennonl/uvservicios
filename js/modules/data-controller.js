@@ -40,16 +40,6 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
         function applyDataAccessProfile() {
             applyNavigationAccessProfile(currentAccessProfile);
-
-            if (!currentAccessProfile?.isReadOnly) return;
-
-            const heroCopy = document.querySelector('.page-hero-copy');
-            if (heroCopy && !heroCopy.querySelector('.access-role-badge')) {
-                const badge = document.createElement('span');
-                badge.className = 'access-role-badge';
-                badge.textContent = 'Panel de Visualizacion';
-                heroCopy.appendChild(badge);
-            }
         }
 
         // Muestra la ficha rapida del pozo activo y trae el tipo de bomba maestro.
