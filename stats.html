@@ -17,7 +17,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard-page.css">
-    <link rel="stylesheet" href="css/stats-page.css">
+    <link rel="stylesheet" href="css/stats-page.css?v=20260826">
     <link rel="stylesheet" href="css/help-page.css">
     
     <!-- Librerías Externas CDN -->
@@ -32,6 +32,10 @@
 
     <style>
         /* Estilos Light Corporate Petrolera para Estadísticas */
+        html, body:not(.is-generating-pdf):not(.stats-pdf-export-mode) {
+            overflow-x: hidden !important;
+            width: 100% !important;
+        }
         body {
             background-color: #F4F6F9;
             color: #1E293B;
@@ -408,6 +412,106 @@
                 padding: 16px 12px !important;
             }
         }
+
+        /* ==========================================
+           TABLAS/PESTAÑAS SEGMENTADAS CORPORATIVAS
+           ========================================== */
+        .stats-tabs-bar {
+            background: #F1F5F9 !important;
+            padding: 4px !important;
+            border-radius: 999px !important;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important; /* Rejilla estricta de dos columnas 50%/50% */
+            gap: 4px !important;
+            align-items: center !important;
+            border: 1px solid #E2E8F0 !important;
+            margin: 0 auto 22px 0 !important;
+            width: 100% !important;
+            max-width: 480px !important; /* Ancho máximo en escritorio */
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+        }
+
+        .stats-tab-btn {
+            border: none !important;
+            background: transparent !important;
+            color: #64748B !important;
+            border-radius: 999px !important;
+            padding: 8px 16px !important;
+            font-size: 0.8rem !important;
+            font-weight: 700 !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 8px !important;
+            cursor: pointer !important;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            outline: none !important;
+            white-space: nowrap !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .stats-tab-btn:hover {
+            color: #2563EB !important;
+            background: rgba(37, 99, 235, 0.06) !important;
+        }
+
+        .stats-tab-btn.active {
+            color: #FFFFFF !important;
+            background: #2563EB !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22) !important;
+        }
+
+        .stats-tab-badge {
+            background: #dcfce7 !important;
+            color: #15803d !important;
+            font-size: 0.68rem !important;
+            font-weight: 850 !important;
+            padding: 1px 6px !important;
+            border-radius: 999px !important;
+            transition: all 0.25s ease !important;
+        }
+
+        /* Visibilidad Responsiva del Texto */
+        .tab-text-mobile {
+            display: none !important;
+        }
+        .tab-text-desktop {
+            display: inline !important;
+        }
+
+        @media (max-width: 991px) {
+            html, body, .main-container, .estadisticas-container, .stats-tab-pane, #overview-section {
+                overflow-x: hidden !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .tab-text-desktop {
+                display: none !important;
+            }
+            .tab-text-mobile {
+                display: inline !important;
+            }
+            .stats-tabs-bar {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 4px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 4px !important;
+                box-sizing: border-box !important;
+            }
+            .stats-tab-btn {
+                display: flex !important;
+                width: 100% !important;
+                justify-content: center !important;
+                align-items: center !important;
+                padding: 8px 6px !important;
+                font-size: 0.74rem !important;
+            }
+        }
     </style>
 </head>
 <body class="view-mode-standard">
@@ -655,28 +759,25 @@
                             </div>
                             <span id="monthly-report-contract" class="monthly-report-contract">Contrato activo</span>
                         </div>
-                        <div class="monthly-report-table-grid">
-                            <div class="monthly-report-table">
-                                <h3>Información básica</h3>
-                                <dl>
-                                    <div><dt>Empresa</dt><dd>UV SERVICIOS</dd></div>
-                                    <div><dt>Campo</dt><dd id="brief-campo">TODOS LOS CAMPOS</dd></div>
-                                    <div><dt>Estado del pozo</dt><dd id="brief-estado-pozo">OPERANDO / PARADO</dd></div>
-                                    <div><dt>Tipo de sistema</dt><dd>BES</dd></div>
-                                    <div><dt>Tipo de servicio</dt><dd>MONITOREO</dd></div>
-                                    <div><dt>Fecha</dt><dd id="brief-periodo">--</dd></div>
-                                    <div><dt>Responsable</dt><dd>UV SERVICIOS</dd></div>
-                                </dl>
-                            </div>
-                            <div class="monthly-report-table">
-                                <h3>Recorrido</h3>
-                                <dl>
-                                    <div><dt>Recorrido total</dt><dd id="brief-recorrido-total">0</dd></div>
-                                    <div><dt>Diurno</dt><dd id="brief-diurno">0</dd></div>
-                                    <div><dt>Nocturno</dt><dd id="brief-nocturno">0</dd></div>
-                                    <div><dt>Pozos</dt><dd id="brief-pozos">0</dd></div>
-                                    <div><dt>Actividad</dt><dd id="brief-actividad">TOMA DE PARAMETROS OPERATIVOS</dd></div>
-                                    <div><dt>Visitas de pozos</dt><dd id="brief-visitas">0</dd></div>
+                        <div class="monthly-report-table-grid" style="display: block !important;">
+                            <div class="monthly-report-table" style="width: 100% !important;">
+                                <dl style="margin: 0 !important; width: 100% !important;">
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Empresa</dt><dd>UV SERVICIOS</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Campo</dt><dd id="brief-campo">TODOS LOS CAMPOS</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Estado del pozo</dt><dd id="brief-estado-pozo">OPERANDO / PARADO</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Tipo de sistema</dt><dd>BES</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Servicio</dt><dd>MONITOREO</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Recorrido total</dt><dd id="brief-recorrido-total">0</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Diurno</dt><dd id="brief-diurno">0</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Nocturno</dt><dd id="brief-nocturno">0</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Pozos</dt><dd id="brief-pozos-count">0</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Actividad</dt><dd id="brief-actividad">TOMA DE PARAMETROS OPERATIVOS</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important; align-items: start !important; min-height: auto !important; padding-top: 8px !important; padding-bottom: 8px !important; border-bottom: none !important;">
+                                        <dt style="font-weight: 800; color: #0052cc;">Pozos Monitoreados</dt>
+                                        <dd id="brief-pozos-lista" style="text-align: right; line-height: 1.45; word-break: break-word; color: #475569; font-weight: 700; font-size: 0.78rem !important; margin: 0 !important;">
+                                            —
+                                        </dd>
+                                    </div>
                                 </dl>
                             </div>
                         </div>

@@ -1854,15 +1854,6 @@ body.is-role-base-datos a[href="base-datos.html"] {
   }
 }
 
-  .attachment-well-badge {
-    align-self: flex-start;
-  }
-
-  .attachment-well-metrics {
-    grid-template-columns: 1fr;
-  }
-}
-
 .chart-insight-value {
   display: block;
   margin-top: 10px;
@@ -3766,19 +3757,15 @@ mark {
   background: #F1F5F9 !important;
   padding: 4px !important;
   border-radius: 999px !important;
-  display: inline-flex !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important; /* Forzar 50% de ancho exacto para cada pestaña por defecto */
   gap: 4px !important;
   align-items: center !important;
   border: 1px solid #E2E8F0 !important;
   margin-bottom: 22px !important;
-  max-width: 100% !important;
-  overflow-x: auto !important; /* Desplazamiento horizontal nativo en móvil */
-  -webkit-overflow-scrolling: touch !important;
-  scrollbar-width: none !important; /* Firefox ocultar scroll */
-}
-
-.stats-tabs-bar::-webkit-scrollbar {
-  display: none !important; /* Chrome/Safari ocultar scroll */
+  width: 100% !important;
+  max-width: 480px !important; /* Ancho máximo elegante en pantallas de escritorio */
+  overflow: hidden !important;
 }
 
 .stats-tab-btn {
@@ -3786,16 +3773,18 @@ mark {
   background: transparent !important;
   color: #64748B !important;
   border-radius: 999px !important;
-  padding: 8px 18px !important;
+  padding: 8px 16px !important;
   font-size: 0.8rem !important;
   font-weight: 700 !important;
-  display: inline-flex !important;
+  display: flex !important;
+  justify-content: center !important;
   align-items: center !important;
   gap: 8px !important;
   cursor: pointer !important;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   outline: none !important;
-  white-space: nowrap !important; /* Evita rupturas de línea en móviles */
+  white-space: nowrap !important; /* Evita rupturas de línea */
+  width: 100% !important;
 }
 
 .stats-tab-btn:hover {
@@ -4697,7 +4686,7 @@ mark {
   color: #4b5563 !important;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 991px) {
   /* Estilo responsivo para Pestañas en Móviles (Capsule Pills) */
   .tab-text-desktop {
     display: none !important;
@@ -4706,16 +4695,23 @@ mark {
     display: inline !important;
   }
   .stats-tabs-bar {
-    display: flex !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important; /* Forzar 50% de ancho exacto para cada pestaña */
     width: 100% !important;
     border-radius: 999px !important;
-    overflow-x: hidden !important; /* Desactivar scroll si cabe completo */
+    background: #F1F5F9 !important;
+    padding: 4px !important;
+    gap: 4px !important;
+    overflow: hidden !important;
   }
   .stats-tab-btn {
-    flex: 1 !important;
+    display: flex !important;
+    width: 100% !important;
     justify-content: center !important;
-    padding: 8px 10px !important;
-    font-size: 0.76rem !important;
+    align-items: center !important;
+    padding: 8px 6px !important;
+    font-size: 0.74rem !important;
+    border-radius: 999px !important;
   }
 
   .alertas-filter-bar {

@@ -1,0 +1,50 @@
+DIAGNÓSTICO DE OPTIMIZACIÓN RESPONSIVA Y REFACTORIZACIÓN DE REPORTES
+====================================================================
+Fecha: 26 de agosto de 2026
+Estado: Implementado y listo para producción
+
+1. RESUMEN DEL PROBLEMA Y DIAGNÓSTICO
+-------------------------------------
+* Bug de Desbordamiento de Pantalla en Móviles (Pestaña "Resumen"):
+  - Las pestañas de la barra de control ("Resumen General e Informes" y "Reportes Personalizados") se maquetaban con display inline-flex/flex y anchos variables. En resoluciones menores a 991px, el texto no cabía de forma horizontal, provocando un desborde hacia la derecha (overflow-x) que descuadraba el contenedor general y estiraba la pantalla.
+  - La media query de adaptación de pestañas estaba fijada en 768px, dejando a los dispositivos tipo tablet (iPads, etc.) en un estado intermedio roto donde el texto colisionaba.
+
+* Estructura del Bloque de Actividades (Reporte PDF y Vista en Pantalla):
+  - El resumen de actividades se dividía en dos columnas laterales ("Información básica" y "Recorrido") que provocaban espacios en blanco desiguales y dificultaban la adaptabilidad móvil de los datos sin perder legibilidad.
+  - El listado de "Pozos Monitoreados" se presentaba en una caja separada al fondo que aumentaba artificialmente la altura vertical del reporte.
+
+2. SOLUCIONES Y MEJORAS IMPLEMENTADAS
+-------------------------------------
+A) Solución al Menú de Pestañas (stats.html & stats-page.css):
+   - Se aumentó el breakpoint de adaptación móvil de 768px a 991px para cubrir tablets de forma segura.
+   - Se rediseñó la barra de pestañas (.stats-tabs-bar) usando CSS Grid con una regla rígida de dos columnas al 50% de ancho exacto (grid-template-columns: 1fr 1fr). Esto elimina el desbordamiento lateral.
+   - Se configuró overflow: hidden y anchos adaptables automáticos al 100% de la pantalla para evitar que cualquier sub-elemento estire el viewport en dispositivos móviles.
+
+B) Refactorización Vertical del Resumen de Actividades (stats.html & estadisticas.js):
+   - Se unificó la estructura de dos columnas en una lista única y vertical de arriba a abajo.
+   - El contenedor pasa a ocupar todo el ancho disponible (display: block !important).
+   - Se maquetó cada fila con una grilla de dos columnas fijas: 200px para la etiqueta a la izquierda (Empresa, Campo, Servicio, etc.) y ancho flexible alineado a la derecha para el valor.
+   - El listado detallado de "Pozos Monitoreados" se integró al final del mismo bloque vertical como el campo número 11, alineado al tope para permitir el correcto flujo del texto de los nombres de los pozos.
+   - Se sincronizó esta estructura tanto en la previsualización interactiva de la pantalla de Estadísticas (stats.html) como en la generación y descarga en alta calidad del reporte PDF mensual (js/estadisticas.js).
+
+3. ARCHIVOS MODIFICADOS Y VERIFICADOS
+-------------------------------------
+* stats.html:
+  - Inyección de las reglas CSS adaptativas del breakpoint de 991px directamente en la cabecera del archivo.
+  - Reemplazo del grid de dos columnas del resumen de actividades por la lista unificada vertical con las IDs: brief-campo, brief-estado-pozo, brief-recorrido-total, brief-diurno, brief-nocturno, brief-pozos-count, brief-actividad y brief-pozos-lista.
+* css/stats-page.css:
+  - Actualización del breakpoint móvil a 991px.
+  - Implementación de reglas display: grid y grid-template-columns: 1fr 1fr para .stats-tabs-bar en móviles.
+* js/estadisticas.js:
+  - Actualización de la función renderMonthlyBrief() para alimentar de forma correcta y precisa los nuevos campos en pantalla (brief-pozos-count para la cantidad y brief-pozos-lista para los nombres).
+  - Actualización del generador de PDF mensual buildMonthlyPdfDocument() para renderizar la lista vertical secuencial con la misma estética limpia, alineación a la derecha y zebra-striping en las filas.
+
+4. INSTRUCCIONES DE VERIFICACIÓN LOCAL
+--------------------------------------
+1. Inicie sesión en la plataforma local de UV Servicios.
+2. Diríjase a la sección de "Estadísticas".
+3. Reduzca el tamaño de la ventana o use las herramientas de desarrollo del navegador para emular un dispositivo móvil (menor a 991px):
+   - Compruebe que la barra de pestañas ("Resumen" y "Reportes Pro") se ajusta de manera exacta y limpia a lo ancho de la pantalla sin scroll horizontal.
+   - Verifique que el bloque de Resumen de Actividades se muestra apilado verticalmente en una sola columna con las etiquetas y valores alineados a los bordes.
+4. Genere y descargue el reporte PDF mensual:
+   - Abra el PDF descargado y verifique que la hoja 1 ("Resumen de Actividades") muestre la lista de 11 campos ordenados de arriba a abajo de forma simétrica y legible, con los pozos monitoreados al final.

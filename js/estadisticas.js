@@ -648,13 +648,12 @@ function renderMonthlyBrief({ total = 0, pozosUnicos = new Set(), diagnosticoEnt
     const contract = document.getElementById('monthly-report-contract');
     const campo = document.getElementById('brief-campo');
     const estadoPozo = document.getElementById('brief-estado-pozo');
-    const periodo = document.getElementById('brief-periodo');
     const recorridoTotal = document.getElementById('brief-recorrido-total');
     const diurno = document.getElementById('brief-diurno');
     const nocturno = document.getElementById('brief-nocturno');
-    const pozos = document.getElementById('brief-pozos');
+    const pozosCount = document.getElementById('brief-pozos-count');
     const actividad = document.getElementById('brief-actividad');
-    const visitas = document.getElementById('brief-visitas');
+    const pozosLista = document.getElementById('brief-pozos-lista');
     const puntos = document.getElementById('brief-puntos-interes');
 
     const journeyCounts = calculateJourneyCounts(total);
@@ -664,13 +663,12 @@ function renderMonthlyBrief({ total = 0, pozosUnicos = new Set(), diagnosticoEnt
     if (contract) contract.textContent = getContractDisplayName();
     if (campo) campo.textContent = state.field === 'TODOS' ? getContractDisplayName() : state.field;
     if (estadoPozo) estadoPozo.textContent = offCount > 0 ? 'OPERANDO / PARADO' : 'OPERANDO';
-    if (periodo) periodo.textContent = getMonthLabel().toUpperCase();
     if (recorridoTotal) recorridoTotal.textContent = String(journeyCounts.totalJourneys);
     if (diurno) diurno.textContent = String(journeyCounts.diurnoCount);
     if (nocturno) nocturno.textContent = String(journeyCounts.nocturnoCount);
-    if (pozos) pozos.textContent = [...pozosUnicos].join(', ') || '—';
+    if (pozosCount) pozosCount.textContent = String(pozosUnicos.size);
     if (actividad) actividad.textContent = 'TOMA DE PARAMETROS OPERATIVOS';
-    if (visitas) visitas.textContent = String(total);
+    if (pozosLista) pozosLista.textContent = [...pozosUnicos].join(', ') || 'Sin pozos registrados';
 
     if (puntos) {
         const pointGroups = buildInterestPointGroups().slice(0, 6);
@@ -1917,20 +1915,24 @@ function buildMonthlyPdfDocument() {
                     <span>Resumen de Actividades</span>
                     <h2>${escapeHtml(data.monthLabel)}</h2>
                 </div>
-                <div class="monthly-pdf-info-grid">
-                    <dl>
-                        <div><dt>Empresa</dt><dd>UV SERVICIOS</dd></div>
-                        <div><dt>Campo</dt><dd>${escapeHtml(data.fieldLabel)}</dd></div>
-                        <div><dt>Estado del pozo</dt><dd>${data.offCount > 0 ? 'OPERANDO / PARADO' : 'OPERANDO'}</dd></div>
-                        <div><dt>Tipo de sistema</dt><dd>BES</dd></div>
-                        <div><dt>Servicio</dt><dd>MONITOREO</dd></div>
-                    </dl>
-                    <dl>
-                        <div><dt>Recorrido total</dt><dd>${data.journeyCounts.totalJourneys}</dd></div>
-                        <div><dt>Diurno</dt><dd>${data.journeyCounts.diurnoCount}</dd></div>
-                        <div><dt>Nocturno</dt><dd>${data.journeyCounts.nocturnoCount}</dd></div>
-                        <div><dt>Pozos</dt><dd>${escapeHtml([...data.pozosUnicos].join(', ') || '—')}</dd></div>
-                        <div><dt>Actividad</dt><dd>TOMA DE PARAMETROS OPERATIVOS</dd></div>
+                <div class="monthly-pdf-info-grid" style="display: block !important;">
+                    <dl style="margin: 0 !important; width: 100% !important;">
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Empresa</dt><dd>UV SERVICIOS</dd></div>
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Campo</dt><dd>${escapeHtml(data.fieldLabel)}</dd></div>
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Estado del pozo</dt><dd>${data.offCount > 0 ? 'OPERANDO / PARADO' : 'OPERANDO'}</dd></div>
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Tipo de sistema</dt><dd>BES</dd></div>
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Servicio</dt><dd>MONITOREO</dd></div>
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Recorrido total</dt><dd>${data.journeyCounts.totalJourneys}</dd></div>
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Diurno</dt><dd>${data.journeyCounts.diurnoCount}</dd></div>
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Nocturno</dt><dd>${data.journeyCounts.nocturnoCount}</dd></div>
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Pozos</dt><dd>${data.pozosUnicos.size}</dd></div>
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Actividad</dt><dd>TOMA DE PARAMETROS OPERATIVOS</dd></div>
+                        <div style="grid-template-columns: 200px minmax(0, 1fr) !important; align-items: start !important; min-height: auto !important; padding-top: 8px !important; padding-bottom: 8px !important; border-bottom: none !important;">
+                            <dt style="font-weight: 800; color: #0052cc;">Pozos Monitoreados</dt>
+                            <dd style="text-align: right; line-height: 1.45; word-break: break-word; color: #475569; font-weight: 700; font-size: 10px !important;">
+                                ${escapeHtml([...data.pozosUnicos].join(', ') || 'Sin pozos registrados')}
+                            </dd>
+                        </div>
                     </dl>
                 </div>
             </article>
