@@ -118,7 +118,8 @@ export async function getSession() {
                     cliente_view: 'Cliente',
                     base_datos: 'Administrador Base de Datos',
                     gestor_usuarios: 'Gestor de Accesos',
-                    gerencial: 'Gerencial / Dirección'
+                    gerencial: 'Gerencial / Dirección',
+                    seguridad: 'Seguridad / SIAHO'
                 };
                 
                 const roleLabel = labels[profile.role] || profile.role || 'Cliente';

@@ -310,6 +310,7 @@
                                 <option value="base_datos">Administrador Base de Datos</option>
                                 <option value="gestor_usuarios">Gestor de Accesos</option>
                                 <option value="gerencial">Gerencial / Dirección</option>
+                                <option value="seguridad">Seguridad / SIAHO</option>
                                 <option value="admin">Administrador del Sistema</option>
                             </select>
                         </label>
@@ -364,6 +365,66 @@
                     </div>
                 </section>
             </div>
+
+            <!-- SALA DE CONTROL VISUAL -->
+            <section class="contracts-control-card" style="margin-top: 24px;">
+                <div class="contracts-control-header">
+                    <div class="section-card-title-block" style="border-bottom: none; padding-bottom: 0;">
+                        <h2 class="section-card-title">🛡️ Sala de Control: Matriz de Permisos (Auditoría de Base de Datos)</h2>
+                        <p class="section-card-subtitle">Verifica y audita los niveles de visualización y escritura asignados por rol en tiempo real (Sincronizado con políticas RLS de Supabase).</p>
+                    </div>
+                    <span class="contract-active-pill" style="background: #eff6ff; color: #2563eb; border: 1px solid #dbe7f3; font-weight: 800;">SEGURIDAD ACTIVA</span>
+                </div>
+                
+                <div style="overflow-x: auto; margin-top: 14px;">
+                    <table class="users-table-premium" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                        <thead>
+                            <tr style="background: #f8fafc;">
+                                <th style="padding: 12px; font-weight: 800; font-size: 0.74rem; text-align: left; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; border-bottom: 2px solid #e2e8f0;">Rol de Acceso</th>
+                                <th style="padding: 12px; font-weight: 800; font-size: 0.74rem; text-align: center; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; border-bottom: 2px solid #e2e8f0;">Expediente Pozos</th>
+                                <th style="padding: 12px; font-weight: 800; font-size: 0.74rem; text-align: center; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; border-bottom: 2px solid #e2e8f0;">Info General</th>
+                                <th style="padding: 12px; font-weight: 800; font-size: 0.74rem; text-align: center; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; border-bottom: 2px solid #e2e8f0;">Expediente Gerencial</th>
+                                <th style="padding: 12px; font-weight: 800; font-size: 0.74rem; text-align: center; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; border-bottom: 2px solid #e2e8f0;">Almacenamiento / Papelera</th>
+                                <th style="padding: 12px; font-weight: 800; font-size: 0.74rem; text-align: center; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; border-bottom: 2px solid #e2e8f0;">Políticas RLS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 12px; font-weight: 800; font-size: 0.8rem; color: #0f172a;"><i class="fa-solid fa-database" style="color: #2563eb; margin-right: 8px;"></i> DBA / BASEUV</td>
+                                <td style="padding: 12px; text-align: center; color: #10b981; font-weight: 700; font-size: 0.76rem;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 6px;">Lectura / Escritura</span></td>
+                                <td style="padding: 12px; text-align: center; color: #10b981; font-weight: 700; font-size: 0.76rem;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 6px;">Lectura / Escritura</span></td>
+                                <td style="padding: 12px; text-align: center; color: #10b981; font-weight: 700; font-size: 0.76rem;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 6px;">Lectura / Escritura</span></td>
+                                <td style="padding: 12px; text-align: center; color: #10b981; font-weight: 700; font-size: 0.76rem;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 6px;">Total Control</span></td>
+                                <td style="padding: 12px; text-align: center; font-size: 0.7rem; font-weight: 700; color: #64748b;"><span style="background: #f1f5f9; padding: 2px 8px; border-radius: 6px;">Permisivo</span></td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 12px; font-weight: 800; font-size: 0.8rem; color: #0f172a;"><i class="fa-solid fa-briefcase" style="color: #4f46e5; margin-right: 8px;"></i> Gerencial / Dirección</td>
+                                <td style="padding: 12px; text-align: center; color: #2563eb; font-weight: 700; font-size: 0.76rem;"><span style="background: #dbeafe; padding: 2px 8px; border-radius: 6px;">Solo Lectura</span></td>
+                                <td style="padding: 12px; text-align: center; color: #2563eb; font-weight: 700; font-size: 0.76rem;"><span style="background: #dbeafe; padding: 2px 8px; border-radius: 6px;">Solo Lectura</span></td>
+                                <td style="padding: 12px; text-align: center; color: #10b981; font-weight: 700; font-size: 0.76rem;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 6px;">Lectura / Escritura</span></td>
+                                <td style="padding: 12px; text-align: center; color: #2563eb; font-weight: 700; font-size: 0.76rem;"><span style="background: #dbeafe; padding: 2px 8px; border-radius: 6px;">Solo Lectura</span></td>
+                                <td style="padding: 12px; text-align: center; font-size: 0.7rem; font-weight: 700; color: #e11d48;"><span style="background: #ffe4e6; padding: 2px 8px; border-radius: 6px;">Filtrado Escritura</span></td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 12px; font-weight: 800; font-size: 0.8rem; color: #0f172a;"><i class="fa-solid fa-user-gear" style="color: #0d9488; margin-right: 8px;"></i> Administrador / Supervisor</td>
+                                <td style="padding: 12px; text-align: center; color: #10b981; font-weight: 700; font-size: 0.76rem;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 6px;">Lectura / Escritura</span></td>
+                                <td style="padding: 12px; text-align: center; color: #10b981; font-weight: 700; font-size: 0.76rem;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 6px;">Lectura / Escritura</span></td>
+                                <td style="padding: 12px; text-align: center; color: #ef4444; font-weight: 700; font-size: 0.76rem;"><span style="background: #fee2e2; padding: 2px 8px; border-radius: 6px;">OCULTO / BLOQUEADO</span></td>
+                                <td style="padding: 12px; text-align: center; color: #ef4444; font-weight: 700; font-size: 0.76rem;"><span style="background: #fee2e2; padding: 2px 8px; border-radius: 6px;">OCULTO / BLOQUEADO</span></td>
+                                <td style="padding: 12px; text-align: center; font-size: 0.7rem; font-weight: 700; color: #d97706;"><span style="background: #fef3c7; padding: 2px 8px; border-radius: 6px;">Filtro No-Gerencial</span></td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 12px; font-weight: 800; font-size: 0.8rem; color: #0f172a;"><i class="fa-solid fa-shield-halved" style="color: #ea580c; margin-right: 8px;"></i> Seguridad / SIAHO</td>
+                                <td style="padding: 12px; text-align: center; color: #ef4444; font-weight: 700; font-size: 0.76rem;"><span style="background: #fee2e2; padding: 2px 8px; border-radius: 6px;">OCULTO / BLOQUEADO</span></td>
+                                <td style="padding: 12px; text-align: center; color: #ef4444; font-weight: 700; font-size: 0.76rem;"><span style="background: #fee2e2; padding: 2px 8px; border-radius: 6px;">OCULTO / BLOQUEADO</span></td>
+                                <td style="padding: 12px; text-align: center; color: #d97706; font-weight: 700; font-size: 0.76rem;"><span style="background: #fef3c7; padding: 2px 8px; border-radius: 6px;">SOLO CARPETA SIAHO</span></td>
+                                <td style="padding: 12px; text-align: center; color: #ef4444; font-weight: 700; font-size: 0.76rem;"><span style="background: #fee2e2; padding: 2px 8px; border-radius: 6px;">OCULTO / BLOQUEADO</span></td>
+                                <td style="padding: 12px; text-align: center; font-size: 0.7rem; font-weight: 700; color: #16a34a;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 6px;">Filtro SIAHO Estricto</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -413,6 +474,7 @@
                                 <option value="base_datos">Administrador Base de Datos</option>
                                 <option value="gestor_usuarios">Gestor de Accesos</option>
                                 <option value="gerencial">Gerencial / Dirección</option>
+                                <option value="seguridad">Seguridad / SIAHO</option>
                                 <option value="admin">Administrador del Sistema</option>
                             </select>
                         </label>

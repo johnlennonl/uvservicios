@@ -181,11 +181,16 @@ function canUserWriteInCurrentSection() {
     const activeSection = state.activePozo; // '_GENERAL', '_GERENCIAL' o nombre de pozo
 
     if (accessProfile.role === 'admin' || accessProfile.role === 'supervisor') {
-        return true; // Admins y supervisores tienen acceso total
+        return activeSection !== '_GERENCIAL'; // Admins y supervisores tienen acceso total excepto Gerencial
     }
 
     if (accessProfile.isGerencial) {
         // Gerencial solo puede escribir en su sección
+        return activeSection === '_GERENCIAL';
+    }
+
+    if (accessProfile.isSeguridad) {
+        // Seguridad solo puede escribir en la sección Gerencial (donde está SIAHO)
         return activeSection === '_GERENCIAL';
     }
 
@@ -237,25 +242,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const accessProfile = getAccessProfile(state.userSession);
 
-        // 2. Verificar si la sesión fue validada con PIN (el rol gerencial no lo requiere)
+        // 2. Verificar si la sesión fue validada con PIN (el rol gerencial y seguridad no lo requieren)
         const isPinVerified = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) === 'true';
-        if (!isPinVerified && !accessProfile.isGerencial) {
+        if (!isPinVerified && !accessProfile.isGerencial && !accessProfile.isSeguridad) {
+            sessionStorage.setItem('uv_db_pin_pending', 'true'); // Flag to indicate we are verifying PIN for DB
             window.location.href = 'index.html';
             return;
         }
-        state.isPinVerified = isPinVerified || accessProfile.isGerencial;
+        state.isPinVerified = isPinVerified || accessProfile.isGerencial || accessProfile.isSeguridad;
 
         applyNavigationAccessProfile(accessProfile);
             
-            // Si el perfil es el del rol Gerencial, habilitamos el botón Volver
+            // Si el perfil es el del rol Gerencial, habilitamos el botón Volver al Portal
             const btnPortal = document.getElementById('sidebar-link-portal');
             const btnPortalMobile = document.getElementById('mobile-link-portal');
             const statusPillMobile = document.getElementById('mobile-status-pill-db');
+            
+            // Seguridad no tiene acceso al dashboard principal, por lo tanto no muestra botón Volver.
+            // DBA, Gerencial, Admin y Supervisor sí pueden regresar al portal.
+            const canGoPortal = accessProfile.isGerencial || accessProfile.isBaseDatos || accessProfile.isAdmin || accessProfile.isSupervisor;
             if (btnPortal) {
-                btnPortal.style.display = accessProfile.isGerencial ? 'flex' : 'none';
+                btnPortal.style.display = canGoPortal ? 'flex' : 'none';
             }
             if (btnPortalMobile) {
-                if (accessProfile.isGerencial) {
+                if (canGoPortal) {
                     btnPortalMobile.style.display = 'flex';
                     if (statusPillMobile) statusPillMobile.style.display = 'none';
                 } else {
@@ -306,6 +316,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             const mobBtnGeneral = document.getElementById('mobile-link-general');
             const mobBtnGerencial = document.getElementById('mobile-link-gerencial');
             const mobBtnStorage = document.getElementById('mobile-link-storage');
+
+            // --- APLICAR RESTRICCIONES DE MENÚ SEGÚN ROL ---
+            if (accessProfile.isAdmin || accessProfile.isSupervisor) {
+                // Administrador solo ve Pozos y General
+                if (btnGerencial) btnGerencial.style.display = 'none';
+                if (mobBtnGerencial) mobBtnGerencial.style.display = 'none';
+                if (btnStorage) btnStorage.style.display = 'none';
+                if (mobBtnStorage) mobBtnStorage.style.display = 'none';
+            } else if (accessProfile.isSeguridad) {
+                // Seguridad solo ve SIAHO (Gerencial renombrado)
+                if (btnPozos) btnPozos.style.display = 'none';
+                if (mobBtnPozos) mobBtnPozos.style.display = 'none';
+                if (btnGeneral) btnGeneral.style.display = 'none';
+                if (mobBtnGeneral) mobBtnGeneral.style.display = 'none';
+                if (btnStorage) btnStorage.style.display = 'none';
+                if (mobBtnStorage) mobBtnStorage.style.display = 'none';
+
+                // Renombrar botón Gerencial a SIAHO
+                if (btnGerencial) {
+                    const textSpan = btnGerencial.querySelector('span') || btnGerencial;
+                    textSpan.textContent = 'Carpeta SIAHO';
+                }
+                if (mobBtnGerencial) {
+                    const textSpan = mobBtnGerencial.querySelector('span') || mobBtnGerencial;
+                    textSpan.textContent = 'SIAHO';
+                }
+            }
+
+            // Ajustar dinámicamente las columnas de la barra móvil para evitar espacios vacíos
+            const mobNav = document.querySelector('.mobile-bottom-nav');
+            if (mobNav) {
+                if (accessProfile.isSeguridad) {
+                    mobNav.style.gridTemplateColumns = 'repeat(2, 1fr)';
+                } else if (accessProfile.isAdmin || accessProfile.isSupervisor) {
+                    mobNav.style.gridTemplateColumns = 'repeat(3, 1fr)';
+                } else {
+                    mobNav.style.gridTemplateColumns = 'repeat(5, 1fr)';
+                }
+            }
 
             const activateTab = (activeId) => {
                 // Barra lateral
@@ -422,8 +471,14 @@ async function loadDatabaseModule() {
         // Poblar el conmutador rápido de pozos
         populateQuickWellSwitcher();
 
-        // Renderizar la vista de Pozos (Nivel 1) de forma instantánea
-        renderWellsView();
+        // Si el usuario es de seguridad, redirigir directo al expediente Gerencial
+        const accessProfile = getAccessProfile(state.userSession);
+        if (accessProfile.isSeguridad) {
+            openFoldersView('_GERENCIAL');
+        } else {
+            // Renderizar la vista de Pozos (Nivel 1) de forma instantánea
+            renderWellsView();
+        }
 
         // Cargar contadores de documentos en segundo plano para no bloquear la pantalla
         getWellDocumentSummaryCounts({ operationalScope: state.activeOperationalScope }).then(counts => {
@@ -712,6 +767,11 @@ function populateQuickWellSwitcher() {
  * @param {string} [filterText] - Texto opcional para buscar pozos por nombre.
  */
 function renderWellsView(filterText = '') {
+    const accessProfile = getAccessProfile(state.userSession);
+    if (accessProfile.isSeguridad) {
+        openFoldersView('_GERENCIAL');
+        return;
+    }
     window.scrollTo({ top: 0, behavior: 'instant' });
     state.activePozo = null;
     state.activeCategory = null;
@@ -1021,10 +1081,6 @@ window.handleDeleteFolderClick = async function(folderId, folderName) {
  * RENDERIZA NIVEL 2: Vista de Carpetas temáticas y personalizadas por Pozo.
  * @param {string} pozoName - Nombre del pozo seleccionado.
  */
-/**
- * RENDERIZA NIVEL 2: Vista de Carpetas temáticas y personalizadas por Pozo.
- * @param {string} pozoName - Nombre del pozo seleccionado.
- */
 async function openFoldersView(pozoName) {
     window.scrollTo({ top: 0, behavior: 'instant' });
     state.activePozo = pozoName;
@@ -1044,10 +1100,20 @@ async function openFoldersView(pozoName) {
 
     updateBreadcrumb();
 
+    const accessProfile = getAccessProfile(state.userSession);
+
+    // Ocultar botón Volver a Pozos si el rol es de Seguridad
+    const btnBackToWells = document.getElementById('btn-back-to-wells');
+    if (btnBackToWells) {
+        btnBackToWells.style.display = accessProfile.isSeguridad ? 'none' : 'flex';
+    }
+
     const titleEl = document.getElementById('folder-well-title');
     if (titleEl) {
         if (pozoName === '_GENERAL') titleEl.textContent = 'Información General';
-        else if (pozoName === '_GERENCIAL') titleEl.textContent = 'Expediente Gerencial';
+        else if (pozoName === '_GERENCIAL') {
+            titleEl.textContent = accessProfile.isSeguridad ? 'Carpeta SIAHO' : 'Expediente Gerencial';
+        }
         else titleEl.textContent = `Expediente del Pozo ${pozoName}`;
     }
 
@@ -1058,14 +1124,14 @@ async function openFoldersView(pozoName) {
 
     try {
         await ensureDefaultFoldersExist(pozoName);
-        const folders = await getFolders({
+        let folders = await getFolders({
             pozoName,
             parentId: null,
             operationalScope: state.activeOperationalScope
         });
 
         // Cargar todos los documentos de este pozo para calcular los contadores
-        const allDocs = await getWellDocuments({
+        let allDocs = await getWellDocuments({
             pozoName,
             operationalScope: state.activeOperationalScope
         });
@@ -1080,6 +1146,14 @@ async function openFoldersView(pozoName) {
             console.error('[openFoldersView] Error al obtener todas las carpetas:', allFoldersError);
         } else {
             console.log('[openFoldersView] Lista completa de carpetas cargadas de la DB:', allFoldersList);
+        }
+
+        // Si el usuario es del rol de Seguridad, filtramos los datos para aplicar el sandbox
+        if (accessProfile.isSeguridad) {
+            // Filtrar carpetas raíz para mostrar exclusivamente SIAHO
+            folders = folders.filter(f => f.name.toUpperCase() === 'SIAHO');
+            // Filtrar documentos para ver únicamente la categoría SIAHO
+            allDocs = allDocs.filter(d => d.categoria === 'SIAHO');
         }
 
         state.currentFolders = folders;
@@ -1819,7 +1893,7 @@ async function fetchAndRenderFiles() {
     const endDate = document.getElementById('db-end-date')?.value || null;
 
     try {
-        const documents = await getWellDocuments({
+        let documents = await getWellDocuments({
             pozoName: state.activePozo,
             category: state.activeCategory,
             startDate,
@@ -1831,6 +1905,11 @@ async function fetchAndRenderFiles() {
 
         showLoader = false;
         clearTimeout(loaderTimeout);
+
+        const accessProfile = getAccessProfile(state.userSession);
+        if (accessProfile.isSeguridad) {
+            documents = (documents || []).filter(d => d.categoria === 'SIAHO');
+        }
 
         state.activeDocuments = documents;
 
@@ -2031,10 +2110,15 @@ function updateBreadcrumb() {
 
     let html = '';
     if (isVirtualWell) {
+        const accessProfile = getAccessProfile(state.userSession);
+        let rootLabel = isGeneral ? 'Información General' : 'Gerencial';
+        if (accessProfile.isSeguridad && isGerencial) {
+            rootLabel = 'Carpeta SIAHO';
+        }
         html += `
             <div class="db-breadcrumb-item ${state.currentFolderPath.length === 0 || (state.currentFolderPath.length === 1 && state.currentFolderPath[0].id === null) ? 'is-active' : ''}" id="bc-virtual-root" style="cursor:pointer;">
                 <i class="${isGeneral ? 'fa-solid fa-folder-open' : 'fa-solid fa-briefcase'}"></i>
-                <span>${isGeneral ? 'Información General' : 'Gerencial'}</span>
+                <span>${rootLabel}</span>
             </div>
         `;
     } else {
@@ -2150,7 +2234,13 @@ function initFiltersEvents() {
             const resultsContainer = document.getElementById('view-search-results-container');
             if (resultsContainer) resultsContainer.hidden = true;
 
-            renderWellsView();
+            const accessProfile = getAccessProfile(state.userSession);
+            if (accessProfile.isSeguridad) {
+                // Seguridad no puede volver a la lista general de pozos
+                openFoldersView('_GERENCIAL');
+            } else {
+                renderWellsView();
+            }
         });
     }
 

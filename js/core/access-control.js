@@ -6,13 +6,16 @@ export const ACCESS_ROLES = Object.freeze({
     CLIENTE_VIEW: 'cliente_view',
     BASE_DATOS: 'base_datos',
     GESTOR_USUARIOS: 'gestor_usuarios',
-    GERENCIAL: 'gerencial' // Nuevo Rol Gerencial
+    GERENCIAL: 'gerencial', // Nuevo Rol Gerencial
+    SEGURIDAD: 'seguridad' // Nuevo Rol de Seguridad/SIAHO
 });
 
 const ALLOWED_ACCESS_ROLES = new Set(Object.values(ACCESS_ROLES));
 
 function normalizeRole(value) {
     const normalizedRole = String(value || '').trim().toLowerCase();
+    // Soporte para alias de rol 'siaho' mapeándolo a 'seguridad'
+    if (normalizedRole === 'siaho') return ACCESS_ROLES.SEGURIDAD;
     return ALLOWED_ACCESS_ROLES.has(normalizedRole)
         ? normalizedRole
         : ACCESS_ROLES.CLIENTE_VIEW;
@@ -49,6 +52,7 @@ export function getAccessProfile(sessionOrUser) {
     const isBaseDatos = role === ACCESS_ROLES.BASE_DATOS || email.includes('baseuv');
     const isGestorUsuarios = role === ACCESS_ROLES.GESTOR_USUARIOS;
     const isGerencial = role === ACCESS_ROLES.GERENCIAL; // Nuevo
+    const isSeguridad = role === ACCESS_ROLES.SEGURIDAD; // Nuevo
 
     return {
         email,
@@ -59,18 +63,21 @@ export function getAccessProfile(sessionOrUser) {
         isBaseDatos,
         isGestorUsuarios,
         isGerencial, // Nuevo
-        canViewDashboard: !isGestorUsuarios && !isServicesOperator,
-        canViewConsolidado: !isGestorUsuarios && !isServicesOperator,
+        isSeguridad, // Nuevo
+        isAdmin,
+        isSupervisor,
+        canViewDashboard: !isGestorUsuarios && !isServicesOperator && !isSeguridad,
+        canViewConsolidado: !isGestorUsuarios && !isServicesOperator && !isSeguridad,
         canModifyConsolidadoBase: isAdmin || isSupervisor,
         canViewManagement: isAdmin || isSupervisor || isGerencial, // Gerencial puede ver gestión/jornadas
         canEditData: isAdmin || isSupervisor,
         canCreateFieldReports: isAdmin || isSupervisor || isFieldOperator,
         canViewFieldModule: isAdmin || isSupervisor || isFieldOperator,
-        canViewFieldHistory: !isGestorUsuarios && !isServicesOperator,
+        canViewFieldHistory: !isGestorUsuarios && !isServicesOperator && !isSeguridad,
         canViewJourneyModule: isAdmin || isSupervisor || isFieldOperator,
-        canViewJourneyHistory: !isGestorUsuarios && !isServicesOperator,
-        canViewStats: !isGestorUsuarios && !isServicesOperator,
-        canViewBaseDatos: isBaseDatos || isGerencial, // Gerencial puede ver base-datos.html
+        canViewJourneyHistory: !isGestorUsuarios && !isServicesOperator && !isSeguridad,
+        canViewStats: !isGestorUsuarios && !isServicesOperator && !isSeguridad,
+        canViewBaseDatos: isBaseDatos || isGerencial || isAdmin || isSupervisor || isSeguridad, // Gerencial, Admin, Supervisor y Seguridad pueden ver base-datos.html
         canManageUsers: isGestorUsuarios || isAdmin
     };
 }
@@ -78,6 +85,10 @@ export function getAccessProfile(sessionOrUser) {
 export function getDefaultRouteForAccessProfile(accessProfile) {
     if (accessProfile?.isBaseDatos || accessProfile?.email?.includes('baseuv')) {
         return 'base-datos.html';
+    }
+
+    if (accessProfile?.isSeguridad) {
+        return 'base-datos.html'; // Seguridad va directo a Base de Datos
     }
 
     if (accessProfile?.isFieldOperator) {
@@ -148,7 +159,7 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
         });
     };
 
-    if (accessProfile?.isBaseDatos || accessProfile?.isGerencial) {
+    if (accessProfile?.isBaseDatos || accessProfile?.isGerencial || accessProfile?.isAdmin || accessProfile?.isSupervisor || accessProfile?.isSeguridad) {
         showLinks(['base-datos.html']);
         document.body.classList.add('is-role-base-datos');
     } else {
@@ -156,8 +167,9 @@ export function applyNavigationAccessProfile(accessProfile, root = document) {
         document.body.classList.remove('is-role-base-datos');
     }
 
-    if (accessProfile?.isBaseDatos) {
+    if (accessProfile?.isBaseDatos || accessProfile?.isSeguridad) {
         hideLinks([
+            'dashboard.html',
             'consolidado.html',
             'data.html',
             'stats.html',

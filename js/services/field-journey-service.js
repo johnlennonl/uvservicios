@@ -1496,42 +1496,34 @@ export async function getFieldSubmittedJourneys(options = {}) {
 
     if (!scopeGuard.pozoNames.length) return [];
 
-    const { data: matchingRecords, error: matchingRecordsError } = await supabase
-        .from('field_journey_records')
-        .select('journey_id')
-        .in('pozo', scopeGuard.pozoNames)
-        .limit(10000);
-
-    if (matchingRecordsError) throw wrapFieldJourneyError(matchingRecordsError);
-
-    const scopedJourneyIds = [...new Set((matchingRecords || []).map(record => record.journey_id).filter(Boolean))];
-    if (!scopedJourneyIds.length) return [];
-
-    let query = supabase
+    // Paso 1: Obtener las jornadas del usuario (resultado siempre pequeño, ≤safeLimit)
+    // Se consulta primero field_journeys por email para evitar el límite de 1000 filas
+    // que Supabase impone sobre field_journey_records cuando hay muchos registros históricos.
+    let journeyQuery = supabase
         .from('field_journeys')
         .select('*')
         .ilike('submitted_by_email', session.user.email)
-        .in('id', scopedJourneyIds)
         .order('journey_date', { ascending: false })
         .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(safeLimit);
 
     if (options.startDate) {
-        query = query.gte('journey_date', options.startDate);
+        journeyQuery = journeyQuery.gte('journey_date', options.startDate);
     }
 
     if (options.endDate) {
-        query = query.lte('journey_date', options.endDate);
+        journeyQuery = journeyQuery.lte('journey_date', options.endDate);
     }
 
     try {
-        const { data: journeys, error } = await query;
+        const { data: journeys, error } = await journeyQuery;
         if (error) throw error;
 
         const journeyList = Array.isArray(journeys) ? journeys : [];
         if (journeyList.length === 0) return [];
 
+        // Paso 2: Obtener registros de pozos para esas jornadas, filtrados por el scope activo
         const journeyIds = journeyList.map(journey => journey.id).filter(Boolean);
         const { data: records, error: recordsError } = await supabase
             .from('field_journey_records')
@@ -1552,13 +1544,16 @@ export async function getFieldSubmittedJourneys(options = {}) {
             recordsByJourney.get(key).push(record);
         });
 
+        // Paso 3: Solo incluir jornadas que tengan al menos un registro en el scope activo
         return journeyList
+            .filter(journey => (recordsByJourney.get(journey.id) || []).length > 0)
             .map(journey => buildJourneyPreviewSummary(journey, recordsByJourney.get(journey.id) || []))
             .filter(journey => matchesJourneySearch(journey, options.searchTerm));
     } catch (error) {
         throw wrapFieldJourneyError(error);
     }
 }
+
 
 export async function getFieldSubmittedJourneyDetail(journeyId) {
     const { session } = await ensureFieldSessionAccess();

@@ -1,0 +1,71 @@
+================================================================================
+          ANÁLISIS DE ARQUITECTURA SÉNIOR Y MATRIZ DE CONTROL DE ACCESOS
+================================================================================
+Autor: Antigravity AI (Frontend, Backend & Security Lead)
+Fecha: 26 de agosto de 2026
+Módulo: Base de Datos & Expedientes Digitales por Pozo
+
+---
+
+1. PUNTO DE VISTA DE ARQUITECTURA DE SEGURIDAD (SECURITY ARCHITECT PERSPECTIVE)
+--------------------------------------------------------------------------------
+¡Estimado amigo! Como especialista en seguridad informática y desarrollo fullstack, 
+debo decirte algo crucial:
+
+"NUNCA SE DEBE CONFIAR EXCLUSIVAMENTE EN EL FRONTEND PARA LA SEGURIDAD."
+
+* El Riesgo del Frontend: 
+  Si solo ocultamos botones o bloqueamos pestañas usando JavaScript en el navegador, 
+  cualquier usuario con conocimientos básicos de la consola web (F12) podría:
+  1. Escribir `state.activePozo = '_GERENCIAL'` o abrir cualquier expediente manualmente.
+  2. Manipular el objeto `accessProfile` en la memoria local.
+  3. Ejecutar consultas directas al cliente de Supabase (ej: `supabase.from('well_historical_documents').select('*')`).
+  Como la información es altamente confidencial y no queremos NINGUNA fuga de datos,
+  la seguridad debe aplicarse en DOS capas (Double Shield Pattern):
+
+  CAPA 1: Frontend (UX/UI limpia) -> Oculta y organiza los menús para que cada rol
+          vea exactamente lo que le corresponde y tenga una interfaz intuitiva.
+  CAPA 2: Backend/Base de Datos (Seguridad Real) -> Aplicamos Row Level Security (RLS)
+          en Supabase. Si un usuario con el rol 'seguridad' intenta consultar carpetas o
+          archivos fuera de SIAHO mediante la consola o alterando el JS, la propia base de 
+          datos rechazará la consulta devolviendo un arreglo vacío o un error.
+
+---
+
+2. LA PROPUESTA DE LA "SALA DE CONTROL" (MATRIZ VISUAL EN GESTIÓN)
+--------------------------------------------------------------------------------
+¿Se puede hacer un panel dinámico para cambiar los permisos desde la sala de control? 
+¡Sí, totalmente! Sin embargo, como desarrollador sénior te doy mi punto de vista:
+
+* Recomendación de Fase 1 (Matriz Estática Enforzada + Panel de Referencia):
+  Dado que los roles del negocio y las carpetas base (Pozos, General, Gerencial, SIAHO) 
+  son fijos y estables, la forma más rápida y 100% libre de errores es configurar 
+  esta lógica de forma explícita en código e inyectar las políticas RLS en la base de datos.
+  Para darte ese toque brutal que te gusta, podemos agregar una "Matriz de Control 
+  de Accesos" de referencia en la sección de Gestión de Usuarios (`gestion-usuarios.html`).
+  Esto actuará como una "Sala de Control Visual" donde el administrador podrá ver 
+  y auditar en tiempo real qué accesos están activos para cada rol.
+
+---
+
+3. MATRIZ DE ACCESO DE LA BASE DE DATOS (USUARIOS / CARPETAS)
+--------------------------------------------------------------------------------
+Esta es la matriz que dejaremos programada en la Base de Datos (RLS) y en el Frontend (UI):
+
+| ROL DE ACCESO    | EXPEDIENTE POZOS | INFO GENERAL | EXPEDIENTE GERENCIAL | ALMACENAMIENTO | NIVEL DE SEGURIDAD (RLS) |
+|------------------|------------------|--------------|----------------------|----------------|--------------------------|
+| DBA / BASEUV     | Lectura/Escritura| Lectura/Escr.| Lectura/Escritura    | Total Control  | Máximo - Sin Restricción |
+| GERENCIAL        | Solo Lectura      | Solo Lectura | Lectura/Escritura    | Solo Lectura   | Restringe escritura a GER.|
+| ADMINISTRADOR    | Lectura/Escritura| Lectura/Escr.| OCULTO / BLOQUEADO   | OCULTO / BLOQ. | Bloquea lectura de GER.   |
+| SEGURIDAD / SIAHO| OCULTO / BLOQUEADO| OCULTO / BLOQ.| SOLO VE CARPETA SIAHO| OCULTO / BLOQ. | Bloquea todo excepto SIAHO|
+
+---
+
+4. DETALLE DE IMPLEMENTACIÓN (PLAN ACCIÓN)
+-------------------------------------------
+1. Modificar `js/core/access-control.js` para registrar el nuevo rol `seguridad`, habilitar la visualización del menú "Base de Datos" a los roles autorizados y ocultar los demás menús a la cuenta de seguridad.
+2. Modificar `js/modules/database/database-controller.js` para:
+   - Configurar el sandboxing del rol `seguridad`: entra directo al expediente `_GERENCIAL`, se le ocultan los botones de Pozos, General e Historial y solo se le lista la carpeta `SIAHO`.
+   - Filtrar los documentos leídos del servidor en memoria para que el rol `seguridad` solo opere con la categoría `SIAHO`.
+   - Configurar el menú del rol `admin` / `supervisor` (Administrador): ocultarles Gerencial y Almacenamiento, permitiendo el trabajo exclusivo en Pozos e Información General.
+3. Dejar listo el script `supabase/apply_database_roles_rls.sql` con las políticas de base de datos para que la seguridad sea inquebrantable a nivel de backend.

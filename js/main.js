@@ -26,13 +26,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (session) {
         console.log('Session detected, checking profile...');
         const route = getDefaultRouteForAccessProfile(getAccessProfile(session));
-        if (route === 'base-datos.html') {
+        const isDbPinPending = sessionStorage.getItem('uv_db_pin_pending') === 'true';
+
+        if (route === 'base-datos.html' || isDbPinPending) {
             if (sessionStorage.getItem('uv_db_pin_verified') === 'true') {
-                ui.redirectToDashboard(route);
+                sessionStorage.removeItem('uv_db_pin_pending');
+                ui.redirectToDashboard(isDbPinPending ? 'base-datos.html' : route);
                 return;
             }
             // Si ya hay sesión pero falta el PIN, mostramos el Paso 2
-            pendingRoute = route;
+            pendingRoute = isDbPinPending ? 'base-datos.html' : route;
             showPinStep();
             
             const elapsedTime = Date.now() - startTime;
@@ -141,6 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (enteredPin === '4826') {
                 sessionStorage.setItem('uv_db_pin_verified', 'true');
+                sessionStorage.removeItem('uv_db_pin_pending'); // Clear pending flag
                 if (pinError) pinError.classList.add('hidden');
                 ui.redirectToDashboard(pendingRoute || 'base-datos.html');
             } else {
