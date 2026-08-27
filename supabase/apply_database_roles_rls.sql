@@ -5,16 +5,26 @@
 -- para garantizar que ningún rol pueda filtrar, leer o escribir documentos fuera
 -- de su jurisdicción, protegiendo la información confidencial.
 
--- Limpiar políticas anteriores para evitar colisiones
+-- Limpiar políticas anteriores (nombres antiguos y nuevos) para evitar colisiones
 DROP POLICY IF EXISTS "Permitir lectura autenticada en well_document_folders" ON public.well_document_folders;
 DROP POLICY IF EXISTS "Permitir insercion autenticada en well_document_folders" ON public.well_document_folders;
 DROP POLICY IF EXISTS "Permitir eliminacion autenticada en well_document_folders" ON public.well_document_folders;
 DROP POLICY IF EXISTS "Permitir actualizacion autenticada en well_document_folders" ON public.well_document_folders;
 
+DROP POLICY IF EXISTS "RLS_SELECT_folders_by_role" ON public.well_document_folders;
+DROP POLICY IF EXISTS "RLS_INSERT_folders_by_role" ON public.well_document_folders;
+DROP POLICY IF EXISTS "RLS_DELETE_folders_by_role" ON public.well_document_folders;
+DROP POLICY IF EXISTS "RLS_UPDATE_folders_by_role" ON public.well_document_folders;
+
 DROP POLICY IF EXISTS "Permitir lectura publica/autenticada en well_historical_documents" ON public.well_historical_documents;
 DROP POLICY IF EXISTS "Permitir insercion autenticada en well_historical_documents" ON public.well_historical_documents;
 DROP POLICY IF EXISTS "Permitir eliminacion autenticada en well_historical_documents" ON public.well_historical_documents;
 DROP POLICY IF EXISTS "Permitir actualizacion autenticada en well_historical_documents" ON public.well_historical_documents;
+
+DROP POLICY IF EXISTS "RLS_SELECT_documents_by_role" ON public.well_historical_documents;
+DROP POLICY IF EXISTS "RLS_INSERT_documents_by_role" ON public.well_historical_documents;
+DROP POLICY IF EXISTS "RLS_DELETE_documents_by_role" ON public.well_historical_documents;
+DROP POLICY IF EXISTS "RLS_UPDATE_documents_by_role" ON public.well_historical_documents;
 
 -- ==============================================================================
 -- 1. POLÍTICAS RLS PARA LA TABLA DE CARPETAS (well_document_folders)
@@ -94,6 +104,50 @@ USING (
     END
 );
 
+-- D) POLÍTICA DE ACTUALIZACIÓN (EDICIÓN)
+CREATE POLICY "RLS_UPDATE_folders_by_role"
+ON public.well_document_folders FOR UPDATE TO authenticated
+USING (
+    CASE 
+        -- DBA / BASEUV: Control total de todo
+        WHEN public.get_access_role() = 'base_datos' THEN true
+        
+        -- Gerencial: Editar solo en Gerencial
+        WHEN public.get_access_role() = 'gerencial' THEN 
+            pozo_name = '_GERENCIAL'
+            
+        -- Seguridad / SIAHO: Editar solo subcarpetas SIAHO (donde parent_id is not null)
+        WHEN public.get_access_role() in ('seguridad', 'siaho') THEN 
+            pozo_name = '_GERENCIAL' AND parent_id IS NOT NULL
+            
+        -- Administrador / Supervisor: Editar fuera de Gerencial
+        WHEN public.get_access_role() in ('admin', 'supervisor') THEN 
+            pozo_name != '_GERENCIAL'
+            
+        ELSE false
+    END
+)
+WITH CHECK (
+    CASE 
+        -- DBA / BASEUV: Control total de todo
+        WHEN public.get_access_role() = 'base_datos' THEN true
+        
+        -- Gerencial: Editar solo en Gerencial
+        WHEN public.get_access_role() = 'gerencial' THEN 
+            pozo_name = '_GERENCIAL'
+            
+        -- Seguridad / SIAHO: Editar solo subcarpetas SIAHO (donde parent_id is not null)
+        WHEN public.get_access_role() in ('seguridad', 'siaho') THEN 
+            pozo_name = '_GERENCIAL' AND parent_id IS NOT NULL
+            
+        -- Administrador / Supervisor: Editar fuera de Gerencial
+        WHEN public.get_access_role() in ('admin', 'supervisor') THEN 
+            pozo_name != '_GERENCIAL'
+            
+        ELSE false
+    END
+);
+
 
 -- ==============================================================================
 -- 2. POLÍTICAS RLS PARA LA TABLA DE DOCUMENTOS (well_historical_documents)
@@ -139,8 +193,8 @@ WITH CHECK (
         WHEN public.get_access_role() in ('seguridad', 'siaho') THEN 
             pozo_name = '_GERENCIAL' AND categoria = 'SIAHO'
             
-        -- Administrador / Supervisor: Subir fuera de Gerencial
-        WHEN public.get_access_role() in ('admin', 'supervisor') THEN 
+        -- Administrador / Supervisor / Operador Campo (campo): Subir fuera de Gerencial
+        WHEN public.get_access_role() in ('admin', 'supervisor', 'campo') THEN 
             pozo_name != '_GERENCIAL'
             
         ELSE false
@@ -163,8 +217,52 @@ USING (
         WHEN public.get_access_role() in ('seguridad', 'siaho') THEN 
             pozo_name = '_GERENCIAL' AND categoria = 'SIAHO'
             
-        -- Administrador / Supervisor: Borrar fuera de Gerencial
-        WHEN public.get_access_role() in ('admin', 'supervisor') THEN 
+        -- Administrador / Supervisor / Operador Campo (campo): Borrar fuera de Gerencial
+        WHEN public.get_access_role() in ('admin', 'supervisor', 'campo') THEN 
+            pozo_name != '_GERENCIAL'
+            
+        ELSE false
+    END
+);
+
+-- D) POLÍTICA DE ACTUALIZACIÓN (EDICIÓN DE ARCHIVOS / SOFT DELETE)
+CREATE POLICY "RLS_UPDATE_documents_by_role"
+ON public.well_historical_documents FOR UPDATE TO authenticated
+USING (
+    CASE 
+        -- DBA / BASEUV: Actualizar todo
+        WHEN public.get_access_role() = 'base_datos' THEN true
+        
+        -- Gerencial: Solo dentro de Gerencial
+        WHEN public.get_access_role() = 'gerencial' THEN 
+            pozo_name = '_GERENCIAL'
+            
+        -- Seguridad / SIAHO: Solo SIAHO en Gerencial
+        WHEN public.get_access_role() in ('seguridad', 'siaho') THEN 
+            pozo_name = '_GERENCIAL' AND categoria = 'SIAHO'
+            
+        -- Administrador / Supervisor / Operador Campo (campo): Fuera de Gerencial
+        WHEN public.get_access_role() in ('admin', 'supervisor', 'campo') THEN 
+            pozo_name != '_GERENCIAL'
+            
+        ELSE false
+    END
+)
+WITH CHECK (
+    CASE 
+        -- DBA / BASEUV: Actualizar todo
+        WHEN public.get_access_role() = 'base_datos' THEN true
+        
+        -- Gerencial: Solo dentro de Gerencial
+        WHEN public.get_access_role() = 'gerencial' THEN 
+            pozo_name = '_GERENCIAL'
+            
+        -- Seguridad / SIAHO: Solo SIAHO en Gerencial
+        WHEN public.get_access_role() in ('seguridad', 'siaho') THEN 
+            pozo_name = '_GERENCIAL' AND categoria = 'SIAHO'
+            
+        -- Administrador / Supervisor / Operador Campo (campo): Fuera de Gerencial
+        WHEN public.get_access_role() in ('admin', 'supervisor', 'campo') THEN 
             pozo_name != '_GERENCIAL'
             
         ELSE false

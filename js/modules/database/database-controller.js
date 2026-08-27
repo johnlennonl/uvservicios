@@ -209,7 +209,16 @@ function syncWriteActionButtons() {
     const btnCreateFolder = document.getElementById('btn-create-folder');
     const btnOpenUpload = document.getElementById('btn-open-upload-modal');
     
-    const canWrite = canUserWriteInCurrentSection();
+    let canWrite = canUserWriteInCurrentSection();
+    
+    // Si el usuario es de seguridad y está en la raíz de Gerencial (donde ve la carpeta SIAHO),
+    // no mostramos los botones de escritura. Solo se muestran cuando entra a la carpeta SIAHO (state.activeFolderId no nulo).
+    if (state.userSession) {
+        const accessProfile = getAccessProfile(state.userSession);
+        if (accessProfile.isSeguridad && state.activePozo === '_GERENCIAL' && !state.activeFolderId) {
+            canWrite = false;
+        }
+    }
     
     // Solo mostrar "Nueva Carpeta" si hay un pozo/sección activo y no estamos en la vista raíz de pozos
     if (btnCreateFolder) {
@@ -228,6 +237,183 @@ function syncWriteActionButtons() {
     }
 }
 
+async function forcePinChangeFlow() {
+    const forceChangeOverlay = document.getElementById('pin-force-change-modal');
+    if (!forceChangeOverlay) return false;
+
+    forceChangeOverlay.style.display = 'flex';
+    const inputNewPin = document.getElementById('input-force-new-pin');
+    const inputConfirmPin = document.getElementById('input-force-confirm-pin');
+    const forceChangeError = document.getElementById('pin-force-change-error');
+    const forceChangeForm = document.getElementById('form-pin-force-change');
+
+    if (inputNewPin) {
+        inputNewPin.value = '';
+        inputConfirmPin.value = '';
+        setTimeout(() => inputNewPin.focus(), 200);
+    }
+
+    return new Promise((resolve) => {
+        const handleForceChangeSubmit = async (e) => {
+            e.preventDefault();
+            const newPin = inputNewPin.value.trim();
+            const confirmPin = inputConfirmPin.value.trim();
+
+            if (forceChangeError) forceChangeError.style.display = 'none';
+
+            if (newPin !== confirmPin) {
+                if (forceChangeError) {
+                    forceChangeError.textContent = 'Los PINs ingresados no coinciden.';
+                    forceChangeError.style.display = 'block';
+                }
+                return;
+            }
+
+            if (!/^[0-9]{4}$/.test(newPin)) {
+                if (forceChangeError) {
+                    forceChangeError.textContent = 'El PIN debe ser de 4 dígitos numéricos.';
+                    forceChangeError.style.display = 'block';
+                }
+                return;
+            }
+
+            if (newPin === '0000') {
+                if (forceChangeError) {
+                    forceChangeError.textContent = 'Por seguridad, no puedes usar 0000 como tu nuevo PIN.';
+                    forceChangeError.style.display = 'block';
+                }
+                return;
+            }
+
+            try {
+                const { data: success, error } = await supabase.rpc('change_my_pin', { 
+                    p_old_pin: '0000', 
+                    p_new_pin: newPin 
+                });
+
+                if (error) throw error;
+
+                if (success === true) {
+                    forceChangeOverlay.style.display = 'none';
+                    cleanupForceChange();
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'PIN Registrado',
+                        text: 'Tu nuevo PIN de seguridad ha sido activado.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    resolve(true);
+                } else {
+                    if (forceChangeError) {
+                        forceChangeError.textContent = 'No se pudo actualizar el PIN. Valida la conexión.';
+                        forceChangeError.style.display = 'block';
+                    }
+                }
+            } catch (err) {
+                console.error('Error forzando cambio de PIN:', err);
+                if (forceChangeError) {
+                    forceChangeError.textContent = `Error: ${err.message}`;
+                    forceChangeError.style.display = 'block';
+                }
+            }
+        };
+
+        const cleanupForceChange = () => {
+            forceChangeForm.removeEventListener('submit', handleForceChangeSubmit);
+        };
+
+        forceChangeForm.addEventListener('submit', handleForceChangeSubmit);
+    });
+}
+
+async function checkAndVerifyPinInSitu(accessProfile) {
+    const isPinVerified = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) === 'true';
+    if (isPinVerified || accessProfile.isGerencial) {
+        state.isPinVerified = true;
+        return true;
+    }
+
+    const overlay = document.getElementById('pin-lock-screen-overlay');
+    if (!overlay) return false;
+
+    // Ocultar el loader premium para que el usuario pueda ver el modal del PIN
+    const loader = document.getElementById('premium-loader');
+    if (loader) loader.classList.add('hidden');
+
+    overlay.style.display = 'flex';
+    const pinInput = document.getElementById('input-lock-screen-pin');
+    const pinError = document.getElementById('pin-lock-screen-error');
+    const form = document.getElementById('form-pin-lock-screen');
+    const cancelBtn = document.getElementById('btn-cancel-lock-screen');
+
+    if (pinInput) {
+        pinInput.value = '';
+        setTimeout(() => pinInput.focus(), 200);
+    }
+
+    return new Promise((resolve) => {
+        const handleSubmit = async (e) => {
+            e.preventDefault();
+            const pinVal = pinInput.value.trim();
+            if (pinError) pinError.style.display = 'none';
+
+            try {
+                const { data: isValid, error } = await supabase.rpc('verify_my_pin', { p_pin: pinVal });
+                if (error) throw error;
+
+                if (isValid === true) {
+                    if (pinVal === '0000') {
+                        overlay.style.display = 'none';
+                        const changeSuccess = await forcePinChangeFlow();
+                        if (changeSuccess) {
+                            sessionStorage.setItem(PIN_SESSION_STORAGE_KEY, 'true');
+                            state.isPinVerified = true;
+                            cleanup();
+                            resolve(true);
+                        } else {
+                            overlay.style.display = 'flex';
+                            if (pinInput) {
+                                pinInput.value = '';
+                                pinInput.focus();
+                            }
+                        }
+                    } else {
+                        sessionStorage.setItem(PIN_SESSION_STORAGE_KEY, 'true');
+                        state.isPinVerified = true;
+                        overlay.style.display = 'none';
+                        cleanup();
+                        resolve(true);
+                    }
+                } else {
+                    if (pinError) pinError.style.display = 'block';
+                    if (pinInput) {
+                        pinInput.value = '';
+                        pinInput.focus();
+                    }
+                }
+            } catch (err) {
+                console.error('Error verificando PIN:', err);
+                Swal.fire({ icon: 'error', title: 'Error de Conexión', text: 'No se pudo validar el PIN. Intenta de nuevo.' });
+            }
+        };
+
+        const handleCancel = () => {
+            cleanup();
+            window.location.href = 'dashboard.html';
+            resolve(false);
+        };
+
+        const cleanup = () => {
+            form.removeEventListener('submit', handleSubmit);
+            cancelBtn.removeEventListener('click', handleCancel);
+        };
+
+        form.addEventListener('submit', handleSubmit);
+        cancelBtn.addEventListener('click', handleCancel);
+    });
+}
+
 /**
  * Inicialización principal al cargar el documento HTML.
  */
@@ -242,14 +428,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const accessProfile = getAccessProfile(state.userSession);
 
-        // 2. Verificar si la sesión fue validada con PIN (el rol gerencial y seguridad no lo requieren)
-        const isPinVerified = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) === 'true';
-        if (!isPinVerified && !accessProfile.isGerencial && !accessProfile.isSeguridad) {
-            sessionStorage.setItem('uv_db_pin_pending', 'true'); // Flag to indicate we are verifying PIN for DB
-            window.location.href = 'index.html';
+        // 2. Verificar si la sesión fue validada con PIN en-sitio (gerencial y seguridad no lo requieren)
+        const isPinVerified = await checkAndVerifyPinInSitu(accessProfile);
+        if (!isPinVerified) {
             return;
         }
-        state.isPinVerified = isPinVerified || accessProfile.isGerencial || accessProfile.isSeguridad;
+        state.isPinVerified = true;
+
+        // Si ya está verificado pero el PIN sigue siendo '0000' (por ejemplo, inició sesión en index.html con 0000), obligar al cambio.
+        if (!accessProfile.isGerencial) {
+            try {
+                const { data: isDefault } = await supabase.rpc('verify_my_pin', { p_pin: '0000' });
+                if (isDefault === true) {
+                    // Ocultar el loader premium para que puedan ver el modal de cambio de PIN obligatorio
+                    const loader = document.getElementById('premium-loader');
+                    if (loader) loader.classList.add('hidden');
+
+                    const changeSuccess = await forcePinChangeFlow();
+                    if (!changeSuccess) {
+                        sessionStorage.removeItem(PIN_SESSION_STORAGE_KEY);
+                        if (accessProfile.role === 'seguridad' || accessProfile.role === 'base_datos') {
+                            await logout();
+                            window.location.href = 'index.html';
+                        } else {
+                            window.location.href = 'dashboard.html';
+                        }
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn('Error validando PIN por defecto:', err);
+            }
+        }
 
         applyNavigationAccessProfile(accessProfile);
             
@@ -258,9 +468,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const btnPortalMobile = document.getElementById('mobile-link-portal');
             const statusPillMobile = document.getElementById('mobile-status-pill-db');
             
-            // Seguridad no tiene acceso al dashboard principal, por lo tanto no muestra botón Volver.
-            // DBA, Gerencial, Admin y Supervisor sí pueden regresar al portal.
-            const canGoPortal = accessProfile.isGerencial || accessProfile.isBaseDatos || accessProfile.isAdmin || accessProfile.isSupervisor;
+            // Seguridad y DBA (baseuv) no tienen acceso al dashboard principal, por lo tanto no muestran botón Volver.
+            // Gerencial, Admin y Supervisor sí pueden regresar al portal.
+            const canGoPortal = accessProfile.isGerencial || accessProfile.isAdmin || accessProfile.isSupervisor;
             if (btnPortal) {
                 btnPortal.style.display = canGoPortal ? 'flex' : 'none';
             }
@@ -279,6 +489,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderOperationalScopeSwitcher(document.getElementById('database-operational-scope-switcher'), state.operationalScopeContext, {
                 onChange: () => window.location.reload()
             });
+
+            // Si es rol seguridad, ocultar el selector de contratos/alcances ya que solo ve SIAHO
+            if (accessProfile.isSeguridad) {
+                const switcherEl = document.getElementById('database-operational-scope-switcher');
+                if (switcherEl) switcherEl.style.display = 'none';
+            }
 
         // 3. Inicializar navegación instantánea y carga en segundo plano
         loadDatabaseModule();
@@ -336,7 +552,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Renombrar botón Gerencial a SIAHO
                 if (btnGerencial) {
                     const textSpan = btnGerencial.querySelector('span') || btnGerencial;
-                    textSpan.textContent = 'Carpeta SIAHO';
+                    textSpan.textContent = 'SIAHO';
                 }
                 if (mobBtnGerencial) {
                     const textSpan = mobBtnGerencial.querySelector('span') || mobBtnGerencial;

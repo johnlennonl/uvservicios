@@ -36,7 +36,7 @@ const ROUTES = {
         destroy: (m) => m.destroyGestionUsuarios()
     },
     'stats.html': {
-        load: () => import('../estadisticas.js'),
+        load: () => import('../estadisticas.js?v=20260826-2129'),
         init: (m) => m.initEstadisticas(),
         destroy: (m) => m.destroyEstadisticas()
     },

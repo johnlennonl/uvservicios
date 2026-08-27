@@ -5,6 +5,7 @@
 
 import { login, logout, getSession, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
 import * as ui from './ui.js';
+import { supabase } from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Setup UI features
@@ -138,20 +139,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 3. Paso 2: Validación del PIN 2FA
     if (pinStepForm) {
-        pinStepForm.addEventListener('submit', (e) => {
+        pinStepForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const enteredPin = pinInput?.value?.trim();
+            if (pinError) pinError.classList.add('hidden');
 
-            if (enteredPin === '4826') {
-                sessionStorage.setItem('uv_db_pin_verified', 'true');
-                sessionStorage.removeItem('uv_db_pin_pending'); // Clear pending flag
-                if (pinError) pinError.classList.add('hidden');
-                ui.redirectToDashboard(pendingRoute || 'base-datos.html');
-            } else {
-                if (pinError) pinError.classList.remove('hidden');
-                if (pinInput) {
-                    pinInput.value = '';
-                    pinInput.focus();
+            try {
+                const { data: isValid, error } = await supabase.rpc('verify_my_pin', { p_pin: enteredPin });
+                if (error) throw error;
+
+                if (isValid === true) {
+                    sessionStorage.setItem('uv_db_pin_verified', 'true');
+                    sessionStorage.removeItem('uv_db_pin_pending'); // Clear pending flag
+                    ui.redirectToDashboard(pendingRoute || 'base-datos.html');
+                } else {
+                    if (pinError) {
+                        pinError.textContent = 'PIN incorrecto. Reintenta.';
+                        pinError.classList.remove('hidden');
+                    }
+                    if (pinInput) {
+                        pinInput.value = '';
+                        pinInput.focus();
+                    }
+                }
+            } catch (err) {
+                console.error('Error verifying PIN on login page:', err);
+                if (pinError) {
+                    pinError.textContent = 'Error de conexión. Intente de nuevo.';
+                    pinError.classList.remove('hidden');
                 }
             }
         });

@@ -83,6 +83,7 @@ let newPasswordInput = null;
 let confirmPasswordInput = null;
 let togglePasswordsVis = null;
 let btnSubmitChangePass = null;
+let btnAdminResetPin = null;
 
 // Timeline fields
 let logsTimeline = null;
@@ -278,7 +279,7 @@ function syncUserScopeSelectMode(roleSelect, scopeSelect, helpEl) {
     if (!roleSelect || !scopeSelect) return;
 
     // Ocultar la selección de contrato para roles que tienen acceso global por defecto
-    const isGlobalRole = ['admin', 'supervisor', 'base_datos', 'gestor_usuarios', 'gerencial'].includes(roleSelect.value);
+    const isGlobalRole = ['admin', 'supervisor', 'base_datos', 'gestor_usuarios', 'gerencial', 'seguridad'].includes(roleSelect.value);
     const scopeContainer = scopeSelect.closest('label');
     if (scopeContainer) {
         if (isGlobalRole) {
@@ -976,6 +977,18 @@ async function createUser(email, password, nombre, apellido, empresa, role, oper
     return newUser;
 }
 
+function syncPinResetVisibility(role) {
+    const pinResetSection = document.getElementById('btn-admin-reset-pin')?.closest('div');
+    if (pinResetSection) {
+        const rolesWithDbAccess = ['admin', 'supervisor', 'base_datos', 'seguridad'];
+        if (rolesWithDbAccess.includes(role)) {
+            pinResetSection.style.display = 'block';
+        } else {
+            pinResetSection.style.display = 'none';
+        }
+    }
+}
+
 // 4. Modal management functions
 function openUserModal(profile) {
     const fullName = `${profile.nombre || ''} ${profile.apellido || ''}`.trim();
@@ -1002,6 +1015,9 @@ function openUserModal(profile) {
     changePassUserId.value = profile.id;
     newPasswordInput.value = '';
     confirmPasswordInput.value = '';
+    
+    // Sincronizar visibilidad del botón de restablecer PIN según el rol del usuario
+    syncPinResetVisibility(profile.role);
     
     // Activate Details Tab by default
     tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === 'tab-info'));
@@ -1124,6 +1140,7 @@ function _captureDomRefs() {
     confirmPasswordInput= document.getElementById('confirm-password');
     togglePasswordsVis  = document.getElementById('toggle-passwords-vis');
     btnSubmitChangePass = document.getElementById('btn-submit-change-pass');
+    btnAdminResetPin    = document.getElementById('btn-admin-reset-pin');
 
     logsTimeline        = document.getElementById('logs-timeline');
     logsTimelineLoader  = document.getElementById('logs-timeline-loader');
@@ -1154,7 +1171,10 @@ export async function initGestionUsuarios() {
     await loadUsers();
 
     selectRole?.addEventListener('change', () => syncUserScopeSelectMode(selectRole, selectOperationalScope, selectOperationalScopeHelp));
-    editRole?.addEventListener('change', () => syncUserScopeSelectMode(editRole, editOperationalScope, editOperationalScopeHelp));
+    editRole?.addEventListener('change', () => {
+        syncUserScopeSelectMode(editRole, editOperationalScope, editOperationalScopeHelp);
+        syncPinResetVisibility(editRole.value);
+    });
 
     formContractTechnician?.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -1381,6 +1401,63 @@ export async function initGestionUsuarios() {
             btnSubmitChangePass.textContent = 'Actualizar Contraseña';
         }
     });
+
+    // Admin Reset PIN click handler
+    if (btnAdminResetPin) {
+        btnAdminResetPin.addEventListener('click', async () => {
+            const userId = changePassUserId.value;
+            if (!userId) return;
+
+            const confirmResult = await Swal.fire({
+                title: '¿Restablecer PIN?',
+                text: 'El PIN de seguridad de este usuario volverá a ser 0000. Al ingresar a la base de datos se le obligará a definir uno nuevo.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, restablecer',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#f59e0b',
+                cancelButtonColor: '#64748b'
+            });
+
+            if (!confirmResult.isConfirmed) return;
+
+            btnAdminResetPin.disabled = true;
+            const origHtml = btnAdminResetPin.innerHTML;
+            btnAdminResetPin.innerHTML = 'Restableciendo...';
+
+            try {
+                const { data: success, error } = await supabase.rpc('admin_reset_user_pin', {
+                    p_target_user_id: userId
+                });
+
+                if (error) throw error;
+
+                if (success === true) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'PIN Restablecido',
+                        text: 'El PIN del usuario ha sido restablecido a 0000 correctamente.',
+                        confirmButtonColor: '#2563eb',
+                        timer: 2500
+                    });
+                    closeUserModal();
+                } else {
+                    throw new Error('La base de datos no pudo restablecer el PIN.');
+                }
+            } catch (err) {
+                console.error('Error restableciendo PIN:', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: err.message || 'Ocurrió un error inesperado al restablecer el PIN.',
+                    confirmButtonColor: '#ef4444'
+                });
+            } finally {
+                btnAdminResetPin.disabled = false;
+                btnAdminResetPin.innerHTML = origHtml;
+            }
+        });
+    }
 
     // Profile Edit submit handler
     const formEditProfile = document.getElementById('form-edit-profile');
@@ -1732,6 +1809,6 @@ export function destroyGestionUsuarios() {
     tabButtons = tabContents = null;
     detailEmpresa = detailRole = detailLastLogin = detailCreated = null;
     formChangePassword = changePassUserId = null;
-    newPasswordInput = confirmPasswordInput = togglePasswordsVis = btnSubmitChangePass = null;
+    newPasswordInput = confirmPasswordInput = togglePasswordsVis = btnSubmitChangePass = btnAdminResetPin = null;
     logsTimeline = logsTimelineLoader = logsEmptyMessage = null;
 }

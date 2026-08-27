@@ -61,7 +61,20 @@ export function initCustomReportsTab() {
     setupCustomWellSelector();
     setupFormSubmission();
     setupExportButtons();
+    setupCustomVarsSelectorsAndPresets();
     setDefaultDates(15);
+
+    // Garantizar que ninguna variable técnica esté seleccionada por defecto al iniciar
+    const allCheckboxes = document.querySelectorAll('input[name="custom-vars"]');
+    allCheckboxes.forEach(cb => {
+        cb.checked = false;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Garantizar que no haya pozos seleccionados por defecto
+    selectedCustomWells = [];
+    renderCustomWellChips();
+    renderCustomWellDropdown();
 }
 
 function setupTabNavigation() {
@@ -105,39 +118,70 @@ function setupQuickDaysPresets() {
     });
 }
 
+function setupCustomVarsSelectorsAndPresets() {
+    // 2. Presets globales (Cabecera)
+    const presetButtons = document.querySelectorAll('.btn-stats-preset');
+    presetButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const preset = btn.dataset.preset; // 'presiones', 'electricos', 'completo', 'limpiar'
+            
+            const allCheckboxes = document.querySelectorAll('input[name="custom-vars"]');
+            allCheckboxes.forEach(cb => {
+                cb.checked = false; // reset all first
+            });
+
+            if (preset === 'presiones') {
+                const values = ['presion_chp', 'presion_thp', 'presion_lf', 'pip'];
+                allCheckboxes.forEach(cb => {
+                    if (values.includes(cb.value)) cb.checked = true;
+                });
+            } else if (preset === 'electricos') {
+                const values = ['corriente_motor', 'frecuencia', 'vsd_a', 'vsd_b', 'vsd_c', 'tm'];
+                allCheckboxes.forEach(cb => {
+                    if (values.includes(cb.value)) cb.checked = true;
+                });
+            } else if (preset === 'completo') {
+                allCheckboxes.forEach(cb => {
+                    cb.checked = true;
+                });
+            }
+
+            // Disparar change en todas las casillas para actualizar estilos de UI si los hay
+            allCheckboxes.forEach(cb => {
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+        });
+    });
+}
+
 async function setupCustomWellSelector() {
     try {
         activeCustomScopePozos = [...new Set((await getActiveOperationalScopeWellNames()).map(normalizePozoName).filter(Boolean))];
         const summaries = await getPozosHistorySummary();
         const scopeSet = new Set(activeCustomScopePozos);
         availableCustomPozos = (summaries || []).filter(item => scopeSet.has(normalizePozoName(item.pozo_name)));
-        renderCustomWellDropdown('');
+        renderCustomWellDropdown();
+        renderCustomWellChips();
     } catch (err) {
         console.error('Error cargando pozos para selector:', err);
     }
 
-    const input = document.getElementById('custom-ms-input');
     const dropdown = document.getElementById('custom-ms-dropdown');
     const container = document.getElementById('custom-report-wells-container');
-    if (!input || !dropdown || !container) return;
+    if (!dropdown || !container) return;
 
+    // Toggle dropdown al hacer click en el selector
     container.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'BUTTON' && !e.target.classList.contains('ms-chip-remove')) {
-            dropdown.hidden = false;
-            input.focus();
+        // No cerrar si el click es dentro del dropdown
+        if (dropdown.contains(e.target)) {
+            return;
         }
+        e.stopPropagation();
+        dropdown.hidden = !dropdown.hidden;
     });
 
-    input.addEventListener('focus', () => {
-        dropdown.hidden = false;
-        renderCustomWellDropdown(input.value);
-    });
-
-    input.addEventListener('input', () => {
-        dropdown.hidden = false;
-        renderCustomWellDropdown(input.value);
-    });
-
+    // Cerrar dropdown al hacer click fuera
     document.addEventListener('click', (e) => {
         if (!container.contains(e.target)) {
             dropdown.hidden = true;
@@ -145,93 +189,106 @@ async function setupCustomWellSelector() {
     });
 }
 
-function renderCustomWellDropdown(searchQuery = '') {
+function renderCustomWellDropdown() {
     const dropdown = document.getElementById('custom-ms-dropdown');
     if (!dropdown) return;
 
-    const query = String(searchQuery || '').trim().toLowerCase();
-    const filtered = availableCustomPozos.filter(item => {
-        if (!query) return true;
-        return (item.pozo_name || '').toLowerCase().includes(query);
-    });
-
-    if (filtered.length === 0) {
-        dropdown.innerHTML = '<div style="padding:14px; text-align:center; color:#64748b; font-weight:700;">No hay pozos para esa búsqueda</div>';
-        return;
-    }
-
-    const isAllSelected = availableCustomPozos.length > 0 && selectedCustomWells.length === availableCustomPozos.length;
-    const selectAllHtml = `
-        <button type="button" class="pozo-selector-option select-all-option ${isAllSelected ? 'active' : ''}" style="background:#f1f5f9; border-bottom:1px solid #cbd5e1; font-weight:800; color:#2563eb;">
-            <span class="pozo-status-dot active"></span>
-            <span class="pozo-option-name">${isAllSelected ? '✓ Todos los pozos seleccionados' : ' Seleccionar Todos los Pozos'}</span>
-            <span style="margin-left:auto; font-size:0.75rem; font-weight:700; color:#64748b;">(${availableCustomPozos.length} pozos)</span>
-        </button>
+    // 1. Acciones rápidas (Seleccionar Todos / Limpiar)
+    const actionsHtml = `
+        <div style="display: flex; justify-content: space-between; padding: 6px 8px 8px 8px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px;" onclick="event.stopPropagation()">
+            <button type="button" id="btn-well-select-all" style="border: none; background: transparent; color: #2563eb; font-size: 0.72rem; font-weight: 800; cursor: pointer; padding: 0;">Seleccionar Todos</button>
+            <button type="button" id="btn-well-clear-all" style="border: none; background: transparent; color: #64748b; font-size: 0.72rem; font-weight: 800; cursor: pointer; padding: 0;">Limpiar</button>
+        </div>
     `;
 
-    dropdown.innerHTML = selectAllHtml + filtered.map(item => {
-        const pozoName = item.pozo_name;
-        const isSelected = selectedCustomWells.includes(pozoName);
+    // 2. Lista de pozos
+    const listHtml = `
+        <div id="custom-well-checklist-list" style="max-height: 180px; overflow-y: auto;" onclick="event.stopPropagation()">
+            ${availableCustomPozos.map(item => {
+                const pozoName = item.pozo_name;
+                const isSelected = selectedCustomWells.includes(pozoName);
 
-        let dotClass = 'inactive';
-        let stateClass = 'inactive';
-        let stateText = item.has_records ? 'Con registros' : 'Sin registros';
+                let dotClass = 'inactive';
+                let stateClass = 'inactive';
+                let stateText = item.has_records ? 'Con registros' : 'Sin registros';
 
-        if (item.latest_estatus === 'RUN') {
-            dotClass = 'active';
-            stateClass = 'active-run';
-            stateText = 'RUN';
-        } else if (item.latest_estatus === 'OFF') {
-            dotClass = 'inactive-off';
-            stateClass = 'inactive-off';
-            stateText = 'OFF';
-        } else if (item.has_records) {
-            dotClass = 'active';
-            stateClass = 'active';
-            stateText = 'Con registros';
-        }
+                if (item.latest_estatus === 'RUN') {
+                    dotClass = 'active';
+                    stateClass = 'active-run';
+                    stateText = 'RUN';
+                } else if (item.latest_estatus === 'OFF') {
+                    dotClass = 'inactive-off';
+                    stateClass = 'inactive-off';
+                    stateText = 'OFF';
+                } else if (item.has_records) {
+                    dotClass = 'active';
+                    stateClass = 'active';
+                    stateText = 'Con registros';
+                }
 
-        return `
-            <button type="button" class="pozo-selector-option ${isSelected ? 'active' : ''}" data-pozo="${escapeHtml(pozoName)}">
-                <span class="pozo-status-dot ${dotClass}"></span>
-                <span class="pozo-option-name">${escapeHtml(pozoName)}</span>
-                <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
-                    <span class="pozo-option-state ${stateClass}">${stateText}</span>
-                    <span style="font-weight: 800; font-size: 0.95rem; color: #2563eb; width: 14px; text-align: center;">${isSelected ? '✓' : ''}</span>
-                </div>
-            </button>
-        `;
-    }).join('');
+                return `
+                    <div class="pozo-checklist-item" data-pozo="${escapeHtml(pozoName)}" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 700; color: #1e293b; transition: background 0.2s;">
+                        <input type="checkbox" class="pozo-checklist-cb" data-pozo="${escapeHtml(pozoName)}" ${isSelected ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer;">
+                        <span class="pozo-status-dot ${dotClass}" style="margin-right: 4px;"></span>
+                        <span style="flex-grow:1;">${escapeHtml(pozoName)}</span>
+                        <span class="pozo-option-state ${stateClass}" style="font-size: 0.7rem; font-weight: 800; padding: 2px 6px; border-radius: 4px;">${stateText}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
 
-    const selectAllBtn = dropdown.querySelector('.select-all-option');
-    if (selectAllBtn) {
-        selectAllBtn.addEventListener('click', (e) => {
-            e.preventDefault();
+    dropdown.innerHTML = actionsHtml + listHtml;
+
+    // Sincronizar explícitamente el estado .checked en el DOM para evitar cachés de navegador
+    dropdown.querySelectorAll('.pozo-checklist-cb').forEach(cb => {
+        const pozo = cb.dataset.pozo;
+        cb.checked = selectedCustomWells.includes(pozo);
+    });
+
+    // 4. Eventos de Selección de Item
+    const checklistItems = dropdown.querySelectorAll('.pozo-checklist-item');
+    checklistItems.forEach(item => {
+        item.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (selectedCustomWells.length === availableCustomPozos.length) {
-                selectedCustomWells = [];
+            const pozo = item.dataset.pozo;
+            const cb = item.querySelector('.pozo-checklist-cb');
+            
+            if (e.target !== cb) {
+                cb.checked = !cb.checked;
+            }
+
+            if (cb.checked) {
+                if (!selectedCustomWells.includes(pozo)) {
+                    selectedCustomWells.push(pozo);
+                }
             } else {
-                selectedCustomWells = availableCustomPozos.map(w => w.pozo_name);
+                selectedCustomWells = selectedCustomWells.filter(p => p !== pozo);
             }
             renderCustomWellChips();
-            const input = document.getElementById('custom-ms-input');
-            if (input) input.value = '';
-            dropdown.hidden = true;
+        });
+    });
+
+    // 5. Botones Seleccionar Todos / Limpiar
+    const selectAllBtn = dropdown.querySelector('#btn-well-select-all');
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedCustomWells = availableCustomPozos.map(w => w.pozo_name);
+            dropdown.querySelectorAll('.pozo-checklist-cb').forEach(cb => cb.checked = true);
+            renderCustomWellChips();
         });
     }
 
-    dropdown.querySelectorAll('.pozo-selector-option[data-pozo]').forEach(button => {
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
+    const clearAllBtn = dropdown.querySelector('#btn-well-clear-all');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const pozo = button.dataset.pozo;
-            toggleSelectCustomWell(pozo);
+            selectedCustomWells = [];
+            dropdown.querySelectorAll('.pozo-checklist-cb').forEach(cb => cb.checked = false);
             renderCustomWellChips();
-            const input = document.getElementById('custom-ms-input');
-            if (input) input.value = '';
-            dropdown.hidden = true;
         });
-    });
+    }
 }
 
 function toggleSelectCustomWell(pozo) {
@@ -243,35 +300,22 @@ function toggleSelectCustomWell(pozo) {
 }
 
 function renderCustomWellChips() {
-    const chipsHolder = document.getElementById('custom-ms-chips');
-    const input = document.getElementById('custom-ms-input');
-    if (!chipsHolder) return;
+    const label = document.getElementById('custom-wells-selected-label');
+    if (!label) return;
 
-    chipsHolder.innerHTML = selectedCustomWells.map(pozo => `
-        <span class="ms-chip">
-            ${escapeHtml(pozo)}
-            <button type="button" class="ms-chip-remove" data-pozo="${escapeHtml(pozo)}">&times;</button>
-        </span>
-    `).join('');
-
-    if (input) {
-        if (selectedCustomWells.length > 0) {
-            input.placeholder = 'Seleccionar otro pozo...';
-        } else {
-            input.placeholder = 'Buscar y elegir pozo(s)...';
-        }
+    if (selectedCustomWells.length === 0) {
+        label.textContent = 'Seleccionar pozo(s)...';
+        label.style.color = '#64748b';
+    } else if (selectedCustomWells.length === availableCustomPozos.length) {
+        label.textContent = `Todos los pozos (${selectedCustomWells.length})`;
+        label.style.color = '#0f172a';
+    } else if (selectedCustomWells.length <= 3) {
+        label.textContent = selectedCustomWells.join(', ');
+        label.style.color = '#0f172a';
+    } else {
+        label.textContent = `${selectedCustomWells.length} pozos seleccionados`;
+        label.style.color = '#0f172a';
     }
-
-    chipsHolder.querySelectorAll('.ms-chip-remove').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const pozo = btn.dataset.pozo;
-            toggleSelectCustomWell(pozo);
-            renderCustomWellChips();
-            renderCustomWellDropdown(document.getElementById('custom-ms-input')?.value || '');
-        });
-    });
 }
 
 function setupFormSubmission() {

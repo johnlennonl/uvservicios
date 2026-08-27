@@ -114,6 +114,8 @@ export async function openUserProfileModal() {
         gerencial: 'Gerencial / Dirección'
     };
     const roleLabel = labels[userRole] || userRole || 'Cliente';
+    const requiresPin = ['admin', 'supervisor', 'base_datos', 'seguridad'].includes(userRole);
+    const pinBtnDisplay = requiresPin ? 'flex' : 'none';
 
     // Si ya existe un modal de perfil abierto, lo removemos
     document.getElementById('user-profile-modal')?.remove();
@@ -186,6 +188,28 @@ export async function openUserProfileModal() {
                         <span>Cambiar Contraseña</span>
                     </button>
 
+                    <!-- Botón para desplegar cambio de PIN -->
+                    <button type="button" id="btn-toggle-change-pin" class="btn-profile-secondary" style="margin-top: 10px; display: ${pinBtnDisplay};">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span>Cambiar PIN Operativo</span>
+                    </button>
+
+                    <!-- Formulario de Cambio de PIN (Plegado por defecto) -->
+                    <div id="section-change-pin" class="password-change-section" style="display: none; margin-top: 10px;">
+                        <div class="user-profile-form-grid">
+                            <label class="user-profile-input-group">
+                                <span>PIN Actual</span>
+                                <input type="password" id="profile-input-current-pin" placeholder="PIN actual (ej: 0000)" maxlength="4" pattern="[0-9]{4}" inputmode="numeric">
+                            </label>
+                            <label class="user-profile-input-group">
+                                <span>Nuevo PIN (4 dígitos)</span>
+                                <input type="password" id="profile-input-new-pin" placeholder="Nuevo PIN (ej: 4826)" maxlength="4" pattern="[0-9]{4}" inputmode="numeric">
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Formulario de Cambio de Contraseña (Plegado por defecto) -->
                     <div id="section-change-password" class="password-change-section" style="display: none;">
                         <div class="user-profile-form-grid">
@@ -244,6 +268,8 @@ export async function openUserProfileModal() {
     const avatarPreview = document.getElementById('profile-modal-avatar-preview');
     const togglePassBtn = document.getElementById('btn-toggle-change-password');
     const passSection = document.getElementById('section-change-password');
+    const togglePinBtn = document.getElementById('btn-toggle-change-pin');
+    const pinSection = document.getElementById('section-change-pin');
 
     const closeModal = () => {
         modal.classList.add('is-closing');
@@ -261,6 +287,21 @@ export async function openUserProfileModal() {
         const isHidden = passSection.style.display === 'none';
         passSection.style.display = isHidden ? 'block' : 'none';
         togglePassBtn.classList.toggle('active', isHidden);
+        if (isHidden) {
+            pinSection.style.display = 'none';
+            togglePinBtn.classList.remove('active');
+        }
+    });
+
+    // Plegar/desplegar PIN
+    togglePinBtn.addEventListener('click', () => {
+        const isHidden = pinSection.style.display === 'none';
+        pinSection.style.display = isHidden ? 'block' : 'none';
+        togglePinBtn.classList.toggle('active', isHidden);
+        if (isHidden) {
+            passSection.style.display = 'none';
+            togglePassBtn.classList.remove('active');
+        }
     });
 
     // Alternar visibilidad de contraseña (Ojito)
@@ -344,6 +385,25 @@ export async function openUserProfileModal() {
         const newPassword = document.getElementById('profile-input-new-password').value;
         const confirmPassword = document.getElementById('profile-input-confirm-password').value;
 
+        const currentPin = document.getElementById('profile-input-current-pin')?.value?.trim();
+        const newPin = document.getElementById('profile-input-new-pin')?.value?.trim();
+
+        // Validar PIN si se llenó
+        if (newPin) {
+            if (!currentPin) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Debes ingresar tu PIN actual para poder cambiarlo.' });
+                return;
+            }
+            if (!/^[0-9]{4}$/.test(newPin)) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'El nuevo PIN debe ser de exactamente 4 dígitos numéricos.' });
+                return;
+            }
+            if (newPin === '0000') {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Por seguridad, no puedes elegir 0000 como tu PIN de seguridad.' });
+                return;
+            }
+        }
+
         // Validar contraseña si se llenó
         if (newPassword || confirmPassword) {
             if (newPassword !== confirmPassword) {
@@ -418,6 +478,18 @@ export async function openUserProfileModal() {
             if (newPassword) {
                 const { error: passErr } = await supabase.auth.updateUser({ password: newPassword });
                 if (passErr) throw passErr;
+            }
+
+            // 3b. Cambiar PIN si se llenó
+            if (newPin) {
+                const { data: success, error: pinErr } = await supabase.rpc('change_my_pin', {
+                    p_old_pin: currentPin,
+                    p_new_pin: newPin
+                });
+                if (pinErr) throw pinErr;
+                if (success !== true) {
+                    throw new Error('El PIN actual ingresado es incorrecto.');
+                }
             }
 
             // 4. Refrescar visualmente el sidebar, header y saludo en caliente
