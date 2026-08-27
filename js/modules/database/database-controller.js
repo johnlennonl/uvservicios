@@ -494,6 +494,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (accessProfile.isSeguridad) {
                 const switcherEl = document.getElementById('database-operational-scope-switcher');
                 if (switcherEl) switcherEl.style.display = 'none';
+
+                // También ocultar el mirror móvil
+                const mobileBar = document.querySelector('.mobile-operational-scope-bar');
+                if (mobileBar) mobileBar.style.display = 'none';
+
+                document.body.classList.remove('has-mobile-operational-scope');
             }
 
         // 3. Inicializar navegación instantánea y carga en segundo plano
@@ -1065,6 +1071,11 @@ function renderWellsView(filterText = '') {
  * Rellena las carpetas por defecto del sistema para un pozo si no existen aún.
  */
 async function ensureDefaultFoldersExist(pozoName) {
+    const accessProfile = getAccessProfile(state.userSession);
+    if (accessProfile.isSeguridad) {
+        return;
+    }
+
     const cleanPozo = String(pozoName).trim().toUpperCase();
     const cleanScope = state.activeOperationalScope;
     

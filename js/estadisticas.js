@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient.js';
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
 import { getActiveOperationalScope, initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
 import { getFieldWellsByScope } from './services/operational-contracts-service.js';
-import { initCustomReportsTab, updateCustomReportWellsContext } from './stats-custom-reports.js?v=20260826-2129';
+import { initCustomReportsTab, updateCustomReportWellsContext } from './stats-custom-reports.js?v=20260827-1609';
 
 // Estado del Módulo de Estadísticas
 const state = {

@@ -600,30 +600,17 @@ function calculateCorridorYAxisBounds(dataPoints, seriesIndex, totalSeriesCount)
 
     const range = maxVal - minVal;
 
-    // Asignar corredores horizontales garantizados con márgenes de separación limpios
-    let bottomFraction = 0.05;
-    let topFraction = 0.95;
+    // Asignar corredores horizontales garantizados con márgenes de separación limpios de forma dinámica
+    const N = totalSeriesCount;
+    const totalHeight = 0.90; // Espacio vertical utilizable (5% a 95%)
+    const bandHeight = totalHeight / N;
+    const gap = Math.max(0.01, 0.04 - (N * 0.005)); // Espaciado dinámico según el número de series
 
-    if (totalSeriesCount === 2) {
-        if (seriesIndex === 0) {
-            bottomFraction = 0.54; // Variable 0: 54% a 95% (Banda Superior)
-            topFraction = 0.95;
-        } else {
-            bottomFraction = 0.05; // Variable 1: 5% a 46% (Banda Inferior)
-            topFraction = 0.46;
-        }
-    } else if (totalSeriesCount >= 3) {
-        if (seriesIndex === 0) {
-            bottomFraction = 0.68; // Variable 0: 68% a 95% (Banda Alta)
-            topFraction = 0.95;
-        } else if (seriesIndex === 1) {
-            bottomFraction = 0.36; // Variable 1: 36% a 62% (Banda Media)
-            topFraction = 0.62;
-        } else {
-            bottomFraction = 0.05; // Variable 2: 5% a 30% (Banda Baja)
-            topFraction = 0.30;
-        }
-    }
+    // Invertir el índice para que la serie 0 (ej: Presiones) se posicione en la banda superior
+    const reverseIndex = N - 1 - seriesIndex;
+
+    const bottomFraction = 0.05 + reverseIndex * bandHeight + gap;
+    const topFraction = 0.05 + (reverseIndex + 1) * bandHeight - gap;
 
     const corridorWidth = topFraction - bottomFraction;
     const delta = range / corridorWidth;

@@ -4217,6 +4217,10 @@ mark {
   grid-template-columns: repeat(2, 1fr) !important; /* Dos gráficos lado a lado en PDF horizontal */
 }
 
+.is-generating-pdf .custom-charts-container > .custom-chart-card:only-child {
+  grid-column: span 2 !important;
+}
+
 .custom-chart-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -4298,7 +4302,7 @@ mark {
   width: 1050px !important;
   max-width: 1050px !important;
   min-width: 1050px !important;
-  padding: 30px !important;
+  padding: 0 !important;
   margin: 0 !important;
   border: none !important;
   box-shadow: none !important;
