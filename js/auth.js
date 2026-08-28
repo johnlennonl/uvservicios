@@ -6,6 +6,14 @@
 import { supabase } from './supabaseClient.js';
 import { applyNavigationAccessProfile, getAccessProfile, getDefaultRouteForAccessProfile } from './core/access-control.js';
 
+window.markAvatarAsBroken = function(userId) {
+    if (!userId) return;
+    try {
+        localStorage.setItem(`uv-avatar-broken:${userId}`, 'true');
+        sessionStorage.removeItem(`uv-user-avatar-url:${userId}`);
+    } catch (e) {}
+};
+
 /**
  * Valida las credenciales contra Supabase.
  * @param {string} email
@@ -103,6 +111,12 @@ export async function getSession() {
         try {
             const profile = getAccessProfile(data.session);
             applyNavigationAccessProfile(profile);
+
+            const currentPageName = window.location.pathname.split('/').pop() || 'dashboard.html';
+            if (window.__lastInitializedPage === currentPageName) {
+                return data.session;
+            }
+            window.__lastInitializedPage = currentPageName;
 
             // Buscar elementos del header y sidebar para pintar el usuario activo dinámicamente
             const headerNameEl = document.getElementById('header-user-name');
@@ -207,7 +221,7 @@ export async function getSession() {
                                         sidebarAvatarContainer.innerHTML = `<div class="sidebar-avatar-placeholder">${letter}</div>`;
                                     });
                             } else {
-                                sidebarAvatarContainer.innerHTML = `<img src="${url}" alt="Avatar" class="sidebar-avatar-img">`;
+                                sidebarAvatarContainer.innerHTML = `<img src="${url}" alt="Avatar" class="sidebar-avatar-img" onerror="this.onerror=null; this.src='img/default-avatar.webp'; if(window.markAvatarAsBroken) window.markAvatarAsBroken('${data.session.user.id}');">`;
                             }
                         });
                     });
@@ -268,7 +282,7 @@ export async function getSession() {
                                         mobileTrigger.innerHTML = `<div class="mobile-profile-avatar-placeholder">${letter}</div>`;
                                     });
                             } else {
-                                mobileTrigger.innerHTML = `<img src="${url}" alt="Profile" class="mobile-profile-avatar-img">`;
+                                mobileTrigger.innerHTML = `<img src="${url}" alt="Profile" class="mobile-profile-avatar-img" onerror="this.onerror=null; this.src='img/default-avatar.webp'; if(window.markAvatarAsBroken) window.markAvatarAsBroken('${data.session.user.id}');">`;
                             }
                         });
                     });

@@ -3990,3 +3990,25 @@
             font-size: 0.84rem;
             color: var(--text-title);
         }
+
+        .sidebar-tab-content {
+            max-height: 480px;
+            overflow-y: auto;
+            padding-right: 6px;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        .sidebar-tab-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar-tab-content::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 999px;
+        }
+
+        .sidebar-tab-content::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
+        }

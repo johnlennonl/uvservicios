@@ -1303,7 +1303,7 @@ function renderAttachmentsSummary() {
 
     list.innerHTML = `
         <div class="stats-table-responsive" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
-            <table class="stats-table" style="width: 100%; border-collapse: collapse; text-align: left; font-family: 'Outfit', sans-serif;">
+            <table class="stats-table" style="width: 100%; min-width: 800px; border-collapse: collapse; text-align: left; font-family: 'Outfit', sans-serif;">
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
                         <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Pozo</th>
@@ -1777,8 +1777,8 @@ function renderPdfInterestPointsPageHTML(eventsChunk, pageNum, totalPages) {
                         Sin eventos críticos registrados en el periodo seleccionado.
                     </div>
                 ` : `
-                    <div style="overflow: hidden; border: 1px solid #e2e8f0; border-radius: 10px; margin-top: 14px; background: #ffffff;">
-                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: 'Outfit', sans-serif;">
+                    <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; margin-top: 14px; background: #ffffff;">
+                        <table style="width: 100%; min-width: 700px; border-collapse: collapse; text-align: left; font-family: 'Outfit', sans-serif;">
                             <thead>
                                 <tr style="background: #f8fafc;">
                                     <th style="width: 120px; font-weight: 800; text-transform: uppercase; font-size: 0.68rem; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #475569; letter-spacing: 0.02em;">Fecha / Hora</th>

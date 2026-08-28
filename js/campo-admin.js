@@ -1426,10 +1426,46 @@ function getJourneyTechnicians(journey = {}, records = []) {
     const tecnico1 = normalizeTechName(journey.tecnico_1 || firstPayload.tecnico_1 || guardTeam[0] || '');
     const tecnico2 = normalizeTechName(journey.tecnico_2 || firstPayload.tecnico_2 || guardTeam[1] || '');
 
+    const officialTechs = [tecnico1, tecnico2].filter(Boolean);
+    const officialTechsUpper = officialTechs.map(n => n.toUpperCase().trim());
+
+    const incomingTechs = new Set();
+
+    if (Array.isArray(records)) {
+        records.forEach(r => {
+            const raw = r.raw_payload || {};
+            // Leer todos los campos posibles de técnicos del registro para no omitir ninguno
+            const techs = [
+                raw.tecnico_1, 
+                raw.tecnico_2, 
+                raw.equipo_guardia, 
+                r.tecnico_1
+            ].filter(Boolean);
+
+            techs.forEach(t => {
+                const splitNames = splitGuardTeam(t);
+                splitNames.forEach(name => {
+                    const normalized = normalizeTechName(name);
+                    const upper = normalized.toUpperCase().trim();
+                    if (upper) {
+                        // Si este técnico en los pozos NO está en la cabecera oficial, es parte del Cambio de Guardia!
+                        if (!officialTechsUpper.some(ht => ht.includes(upper) || upper.includes(ht))) {
+                            incomingTechs.add(normalized);
+                        }
+                    }
+                });
+            });
+        });
+    }
+
+    const cambioGuardia = Array.from(incomingTechs).join(', ');
+
     return {
         tecnico1,
         tecnico2,
-        equipoGuardia: [tecnico1, tecnico2].filter(Boolean).join(', ') || normalizeTechName(journey.equipo_guardia || firstPayload.equipo_guardia || '')
+        equipoGuardia: officialTechs.join(', ') || normalizeTechName(journey.equipo_guardia || firstPayload.equipo_guardia || ''),
+        cambioGuardia,
+        isCrewChange: incomingTechs.size > 0
     };
 }
 
@@ -3274,6 +3310,55 @@ function renderEmptyDetail(message = 'Selecciona una jornada para ver su detalle
     }
 }
 
+function formatShortName(fullName) {
+    if (!fullName) return '';
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length <= 2) return fullName;
+    
+    const middleNames = new Set([
+        'JOSE', 'JESUS', 'MARIA', 'LUIS', 'ANTONIO', 'CARLOS', 'ANGEL', 
+        'ALEXANDER', 'DAVID', 'DANIEL', 'JAVIER', 'FRANCISCO', 'MANUEL', 
+        'ALEJANDRO', 'ANDRES', 'MIGUEL', 'RAFAEL', 'RAMON', 'JUAN', 'PEDRO', 
+        'EDUARDO', 'ARTURO', 'ENRIQUE', 'ALBERTO', 'GREGORIO', 'ALFREDO'
+    ]);
+    
+    const p0 = parts[0];
+    const p1 = parts[1];
+    const p2 = parts[2];
+    
+    if (parts.length === 4) {
+        return `${p0} ${p2}`;
+    }
+    
+    if (parts.length === 3) {
+        if (middleNames.has(p1.toUpperCase())) {
+            return `${p0} ${p2}`;
+        }
+        return `${p0} ${p1}`;
+    }
+    
+    return fullName;
+}
+
+function renderTechniciansList(techNamesString, iconColor = '#475569') {
+    if (!techNamesString) return '<span class="metadata-card-value-v2">Sin personal asignado</span>';
+    const names = techNamesString.split(',').map(n => n.trim()).filter(Boolean);
+    if (names.length === 0) return '<span class="metadata-card-value-v2">Sin personal asignado</span>';
+    
+    return names.map(name => {
+        const shortName = formatShortName(name);
+        return `
+            <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span style="font-size:0.88rem; color:#0f172a; font-weight:700; text-align:left;" title="${escapeHtml(name)}">${escapeHtml(shortName)}</span>
+            </div>
+        `;
+    }).join('');
+}
+
 async function renderDetail(detail) {
     closeRecordModal();
     closeIncidentModal();
@@ -3460,8 +3545,20 @@ async function renderDetail(detail) {
             <div class="campo-admin-detail-metadata-grid-v2">
                 <div class="metadata-card-v2">
                     <span class="metadata-card-label-v2">Equipo de Guardia</span>
-                    <strong class="metadata-card-value-v2">${escapeHtml(technicians.equipoGuardia || 'Sin personal asignado')}</strong>
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        ${renderTechniciansList(technicians.equipoGuardia, '#475569')}
+                    </div>
                 </div>
+                ${technicians.isCrewChange ? `
+                    <div class="metadata-card-v2" style="border-color:#f59e0b; background:#fffbeb;">
+                        <span class="metadata-card-label-v2" style="color:#d97706; font-weight:700; display:flex; align-items:center; gap:4px;">
+                            🔄 Cambio de Guardia
+                        </span>
+                        <div style="display:flex; flex-direction:column; gap:2px;">
+                            ${renderTechniciansList(technicians.cambioGuardia, '#d97706')}
+                        </div>
+                    </div>
+                ` : ''}
                 <div class="metadata-card-v2">
                     <span class="metadata-card-label-v2">Turno y Fecha</span>
                     <strong class="metadata-card-value-v2">${escapeHtml(journey.jornada || 'No especificada')} · ${escapeHtml(formatDate(journey.journey_date))}</strong>
@@ -3640,29 +3737,27 @@ async function renderDetail(detail) {
                 }
 
                 const commentHtml = userComment 
-                    ? `<div style="margin-top: 6px; padding: 6px 10px; background: #f8fafc; border-left: 3px solid #64748b; border-radius: 4px; font-size: 0.78rem; color: #334155; font-style: italic; text-align: left;">💬 ${escapeHtml(userComment)}</div>` 
+                    ? `<span style="font-size:0.72rem; color:#475569; font-style:italic; display:block; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(userComment)}">💬 ${escapeHtml(userComment)}</span>` 
                     : '';
 
                 return `
-                    <div style="padding:12px; border-radius:12px; background:#fff; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; margin-bottom:8px;">
-                        <div style="display:flex; gap:12px; align-items:center;">
-                            ${doc.downloadUrl ? `
-                                <div style="width:50px; height:50px; border-radius:8px; overflow:hidden; border:1px solid #e2e8f0; background:#f1f5f9; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                                    <img src="${doc.downloadUrl}" style="width:100%; height:100%; object-fit:cover;">
-                                </div>
-                            ` : ''}
-                            <div style="flex:1; min-width:0;">
-                                <strong style="font-size:0.88rem; color:#0f172a; display:block; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(doc.nombre_archivo)}">${escapeHtml(doc.nombre_archivo || 'Foto Soporte')}</strong>
-                                <span style="font-size:0.78rem; color:#64748b; display:block; text-align:left;">Pozo: ${escapeHtml(doc.pozo_name)} · ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
+                    <div style="padding:8px 10px; border-radius:10px; background:#fff; border:1px solid #e2e8f0; display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                        ${doc.downloadUrl ? `
+                            <div class="btn-preview-sidebar-image" data-file-path="${escapeHtml(doc.file_path)}" style="width:44px; height:44px; border-radius:6px; overflow:hidden; border:1px solid #e2e8f0; background:#f1f5f9; display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer;" title="Hacer clic para ampliar">
+                                <img src="${doc.downloadUrl}" style="width:100%; height:100%; object-fit:cover;">
                             </div>
+                        ` : ''}
+                        <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+                            <strong style="font-size:0.8rem; color:#0f172a; display:block; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(doc.nombre_archivo)}">${escapeHtml(doc.nombre_archivo || 'Foto Soporte')}</strong>
+                            <span style="font-size:0.72rem; color:#64748b; display:block; text-align:left;">Pozo: ${escapeHtml(doc.pozo_name)} · ${escapeHtml(doc.created_at ? new Date(doc.created_at).toLocaleDateString('es-VE') : '')}</span>
+                            ${commentHtml}
                         </div>
-                        ${commentHtml}
-                        <div style="display:flex; gap:6px;">
-                            <button type="button" class="btn-download-sidebar-doc" data-file-path="${escapeHtml(doc.file_path)}" style="flex:1; padding:6px 12px; border-radius:8px; background:#475569; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
-                                ⬇️ Descargar
+                        <div style="display:flex; gap:4px; flex-shrink:0;">
+                            <button type="button" class="btn-preview-sidebar-image" data-file-path="${escapeHtml(doc.file_path)}" title="Ver Imagen" style="width:28px; height:28px; border-radius:6px; background:#1e40af; color:#fff; border:none; cursor:pointer; font-size:0.75rem; display:flex; align-items:center; justify-content:center; padding:0;">
+                                👁️
                             </button>
-                            <button type="button" class="btn-preview-sidebar-image" data-file-path="${escapeHtml(doc.file_path)}" style="flex:1; padding:6px 12px; border-radius:8px; background:#1e40af; color:#fff; font-weight:700; font-size:0.78rem; border:none; cursor:pointer;">
-                                👁️ Ver Imagen
+                            <button type="button" class="btn-download-sidebar-doc" data-file-path="${escapeHtml(doc.file_path)}" title="Descargar" style="width:28px; height:28px; border-radius:6px; background:#475569; color:#fff; border:none; cursor:pointer; font-size:0.75rem; display:flex; align-items:center; justify-content:center; padding:0;">
+                                ⬇️
                             </button>
                         </div>
                     </div>
@@ -3674,9 +3769,10 @@ async function renderDetail(detail) {
             btn.addEventListener('click', async (e) => {
                 const path = e.currentTarget.dataset.filePath;
                 if (!path) return;
+                const originalHtml = btn.innerHTML;
                 try {
                     btn.disabled = true;
-                    btn.innerText = 'Generando link...';
+                    btn.innerHTML = btn.tagName === 'BUTTON' && btn.innerText.length > 5 ? 'Generando link...' : '⏳';
                     const { getDocumentDownloadUrl } = await import('./services/well-documents-service.js');
                     const url = await getDocumentDownloadUrl(path);
                     if (url) {
@@ -3689,7 +3785,7 @@ async function renderDetail(detail) {
                     alert(err.message || 'Error al obtener archivo');
                 } finally {
                     btn.disabled = false;
-                    btn.innerText = '⬇️ Descargar';
+                    btn.innerHTML = originalHtml;
                 }
             });
         });
@@ -3698,9 +3794,10 @@ async function renderDetail(detail) {
             btn.addEventListener('click', async (e) => {
                 const path = e.currentTarget.dataset.filePath;
                 if (!path) return;
+                const originalHtml = btn.innerHTML;
                 try {
                     btn.disabled = true;
-                    btn.innerText = 'Abriendo...';
+                    btn.innerHTML = btn.tagName === 'BUTTON' && btn.innerText.length > 5 ? 'Abriendo...' : '⏳';
                     const { getDocumentDownloadUrl } = await import('./services/well-documents-service.js');
                     const url = await getDocumentDownloadUrl(path);
                     if (url) {
@@ -3713,7 +3810,7 @@ async function renderDetail(detail) {
                     alert(err.message || 'Error al obtener imagen');
                 } finally {
                     btn.disabled = false;
-                    btn.innerText = '👁️ Ver Imagen';
+                    btn.innerHTML = originalHtml;
                 }
             });
         });

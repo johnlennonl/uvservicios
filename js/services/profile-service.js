@@ -38,6 +38,13 @@ export function saveLocalAvatar(userId, base64Data) {
 export async function resolveUserAvatarUrl(userId) {
     if (!userId) return 'img/default-avatar.webp';
 
+    // 0. Si el avatar está marcado como roto/inexistente, retornar default directamente
+    try {
+        if (localStorage.getItem(`uv-avatar-broken:${userId}`) === 'true') {
+            return 'img/default-avatar.webp';
+        }
+    } catch (e) {}
+
     // 1. Verificar plan de contingencia local
     const local = getLocalAvatar(userId);
     if (local) return local;
@@ -141,7 +148,7 @@ export async function openUserProfileModal() {
                             <div class="user-profile-avatar-inner" id="profile-modal-avatar-container">
                                 ${isDefaultAvatar 
                                     ? `<div class="profile-modal-avatar-placeholder">${firstLetter}</div>` 
-                                    : `<img id="profile-modal-avatar-preview" src="${avatarUrl}" alt="Avatar">`
+                                    : `<img id="profile-modal-avatar-preview" src="${avatarUrl}" alt="Avatar" onerror="this.onerror=null; this.src='img/default-avatar.webp'; if(window.markAvatarAsBroken) window.markAvatarAsBroken('${userId}');">`
                                 }
                             </div>
                             <label for="profile-avatar-file-input" class="user-profile-avatar-hover">
@@ -456,6 +463,9 @@ export async function openUserProfileModal() {
                         .getPublicUrl(`${userId}.webp`);
                     if (pubData?.publicUrl) {
                         finalAvatarUrl = pubData.publicUrl;
+                        try {
+                            localStorage.removeItem(`uv-avatar-broken:${userId}`);
+                        } catch (e) {}
                         // También actualizar perfil con url del avatar si la columna existe (opcional, fallback local)
                         await supabase
                             .from('profiles')

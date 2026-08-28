@@ -7,6 +7,12 @@ const USER_SCOPES_TABLE = 'user_operational_scopes';
 
 export const DEFAULT_OPERATIONAL_SCOPE = 'ceiba_tomoporo';
 
+// Cachés en memoria para optimizar el rendimiento y ahorrar consultas redundantes
+const contractsCache = new Map();
+const wellsCache = new Map();
+const techniciansCache = new Map();
+export const userScopesCache = new Map();
+
 export function normalizeOperationalScope(value) {
     return String(value || '').trim().toLowerCase() || DEFAULT_OPERATIONAL_SCOPE;
 }
@@ -21,6 +27,11 @@ function buildOperationalCatalogError(error) {
 }
 
 export async function getOperationalContracts({ includeInactive = false } = {}) {
+    const cacheKey = `${includeInactive}`;
+    if (contractsCache.has(cacheKey)) {
+        return contractsCache.get(cacheKey);
+    }
+
     try {
         let query = supabase
             .from(CONTRACTS_TABLE)
@@ -31,36 +42,54 @@ export async function getOperationalContracts({ includeInactive = false } = {}) 
 
         const { data, error } = await query;
         if (error) throw error;
-        return data || [];
+        
+        const result = data || [];
+        contractsCache.set(cacheKey, result);
+        return result;
     } catch (error) {
         throw buildOperationalCatalogError(error);
     }
 }
 
 export async function getFieldTechniciansByScope(scopeKey, { includeInactive = false } = {}) {
+    const normalizedScope = normalizeOperationalScope(scopeKey);
+    const cacheKey = `${normalizedScope}:${includeInactive}`;
+    if (techniciansCache.has(cacheKey)) {
+        return techniciansCache.get(cacheKey);
+    }
+
     try {
         let query = supabase
             .from(TECHNICIANS_TABLE)
             .select('*')
-            .eq('operational_scope', normalizeOperationalScope(scopeKey))
+            .eq('operational_scope', normalizedScope)
             .order('full_name', { ascending: true });
 
         if (!includeInactive) query = query.eq('active', true);
 
         const { data, error } = await query;
         if (error) throw error;
-        return data || [];
+        
+        const result = data || [];
+        techniciansCache.set(cacheKey, result);
+        return result;
     } catch (error) {
         throw buildOperationalCatalogError(error);
     }
 }
 
 export async function getFieldWellsByScope(scopeKey, { includeInactive = false } = {}) {
+    const normalizedScope = normalizeOperationalScope(scopeKey);
+    const cacheKey = `${normalizedScope}:${includeInactive}`;
+    if (wellsCache.has(cacheKey)) {
+        return wellsCache.get(cacheKey);
+    }
+
     try {
         let query = supabase
             .from(WELLS_TABLE)
             .select('*')
-            .eq('operational_scope', normalizeOperationalScope(scopeKey))
+            .eq('operational_scope', normalizedScope)
             .order('campo_name', { ascending: true })
             .order('pozo_name', { ascending: true });
 
@@ -68,7 +97,10 @@ export async function getFieldWellsByScope(scopeKey, { includeInactive = false }
 
         const { data, error } = await query;
         if (error) throw error;
-        return data || [];
+        
+        const result = data || [];
+        wellsCache.set(cacheKey, result);
+        return result;
     } catch (error) {
         throw buildOperationalCatalogError(error);
     }
@@ -191,6 +223,9 @@ export async function deleteFieldWell(id) {
 
 export async function getUserOperationalScopes(userId) {
     if (!userId) return [];
+    if (userScopesCache.has(userId)) {
+        return userScopesCache.get(userId);
+    }
 
     try {
         const { data, error } = await supabase
@@ -200,7 +235,10 @@ export async function getUserOperationalScopes(userId) {
             .order('is_default', { ascending: false });
 
         if (error) throw error;
-        return data || [];
+        
+        const result = data || [];
+        userScopesCache.set(userId, result);
+        return result;
     } catch (error) {
         throw buildOperationalCatalogError(error);
     }
@@ -218,6 +256,9 @@ export async function setUserOperationalScopes(userId, scopeKeys = [], { default
         : userScopes[0];
 
     try {
+        // Limpiar la caché local del usuario para forzar recarga en la siguiente consulta
+        userScopesCache.delete(userId);
+
         const { error: deleteError } = await supabase
             .from(USER_SCOPES_TABLE)
             .delete()

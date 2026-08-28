@@ -1749,6 +1749,8 @@ body.is-role-base-datos a[href="base-datos.html"] {
   grid-template-columns: 280px 1fr;
   gap: 24px;
   align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .attachments-kpis-col {
@@ -1789,6 +1791,9 @@ body.is-role-base-datos a[href="base-datos.html"] {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Tabla Ejecutiva de Adjuntos */
@@ -2003,6 +2008,7 @@ body.is-role-base-datos a[href="base-datos.html"] {
 
 .stats-table {
   width: 100%;
+  min-width: 800px;
   border-collapse: collapse;
   background: #ffffff;
 }
