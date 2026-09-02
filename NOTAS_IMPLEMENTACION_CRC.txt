@@ -1,0 +1,65 @@
+==============================================================================
+PROYECTO: INTEGRACIÓN Y UNIFICACIÓN DEL CONTRATO CRC - LAGUNILLAS LAGO
+==============================================================================
+
+Hola John, este archivo sirve como bitácora técnica de control y seguimiento 
+de la unificación del contrato CRC Lagunillas Lago bajo el conmutador global.
+
+ESTADO DEL PROYECTO: COMPLETADO (LISTO PARA MIGRACIÓN DE BD)
+
+------------------------------------------------------------------------------
+[x] LO QUE SE HIZO HASTA AHORA (PASOS COMPLETADOS)
+------------------------------------------------------------------------------
+1. Limpieza de Barras Laterales (Sidebar):
+   * Removidos todos los enlaces manuales redundantes a "crc-admin.html" (CRC LL)
+     en los 11 archivos HTML principales (stats, notifications, help, data, etc.).
+   * Removidas las referencias y bloqueos de esta página en access-control.js y router.js.
+   
+2. Unificación Dinámica de la Bandeja de Campo (campo-admin.js):
+   * Añadido el import de getActiveOperationalScope y getDocumentDownloadUrl.
+   * Creados los esquemas dinámicos RECORD_EDITOR_SECTIONS_BM y RECORD_EDITOR_SECTIONS_BCP
+     para desplegar únicamente los parámetros requeridos de cada levantamiento.
+   * Creada la función selectora getActiveRecordSections para conmutar esquemas.
+   * Actualizado renderDetail para que consulte documentos de soporte de la jornada
+     en Supabase y dibuje enlaces de descarga segura on-demand con window.downloadCrcDoc.
+   * Actualizada la bandeja para dibujar la barra de métricas correctas (Bruta/Neta/%AyS,
+     Presiones y SPM/RPM/Torque) según el método de levantamiento activo.
+   * Modificado buildRecordPreviewSections y buildRecordEditorSections para usar
+     getActiveRecordSections. Ahora, al ver o editar los parámetros de un pozo en la
+     bandeja de Campo, se abren dinámicamente los campos de BM o BCP correctos.
+   * Ampliado EDITOR_FIELD_NAMES para contener la unión única de todos los campos,
+     permitiendo que la serialización y guardado automático en base de datos funcione
+     perfectamente sin modificar los controladores de Supabase.
+
+3. Carga de Evidencias en Campo (Móvil):
+   * Añadido selector de múltiples archivos en Paso 3 de field-crc.html.
+   * Implementada la caché temporal y subida secuencial a Supabase Storage en crc-controller.js.
+
+4. Gestión de Usuarios, Roles y Catálogos:
+   * Añadido el rol "crc" (Técnico CRC Campo) y el alcance "crc_ll" (CRC LL) en los modales
+     de crear y editar de gestion-usuarios.html.
+   * Integrado el selector de Método de Levantamiento (BM / BCP) al agregar y gestionar/editar
+     pozos del contrato CRC LL directamente desde la sección "Contratos Operativos" en
+     gestion-usuarios.html. Se propaga a la base de datos automáticamente.
+
+5. Base de Datos / Expediente Digital:
+   * Añadida lógica intermedia para dividir pozos BM y BCP en carpetas virtuales en
+     database-controller.js de la pestaña Base de Datos.
+
+6. Unificación y Limpieza de Parámetros en Bandeja y Data:
+   * [x] Adaptados los detalles de pozo por jornada en Campo-admin:
+     - BM ahora refleja únicamente: SPM - TIRO/RECORRIDO - THP - CHP.
+     - BCP ahora refleja únicamente: RPM - TORQUE/AMP - THP - CHP.
+   * [x] Ocultadas dinámicamente las pestañas de Sensor de Fondo y VSD en "Incidencias y Archivos de Campo" de la jornada en Campo-admin si el contrato es CCRC LL, mostrando solo Echometer y Soportes (Fotos).
+   * [x] Ocultados los botones/históricos de Sensor de Fondo y VSD en la vista Data (data.html y data-controller.js) cuando el contrato activo es CCRC LL, dejando visibles únicamente: Historial Operativo, Historial de Medición Técnica, Prueba de Nivel, Archivos Echometer y Soportes de Campo.
+
+------------------------------------------------------------------------------
+[ ] LO QUE QUEDA POR REALIZAR (PASOS FUTUROS)
+------------------------------------------------------------------------------
+1. Ejecutar el script SQL de migración (migration_crc_contract.sql) en el SQL Editor
+   de tu consola de Supabase para registrar el catálogo de pozos BM y BCP y los técnicos.
+2. Actualización opcional del Dashboard (charts.js) para que dibuje gráficos específicos
+   de BM (SPM) y BCP (RPM/Torque) cuando el alcance activo en el selector sea "crc_ll".
+3. Probar el flujo completo creando un operador CRC en la pestaña de Gestión, capturando
+   en campo y auditando en la bandeja de Campo principal.
+==============================================================================

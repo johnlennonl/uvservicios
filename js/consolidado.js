@@ -1,6 +1,6 @@
 import { logout, getSession, getAccessProfile, getDefaultRouteForAccessProfile, applyNavigationAccessProfile } from './auth.js';
 import { supabase } from './supabaseClient.js';
-import { getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
+import { getActiveOperationalScope, getActiveOperationalScopeWellNames, getOperationalScopeFileTag, initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
 import { REPORT_COLUMNS, EXCEL_EXPORT_COLUMNS, EXCEL_GROUP_COLORS } from './services/field-journey-export.js';
 import {
     deleteAllFieldJourneyConsolidatedRows,
@@ -432,9 +432,28 @@ function getExportModeLabel(mode) {
 }
 
 function getExportSourceLabel(source) {
+    const activeScope = getActiveOperationalScope();
+    if (activeScope === 'crc_ll' || activeScope === 'ccrc_ll') {
+        return 'histórico CCRC';
+    }
     if (source === 'operativo') return 'nuevo Campo';
     if (source === 'completo') return 'base + nuevo';
     return 'base histórica';
+}
+
+function buildConsolidatedExportFileName(filters = {}) {
+    const activeScope = getActiveOperationalScope();
+    const scopeTag = getOperationalScopeFileTag(activeScope);
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    if (filters.mode === 'pozo' && filters.pozo) {
+        return `CONSOLIDADO_MAESTRO_${scopeTag}_POZO_${filters.pozo}_${dateStr}.xlsx`;
+    }
+    if (filters.mode === 'fecha' && (filters.startDate || filters.endDate)) {
+        const range = [filters.startDate, filters.endDate].filter(Boolean).join('_AL_');
+        return `CONSOLIDADO_MAESTRO_${scopeTag}_RANGO_${range}_${dateStr}.xlsx`;
+    }
+    return `CONSOLIDADO_MAESTRO_${scopeTag}_${dateStr}.xlsx`;
 }
 
 function loadStoredTemplate() {
@@ -1057,14 +1076,81 @@ function mapLabelsToColumns(labels = []) {
     }));
 }
 
+function getCRCReportColumns() {
+    return [
+        ['POZO', 'pozo'],
+        ['CAMPO', 'campo'],
+        ['EF', 'ef'],
+        ['ESTADO', 'estado'],
+        ['CATEGORIA', 'categoria'],
+        ['BRUTA', 'bruta'],
+        ['NETA', 'neta'],
+        ['%AyS', 'ays_percentage'],
+        ['FECHA', 'fecha'],
+        ['MES', 'mes'],
+        ['HORA', 'hora'],
+        ['ACTIVIDAD', 'actividad'],
+        ['ESTATUS', 'estatus'],
+        ['MARCA UNIDAD DE BOMBEO', 'bm_marca'],
+        ['MODELO UNIDAD DE BOMBEO', 'bm_modelo'],
+        ['TIRO', 'bm_tiro'],
+        ['RECORRIDO (IN)', 'bm_recorrido'],
+        ['SPM', 'bm_spm'],
+        ['ESTADO UNIDAD DE BOMBEO', 'bm_estado_unidad'],
+        ['THP (PSI)', 'thp_psi'],
+        ['CHP (PSI)', 'chp_psi'],
+        ['STUFFING (SUPERFICIE)', 'stuffing'],
+        ['RPM', 'bcp_rpm'],
+        ['TORQUE [LBF-IN]', 'bcp_torque'],
+        ['AMPERAJE (A)', 'bcp_amperaje'],
+        ['MODELO CABEZAL DE ROTACION', 'bcp_modelo_cabezal'],
+        ['MOTORREDUCTOR', 'bcp_motorreductor'],
+        ['STUFFING (BCP)', 'bcp_stuffing'],
+        ['NIVEL (FT)', 'well_nivel'],
+        ['SUMERGENCIA (FT)', 'well_sumergencia'],
+        ['PRESION INICIAL', 'well_presion_inicial'],
+        ['PRESION FINAL', 'well_presion_final'],
+        ['TIEMPO', 'well_tiempo_prueba'],
+        ['TÉCNICO 1', 'tecnico_1'],
+        ['TÉCNICO 2', 'tecnico_2'],
+        ['OBSERVACIONES', 'observaciones_pozo']
+    ];
+}
+
+function getCRCExportColumns() {
+    const crcSectionGroups = [
+        { title: 'Informacion general', fields: ['pozo', 'campo', 'ef', 'estado', 'categoria', 'bruta', 'neta', 'ays_percentage'] },
+        { title: 'Jornada', fields: ['fecha', 'mes', 'hora', 'actividad', 'estatus'] },
+        { title: 'Bombeo Mecanico', fields: ['bm_marca', 'bm_modelo', 'bm_tiro', 'bm_recorrido', 'bm_spm', 'bm_estado_unidad'] },
+        { title: 'Superficie', fields: ['thp_psi', 'chp_psi', 'stuffing'] },
+        { title: 'Bombeo por Cavidad Progresiva', fields: ['bcp_rpm', 'bcp_torque', 'bcp_amperaje', 'bcp_modelo_cabezal', 'bcp_motorreductor', 'bcp_stuffing'] },
+        { title: 'Nivel', fields: ['well_nivel', 'well_sumergencia'] },
+        { title: 'Prueba de Presion', fields: ['well_presion_inicial', 'well_presion_final', 'well_tiempo_prueba'] },
+        { title: 'Tecnicos', fields: ['tecnico_1', 'tecnico_2'] },
+        { title: 'Observaciones', fields: ['observaciones_pozo'] }
+    ];
+
+    const reportColumnMap = new Map(getCRCReportColumns().map(([label, fieldName]) => [fieldName, { label, fieldName }]));
+    return crcSectionGroups.flatMap(group => (
+        group.fields.map(fieldName => {
+            const column = reportColumnMap.get(fieldName);
+            return column ? { ...column, groupTitle: group.title } : null;
+        }).filter(Boolean)
+    ));
+}
+
 function attachGroupTitles(columns) {
+    const activeScope = getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
+    const currentExportColumns = isCrc ? getCRCExportColumns() : EXCEL_EXPORT_COLUMNS;
+
     const labelToGroup = new Map();
-    EXCEL_EXPORT_COLUMNS.forEach(c => {
+    currentExportColumns.forEach(c => {
         labelToGroup.set(String(c.label).trim().toUpperCase(), c.groupTitle);
     });
 
     const identityToGroup = new Map();
-    EXCEL_EXPORT_COLUMNS.forEach(c => {
+    currentExportColumns.forEach(c => {
         identityToGroup.set(normalizeColumnIdentity(c.label), c.groupTitle);
     });
 
@@ -1078,7 +1164,12 @@ function attachGroupTitles(columns) {
         return { ...col, groupTitle };
     });
 }
+
 function orderExportColumns(columns = [], strictFilter = false, isClientVersion = false) {
+    const activeScope = getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
+    const currentReportColumns = isCrc ? getCRCReportColumns() : REPORT_COLUMNS;
+
     const getDedupeKey = (name) => {
         const raw = String(name).trim().toUpperCase()
             .normalize('NFD')
@@ -1091,7 +1182,7 @@ function orderExportColumns(columns = [], strictFilter = false, isClientVersion 
         return key.replace(/[^A-Z0-9%_]+/g, '');
     };
 
-    const reportLabels = REPORT_COLUMNS.map(c => getDedupeKey(c[0]));
+    const reportLabels = currentReportColumns.map(c => getDedupeKey(c[0]));
     const excluded = new Set(NUEVO_HISTORICO_EXCLUDED_COLUMNS.map(getDedupeKey));
     const available = columns.filter(column => !excluded.has(getDedupeKey(column.originalName || column.name)));
     
@@ -1099,8 +1190,8 @@ function orderExportColumns(columns = [], strictFilter = false, isClientVersion 
         const nameA = String(a.originalName || a.name).trim().toUpperCase();
         const nameB = String(b.originalName || b.name).trim().toUpperCase();
         
-        let idxA = REPORT_COLUMNS.findIndex(c => c[0].trim().toUpperCase() === nameA);
-        let idxB = REPORT_COLUMNS.findIndex(c => c[0].trim().toUpperCase() === nameB);
+        let idxA = currentReportColumns.findIndex(c => c[0].trim().toUpperCase() === nameA);
+        let idxB = currentReportColumns.findIndex(c => c[0].trim().toUpperCase() === nameB);
         
         if (idxA === -1) {
             const idA = getDedupeKey(nameA);
@@ -1122,7 +1213,7 @@ function orderExportColumns(columns = [], strictFilter = false, isClientVersion 
         // para garantizar que la plantilla tenga TODAS las columnas, incluso si no hay datos.
         const existingIds = new Set(sorted.map(c => getDedupeKey(c.originalName || c.name)));
         
-        REPORT_COLUMNS.forEach(([label]) => {
+        currentReportColumns.forEach(([label]) => {
             const id = getDedupeKey(label);
             if (!existingIds.has(id) && !excluded.has(id)) {
                 sorted.push({
@@ -1139,7 +1230,7 @@ function orderExportColumns(columns = [], strictFilter = false, isClientVersion 
         });
 
         // De-duplicate columns by normalized identity, but only for fields that are unique in REPORT_COLUMNS
-        const reportLabelsMapped = REPORT_COLUMNS.map(c => ({
+        const reportLabelsMapped = currentReportColumns.map(c => ({
             label: c[0],
             id: getDedupeKey(c[0])
         }));
@@ -1164,7 +1255,7 @@ function orderExportColumns(columns = [], strictFilter = false, isClientVersion 
                     // that matches standard capitalization/label exactly
                     const existing = uniqueMap.get(id);
                     const currentName = String(col.originalName || col.name).trim().toUpperCase();
-                    const standardName = REPORT_COLUMNS.find(c => getDedupeKey(c[0]) === id)[0].trim().toUpperCase();
+                    const standardName = currentReportColumns.find(c => getDedupeKey(c[0]) === id)[0].trim().toUpperCase();
                     if (currentName === standardName) {
                         uniqueMap.set(id, col);
                     }
@@ -1186,8 +1277,8 @@ function orderExportColumns(columns = [], strictFilter = false, isClientVersion 
             const nameA = String(a.originalName || a.name).trim().toUpperCase();
             const nameB = String(b.originalName || b.name).trim().toUpperCase();
             
-            let idxA = REPORT_COLUMNS.findIndex(c => c[0].trim().toUpperCase() === nameA);
-            let idxB = REPORT_COLUMNS.findIndex(c => c[0].trim().toUpperCase() === nameB);
+            let idxA = currentReportColumns.findIndex(c => c[0].trim().toUpperCase() === nameA);
+            let idxB = currentReportColumns.findIndex(c => c[0].trim().toUpperCase() === nameB);
             
             if (idxA === -1) {
                 const idA = getDedupeKey(nameA);
@@ -1540,11 +1631,31 @@ function getStoredRowExportValue(storedRow = {}, label = '', pumpMap = null) {
         const normalizedIdentity = normalizeColumnIdentity(label);
         const aliases = {
             'ESTADODEFOSA': ['ESTADODELAFOSA', 'ESTADODELAFOSA%', 'ESTADODEFOSA%', 'ESTADOFOSA', 'EDOFOSA', 'ESTADOFOSA%', 'EDOFOSA%'],
-            'OBSERVACIONES': ['OBSERVACIONESDELPOZO'],
+            'OBSERVACIONES': ['OBSERVACIONESDELPOZO', 'OBSERVACIONES_POZO'],
             'CONDICIONDELAJAULA': ['CONDICIONDELACASETA'],
             'CONDICIONDELACASETA': ['CONDICIONDELAJAULA'],
             'TEMPERATURADELACASETADELVDF': ['TEMPERATURADELACASETA', 'TEMPERATURACASETA'],
-            'TEMPERATURADELACASETA': ['TEMPERATURADELACASETADELVDF']
+            'TEMPERATURADELACASETA': ['TEMPERATURADELACASETADELVDF'],
+            'MARCAUNIDADDEBOMBEO': ['BM_MARCA', 'MARCABM', 'MARCA_BM'],
+            'MODELOUNIDADDEBOMBEO': ['BM_MODELO', 'MODELOBM', 'MODELO_BM'],
+            'TIRO': ['BM_TIRO', 'TIROBM', 'TIRO_BM'],
+            'RECORRIDOIN': ['BM_RECORRIDO', 'RECORRIDOBM', 'RECORRIDO'],
+            'SPM': ['BM_SPM', 'SPMBM'],
+            'ESTADOUNIDADDEBOMBEO': ['BM_ESTADO_UNIDAD', 'ESTADOUNIDAD', 'ESTADO_UNIDAD'],
+            'THPPSI': ['THP_PSI', 'THP', 'PRESION_THP', 'PRESIONTHP'],
+            'CHPPSI': ['CHP_PSI', 'CHP', 'PRESION_CHP', 'PRESIONCHP'],
+            'STUFFINGSUPERFICIE': ['STUFFING', 'STUFFING_SUPERFICIE', 'BCP_STUFFING'],
+            'RPM': ['BCP_RPM', 'RPMBCP'],
+            'TORQUELBFIN': ['BCP_TORQUE', 'TORQUE', 'TORQUEBCP'],
+            'AMPERAJEA': ['BCP_AMPERAJE', 'AMPERAJE', 'AMPERAJEBCP'],
+            'MODELOCABEZALDEROTACION': ['BCP_MODELO_CABEZAL', 'MODELOCABEZAL'],
+            'MOTORREDUCTOR': ['BCP_MOTORREDUCTOR'],
+            'STUFFINGBCP': ['BCP_STUFFING', 'STUFFING'],
+            'NIVELFT': ['WELL_NIVEL', 'NIVEL_FLUIDO_FT', 'NIVELFLUIDO', 'NIVEL'],
+            'SUMERGENCIAFT': ['WELL_SUMERGENCIA', 'SUMERGENCIA_FT', 'SUMERGENCIA'],
+            'PRESIONINICIAL': ['WELL_PRESION_INICIAL', 'PRESION_INICIAL'],
+            'PRESIONFINAL': ['WELL_PRESION_FINAL', 'PRESION_FINAL'],
+            'TIEMPO': ['WELL_TIEMPO_PRUEBA', 'TIEMPO_PRUEBA']
         };
         const possibleIdentities = [normalizedIdentity, ...(aliases[normalizedIdentity] || [])];
         const matchingKey = Object.keys(rowData).find(key => {
@@ -1604,8 +1715,37 @@ async function exportDashboardGeneralFromDatabase() {
         let isClientVersion = false;
         const session = await getSession();
         const accessProfile = getAccessProfile(session);
+        const activeScope = getActiveOperationalScope();
+        const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
 
-        if (accessProfile?.isReadOnly || !accessProfile?.canModifyConsolidadoBase) {
+        if (isCrc) {
+            if (!hasSwal()) {
+                setStatus('Error: SweetAlert2 no está disponible.', 'error');
+                return;
+            }
+
+            const result = await window.Swal.fire({
+                icon: 'question',
+                title: 'Descargar Consolidado CCRC',
+                text: '¿Deseas descargar el Consolidado Maestro del contrato CCRC Lagunillas Lago?',
+                showConfirmButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'Descargar Consolidado',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0b1f3a',
+                cancelButtonColor: '#64748b',
+                customClass: {
+                    popup: 'consolidado-swal-popup',
+                    title: 'consolidado-swal-title'
+                }
+            });
+
+            if (result.isDismissed) {
+                return;
+            }
+
+            isClientVersion = false;
+        } else if (accessProfile?.isReadOnly || !accessProfile?.canModifyConsolidadoBase) {
             isClientVersion = true;
         } else {
             if (!hasSwal()) {
@@ -1658,11 +1798,13 @@ async function exportDashboardGeneralFromDatabase() {
         const rows = buildRowsFromStoredRows(storedRows, columns, pumpMap);
         const sourceSheet = { name: DASHBOARD_GENERAL_SHEET_NAME, columns };
 
+        const customFileName = buildConsolidatedExportFileName(filters);
         await exportDashboardWorkbook({
             columns,
             rows,
             sourceSheet,
-            filePrefix: 'UV_CONSOLIDADO_DB_DASHBOARD_GENERAL',
+            customFileName,
+            filePrefix: 'CONSOLIDADO_MAESTRO',
             sourceLabel: `Origen: ${getExportSourceLabel(filters.source)} · Modo: ${getExportModeLabel(filters.mode)} · Filas: ${rows.length} · Generado: ${new Date().toLocaleString('es-ES')}${isClientVersion ? ' (Cliente)' : ''}`,
             emptyMessage: 'No hay filas guardadas en base de datos para exportar.'
         });
@@ -1952,11 +2094,13 @@ async function exportDashboardGeneralWorkbook() {
             columns = orderExportColumns(columns, true, true);
         }
 
+        const customFileName = buildConsolidatedExportFileName();
         await exportDashboardWorkbook({
             columns,
             rows: activeDashboardRows,
             sourceSheet: { ...dashboardSheet, columns },
-            filePrefix: 'UV_CONSOLIDADO_DASHBOARD_GENERAL',
+            customFileName,
+            filePrefix: 'CONSOLIDADO_MAESTRO',
             sourceLabel: `Origen: ${activeTemplate?.fileName || '--'} · Hoja base: ${dashboardSheet?.name || '--'} · Generado: ${new Date().toLocaleString('es-ES')}${isClientVersion ? ' (Cliente)' : ''}`,
             emptyMessage: 'Sin filas cargadas desde Dashboard General en esta sesión. Importa el Excel viejo y exporta sin recargar la página para incluir datos.'
         });
@@ -1977,7 +2121,7 @@ async function exportDashboardGeneralWorkbook() {
     }
 }
 
-async function exportDashboardWorkbook({ columns, rows, sourceSheet, filePrefix, sourceLabel, emptyMessage }) {
+async function exportDashboardWorkbook({ columns, rows, sourceSheet, customFileName, filePrefix = 'CONSOLIDADO_MAESTRO', sourceLabel, emptyMessage }) {
     const workbook = new window.ExcelJS.Workbook();
     workbook.creator = 'UV Servicios';
     workbook.company = 'UV Servicios';
@@ -1997,11 +2141,11 @@ async function exportDashboardWorkbook({ columns, rows, sourceSheet, filePrefix,
 
     updateLoadingModal('Creando archivo descargable...', 'La descarga iniciará automáticamente.');
     const buffer = await workbook.xlsx.writeBuffer();
-    const fileDate = new Date().toISOString().slice(0, 10);
-    downloadBlob(new Blob([buffer], { type: EXCEL_MIME_TYPE }), `${filePrefix}_${fileDate}.xlsx`);
+    const finalFileName = customFileName || `${filePrefix}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    downloadBlob(new Blob([buffer], { type: EXCEL_MIME_TYPE }), finalFileName);
 }
 
-async function exportDashboardSplitWorkbook({ sheets = [], filePrefix }) {
+async function exportDashboardSplitWorkbook({ sheets = [], customFileName, filePrefix = 'CONSOLIDADO_MAESTRO' }) {
     const workbook = new window.ExcelJS.Workbook();
     workbook.creator = 'UV Servicios';
     workbook.company = 'UV Servicios';
@@ -2023,8 +2167,8 @@ async function exportDashboardSplitWorkbook({ sheets = [], filePrefix }) {
 
     updateLoadingModal('Creando archivo descargable...', 'La descarga iniciará automáticamente.');
     const buffer = await workbook.xlsx.writeBuffer();
-    const fileDate = new Date().toISOString().slice(0, 10);
-    downloadBlob(new Blob([buffer], { type: EXCEL_MIME_TYPE }), `${filePrefix}_${fileDate}.xlsx`);
+    const finalFileName = customFileName || `${filePrefix}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    downloadBlob(new Blob([buffer], { type: EXCEL_MIME_TYPE }), finalFileName);
 }
 
 async function addDashboardWorksheet(workbook, { name, columns, rows, sourceSheet, sourceLabel, emptyMessage }) {
@@ -2053,8 +2197,11 @@ function buildWorkbookHeader(worksheet, lastColumn, sourceSheet, sourceLabel = '
     if (lastColumn >= 12) worksheet.mergeCells(5, 9, 5, 12);
     if (lastColumn >= 13) worksheet.mergeCells(5, 13, 5, lastColumn);
 
+    const activeScope = getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
+
     const titleCell = worksheet.getCell(1, 5);
-    titleCell.value = 'REPORTE DE ACOMPAÑAMIENTO POZOS CON BOMBAS ELECTROSUMERGIBLES';
+    titleCell.value = isCrc ? 'TOMA DE PARÁMETROS OPERACIONALES - CONTRATO CCRC LAGUNILLAS LAGO' : 'REPORTE DE ACOMPAÑAMIENTO POZOS CON BOMBAS ELECTROSUMERGIBLES';
     titleCell.font = { name: 'Calibri', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B1F3A' } };
@@ -2518,6 +2665,27 @@ export async function initConsolidado() {
         console.warn('No se pudieron cargar pozos del contrato activo para Consolidado:', error);
         return [];
     });
+
+    const activeScope = getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
+
+    if (isCrc) {
+        // Seleccionar por defecto "operativo" (Histórico CCRC)
+        const sourceOperativoRadio = document.querySelector('input[name="consolidado-export-source"][value="operativo"]');
+        if (sourceOperativoRadio) {
+            sourceOperativoRadio.checked = true;
+        }
+
+        // Ocultar "Base histórica" y "Base + nuevo"
+        const optBase = document.getElementById('source-opt-base');
+        const optCompleto = document.getElementById('source-opt-completo');
+        if (optBase) optBase.style.display = 'none';
+        if (optCompleto) optCompleto.style.display = 'none';
+
+        if (sourceOperativoRadio?.nextElementSibling) {
+            sourceOperativoRadio.nextElementSibling.textContent = 'Histórico CCRC';
+        }
+    }
 
     bindEvents();
     activeTemplate = loadStoredTemplate();

@@ -1,0 +1,89 @@
+PLAN DE IMPLEMENTACIÓN: INTEGRACIÓN DEL NUEVO CONTRATO CRC - LAGUNILLAS LAGO (POZOS BM / BCP) - ACTUALIZADO
+
+Este plan detalla los pasos para integrar el nuevo contrato CRC - Lagunillas Lago con su lógica de captura aislada para pozos de Bombeo Mecánico (BM) y Bombeo por Cavidades Progresivas (BCP) utilizando las columnas oficiales del archivo Excel provisto por el usuario.
+
+---
+
+COLUMNAS TÉCNICAS OFICIALES (según Excel)
+
+1. Datos Generales (Comunes)
+* POZO (Nombre del pozo)
+* CAMPO (Estación o ubicación)
+* EF (Estación de Flujo)
+* ESTADO
+* CATEGORIA
+* BRUTA (BBPD) · Entrada del usuario
+* NETA (BNPD) · Entrada del usuario
+* %AyS (Porcentaje de Agua y Sedimento) · Cálculo automático
+  - Fórmula de cálculo: %AyS = ((BRUTA - NETA) / BRUTA) * 100 (Si BRUTA = 0, %AyS = 0).
+* FECHA
+* MES (Se calcula a partir de la fecha)
+* HORA
+* ACTIVIDAD
+* ESTATUS (RUN, OFF, etc.)
+
+2. Parámetros de Bombeo Mecánico (BM)
+* MARCA UNIDAD DE BOMBEO
+* MODELO UNIDAD DE BOMBEO
+* TIRO
+* RECORRIDO (IN)
+* SPM (Golpes por minuto)
+* ESTADO UNIDAD DE BOMBEO
+
+3. Parámetros de Bombeo por Cavidad Progresiva (BCP)
+* RPM
+* TORQUE (LBF-IN)
+* AMPERAJE (A)
+* MODELO CABEZAL DE ROTACION
+* MOTORREDUCTOR
+* STUFFING (Prensaestopas de rotación)
+
+4. Parámetros de Superficie (Comunes)
+* THP (PSI) (Presión en Cabezal)
+* CHP (PSI) (Presión en Casing)
+* STUFFING (Prensaestopas de superficie / línea)
+
+5. Nivel de Fluido (ft) (Comunes)
+* NIVEL (FT) (Nivel Dinámico)
+* SUMERGENCIA (FT)
+
+6. Prueba de Presión (Comunes)
+* PRESION INICIAL
+* PRESION FINAL
+* TIEMPO
+
+7. Observaciones (Comunes)
+* OBSERVACIONES
+
+---
+
+PROPUESTA DE PASOS (Paso a Paso)
+
+Paso 1: Migración de Base de Datos (Supabase)
+* Agregar la columna 'lift_method' (TEXT) a 'field_well_catalog'.
+* Insertar el contrato 'crc_ll' en 'operational_contracts'.
+* Insertar técnicos semilla y pozos semilla (DEMO-BM-01, DEMO-BCP-01, etc.) en sus respectivas tablas asignados al scope 'crc_ll'.
+
+Paso 2: Roles de Acceso e Inicio de Sesión
+* Modificar js/core/access-control.js para registrar el nuevo rol 'crc' y su redirección directa a la carpeta 'crc/field-crc.html'.
+
+Paso 3: Sub-navegación por BM y BCP en la sección "Base de Datos"
+* Modificar js/modules/database/database-controller.js para que al seleccionar el contrato 'crc_ll', el sistema organice los pozos del catálogo en dos carpetas virtuales:
+  - "Expedientes de Pozos por BM"
+  - "Expedientes de Pozos por BCP"
+* Implementar la miga de pan ('db-breadcrumb') para este nivel intermedio.
+
+Paso 4: Formulario de Captura por Pasos con Cálculo de %AyS
+* Crear crc/field-crc.html (interfaz por pestañas Siguiente/Atrás) y su controlador crc/js/crc-controller.js.
+* Cuando el usuario escribe BRUTA y NETA, calcular y rellenar automáticamente el campo %AyS en tiempo real.
+* Renderizar dinámicamente las secciones según el 'lift_method' del pozo seleccionado (BM o BCP).
+
+Paso 5: Vista de Administración CRC LL
+* Crear crc/crc-admin.html y crc/js/crc-admin-controller.js para que el administrador pueda auditar y publicar las jornadas.
+
+---
+
+PLAN DE VERIFICACIÓN
+
+* Verificación de Cálculo: Introducir BRUTA = 100 y NETA = 80 y comprobar que %AyS se autocalcula en 20.00%.
+* Prueba de Flujo Completo: Guardar una jornada localmente en el móvil, verificar que pase la validación de campos vacíos obligatorios, enviarla, y auditarla en la vista de administración CRC LL.

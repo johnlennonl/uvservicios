@@ -22,6 +22,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('mobile-logout-btn')?.addEventListener('click', logout);
     document.getElementById('field-history-search')?.addEventListener('input', renderHistoryView);
     CURRENT_ACCESS_PROFILE = accessProfile;
+
+    if (accessProfile.isCrcOperator) {
+        document.querySelectorAll('a[href="field.html"]').forEach(link => {
+            link.href = 'crc/field-crc.html';
+        });
+        document.querySelectorAll('a[href="jornada.html"]').forEach(link => {
+            link.href = 'crc/field-crc.html';
+        });
+    }
+
     await loadJourneyHistory();
     maybeShowSavedMessage();
 });
@@ -56,12 +66,13 @@ function renderLocalFallback(status, list, prefixMessage = 'No hay jornadas guar
 
     if (localReports.length === 0) {
         status.textContent = prefixMessage;
+        const targetHref = (CURRENT_ACCESS_PROFILE && CURRENT_ACCESS_PROFILE.isCrcOperator) ? 'crc/field-crc.html' : 'field.html';
         list.innerHTML = `
             <div class="field-history-group field-history-empty">
                 <div class="field-history-empty-icon">J</div>
                 <h3>Aún no hay jornadas disponibles</h3>
                 <p>Ve a Captura y Envío, agrega los pozos de la jornada y pulsa Guardar Jornada.</p>
-                <a href="field.html" class="btn-submit field-inline-action">Crear nueva jornada</a>
+                <a href="${targetHref}" class="btn-submit field-inline-action">Crear nueva jornada</a>
             </div>
         `;
         return false;
@@ -210,7 +221,8 @@ function bindHistoryActions(groups) {
             if (!group) return;
 
             localStorage.setItem(PENDING_HISTORY_CONTINUE_STORAGE_KEY, JSON.stringify(group.records));
-            window.location.href = 'field.html?continue=1';
+            const targetHref = (CURRENT_ACCESS_PROFILE && CURRENT_ACCESS_PROFILE.isCrcOperator) ? 'crc/field-crc.html?continue=1' : 'field.html?continue=1';
+            window.location.href = targetHref;
         });
     });
 }

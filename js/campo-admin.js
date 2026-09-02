@@ -1,8 +1,9 @@
 import { supabase } from './supabaseClient.js';
 import { getSession, logout, getAccessProfile, getDefaultRouteForAccessProfile } from './auth.js';
-import { initOperationalScopeContext, renderOperationalScopeSwitcher } from './services/operational-scope-context.js';
+import { initOperationalScopeContext, renderOperationalScopeSwitcher, getActiveOperationalScope } from './services/operational-scope-context.js';
 import { getAdminFieldJourneys, getAdminFieldJourneyDetail, deleteAdminFieldJourney, getFieldWorkflowDiagnostics, updateAdminFieldJourneyRecord, deleteAdminFieldJourneyRecord, saveAdminFieldJourneyReview, previewAdminFieldJourneyPublication, publishAdminFieldJourneyToDashboard, getFieldTicketsByJourney, getHistoricalFieldReports, getHistoricalFieldReportAudit, deleteHistoricalFieldReportsByPozo, mergeAdminFieldJourneys } from './services/field-journey-service.js';
 import { exportFieldJourneyToExcel, openFieldJourneyPdf, exportHistoricalFieldReportsToExcel } from './services/field-journey-export.js';
+import { getDocumentDownloadUrl } from './services/well-documents-service.js';
 import { validateFieldReport } from './modules/field/field-validation.js';
 import { animateNumber } from './ui.js';
 
@@ -157,7 +158,7 @@ const PUBLICATION_DETAIL_FIELDS = [
     'observaciones'
 ];
 
-const RECORD_EDITOR_SECTIONS = [
+const RECORD_EDITOR_SECTIONS_BES = [
     {
         title: 'Jornada',
         fields: [
@@ -366,6 +367,152 @@ const RECORD_EDITOR_SECTIONS = [
     }
 ];
 
+// Esquema de Campos para Pozos de Bombeo Mecánico (BM) en el contrato CRC
+const RECORD_EDITOR_SECTIONS_BM = [
+    {
+        title: 'Jornada',
+        fields: [
+            ['Técnico 1', 'tecnico_1'],
+            ['Técnico 2', 'tecnico_2'],
+            ['Equipo de guardia', 'equipo_guardia'],
+            ['Locacion de la jornada', 'locacion_jornada'],
+            ['Jornada', 'jornada'],
+            ['Pozo', 'pozo'],
+            ['Campo', 'campo'],
+            ['Fecha', 'fecha'],
+            ['Hora', 'hora']
+        ]
+    },
+    {
+        title: 'Información General de Producción',
+        fields: [
+            ['EF', 'ef'],
+            ['Estado', 'estado'],
+            ['Categoría', 'categoria'],
+            ['Potencial', 'potencial'],
+            ['Bruta [BBPD]', 'bruta'],
+            ['Neta [BNPD]', 'neta'],
+            ['% AyS', 'ays_percentage'],
+            ['Actividad', 'actividad'],
+            ['Estatus', 'estatus']
+        ]
+    },
+    {
+        title: 'Parámetros BM (Bombeo Mecánico)',
+        fields: [
+            ['Marca Unidad de Bombeo', 'bm_marca'],
+            ['Modelo Unidad de Bombeo', 'bm_modelo'],
+            ['Tiro', 'bm_tiro'],
+            ['Recorrido [IN]', 'bm_recorrido'],
+            ['SPM', 'bm_spm'],
+            ['Estado Unidad de Bombeo', 'bm_estado_unidad']
+        ]
+    },
+    {
+        title: 'Parámetros de Superficie y Niveles',
+        fields: [
+            ['THP [psi]', 'thp_psi'],
+            ['CHP [psi]', 'chp_psi'],
+            ['Nivel de fluido [ft]', 'nivel_fluido_ft'],
+            ['Sumergencia [ft]', 'sumergencia_ft']
+        ]
+    },
+    {
+        title: 'Prueba de Presión',
+        fields: [
+            ['Presión Inicial [psi]', 'presion_inicial'],
+            ['Presión Final [psi]', 'presion_final'],
+            ['Tiempo [min]', 'tiempo_prueba_presion']
+        ]
+    },
+    {
+        title: 'Observaciones',
+        fields: [
+            ['Observaciones del pozo', 'observaciones_pozo']
+        ]
+    }
+];
+
+// Esquema de Campos para Pozos de Cavidad Progresiva (BCP) en el contrato CRC
+const RECORD_EDITOR_SECTIONS_BCP = [
+    {
+        title: 'Jornada',
+        fields: [
+            ['Técnico 1', 'tecnico_1'],
+            ['Técnico 2', 'tecnico_2'],
+            ['Equipo de guardia', 'equipo_guardia'],
+            ['Locacion de la jornada', 'locacion_jornada'],
+            ['Jornada', 'jornada'],
+            ['Pozo', 'pozo'],
+            ['Campo', 'campo'],
+            ['Fecha', 'fecha'],
+            ['Hora', 'hora']
+        ]
+    },
+    {
+        title: 'Información General de Producción',
+        fields: [
+            ['EF', 'ef'],
+            ['Estado', 'estado'],
+            ['Categoría', 'categoria'],
+            ['Potencial', 'potencial'],
+            ['Bruta [BBPD]', 'bruta'],
+            ['Neta [BNPD]', 'neta'],
+            ['% AyS', 'ays_percentage'],
+            ['Actividad', 'actividad'],
+            ['Estatus', 'estatus']
+        ]
+    },
+    {
+        title: 'Parámetros BCP (Cavidades Progresivas)',
+        fields: [
+            ['RPM', 'bcp_rpm'],
+            ['Torque [LBF-IN]', 'bcp_torque'],
+            ['Amperaje [A]', 'bcp_amperaje'],
+            ['Modelo Cabezal Rotación', 'bcp_modelo_cabezal'],
+            ['Motorreductor', 'bcp_motorreductor'],
+            ['Stuffing Box', 'bcp_stuffing']
+        ]
+    },
+    {
+        title: 'Parámetros de Superficie y Niveles',
+        fields: [
+            ['THP [psi]', 'thp_psi'],
+            ['CHP [psi]', 'chp_psi'],
+            ['Nivel de fluido [ft]', 'nivel_fluido_ft'],
+            ['Sumergencia [ft]', 'sumergencia_ft']
+        ]
+    },
+    {
+        title: 'Prueba de Presión',
+        fields: [
+            ['Presión Inicial [psi]', 'presion_inicial'],
+            ['Presión Final [psi]', 'presion_final'],
+            ['Tiempo [min]', 'tiempo_prueba_presion']
+        ]
+    },
+    {
+        title: 'Observaciones',
+        fields: [
+            ['Observaciones del pozo', 'observaciones_pozo']
+        ]
+    }
+];
+
+/**
+ * Retorna dinámicamente las secciones del esquema según el contrato y método del pozo
+ * @param {string} scope - Alcance o contrato activo
+ * @param {Object} record - Registro del pozo en revisión
+ * @returns {Array} Listado de secciones y sus campos
+ */
+function getActiveRecordSections(scope, record) {
+    if (scope === 'crc_ll') {
+        const payload = getRecordPayload(record);
+        return payload.lift_method === 'BCP' ? RECORD_EDITOR_SECTIONS_BCP : RECORD_EDITOR_SECTIONS_BM;
+    }
+    return RECORD_EDITOR_SECTIONS_BES;
+}
+
 const NUMERIC_FIELD_NAMES = new Set([
     'potencial',
     'bruta',
@@ -484,7 +631,11 @@ const NUMERIC_FIELD_NAMES = new Set([
 ]);
 
 const LONG_TEXT_FIELDS = new Set(['diagnostico', 'observaciones_pozo']);
-const EDITOR_FIELD_NAMES = RECORD_EDITOR_SECTIONS.flatMap(section => section.fields.map(([, fieldName]) => fieldName));
+const EDITOR_FIELD_NAMES = [
+    ...RECORD_EDITOR_SECTIONS_BES.flatMap(section => section.fields.map(([, fieldName]) => fieldName)),
+    ...RECORD_EDITOR_SECTIONS_BM.flatMap(section => section.fields.map(([, fieldName]) => fieldName)),
+    ...RECORD_EDITOR_SECTIONS_BCP.flatMap(section => section.fields.map(([, fieldName]) => fieldName))
+].filter((value, index, self) => self.indexOf(value) === index);
 
 const state = {
     profilesMap: {},
@@ -1368,11 +1519,11 @@ function buildStatusClass(status) {
 }
 
 function buildOperationalStatusClass(status) {
-    const normalized = String(status || '').replace(/[^A-Z]/gi, '').toUpperCase();
-    if (['OFF', 'PARADAMANUAL', 'PARADO', 'PARADA', 'DETENIDO', 'INACTIVO'].includes(normalized)) {
+    const norm = String(status || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    if (norm.includes('OFF') || norm.includes('PARAD') || norm.includes('DETENID') || norm.includes('INACTIV')) {
         return 'campo-admin-operational-status is-off';
     }
-    if (['RUN', 'RUNNING', 'OPERANDO', 'OPERATIVO', 'ACTIVO'].includes(normalized)) {
+    if (norm.includes('RUN') || norm.includes('OPERAND') || norm.includes('OPERATIV') || norm.includes('ACTIV')) {
         return 'campo-admin-operational-status is-run';
     }
     return 'campo-admin-operational-status is-unknown';
@@ -1390,7 +1541,21 @@ function summarizeJourneyWindow(journey) {
 }
 
 function getRecordPayload(record) {
-    return record?.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
+    if (!record) return {};
+    let raw = record.raw_payload;
+    if (typeof raw === 'string') {
+        try {
+            raw = JSON.parse(raw);
+        } catch (e) {
+            console.error('Error parsing raw_payload string:', e);
+            raw = {};
+        }
+    }
+    const base = raw && typeof raw === 'object' ? raw : {};
+    if (base.raw_payload && typeof base.raw_payload === 'object') {
+        return { ...base, ...base.raw_payload };
+    }
+    return base;
 }
 
 function getRecordField(record, ...fieldNames) {
@@ -1433,7 +1598,7 @@ function getJourneyTechnicians(journey = {}, records = []) {
 
     if (Array.isArray(records)) {
         records.forEach(r => {
-            const raw = r.raw_payload || {};
+            const raw = getRecordPayload(r);
             // Leer todos los campos posibles de técnicos del registro para no omitir ninguno
             const techs = [
                 raw.tecnico_1, 
@@ -1594,7 +1759,7 @@ function buildJourneyPulseTimelineMarkup(journey = {}, records = [], reviewLog =
         const nightPozoList = [];
 
         records.forEach(r => {
-            const raw = r.raw_payload || {};
+            const raw = getRecordPayload(r);
             const tech = String(raw.tecnico_1 || raw.tecnico_2 || raw.equipo_guardia || r.tecnico_1 || '').trim();
             if (tech) {
                 recordTechMap.set(tech, (recordTechMap.get(tech) || 0) + 1);
@@ -1728,6 +1893,29 @@ function buildTechnicianTags(technicians = {}) {
 }
 
 function getRecordSummary(record) {
+    const activeScope = getActiveOperationalScope();
+    if (activeScope === 'crc_ll' || activeScope === 'ccrc_ll' || record?.operational_scope === 'crc_ll') {
+        return {
+            pozo: String(getRecordField(record, 'pozo', 'pozo_name') || 'Pozo sin nombre').trim().toUpperCase(),
+            campo: getRecordField(record, 'campo', 'campo_name') || 'Lagunillas Lago',
+            hora: formatTime(getRecordField(record, 'hora', 'report_time')),
+            fecha: getRecordField(record, 'fecha', 'report_date'),
+            estatus: getRecordField(record, 'estatus') || 'RUN',
+            actividad: getRecordField(record, 'actividad') || 'NIVEL',
+            observaciones: getRecordField(record, 'observaciones_pozo', 'comentario', 'message_text') || 'Sin observacion registrada.',
+            diagnostico: getRecordField(record, 'actividad') || 'NIVEL',
+            lift_method: getRecordField(record, 'lift_method') || 'BM',
+            bruta: getRecordField(record, 'bruta', 'bbpd'),
+            neta: getRecordField(record, 'neta', 'bnpd'),
+            ays_percentage: getRecordField(record, 'ays_percentage'),
+            thp: getRecordField(record, 'thp_psi', 'thp', 'presion_thp'),
+            chp: getRecordField(record, 'chp_psi', 'chp', 'presion_chp'),
+            bm_spm: getRecordField(record, 'bm_spm'),
+            bm_tiro: getRecordField(record, 'bm_tiro'),
+            bcp_rpm: getRecordField(record, 'bcp_rpm'),
+            bcp_torque: getRecordField(record, 'bcp_torque')
+        };
+    }
     return {
         pozo: String(getRecordField(record, 'pozo') || 'Pozo sin nombre').trim().toUpperCase(),
         campo: getRecordField(record, 'campo'),
@@ -1814,7 +2002,9 @@ function getHourFromTime(value) {
 function analyzeRecordForReview(recordPayload, records = [], journey = {}, currentRecordId = '') {
     const critical = [];
     const warnings = [];
-    const validation = validateFieldReport(recordPayload);
+    const validation = validateFieldReport(recordPayload, {
+        operationalScope: journey?.operational_scope || recordPayload?.operational_scope
+    });
 
     if (!validation.isValid) {
         critical.push(validation.message);
@@ -1975,8 +2165,28 @@ function getRecordOperationalKpiComparisons(summary = {}) {
     const averagesByPozo = state.currentDetail?.publishedAveragesByPozo || {};
     const publishedAverages = averagesByPozo[summary.pozo]?.metrics || {};
     const alertRules = getKpiAverageAlertRules();
+    const activeScope = getActiveOperationalScope();
 
-    return RECORD_OPERATIONAL_KPI_FIELDS.map(field => {
+    let kpiFields;
+    if (activeScope === 'crc_ll' || activeScope === 'ccrc_ll') {
+        const liftMethod = summary.lift_method || 'BM';
+        const speedLabel = liftMethod === 'BCP' ? 'RPM' : 'SPM';
+        const speedKey = liftMethod === 'BCP' ? 'bcp_rpm' : 'bm_spm';
+        const speedUnit = liftMethod === 'BCP' ? ' RPM' : ' SPM';
+
+        kpiFields = [
+            { key: 'bruta', label: 'BRUTA', valueKey: 'bruta', suffix: ' BPD' },
+            { key: 'neta', label: 'NETA', valueKey: 'neta', suffix: ' BPD' },
+            { key: 'ays_percentage', label: '% AYS', valueKey: 'ays_percentage', suffix: ' %' },
+            { key: 'thp', label: 'THP', valueKey: 'thp', suffix: ' psi' },
+            { key: 'chp', label: 'CHP', valueKey: 'chp', suffix: ' psi' },
+            { key: speedKey, label: speedLabel, valueKey: speedKey, suffix: speedUnit }
+        ];
+    } else {
+        kpiFields = RECORD_OPERATIONAL_KPI_FIELDS;
+    }
+
+    return kpiFields.map(field => {
         const currentValue = summary[field.valueKey];
         const average = buildAverageHint(currentValue, publishedAverages[field.key], field.suffix, alertRules[field.key]);
 
@@ -2163,18 +2373,30 @@ function openAlertConfigModal() {
 }
 
 function buildRecordDiagnosticBadge(record) {
-    const diagnostico = getRecordField(record, 'diagnostico');
-    const observaciones = getRecordField(record, 'observaciones_pozo');
+    const activeScope = getActiveOperationalScope();
     const status = getRecordField(record, 'estatus') || '';
-    const normalizedStatus = String(status).replace(/[^A-Z]/gi, '').toUpperCase();
-    const isOff = ['OFF', 'PARADAMANUAL', 'PARADO', 'PARADA', 'DETENIDO', 'INACTIVO'].includes(normalizedStatus);
+    const normStatus = String(status).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    
+    const isRun = normStatus.startsWith('RUN') || normStatus.includes('RUN') || normStatus.includes('OPERANDO') || normStatus.includes('ACTIVO');
+    const isOff = normStatus.startsWith('OFF') || normStatus.includes('OFF') || normStatus.includes('PARAD') || normStatus.includes('DETENID') || normStatus.includes('INACTIV');
 
-    const sourceText = diagnostico || observaciones || 'Sin falla reportada';
+    let sourceText;
+    if (activeScope === 'crc_ll' || activeScope === 'ccrc_ll') {
+        sourceText = getRecordField(record, 'actividad') || status || 'Sin actividad';
+    } else {
+        const diagnostico = getRecordField(record, 'diagnostico');
+        const observaciones = getRecordField(record, 'observaciones_pozo');
+        sourceText = diagnostico || observaciones || status || 'Sin falla reportada';
+    }
+
     const compactText = String(sourceText).trim().replace(/\s+/g, ' ');
     const finalText = compactText.length > 52 ? `${compactText.slice(0, 49)}...` : compactText;
     
-    const isOffClass = isOff ? ' is-off' : '';
-    return `<span class="campo-admin-diagnostic-pill${isOffClass}">${escapeHtml(finalText)}</span>`;
+    let pillClass = 'campo-admin-diagnostic-pill';
+    if (isOff) pillClass += ' is-off';
+    else if (isRun) pillClass += ' is-run';
+
+    return `<span class="${pillClass}">${escapeHtml(finalText)}</span>`;
 }
 
 function buildPublicationRecordKey(record = {}) {
@@ -2196,6 +2418,73 @@ function formatPublicationValue(fieldName, value) {
 }
 
 function buildPublicationFieldList(record = {}, fields = PUBLICATION_DETAIL_FIELDS) {
+    const activeScope = getActiveOperationalScope();
+    if (activeScope === 'crc_ll' || activeScope === 'ccrc_ll' || record?.operational_scope === 'crc_ll' || record?.lift_method) {
+        const liftMethod = record.lift_method || getRecordField(record, 'lift_method', 'estado', 'metodo') || 'BM';
+        const items = [];
+
+        items.push({ label: 'MÉTODO', value: liftMethod });
+        const actVal = getRecordField(record, 'actividad', 'actividad_pozo');
+        if (actVal) items.push({ label: 'ACTIVIDAD', value: actVal });
+
+        const estVal = getRecordField(record, 'estatus', 'estatus_pozo');
+        if (estVal) items.push({ label: 'ESTATUS', value: estVal });
+
+        if (liftMethod === 'BM' || liftMethod === 'MECANICO') {
+            const spmVal = getRecordField(record, 'bm_spm', 'spm');
+            if (spmVal !== undefined && spmVal !== null && spmVal !== '') items.push({ label: 'SPM', value: `${spmVal} SPM` });
+
+            const tiroVal = getRecordField(record, 'bm_tiro', 'tiro');
+            if (tiroVal !== undefined && tiroVal !== null && tiroVal !== '') items.push({ label: 'TIRO', value: `${tiroVal} pulg` });
+
+            const recVal = getRecordField(record, 'bm_recorrido', 'recorrido');
+            if (recVal !== undefined && recVal !== null && recVal !== '') items.push({ label: 'RECORRIDO', value: `${recVal} pulg` });
+        } else if (liftMethod === 'BCP' || liftMethod === 'CAVIDAD PROGRESIVA') {
+            const rpmVal = getRecordField(record, 'bcp_rpm', 'rpm');
+            if (rpmVal !== undefined && rpmVal !== null && rpmVal !== '') items.push({ label: 'RPM', value: `${rpmVal} RPM` });
+
+            const torqueVal = getRecordField(record, 'bcp_torque', 'torque');
+            if (torqueVal !== undefined && torqueVal !== null && torqueVal !== '') items.push({ label: 'TORQUE', value: `${torqueVal} ft-lbs` });
+
+            const ampVal = getRecordField(record, 'bcp_amperaje', 'amperaje');
+            if (ampVal !== undefined && ampVal !== null && ampVal !== '') items.push({ label: 'AMPERAJE', value: `${ampVal} A` });
+        }
+
+        const thpVal = getRecordField(record, 'thp_psi', 'thp', 'presion_thp');
+        if (thpVal !== undefined && thpVal !== null && thpVal !== '') items.push({ label: 'THP', value: `${thpVal} psi` });
+
+        const chpVal = getRecordField(record, 'chp_psi', 'chp', 'presion_chp');
+        if (chpVal !== undefined && chpVal !== null && chpVal !== '') items.push({ label: 'CHP', value: `${chpVal} psi` });
+
+        const nivelVal = getRecordField(record, 'well_nivel', 'nivel_fluido_ft', 'nivel');
+        if (nivelVal !== undefined && nivelVal !== null && nivelVal !== '') items.push({ label: 'NIVEL', value: `${nivelVal} ft` });
+
+        const sumergenciaVal = getRecordField(record, 'well_sumergencia', 'sumergencia_ft', 'sumergencia');
+        if (sumergenciaVal !== undefined && sumergenciaVal !== null && sumergenciaVal !== '') items.push({ label: 'SUMERGENCIA', value: `${sumergenciaVal} ft` });
+
+        const brutaVal = getRecordField(record, 'bruta', 'bbpd');
+        if (brutaVal !== undefined && brutaVal !== null && brutaVal !== '') items.push({ label: 'BRUTA', value: `${brutaVal} BPD` });
+
+        const netaVal = getRecordField(record, 'neta', 'bnpd');
+        if (netaVal !== undefined && netaVal !== null && netaVal !== '') items.push({ label: 'NETA', value: `${netaVal} BPD` });
+
+        const aysVal = getRecordField(record, 'ays_percentage');
+        if (aysVal !== undefined && aysVal !== null && aysVal !== '') items.push({ label: '% AYS', value: `${Number(aysVal).toFixed(2)} %` });
+
+        const htmlCards = items.map(item => `
+            <div style="padding:10px 12px;border:1px solid rgba(226,232,240,0.92);border-radius:14px;background:#fff;display:grid;gap:4px;">
+                <span style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#64748b;">${escapeHtml(item.label)}</span>
+                <strong style="font-size:14px;color:#0f172a;">${escapeHtml(item.value)}</strong>
+            </div>
+        `).join('');
+
+        if (!htmlCards) {
+            return '<p style="margin:0;color:#64748b;">Sin parámetros CCRC relevantes para mostrar.</p>';
+        }
+
+        return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;">${htmlCards}</div>`;
+    }
+
     const items = fields
         .filter(fieldName => record?.[fieldName] !== undefined && record?.[fieldName] !== null && record?.[fieldName] !== '')
         .map(fieldName => `
@@ -2791,8 +3080,8 @@ function renderList() {
                 
                 <div class="campo-admin-ticket-row-footer">
                     <div class="footer-meta-left">
-                        <span class="shift-badge shift-${String(journey.jornada || 'day').toLowerCase()}">
-                            ${shiftIcon} ${escapeHtml(journey.jornada || 'Diurna')}
+                        <span class="shift-badge ${journey.operational_scope === 'crc_ll' || journey.operational_scope === 'ccrc_ll' ? 'shift-full' : `shift-${String(journey.jornada || 'day').toLowerCase()}`}">
+                            ${journey.operational_scope === 'crc_ll' || journey.operational_scope === 'ccrc_ll' ? '<svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Jornada Completa' : `${shiftIcon} ${escapeHtml(journey.jornada || 'Diurna')}`}
                         </span>
                         <span class="date-text">
                             <svg class="ticket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -2939,7 +3228,10 @@ function buildReviewIssueList(issues = []) {
 }
 
 function buildRecordPreviewSections(recordPayload) {
-    return RECORD_EDITOR_SECTIONS.map(section => {
+    const record = getSelectedRecord();
+    const activeScope = getActiveOperationalScope();
+    const sections = getActiveRecordSections(activeScope, record);
+    return sections.map(section => {
         const itemsMarkup = section.fields.map(([label, fieldName]) => `
             <div class="campo-admin-modal-item${LONG_TEXT_FIELDS.has(fieldName) ? ' is-long' : ''}">
                 <span>${escapeHtml(label)}</span>
@@ -2957,7 +3249,10 @@ function buildRecordPreviewSections(recordPayload) {
 }
 
 function buildRecordEditorSections(recordPayload) {
-    return RECORD_EDITOR_SECTIONS.map(section => {
+    const record = getSelectedRecord();
+    const activeScope = getActiveOperationalScope();
+    const sections = getActiveRecordSections(activeScope, record);
+    return sections.map(section => {
         const fieldsMarkup = section.fields.map(([label, fieldName]) => {
             const value = recordPayload[fieldName] ?? '';
             const type = NUMERIC_FIELD_NAMES.has(fieldName) ? 'number' : 'text';
@@ -3021,7 +3316,12 @@ function renderRecordModal() {
         <div class="campo-admin-modal-review-strip">
             <span class="${getReviewToneClass(modalReview.tone)}">${escapeHtml(modalReview.label)}</span>
             <span class="campo-admin-tag">${escapeHtml(getRecordField(record, 'actividad') || 'Sin actividad')}</span>
-            <span class="campo-admin-tag">${escapeHtml(getRecordField(record, 'estatus') || 'Sin estatus')}</span>
+            <span class="campo-admin-tag" style="${(() => {
+                const est = String(getRecordField(record, 'estatus') || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                if (est.includes('RUN') || est.includes('OPERANDO') || est.includes('ACTIVO')) return 'background:#ecfdf5; border-color:#a7f3d0; color:#047857; font-weight:800;';
+                if (est.includes('OFF') || est.includes('PARAD') || est.includes('INACTIV')) return 'background:#fef2f2; border-color:#fecaca; color:#b91c1c; font-weight:800;';
+                return '';
+            })()}">${escapeHtml(getRecordField(record, 'estatus') || 'Sin estatus')}</span>
         </div>
         <section class="campo-admin-modal-review-panel">
             <article>
@@ -3099,7 +3399,9 @@ async function handleRecordFormSubmit(event) {
 
     const payload = buildUpdatedRecordPayload(event.currentTarget);
     const review = analyzeRecordForReview(payload, state.currentDetail.records, state.currentDetail.journey, state.selectedRecordId);
-    const validation = validateFieldReport(payload);
+    const validation = validateFieldReport(payload, {
+        operationalScope: state.currentDetail?.journey?.operational_scope || payload?.operational_scope
+    });
 
     if (!validation.isValid) {
         await notify(validation.message, 'error');
@@ -3364,6 +3666,22 @@ async function renderDetail(detail) {
     closeIncidentModal();
 
     const { journey, records, reviewLog, publishedAveragesByPozo = {} } = detail;
+
+    // Buscar adjuntos en Supabase si es el contrato de CRC Lagunillas Lago
+    let activeAttachments = [];
+    if (getActiveOperationalScope() === 'crc_ll') {
+        try {
+            const { data: docs } = await supabase
+                .from('well_historical_documents')
+                .select('*')
+                .is('deleted_at', null)
+                .like('descripcion', `%[JORNADA_ID:${journey.id}]%`);
+            activeAttachments = docs || [];
+        } catch (err) {
+            console.warn('Error recuperando adjuntos:', err);
+        }
+    }
+
     const [serverTickets, localTickets] = await Promise.all([
         getFieldTicketsByJourney(journey.id),
         Promise.resolve(getLocalFieldTicketsByJourney(journey.id))
@@ -3387,6 +3705,65 @@ async function renderDetail(detail) {
             const review = reviewSummary.byRecord.get(record.id) || { tone: 'warning', label: 'Con alerta' };
             const recordPosition = `${index + 1} de ${records.length}`;
             const recordStatus = getRecordField(record, 'estatus') || 'Sin estatus';
+
+            // Parámetros y soportes dinámicos para el contrato CRC Lagunillas Lago
+            let metricsHTML = '';
+            let attachmentsHTML = '';
+            const activeScope = getActiveOperationalScope();
+
+            if (activeScope === 'crc_ll') {
+                const payload = getRecordPayload(record);
+                const liftMethod = payload.lift_method || 'BM';
+                const bruteValue = record.bruta !== null && record.bruta !== undefined ? `${record.bruta} B` : '-';
+                const netValue = record.neta !== null && record.neta !== undefined ? `${record.neta} N` : '-';
+                
+                let aysPercentage = '-';
+                if (record.ays_percentage !== null && record.ays_percentage !== undefined) {
+                    aysPercentage = `${record.ays_percentage.toFixed(1)}%`;
+                }
+
+                if (liftMethod === 'BM') {
+                    const spmValue = payload.bm_spm || '-';
+                    metricsHTML = `
+                        ${buildCompactMetric('SPM', spmValue)}
+                        ${buildCompactMetric('TIRO/RECORRIDO', `${payload.bm_tiro || '-'} / ${payload.bm_recorrido || '-'} IN`)}
+                        ${buildCompactMetric('THP', `${record.thp_psi !== null ? record.thp_psi : '-'} psi`)}
+                        ${buildCompactMetric('CHP', `${record.chp_psi !== null ? record.chp_psi : '-'} psi`)}
+                    `;
+                } else {
+                    const rpmValue = payload.bcp_rpm || '-';
+                    const torqueValue = payload.bcp_torque || '-';
+                    metricsHTML = `
+                        ${buildCompactMetric('RPM', rpmValue)}
+                        ${buildCompactMetric('TORQUE/AMP', `${torqueValue} / ${payload.bcp_amperaje || '-'} A`)}
+                        ${buildCompactMetric('THP', `${record.thp_psi !== null ? record.thp_psi : '-'} psi`)}
+                        ${buildCompactMetric('CHP', `${record.chp_psi !== null ? record.chp_psi : '-'} psi`)}
+                    `;
+                }
+
+                // Filtrar adjuntos de este pozo
+                const wellDocs = activeAttachments.filter(d => d.pozo_name?.toUpperCase() === record.pozo?.toUpperCase());
+                if (wellDocs.length > 0) {
+                    attachmentsHTML = `
+                        <div class="campo-admin-record-row-attachments" style="margin-top:10px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; flex-wrap:wrap; gap:8px; font-size:0.75rem;">
+                            <span style="color:#64748b; font-weight:700;"><i class="fa-solid fa-paperclip"></i> Soportes:</span>
+                            ${wellDocs.map(doc => `
+                                <a href="javascript:void(0)" onclick="downloadCrcDoc('${doc.file_path}')" style="color:#2563eb; text-decoration:none; font-weight:700;" title="${doc.descripcion || ''}">
+                                    <i class="fa-solid fa-file-arrow-down"></i> ${doc.nombre_archivo}
+                                </a>
+                            `).join(' · ')}
+                        </div>
+                    `;
+                }
+            } else {
+                metricsHTML = `
+                    ${buildCompactMetric('FREC', formatFieldValue(summary.frecuencia, ' Hz'), buildAverageHint(summary.frecuencia, publishedAverages.frecuencia, ' Hz', alertRules.frecuencia))}
+                    ${buildCompactMetric('PIP', formatFieldValue(summary.pip, ' psi'), buildAverageHint(summary.pip, publishedAverages.pip, ' psi', alertRules.pip))}
+                    ${buildCompactMetric('I MOTOR', formatFieldValue(summary.iMotor, ' A'), buildAverageHint(summary.iMotor, publishedAverages.iMotor, ' A', alertRules.iMotor))}
+                    ${buildCompactMetric('THP', formatFieldValue(summary.thp, ' psi'), buildAverageHint(summary.thp, publishedAverages.thp, ' psi', alertRules.thp))}
+                    ${buildCompactMetric('TM', formatFieldValue(summary.tm, ' F'), buildAverageHint(summary.tm, publishedAverages.tm, ' F', alertRules.tm))}
+                `;
+            }
 
             const rowActionsMarkup = (isDraftJourney || state.accessProfile?.isReadOnly)
                 ? `
@@ -3418,12 +3795,9 @@ async function renderDetail(detail) {
                             </div>
                         </div>
                         <div class="campo-admin-record-row-metrics">
-                            ${buildCompactMetric('FREC', formatFieldValue(summary.frecuencia, ' Hz'), buildAverageHint(summary.frecuencia, publishedAverages.frecuencia, ' Hz', alertRules.frecuencia))}
-                            ${buildCompactMetric('PIP', formatFieldValue(summary.pip, ' psi'), buildAverageHint(summary.pip, publishedAverages.pip, ' psi', alertRules.pip))}
-                            ${buildCompactMetric('I MOTOR', formatFieldValue(summary.iMotor, ' A'), buildAverageHint(summary.iMotor, publishedAverages.iMotor, ' A', alertRules.iMotor))}
-                            ${buildCompactMetric('THP', formatFieldValue(summary.thp, ' psi'), buildAverageHint(summary.thp, publishedAverages.thp, ' psi', alertRules.thp))}
-                            ${buildCompactMetric('TM', formatFieldValue(summary.tm, ' F'), buildAverageHint(summary.tm, publishedAverages.tm, ' F', alertRules.tm))}
+                            ${metricsHTML}
                         </div>
+                        ${attachmentsHTML}
                     </div>
                     <div class="campo-admin-record-row-actions">
                         ${rowActionsMarkup}
@@ -3561,7 +3935,7 @@ async function renderDetail(detail) {
                 ` : ''}
                 <div class="metadata-card-v2">
                     <span class="metadata-card-label-v2">Turno y Fecha</span>
-                    <strong class="metadata-card-value-v2">${escapeHtml(journey.jornada || 'No especificada')} · ${escapeHtml(formatDate(journey.journey_date))}</strong>
+                    <strong class="metadata-card-value-v2">${escapeHtml((journey.operational_scope === 'crc_ll' || journey.operational_scope === 'ccrc_ll') ? 'Jornada Completa' : (journey.jornada || 'No especificada'))} · ${escapeHtml(formatDate(journey.journey_date))}</strong>
                     ${state.accessProfile?.canViewManagement ? `<button type="button" class="campo-admin-inline-btn" style="margin-top:8px;justify-content:center;" data-detail-action="edit-journey-date">Editar fecha</button>` : ''}
                 </div>
                 <div class="metadata-card-v2">
@@ -3626,33 +4000,58 @@ async function renderDetail(detail) {
 
     try {
         const journeyIdStr = String(journey.id || '');
+        const recordPozoNames = [...new Set((records || []).map(r => String(r.pozo || r.pozo_name || '').trim().toUpperCase()).filter(Boolean))];
+        const journeyDateStr = String(journey.journey_date || journey.report_date || journey.date || '').split('T')[0];
+
+        let docsMap = new Map();
+
         if (journeyIdStr) {
-            const { data: allDocs, error: docsError } = await supabase
+            // 1. Documentos vinculados directamente con [JORNADA_ID:...] en la descripción
+            const { data: docsByJourney } = await supabase
                 .from('well_historical_documents')
                 .select('*')
                 .is('deleted_at', null)
-                .like('descripcion', `%[JORNADA_ID:${journeyIdStr}]%`);
+                .or(`descripcion.ilike.%[JORNADA_ID:${journeyIdStr}]%,descripcion.ilike.%${journeyIdStr}%`);
 
-            if (docsError) throw docsError;
-
-            if (allDocs && allDocs.length > 0) {
-                echometerDocs = allDocs.filter(d => d.categoria === 'REGISTROS_ECHOMETER');
-                sensorDocs = allDocs.filter(d => d.categoria === 'DATA_SENSOR_FONDO');
-                vsdDocs = allDocs.filter(d => d.categoria === 'VOLCADOS_VSD');
-                soportesDocs = allDocs.filter(d => d.categoria === 'SOPORTES');
-
-                // Pre-fetch signed download URLs for image thumbnails in admin sidebar
-                await Promise.all(soportesDocs.map(async (doc) => {
-                    if (doc.file_path) {
-                        try {
-                            const { getDocumentDownloadUrl } = await import('./services/well-documents-service.js');
-                            doc.downloadUrl = await getDocumentDownloadUrl(doc.file_path);
-                        } catch (e) {
-                            console.warn(`Error getting admin thumbnail url for doc ${doc.id}:`, e);
-                        }
-                    }
-                }));
+            if (docsByJourney && docsByJourney.length > 0) {
+                docsByJourney.forEach(d => docsMap.set(d.id, d));
             }
+        }
+
+        if (recordPozoNames.length > 0 && journeyDateStr) {
+            // 2. Documentos de soporte o Echometer subidos para estos pozos en la fecha exacta de la jornada
+            const { data: docsByPozo } = await supabase
+                .from('well_historical_documents')
+                .select('*')
+                .is('deleted_at', null)
+                .in('pozo_name', recordPozoNames)
+                .or(`fecha_documento.eq.${journeyDateStr},fecha_documento.ilike.%${journeyDateStr}%`)
+                .in('categoria', ['REGISTROS_ECHOMETER', 'SOPORTES', 'DATA_SENSOR_FONDO', 'VOLCADOS_VSD']);
+
+            if (docsByPozo && docsByPozo.length > 0) {
+                docsByPozo.forEach(d => docsMap.set(d.id, d));
+            }
+        }
+
+        const allDocs = Array.from(docsMap.values());
+
+        if (allDocs && allDocs.length > 0) {
+            echometerDocs = allDocs.filter(d => d.categoria === 'REGISTROS_ECHOMETER');
+            sensorDocs = allDocs.filter(d => d.categoria === 'DATA_SENSOR_FONDO');
+            vsdDocs = allDocs.filter(d => d.categoria === 'VOLCADOS_VSD');
+            soportesDocs = allDocs.filter(d => d.categoria === 'SOPORTES');
+
+            // Pre-fetch signed download URLs for image thumbnails in admin sidebar
+            await Promise.all(soportesDocs.map(async (doc) => {
+                if (doc.file_path) {
+                    try {
+                        const { getDocumentDownloadUrl } = await import('./services/well-documents-service.js');
+                        doc.downloadUrl = await getDocumentDownloadUrl(doc.file_path);
+                    } catch (e) {
+                        console.warn(`Error getting admin thumbnail url for doc ${doc.id}:`, e);
+                    }
+                }
+            }));
         }
     } catch (err) {
         console.warn('Error al consultar archivos adjuntos de pozos:', err);
@@ -3661,6 +4060,40 @@ async function renderDetail(detail) {
     // Renderizar incidencias e informes en el sidebar izquierdo
     if (elements.sidebarIncidentsPanel) {
         elements.sidebarIncidentsPanel.hidden = false;
+        
+        const isCrc = getActiveOperationalScope() === 'crc_ll';
+        const tabSensorBtn = document.querySelector('.sidebar-tab-btn[data-tab="sensor"]');
+        const tabVsdBtn = document.querySelector('.sidebar-tab-btn[data-tab="vsd"]');
+        const pDesc = elements.sidebarIncidentsPanel.querySelector('p');
+
+        if (tabSensorBtn) tabSensorBtn.style.display = isCrc ? 'none' : 'block';
+        if (tabVsdBtn) tabVsdBtn.style.display = isCrc ? 'none' : 'block';
+        if (pDesc) {
+            pDesc.textContent = isCrc
+                ? 'Respaldos digitales Echometer y Soportes de campo adjuntos en esta jornada.'
+                : 'Respaldos digitales Echometer, Data Sensor de Fondo y Volcados VSD adjuntos en esta jornada.';
+        }
+
+        // Si la pestaña activa actual es una de las ocultas, activar Echometer por defecto
+        if (isCrc) {
+            const activeTabBtn = document.querySelector('.sidebar-tab-btn.active');
+            if (activeTabBtn && ['sensor', 'vsd'].includes(activeTabBtn.dataset.tab)) {
+                document.querySelectorAll('.sidebar-tab-btn').forEach(btn => btn.classList.remove('active'));
+                const defaultTab = document.querySelector('.sidebar-tab-btn[data-tab="echometer"]');
+                if (defaultTab) {
+                    defaultTab.classList.add('active');
+                    const echometerContent = document.getElementById('sidebar-echometer-content');
+                    const sensorContent = document.getElementById('sidebar-sensor-content');
+                    const vsdContent = document.getElementById('sidebar-vsd-content');
+                    const soportesContent = document.getElementById('sidebar-soportes-content');
+                    if (echometerContent) echometerContent.style.display = 'block';
+                    if (sensorContent) sensorContent.style.display = 'none';
+                    if (vsdContent) vsdContent.style.display = 'none';
+                    if (soportesContent) soportesContent.style.display = 'none';
+                }
+            }
+        }
+
         if (elements.sidebarIncidentsCount) elements.sidebarIncidentsCount.textContent = String(mergedTickets.length);
         if (elements.sidebarIncidentsList) elements.sidebarIncidentsList.innerHTML = ticketsMarkup;
 
@@ -4368,3 +4801,51 @@ export function destroyCampoAdmin() {
         state.searchTimer = null;
     }
 }
+
+// Handler global para la descarga temporal y segura de archivos de soporte
+window.downloadCrcDoc = async function(filePath, customName = '') {
+    if (!filePath) return;
+    try {
+        Swal.fire({
+            title: 'Descargando documento...',
+            html: '<p style="color:#64748b;">Preparando archivo con nombre técnico seguro...</p>',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        const downloadUrl = await getDocumentDownloadUrl(filePath);
+        
+        if (downloadUrl && downloadUrl !== '#') {
+            const response = await fetch(downloadUrl);
+            const blob = await response.blob();
+            
+            const ext = filePath.split('.').pop() || 'file';
+            let cleanFileName = customName;
+            if (!cleanFileName) {
+                const rawName = filePath.split('/').pop().replace(/^[a-f0-9-]{36}_?/i, '').replace(/\.[^/.]+$/, '');
+                const cleanSegment = rawName ? rawName.replace(/[^a-zA-Z0-9_-]+/g, '_').toUpperCase() : 'DOCUMENTO_CAMPO';
+                cleanFileName = `SOPORTE_${cleanSegment}.${ext}`;
+            } else if (!cleanFileName.endsWith(`.${ext}`)) {
+                cleanFileName = `${cleanFileName}.${ext}`;
+            }
+
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = cleanFileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(blobUrl);
+            Swal.close();
+        } else {
+            Swal.close();
+            Swal.fire('Error', 'No se pudo generar el enlace del archivo.', 'error');
+        }
+    } catch (e) {
+        console.error('Error descargando archivo:', e);
+        Swal.close();
+        Swal.fire('Error', 'Ocurrió un error inesperado al descargar el archivo.', 'error');
+    }
+};

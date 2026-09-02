@@ -72,6 +72,7 @@
                     </svg>
                     Campo
                 </a>
+
                 <a href="stats.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v18M12 7v14M19 11v10M3 21h18" />
@@ -241,6 +242,10 @@
                                     <h3 class="section-card-title" style="font-size: 0.98rem;">Pozos</h3>
                                     <p class="section-card-subtitle">Catalogo base para la captura de Campo.</p>
                                 </div>
+                                <button type="button" id="btn-import-wells-xlsx" class="contract-manage-btn" style="font-size: 0.76rem; padding: 4px 8px; white-space: nowrap; background-color: #10b981; border-color: #10b981; color: #fff; margin-right: 4px;" title="Importar catálogo de pozos y producción desde Excel">
+                                    📂 Importar Excel
+                                </button>
+                                <input type="file" id="import-wells-xlsx-file" accept=".xlsx,.xls" style="display: none;">
                                 <button type="button" id="btn-sync-discovered-wells" class="contract-manage-btn" style="font-size: 0.76rem; padding: 4px 8px; white-space: nowrap;" title="Sincronizar pozos detectados en registros históricos">
                                     ⚡ Sincronizar Pozos
                                 </button>
@@ -253,6 +258,13 @@
                                 <label class="input-group-manager">
                                     <span>Campo</span>
                                     <input type="text" id="contract-well-field" placeholder="BARUA / MOTATAN / MENE GRANDE">
+                                </label>
+                                <label class="input-group-manager" id="contract-well-lift-group" style="display: none;">
+                                    <span>Método de Levantamiento</span>
+                                    <select id="contract-well-lift" style="padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; background-color: #fff; color: #1e293b; font-size: 0.875rem;">
+                                        <option value="BM" selected>Bombeo Mecánico (BM)</option>
+                                        <option value="BCP">Cavidades Progresivas (BCP)</option>
+                                    </select>
                                 </label>
                                 <button type="submit" class="btn-submit-manager" style="width: auto; min-width: 120px;">Agregar</button>
                             </form>
@@ -306,6 +318,7 @@
                             <select id="select-role" required>
                                 <option value="cliente_view">Cliente</option>
                                 <option value="campo">Técnico de Campo</option>
+                                <option value="crc">Técnico CRC Campo</option>
                                 <option value="servicios">Técnico de Servicios</option>
                                 <option value="base_datos">Administrador Base de Datos</option>
                                 <option value="gestor_usuarios">Gestor de Accesos</option>
@@ -317,10 +330,13 @@
                         <label class="input-group-manager">
                             <span>Seleccionar contrato</span>
                             <select id="select-operational-scope" required>
-                                <option value="ceiba_tomoporo">Ceiba / Tomoporo</option>
-                                <option value="bmm">Barua / Motatan / Mene Grande</option>
+                                <option value="bmm">BMM</option>
+                                <option value="ceiba_tomoporo">CEI/TOM</option>
+                                <option value="crc_ll">CCRC</option>
+                                <option value="bmm_ceiba_tomoporo">BMM + CEIBA / TOM</option>
+                                <option value="todos">BMM + CEIBA / TOM + CCRC</option>
                             </select>
-                            <small id="select-operational-scope-help">Para clientes de visualización puedes elegir Ceiba / Tomoporo, Mene Grande / Barua / Motatan o Ambos.</small>
+                            <small id="select-operational-scope-help">Selecciona el contrato o combinación de contratos para el acceso del cliente.</small>
                         </label>
 
                         <button type="submit" id="btn-submit-user" class="btn-submit-manager">
@@ -470,6 +486,7 @@
                             <select id="edit-role" required>
                                 <option value="cliente_view">Cliente</option>
                                 <option value="campo">Técnico de Campo</option>
+                                <option value="crc">Técnico CRC Campo</option>
                                 <option value="servicios">Técnico de Servicios</option>
                                 <option value="base_datos">Administrador Base de Datos</option>
                                 <option value="gestor_usuarios">Gestor de Accesos</option>
@@ -481,10 +498,13 @@
                         <label class="input-group-manager">
                             <span>Seleccionar contrato</span>
                             <select id="edit-operational-scope" required>
-                                <option value="ceiba_tomoporo">Ceiba / Tomoporo</option>
-                                <option value="bmm">Barua / Motatan / Mene Grande</option>
+                                <option value="bmm">BMM</option>
+                                <option value="ceiba_tomoporo">CEI/TOM</option>
+                                <option value="crc_ll">CCRC</option>
+                                <option value="bmm_ceiba_tomoporo">BMM + CEIBA / TOM</option>
+                                <option value="todos">BMM + CEIBA / TOM + CCRC</option>
                             </select>
-                            <small id="edit-operational-scope-help">Para clientes de visualización puedes elegir Ceiba / Tomoporo, Mene Grande / Barua / Motatan o Ambos.</small>
+                            <small id="edit-operational-scope-help">Selecciona el contrato o combinación de contratos para el acceso del cliente.</small>
                         </label>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; font-size: 0.72rem; color: var(--text-muted); background: var(--bg-header); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border-color);">

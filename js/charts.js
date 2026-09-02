@@ -1781,24 +1781,100 @@ function clearDashboard() {
  */
 function renderKPIs(latest) {
     latestKpiSnapshot = latest || null;
-    createEliteGauge('gauge-frecuencia', latest.frecuencia, 0, 60, 'Hz', '#2563EB');
-    createEliteGauge('gauge-pip', latest.pip, 0, 5000, 'PSI', '#DC2626');
-    createEliteGauge('gauge-tm', latest.tm, 0, 450, '°F', '#9333EA');
+    const activeScope = getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll' || latest?.operational_scope === 'crc_ll';
 
-    const rotationBadge = document.getElementById('rotation-badge');
-    const rotationValue = document.getElementById('rotation-badge-value');
-    const rawRotation = String(latest?.sentido_giro || '').trim();
+    const card1Title = document.getElementById('card1-title');
+    const card1Min = document.getElementById('card1-min');
+    const card1Max = document.getElementById('card1-max');
 
-    if (rotationBadge && rotationValue) {
-        if (rawRotation) {
-            rotationValue.textContent = rawRotation;
+    const card2Title = document.getElementById('card2-title');
+    const card2Min = document.getElementById('card2-min');
+    const card2Max = document.getElementById('card2-max');
+
+    const card3Title = document.getElementById('card3-title');
+    const card3Min = document.getElementById('card3-min');
+    const card3Max = document.getElementById('card3-max');
+
+    const card4Title = document.getElementById('card4-title');
+    const card4BadgeLabel = document.getElementById('card4-badge-label');
+
+    if (isCrc) {
+        // CCRC BM/BCP Mode
+        const rawPayload = latest?.raw_payload || {};
+        const liftMethod = latest?.lift_method || rawPayload.lift_method || (latest?.bcp_rpm ? 'BCP' : 'BM');
+        
+        const thpVal = Number(latest?.thp_psi ?? latest?.presion_thp ?? latest?.thp ?? rawPayload.thp_psi ?? rawPayload.presion_thp ?? rawPayload.thp ?? 0);
+        const chpVal = Number(latest?.chp_psi ?? latest?.presion_chp ?? latest?.chp ?? rawPayload.chp_psi ?? rawPayload.presion_chp ?? rawPayload.chp ?? 0);
+        
+        const rawSpeed = latest?.bm_spm ?? latest?.bcp_rpm ?? latest?.spm ?? latest?.rpm ?? latest?.frecuencia ?? rawPayload.bm_spm ?? rawPayload.bcp_rpm ?? rawPayload.spm ?? rawPayload.frecuencia ?? 0;
+        const speedVal = Number(rawSpeed || 0);
+        const speedUnit = liftMethod === 'BCP' ? 'RPM' : 'SPM';
+        const speedMax = liftMethod === 'BCP' ? 500 : 50;
+
+        if (card1Title) card1Title.textContent = 'Presión THP';
+        if (card1Min) card1Min.textContent = 'Min: 0';
+        if (card1Max) card1Max.textContent = 'Max: 2000';
+
+        if (card2Title) card2Title.textContent = 'Presión CHP';
+        if (card2Min) card2Min.textContent = 'Min: 0';
+        if (card2Max) card2Max.textContent = 'Max: 2000';
+
+        if (card3Title) card3Title.textContent = `Velocidad (${speedUnit})`;
+        if (card3Min) card3Min.textContent = 'Min: 0';
+        if (card3Max) card3Max.textContent = `Max: ${speedMax}`;
+
+        if (card4Title) card4Title.textContent = 'Estatus Pozo';
+        if (card4BadgeLabel) card4BadgeLabel.textContent = 'Actividad';
+
+        createEliteGauge('gauge-frecuencia', thpVal, 0, 2000, 'PSI', '#2563EB');
+        createEliteGauge('gauge-pip', chpVal, 0, 2000, 'PSI', '#DC2626');
+        createEliteGauge('gauge-tm', speedVal, 0, speedMax, speedUnit, '#9333EA');
+
+        const rotationBadge = document.getElementById('rotation-badge');
+        const rotationValue = document.getElementById('rotation-badge-value');
+        const rawActividad = String(latest?.actividad || 'NIVEL').trim();
+
+        if (rotationBadge && rotationValue) {
+            rotationValue.textContent = rawActividad;
             rotationBadge.style.display = 'inline-flex';
-        } else {
-            rotationValue.textContent = '--';
-            rotationBadge.style.display = 'none';
+        }
+    } else {
+        // Standard BES Mode
+        if (card1Title) card1Title.textContent = 'Frecuencia';
+        if (card1Min) card1Min.textContent = 'Min: 0';
+        if (card1Max) card1Max.textContent = 'Max: 60';
+
+        if (card2Title) card2Title.textContent = 'Presión PIP';
+        if (card2Min) card2Min.textContent = 'Min: 0';
+        if (card2Max) card2Max.textContent = 'Max: 5000';
+
+        if (card3Title) card3Title.textContent = 'Temp. TM';
+        if (card3Min) card3Min.textContent = 'Min: 0';
+        if (card3Max) card3Max.textContent = 'Max: 450';
+
+        if (card4Title) card4Title.textContent = 'Estatus BES';
+        if (card4BadgeLabel) card4BadgeLabel.textContent = 'Giro';
+
+        createEliteGauge('gauge-frecuencia', latest.frecuencia, 0, 60, 'Hz', '#2563EB');
+        createEliteGauge('gauge-pip', latest.pip, 0, 5000, 'PSI', '#DC2626');
+        createEliteGauge('gauge-tm', latest.tm, 0, 450, '°F', '#9333EA');
+
+        const rotationBadge = document.getElementById('rotation-badge');
+        const rotationValue = document.getElementById('rotation-badge-value');
+        const rawRotation = String(latest?.sentido_giro || '').trim();
+
+        if (rotationBadge && rotationValue) {
+            if (rawRotation) {
+                rotationValue.textContent = rawRotation;
+                rotationBadge.style.display = 'inline-flex';
+            } else {
+                rotationValue.textContent = '--';
+                rotationBadge.style.display = 'none';
+            }
         }
     }
-    
+
     // Actualiza el subtitulo superior con el contexto de analisis actual.
     const title = document.querySelector('.main-container header p');
     if (title) {
@@ -2224,7 +2300,14 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
         data: scopedTimeline
             .filter(d => d.pozo_name === pozo)
             .map(d => {
-                const rawValue = d[field];
+                const fieldsToTry = Array.isArray(field) ? field : [field];
+                let rawValue = null;
+                for (const f of fieldsToTry) {
+                    if (d[f] !== undefined && d[f] !== null && d[f] !== '') {
+                        rawValue = d[f];
+                        break;
+                    }
+                }
                 const status = String(d.normalized_estatus || d.estatus || 'RUN').trim().toUpperCase();
                 const isOff = status === 'OFF';
 
@@ -2232,7 +2315,7 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
                 const zeroOnOffFields = ['frecuencia', 'corriente_motor', 'vsd_a', 'vsd_b', 'vsd_c'];
 
                 let numericValue = null;
-                if (isOff && zeroOnOffFields.includes(field)) {
+                if (isOff && fieldsToTry.some(f => zeroOnOffFields.includes(f))) {
                     numericValue = 0;
                 } else if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
                     numericValue = Number(rawValue);
@@ -2254,7 +2337,7 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
                         operationalScope: getActiveOperationalScope(),
                         pozoName: pozo,
                         chartKey,
-                        variableKey: field,
+                        variableKey: Array.isArray(field) ? field[0] : field,
                         variableLabel: nameSuffix,
                         fecha: d.fecha,
                         hora: d.hora,
@@ -2284,39 +2367,100 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
         });
     };
 
-    // 1. FRECUENCIA
-    const freqSeries = pozosPresentes.map(p => makeSeries('Hz', 'frecuencia', p, 'chart-frecuencia', 'Hz'));
-    renderTrendChart('chart-frecuencia', 'Frecuencia (Hz)', REPSOL_ORANGE, 'Hz', TREND_AXIS_BASES.frecuencia, freqSeries);
+    const activeScope = getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
 
-    // 2. PIP (FONDO)
-    const pipSeries = pozosPresentes.map(p => makeSeries('PSI', 'pip', p, 'chart-pip', 'PSI'));
-    renderTrendChart('chart-pip', 'Presión PIP (PSI)', REPSOL_RED, 'PSI', TREND_AXIS_BASES.pip, pipSeries);
+    const t1 = document.getElementById('large-chart1-title');
+    const t2 = document.getElementById('large-chart2-title');
+    const t3 = document.getElementById('large-chart3-title');
+    const t4 = document.getElementById('large-chart4-title');
+    const t5 = document.getElementById('large-chart5-title');
+    const t6 = document.getElementById('large-chart6-title');
 
-    // 3. TM (MOTOR)
-    const tmSeries = pozosPresentes.map(p => makeSeries('°F', 'tm', p, 'chart-tm', '°F'));
-    renderTrendChart('chart-tm', 'Temperatura Motor (°F)', TECH_PURPLE, '°F', TREND_AXIS_BASES.tm, tmSeries);
+    const c1Card = document.getElementById('large-chart1-card');
+    const c2Card = document.getElementById('large-chart2-card');
+    const c3Card = document.getElementById('large-chart3-card');
+    const c4Card = document.getElementById('large-chart4-card');
+    const c5Card = document.getElementById('large-chart5-card');
+    const c6Card = document.getElementById('large-chart6-card');
 
-    // 4. SUPERFICIE (THP / CHP / LF)
-    const surfSeries = [];
-    pozosPresentes.forEach(p => {
-        surfSeries.push(makeSeries('THP', 'presion_thp', p, 'chart-superficie', 'PSI'));
-        surfSeries.push(makeSeries('CHP', 'presion_chp', p, 'chart-superficie', 'PSI'));
-        surfSeries.push(makeSeries('LF', 'presion_lf', p, 'chart-superficie', 'PSI'));
-    });
-    renderTrendChart('chart-superficie', 'Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN, '#0F766E'], 'PSI', TREND_AXIS_BASES.superficie, surfSeries);
+    if (isCrc) {
+        if (t1) t1.textContent = 'Presión THP (Cabezal)';
+        if (t2) t2.textContent = 'Presión CHP (Casing)';
+        if (t3) t3.textContent = 'Velocidad Operativa (SPM / RPM)';
 
-    // 5. CORRIENTE MOTOR
-    const currSeries = pozosPresentes.map(p => makeSeries('Amp', 'corriente_motor', p, 'chart-motor-curr', 'Amp'));
-    renderTrendChart('chart-motor-curr', 'Corriente Motor (Amp)', TECH_BLUE, 'Amp', TREND_AXIS_BASES.corrienteMotor, currSeries);
+        if (c1Card) c1Card.style.display = 'block';
+        if (c2Card) c2Card.style.display = 'block';
+        if (c3Card) c3Card.style.display = 'block';
+        if (c4Card) c4Card.style.display = 'none';
+        if (c5Card) c5Card.style.display = 'none';
+        if (c6Card) c6Card.style.display = 'none';
 
-    // 6. VSD TRÍFASICO (A / B / C)
-    const vsdSeries = [];
-    pozosPresentes.forEach(p => {
-        vsdSeries.push(makeSeries('VSD A', 'vsd_a', p, 'chart-vsd-triphase', 'Amp'));
-        vsdSeries.push(makeSeries('VSD B', 'vsd_b', p, 'chart-vsd-triphase', 'Amp'));
-        vsdSeries.push(makeSeries('VSD C', 'vsd_c', p, 'chart-vsd-triphase', 'Amp'));
-    });
-    renderTrendChart('chart-vsd-triphase', 'Corriente VSD (Amp)', ['#6366F1', '#EC4899', '#F43F5E'], 'Amp', TREND_AXIS_BASES.vsd, vsdSeries);
+        // 1. PRESIÓN THP (PSI)
+        const thpSeries = pozosPresentes.map(p => makeSeries('THP', ['thp_psi', 'presion_thp', 'thp'], p, 'chart-frecuencia', 'PSI'));
+        renderTrendChart('chart-frecuencia', 'Presión THP (PSI)', TECH_BLUE, 'PSI', TREND_AXIS_BASES.superficie, thpSeries);
+
+        // 2. PRESIÓN CHP (PSI)
+        const chpSeries = pozosPresentes.map(p => makeSeries('CHP', ['chp_psi', 'presion_chp', 'chp'], p, 'chart-pip', 'PSI'));
+        renderTrendChart('chart-pip', 'Presión CHP (PSI)', REPSOL_RED, 'PSI', TREND_AXIS_BASES.superficie, chpSeries);
+
+        // 3. VELOCIDAD OPERATIVA (SPM / RPM)
+        const speedSeries = [];
+        pozosPresentes.forEach(p => {
+            speedSeries.push(makeSeries('SPM', ['bm_spm', 'spm', 'frecuencia'], p, 'chart-tm', 'SPM'));
+            speedSeries.push(makeSeries('RPM', ['bcp_rpm', 'rpm'], p, 'chart-tm', 'RPM'));
+        });
+        renderTrendChart('chart-tm', 'Velocidad Operativa (SPM / RPM)', TECH_PURPLE, 'RPM', TREND_AXIS_BASES.frecuencia, speedSeries);
+    } else {
+        if (t1) t1.textContent = 'Frecuencia';
+        if (t2) t2.textContent = 'Presión PIP';
+        if (t3) t3.textContent = 'Temperatura Motor';
+        if (t4) t4.textContent = 'Corriente Motor';
+        if (t5) t5.textContent = 'Presiones Superficie (THP / CHP / LF)';
+        if (t6) t6.textContent = 'VSD Trífasico Corriente (Fases A/B/C)';
+
+        if (c1Card) c1Card.style.display = 'block';
+        if (c2Card) c2Card.style.display = 'block';
+        if (c3Card) c3Card.style.display = 'block';
+        if (c4Card) c4Card.style.display = 'block';
+        if (c5Card) c5Card.style.display = 'block';
+        if (c6Card) c6Card.style.display = 'block';
+
+        // Standard BES Charts
+        // 1. FRECUENCIA
+        const freqSeries = pozosPresentes.map(p => makeSeries('Hz', 'frecuencia', p, 'chart-frecuencia', 'Hz'));
+        renderTrendChart('chart-frecuencia', 'Frecuencia (Hz)', REPSOL_ORANGE, 'Hz', TREND_AXIS_BASES.frecuencia, freqSeries);
+
+        // 2. PIP (FONDO)
+        const pipSeries = pozosPresentes.map(p => makeSeries('PSI', 'pip', p, 'chart-pip', 'PSI'));
+        renderTrendChart('chart-pip', 'Presión PIP (PSI)', REPSOL_RED, 'PSI', TREND_AXIS_BASES.pip, pipSeries);
+
+        // 3. TM (MOTOR)
+        const tmSeries = pozosPresentes.map(p => makeSeries('°F', 'tm', p, 'chart-tm', '°F'));
+        renderTrendChart('chart-tm', 'Temperatura Motor (°F)', TECH_PURPLE, '°F', TREND_AXIS_BASES.tm, tmSeries);
+
+        // 4. CORRIENTE MOTOR
+        const currSeries = pozosPresentes.map(p => makeSeries('Amp', 'corriente_motor', p, 'chart-motor-curr', 'Amp'));
+        renderTrendChart('chart-motor-curr', 'Corriente Motor (Amp)', TECH_BLUE, 'Amp', TREND_AXIS_BASES.corrienteMotor, currSeries);
+
+        // 5. SUPERFICIE (THP / CHP / LF)
+        const surfSeries = [];
+        pozosPresentes.forEach(p => {
+            surfSeries.push(makeSeries('THP', 'presion_thp', p, 'chart-superficie', 'PSI'));
+            surfSeries.push(makeSeries('CHP', 'presion_chp', p, 'chart-superficie', 'PSI'));
+            surfSeries.push(makeSeries('LF', 'presion_lf', p, 'chart-superficie', 'PSI'));
+        });
+        renderTrendChart('chart-superficie', 'Presión Superficie (PSI)', [TECH_BLUE, TECH_CYAN, '#0F766E'], 'PSI', TREND_AXIS_BASES.superficie, surfSeries);
+
+        // 6. VSD TRÍFASICO (A / B / C)
+        const vsdSeries = [];
+        pozosPresentes.forEach(p => {
+            vsdSeries.push(makeSeries('VSD A', 'vsd_a', p, 'chart-vsd-triphase', 'Amp'));
+            vsdSeries.push(makeSeries('VSD B', 'vsd_b', p, 'chart-vsd-triphase', 'Amp'));
+            vsdSeries.push(makeSeries('VSD C', 'vsd_c', p, 'chart-vsd-triphase', 'Amp'));
+        });
+        renderTrendChart('chart-vsd-triphase', 'Corriente VSD (Amp)', ['#6366F1', '#EC4899', '#F43F5E'], 'Amp', TREND_AXIS_BASES.vsd, vsdSeries);
+    }
 }
 
 function getLatestTrendWindow(timeline, latestRecordCount) {
@@ -2528,6 +2672,7 @@ function renderOrUpdate(id, options) {
  * 4. ELITE DATA RIBBON UPDATE
  */
 function updateDataRibbon(data) {
+    const activeScope = getActiveOperationalScope();
     const fields = {
         'rb-campo': data?.campo_name || '--',
         'rb-pozo': data?.pozo_name || '--',
@@ -2539,6 +2684,15 @@ function updateDataRibbon(data) {
         'rb-bnpd': data?.bnpd || '--',
         'rb-cat': data?.cat_number || '--'
     };
+
+    const pumpCard = document.getElementById('rb-pump')?.closest('.ribbon-card');
+    if (pumpCard) {
+        if (activeScope === 'crc_ll') {
+            pumpCard.style.display = 'none';
+        } else {
+            pumpCard.style.display = '';
+        }
+    }
 
     Object.entries(fields).forEach(([id, value]) => {
         const el = document.getElementById(id);

@@ -1,0 +1,1687 @@
+/* ==============================================================================
+   CRC LAGUNILLAS LAGO — ESTILOS PREMIUM PARA FORMULARIO DE CAPTURA
+   Rediseño: Glassmorphism · Micro-animaciones · Mobile-first · Responsive
+   ============================================================================== */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1. DESIGN TOKENS — Paleta vibrante con soporte BM/BCP
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+    /* Marca principal - UV Servicios Brand Blue */
+    --crc-primary: #1e40af;
+    --crc-primary-hover: #1d4ed8;
+    --crc-primary-glow: rgba(30, 64, 175, 0.35);
+    --crc-primary-surface: rgba(30, 64, 175, 0.08);
+
+    /* Éxito / Confirmación */
+    --crc-success: #10b981;
+    --crc-success-hover: #059669;
+    --crc-success-glow: rgba(16, 185, 129, 0.3);
+
+    /* Peligro */
+    --crc-danger: #ef4444;
+    --crc-danger-glow: rgba(239, 68, 68, 0.25);
+
+    /* Métodos de levantamiento */
+    --crc-bm: #3b82f6;
+    --crc-bm-surface: rgba(59, 130, 246, 0.08);
+    --crc-bm-border: rgba(59, 130, 246, 0.25);
+    --crc-bcp: #10b981;
+    --crc-bcp-surface: rgba(16, 185, 129, 0.08);
+    --crc-bcp-border: rgba(16, 185, 129, 0.25);
+
+    /* Superficies y textos */
+    --crc-bg: #f0f2f7;
+    --crc-card: rgba(255, 255, 255, 0.82);
+    --crc-card-solid: #ffffff;
+    --crc-card-border: rgba(255, 255, 255, 0.55);
+    --crc-text: #0f172a;
+    --crc-text-secondary: #475569;
+    --crc-text-muted: #94a3b8;
+    --crc-border: #e2e8f0;
+    --crc-input-bg: #ffffff;
+    --crc-input-border: #cbd5e1;
+    --crc-input-focus: var(--crc-primary);
+
+    /* Tipografía */
+    --crc-font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+    /* Radios y sombras */
+    --crc-radius-sm: 10px;
+    --crc-radius-md: 16px;
+    --crc-radius-lg: 24px;
+    --crc-radius-pill: 999px;
+    --crc-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+    --crc-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+    --crc-shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
+    --crc-shadow-glow: 0 0 20px var(--crc-primary-glow);
+
+    /* Transiciones */
+    --crc-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --crc-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   2. RESET Y BASE
+   ───────────────────────────────────────────────────────────────────────────── */
+body {
+    font-family: var(--crc-font);
+    background: var(--crc-bg);
+    background-image:
+        radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 80% 100%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+    color: var(--crc-text);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   3. CONTENEDOR PRINCIPAL
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-app-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 16px;
+    padding-bottom: 100px; /* Espacio para barra de navegación móvil */
+}
+
+@media (min-width: 769px) {
+    .crc-app-container {
+        max-width: 1080px;
+        margin: 28px auto;
+        padding: 0 24px 60px 24px;
+    }
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   4. HEADER PREMIUM — Gradiente limpio corporativo
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e40af 60%, #1e293b 100%);
+    padding: 24px 28px;
+    border-radius: var(--crc-radius-lg);
+    color: #ffffff;
+    box-shadow: 0 12px 32px rgba(30, 64, 175, 0.25);
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Partícula decorativa izquierda */
+.crc-header::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: -20%;
+    width: 180%;
+    height: 180%;
+    background: radial-gradient(
+        circle at 30% 40%,
+        rgba(99, 102, 241, 0.2) 0%,
+        transparent 50%
+    );
+    pointer-events: none;
+    animation: crc-header-glow 8s ease-in-out infinite alternate;
+}
+
+/* Partícula decorativa derecha */
+.crc-header::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    right: -10%;
+    width: 60%;
+    height: 120%;
+    background: radial-gradient(
+        circle,
+        rgba(16, 185, 129, 0.12) 0%,
+        transparent 60%
+    );
+    pointer-events: none;
+    animation: crc-header-glow 6s ease-in-out 2s infinite alternate-reverse;
+}
+
+@keyframes crc-header-glow {
+    0% { opacity: 0.6; transform: scale(1); }
+    100% { opacity: 1; transform: scale(1.08); }
+}
+
+.crc-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+    gap: 12px;
+}
+
+.crc-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.crc-brand span {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    color: #a5b4fc;
+    text-transform: uppercase;
+}
+
+.crc-brand h1 {
+    font-size: 1.3rem;
+    margin: 0;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+}
+
+/* Pill de usuario — Glassmorphism */
+.crc-user-pill {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 8px 14px;
+    border-radius: var(--crc-radius-pill);
+    font-size: 0.72rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Indicador online con pulso */
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 8px #34d399;
+    display: inline-block;
+    flex-shrink: 0;
+    animation: crc-pulse-online 2s ease-in-out infinite;
+}
+
+.status-indicator.offline {
+    background: var(--crc-danger);
+    box-shadow: 0 0 8px var(--crc-danger);
+    animation: crc-pulse-offline 1.5s ease-in-out infinite;
+}
+
+@keyframes crc-pulse-online {
+    0%, 100% { box-shadow: 0 0 4px #34d399; }
+    50% { box-shadow: 0 0 14px #34d399, 0 0 4px #34d399; }
+}
+
+@keyframes crc-pulse-offline {
+    0%, 100% { box-shadow: 0 0 4px var(--crc-danger); }
+    50% { box-shadow: 0 0 14px var(--crc-danger); }
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   5. STEPPER — Indicador de Pasos con iconos
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-steps-indicator {
+    display: flex;
+    justify-content: space-between;
+    margin: 24px 0 32px 0;
+    position: relative;
+    padding: 0 8px;
+}
+
+/* Línea de fondo */
+.crc-steps-indicator::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    background: var(--crc-border);
+    border-radius: 4px;
+    z-index: 1;
+}
+
+/* Barra de progreso animada */
+.crc-step-progress-bar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--crc-primary), #818cf8);
+    border-radius: 4px;
+    z-index: 2;
+    transition: width 0.5s var(--crc-spring);
+    width: 0%;
+    box-shadow: 0 0 8px var(--crc-primary-glow);
+}
+
+/* Nodo individual del paso */
+.crc-step-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 3;
+    cursor: pointer;
+    gap: 8px;
+}
+
+/* Círculo del paso */
+.crc-step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--crc-card-solid);
+    border: 2.5px solid var(--crc-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--crc-text-muted);
+    transition: all 0.4s var(--crc-spring);
+    box-shadow: var(--crc-shadow-sm);
+}
+
+/* Paso activo */
+.crc-step-node.active .crc-step-circle {
+    background: linear-gradient(135deg, var(--crc-primary), #818cf8);
+    border-color: transparent;
+    color: #ffffff;
+    box-shadow: 0 6px 20px var(--crc-primary-glow);
+    transform: scale(1.1);
+}
+
+/* Paso completado */
+.crc-step-node.completed .crc-step-circle {
+    background: linear-gradient(135deg, var(--crc-success), #34d399);
+    border-color: transparent;
+    color: #ffffff;
+    box-shadow: 0 4px 14px var(--crc-success-glow);
+}
+
+/* Label del paso */
+.crc-step-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--crc-text-muted);
+    text-align: center;
+    transition: color 0.3s var(--crc-ease);
+    letter-spacing: 0.02em;
+}
+
+.crc-step-node.active .crc-step-label {
+    color: var(--crc-primary);
+    font-weight: 800;
+}
+
+.crc-step-node.completed .crc-step-label {
+    color: var(--crc-success);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   6. TARJETAS — Glassmorphism & Formularios
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-form-wrapper {
+    background: var(--crc-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--crc-card-border);
+    border-radius: var(--crc-radius-lg);
+    padding: 28px 24px;
+    box-shadow: var(--crc-shadow-md);
+    transition: box-shadow 0.3s var(--crc-ease);
+}
+
+/* Animación de entrada de contenido de paso */
+.crc-form-step-content {
+    display: none;
+    animation: crc-slideUp 0.45s var(--crc-ease) both;
+    min-height: 320px;
+}
+
+@media (min-width: 768px) {
+    .crc-form-step-content {
+        min-height: 420px;
+    }
+}
+
+.crc-form-step-content.active {
+    display: block;
+}
+
+@keyframes crc-slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   7. GRID DEL FORMULARIO
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+
+.crc-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.crc-field-group.full-width {
+    grid-column: 1 / -1;
+}
+
+/* Labels */
+.crc-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--crc-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    letter-spacing: 0.01em;
+}
+
+.crc-label span.required {
+    color: var(--crc-danger);
+    font-weight: 800;
+}
+
+/* Inputs, selects, textareas - Forzado a MAYÚSCULAS */
+.crc-input, .crc-select, .crc-textarea {
+    font-family: var(--crc-font);
+    background: var(--crc-input-bg);
+    border: 1.5px solid var(--crc-input-border);
+    border-radius: var(--crc-radius-sm);
+    padding: 12px 14px;
+    font-size: 0.92rem;
+    color: var(--crc-text);
+    text-transform: uppercase;
+    transition: all 0.25s var(--crc-ease);
+    box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.03);
+    width: 100%;
+}
+
+.crc-input::placeholder, .crc-textarea::placeholder {
+    text-transform: none;
+}
+
+.crc-input:focus, .crc-select:focus, .crc-textarea:focus {
+    outline: none;
+    border-color: var(--crc-input-focus);
+    box-shadow:
+        0 0 0 4px var(--crc-primary-surface),
+        inset 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.crc-input:disabled, .crc-select:disabled, .crc-textarea:disabled {
+    background: #f8fafc;
+    color: var(--crc-text-muted);
+    cursor: not-allowed;
+    border-color: var(--crc-border);
+}
+
+.crc-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   8. SECCIONES TÉCNICAS — BM y BCP
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-section-header {
+    margin: 24px 0 14px 0;
+    padding: 14px 16px;
+    border-radius: var(--crc-radius-md);
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Fondo contextual según el bloque padre (se aplica via JS toggle) */
+#section-bm-params .crc-section-header {
+    background: var(--crc-bm-surface);
+    border-left: 4px solid var(--crc-bm);
+}
+
+#section-bcp-params .crc-section-header {
+    background: var(--crc-bcp-surface);
+    border-left: 4px solid var(--crc-bcp);
+}
+
+.crc-section-header h3 {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--crc-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#section-bm-params .crc-section-header h3 { color: #1d4ed8; }
+#section-bcp-params .crc-section-header h3 { color: #047857; }
+
+/* Badge del método */
+.crc-badge-method {
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: var(--crc-radius-pill);
+    color: #ffffff;
+    letter-spacing: 0.5px;
+}
+
+.crc-badge-method.bm {
+    background: linear-gradient(135deg, var(--crc-bm), #60a5fa);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.crc-badge-method.bcp {
+    background: linear-gradient(135deg, var(--crc-bcp), #34d399);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Inputs dentro de las secciones técnicas — borde lateral sutil */
+#section-bm-params .crc-input:focus {
+    border-color: var(--crc-bm);
+    box-shadow: 0 0 0 4px var(--crc-bm-surface), inset 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+#section-bcp-params .crc-input:focus,
+#section-bcp-params .crc-select:focus {
+    border-color: var(--crc-bcp);
+    box-shadow: 0 0 0 4px var(--crc-bcp-surface), inset 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+/* Attachment Previews */
+.crc-previews-grid {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.crc-preview-thumb-card {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 2px solid #cbd5e1;
+    background-color: #f8fafc;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    flex-shrink: 0;
+}
+
+.crc-preview-thumb-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.crc-preview-remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: #ef4444;
+    color: #ffffff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: transform 0.15s ease;
+}
+
+.crc-preview-remove-btn:hover {
+    transform: scale(1.1);
+}
+
+.crc-previews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.crc-preview-file-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.crc-preview-file-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.crc-preview-file-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   9. BOTONES — Gradientes premium con feedback táctil
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-form-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 32px;
+    gap: 12px;
+}
+
+/* Disposición responsiva para botones (Escritorio vs Móvil) */
+.crc-desktop-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.crc-center-action {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+@media (min-width: 769px) {
+    .crc-desktop-actions {
+        flex-direction: row-reverse;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .crc-desktop-actions .crc-btn,
+    .crc-center-action .crc-btn {
+        width: auto !important;
+        min-width: 240px;
+        max-width: 340px;
+    }
+
+    .crc-form-actions {
+        justify-content: flex-end;
+        gap: 16px;
+    }
+
+    .crc-form-actions .crc-btn {
+        width: auto !important;
+        min-width: 180px;
+        max-width: 280px;
+    }
+}
+
+.crc-btn {
+    font-family: var(--crc-font);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    padding: 14px 24px;
+    border-radius: var(--crc-radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s var(--crc-ease);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Efecto ripple genérico */
+.crc-btn:active {
+    transform: scale(0.97);
+}
+
+.crc-btn-secondary {
+    background: var(--crc-card-solid);
+    color: var(--crc-text-secondary);
+    border: 1.5px solid var(--crc-border);
+}
+
+.crc-btn-secondary:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.crc-btn-primary {
+    background: linear-gradient(135deg, var(--crc-primary), #818cf8);
+    color: #ffffff;
+    box-shadow: 0 6px 20px var(--crc-primary-glow);
+}
+
+.crc-btn-primary:hover {
+    background: linear-gradient(135deg, var(--crc-primary-hover), var(--crc-primary));
+    box-shadow: 0 8px 28px var(--crc-primary-glow);
+    transform: translateY(-1px);
+}
+
+.crc-btn-primary:active {
+    transform: translateY(0) scale(0.97);
+}
+
+.crc-btn-success {
+    background: linear-gradient(135deg, #059669, var(--crc-success), #34d399);
+    color: #ffffff;
+    box-shadow: 0 6px 20px var(--crc-success-glow);
+}
+
+.crc-btn-success:hover {
+    background: linear-gradient(135deg, #047857, #059669, var(--crc-success));
+    box-shadow: 0 8px 28px var(--crc-success-glow);
+    transform: translateY(-1px);
+}
+
+.crc-btn-success:active {
+    transform: translateY(0) scale(0.97);
+}
+
+.crc-btn:disabled {
+    background: #e2e8f0 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   10. BANNER DE BORRADOR / ESTADO ACTIVO
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-draft-banner {
+    background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+    border: 1px solid #bfdbfe;
+    color: #1e3a8a;
+    padding: 14px 18px;
+    border-radius: var(--crc-radius-md);
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--crc-shadow-sm);
+}
+
+.crc-draft-banner button {
+    background: transparent;
+    border: none;
+    color: #2563eb;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    transition: color 0.2s var(--crc-ease);
+}
+
+.crc-draft-banner button:hover {
+    color: #1d4ed8;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   11. RESUMEN (PASO 4) — Cards premium
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-summary-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.crc-summary-section {
+    background: linear-gradient(180deg, #f8fafc, #ffffff);
+    border: 1px solid var(--crc-border);
+    border-radius: var(--crc-radius-md);
+    padding: 18px;
+    box-shadow: var(--crc-shadow-sm);
+}
+
+.crc-summary-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--crc-text-muted);
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.crc-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+}
+
+.crc-summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.crc-summary-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--crc-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.crc-summary-value {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--crc-text);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   12. LISTA DE POZOS VISITADOS — Cards con gradientes
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-journey-list {
+    margin-top: 28px;
+    background: var(--crc-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--crc-card-border);
+    border-radius: var(--crc-radius-lg);
+    padding: 22px;
+    box-shadow: var(--crc-shadow-md);
+}
+
+.crc-journey-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--crc-border);
+}
+
+.crc-journey-list-header h2 {
+    font-size: 1rem;
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+/* Tarjeta individual de pozo */
+.crc-well-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-radius: var(--crc-radius-sm);
+    margin-bottom: 8px;
+    transition: all 0.25s var(--crc-ease);
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    border: 1px solid var(--crc-border);
+    gap: 12px;
+    min-height: 72px;
+}
+
+.crc-well-row:last-child {
+    margin-bottom: 0;
+}
+
+.crc-well-row:hover {
+    border-color: #cbd5e1;
+    box-shadow: var(--crc-shadow-md);
+    transform: translateY(-2px);
+}
+
+/* Variante BM */
+.crc-well-row[data-method="BM"] {
+    border-left: 4px solid var(--crc-bm);
+    background: linear-gradient(135deg, var(--crc-bm-surface), #ffffff);
+}
+
+/* Variante BCP */
+.crc-well-row[data-method="BCP"] {
+    border-left: 4px solid var(--crc-bcp);
+    background: linear-gradient(135deg, var(--crc-bcp-surface), #ffffff);
+}
+
+.crc-well-name {
+    font-weight: 700;
+    font-size: 0.92rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.crc-well-name > div {
+    min-width: 0;
+}
+
+/* Icono del pozo */
+.crc-well-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--crc-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.crc-well-icon.bm {
+    background: var(--crc-bm-surface);
+    color: var(--crc-bm);
+}
+
+.crc-well-icon.bcp {
+    background: var(--crc-bcp-surface);
+    color: var(--crc-bcp);
+}
+
+/* Métricas inline del pozo */
+.crc-well-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.crc-well-metric-badge {
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: var(--crc-radius-pill);
+    background: #f1f5f9;
+    color: var(--crc-text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+.crc-well-metric-badge i {
+    font-size: 0.58rem;
+}
+
+/* Colores dinámicos para %AyS */
+.crc-well-metric-badge.ays-good { background: #dcfce7; color: #166534; }
+.crc-well-metric-badge.ays-warning { background: #fef9c3; color: #854d0e; }
+.crc-well-metric-badge.ays-danger { background: #fee2e2; color: #991b1b; }
+
+/* Tag del tipo de pozo */
+.crc-well-type-tag {
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 4px 8px;
+    border-radius: var(--crc-radius-pill);
+    color: #ffffff;
+    letter-spacing: 0.3px;
+}
+
+/* Acciones del pozo (Botones Editar / Eliminar prominentes) */
+.crc-well-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.crc-action-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--crc-radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    cursor: pointer;
+    border: 1.5px solid #cbd5e1;
+    background: #f8fafc;
+    color: #2563eb;
+    transition: all 0.2s var(--crc-ease);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+}
+
+.crc-action-icon:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.crc-action-icon.delete {
+    color: #ef4444;
+    background: #fff5f5;
+    border-color: #fca5a5;
+}
+
+.crc-action-icon.delete:hover {
+    background: #fee2e2;
+    border-color: #f87171;
+    color: #b91c1c;
+    transform: translateY(-1px);
+}
+
+/* Barra de estado de jornada activa */
+.crc-active-status-bar {
+    background: #f0fdf4;
+    border: 1.5px solid #bbf7d0;
+    color: #166534;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: var(--crc-radius-md);
+    box-shadow: 0 4px 12px rgba(22, 101, 52, 0.06);
+}
+
+.crc-active-status-info {
+    font-size: 0.88rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.crc-active-status-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.crc-btn-header-action {
+    padding: 8px 14px;
+    border-radius: var(--crc-radius-sm);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none !important;
+    transition: all 0.2s var(--crc-ease);
+    outline: none;
+    line-height: 1.2;
+}
+
+.crc-btn-header-action.pause {
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+    color: #0369a1;
+}
+
+.crc-btn-header-action.pause:hover {
+    background: #bae6fd;
+    color: #0284c7;
+    transform: translateY(-1px);
+}
+
+.crc-btn-header-action.cancel {
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+}
+
+.crc-btn-header-action.cancel:hover {
+    background: #fca5a5;
+    color: #991b1b;
+    transform: translateY(-1px);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   13. INICIO DE JORNADA — Panel de bienvenida
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-start-journey-panel {
+    text-align: center;
+    padding: 48px 24px;
+}
+
+.crc-start-journey-icon {
+    font-size: 3.5rem;
+    margin-bottom: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--crc-primary-surface);
+    color: var(--crc-primary);
+}
+
+@keyframes crc-icon-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 var(--crc-primary-glow); }
+    50% { transform: scale(1.06); box-shadow: 0 0 0 12px transparent; }
+}
+
+.crc-start-journey-panel h2 {
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin: 0 0 8px 0;
+    color: var(--crc-text);
+}
+
+.crc-start-journey-panel p {
+    font-size: 0.88rem;
+    color: var(--crc-text-muted);
+    max-width: 340px;
+    margin: 0 auto 28px auto;
+    line-height: 1.5;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   14. ZONA DE ADJUNTOS — Dropzone estilizada
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-attachments-zone {
+    padding: 20px;
+    border: 2px dashed var(--crc-border);
+    border-radius: var(--crc-radius-md);
+    background: linear-gradient(180deg, #fafbfd, #f1f5f9);
+    text-align: center;
+    transition: all 0.3s var(--crc-ease);
+    cursor: pointer;
+}
+
+.crc-attachments-zone:hover {
+    border-color: var(--crc-primary);
+    background: var(--crc-primary-surface);
+}
+
+.crc-attachments-zone i {
+    font-size: 1.8rem;
+    color: var(--crc-text-muted);
+    margin-bottom: 8px;
+    display: block;
+}
+
+.crc-attachments-zone span {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--crc-text-secondary);
+    display: block;
+}
+
+.crc-attachments-zone small {
+    font-size: 0.7rem;
+    color: var(--crc-text-muted);
+    display: block;
+    margin-top: 4px;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   15. BARRA DE NAVEGACIÓN INFERIOR — Glassmorphism móvil
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 72px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid rgba(15, 23, 42, 0.06);
+    display: none; /* Oculto en escritorio por defecto */
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.04);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.crc-nav-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: transparent;
+    border: none;
+    color: var(--crc-text-muted);
+    font-size: 0.62rem;
+    font-weight: 700;
+    cursor: pointer;
+    gap: 4px;
+    transition: all 0.25s var(--crc-ease);
+    padding: 6px 12px;
+    border-radius: var(--crc-radius-sm);
+    position: relative;
+}
+
+.crc-nav-action i {
+    font-size: 1.2rem;
+    transition: transform 0.25s var(--crc-spring);
+}
+
+.crc-nav-action:hover,
+.crc-nav-action.active {
+    color: var(--crc-primary);
+}
+
+.crc-nav-action.active i {
+    transform: scale(1.15);
+}
+
+.crc-nav-action.logout:hover {
+    color: var(--crc-danger);
+}
+
+/* Badge de sincronización */
+.crc-well-count-badge {
+    background: var(--crc-danger);
+    color: #ffffff;
+    border-radius: var(--crc-radius-pill);
+    padding: 2px 6px;
+    font-size: 0.58rem;
+    font-weight: 800;
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    text-align: center;
+    box-shadow: 0 2px 6px var(--crc-danger-glow);
+    animation: crc-badge-pop 0.3s var(--crc-spring);
+}
+
+@keyframes crc-badge-pop {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   16. SECCIÓN DE PRODUCCIÓN (Paso 3) — Encabezados visuales
+   ───────────────────────────────────────────────────────────────────────────── */
+/* Encabezado de sección dentro del paso 3 */
+[data-step="3"] .crc-section-header {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.06), rgba(16, 185, 129, 0.06));
+    border-left: 4px solid #6366f1;
+}
+
+[data-step="3"] .crc-section-header h3 {
+    color: var(--crc-text);
+}
+
+/* Campo %AyS con color dinámico — clases aplicadas por JS */
+.crc-ays-good { color: #16a34a !important; }
+.crc-ays-warning { color: #d97706 !important; }
+.crc-ays-danger { color: #dc2626 !important; }
+
+
+/* === Cambio de Diseño Móvil (≤ 1024px) === */
+@media (max-width: 1024px) {
+    .crc-bottom-nav {
+        display: flex;
+    }
+}
+
+/* === Tablet (≤ 768px) === */
+@media (max-width: 768px) {
+    .crc-app-container {
+        padding: 12px;
+        padding-bottom: 96px;
+    }
+
+    .crc-header {
+        padding: 22px 18px;
+        border-radius: 20px;
+    }
+
+    .crc-brand h1 {
+        font-size: 1.15rem;
+    }
+
+    .crc-form-wrapper {
+        padding: 22px 18px;
+        border-radius: 20px;
+    }
+
+    .crc-journey-list {
+        padding: 18px;
+    }
+}
+
+/* === Teléfono (≤ 580px) === */
+@media (max-width: 580px) {
+    html, body {
+        overflow-x: hidden !important;
+        width: 100vw;
+    }
+
+    .main-container.field-main-container {
+        padding: 8px 8px 90px 8px !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+    }
+
+    .crc-app-container {
+        padding: 4px 4px 80px 4px !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .crc-header {
+        padding: 16px 14px !important;
+        margin-bottom: 12px !important;
+        border-radius: 16px !important;
+    }
+
+    .crc-active-status-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px 14px;
+    }
+
+    .crc-active-status-actions {
+        width: 100%;
+        display: flex;
+        gap: 6px;
+    }
+
+    .crc-active-status-actions .crc-btn-header-action {
+        flex: 1;
+        justify-content: center;
+        text-align: center;
+        padding: 10px 8px;
+    }
+
+    .crc-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .crc-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .crc-header-flex {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .crc-user-pill {
+        max-width: 100%;
+        width: fit-content;
+    }
+
+    .crc-form-actions {
+        flex-direction: column-reverse;
+        gap: 10px;
+    }
+
+    .crc-form-actions .crc-btn {
+        width: 100%;
+    }
+
+    .crc-btn {
+        padding: 14px 18px;
+        font-size: 0.85rem;
+    }
+
+    .crc-well-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 14px;
+    }
+
+    .crc-well-row > div:last-child {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .crc-section-header {
+        padding: 12px 14px;
+    }
+
+    .crc-section-header h3 {
+        font-size: 0.8rem;
+    }
+}
+
+/* === Teléfono pequeño (≤ 420px) === */
+@media (max-width: 420px) {
+    .crc-app-container {
+        padding: 6px;
+        padding-bottom: 90px;
+    }
+
+    .crc-header {
+        padding: 16px 12px;
+        border-radius: 16px;
+        margin-bottom: 14px;
+    }
+
+    .crc-brand span {
+        font-size: 0.62rem;
+    }
+
+    .crc-brand h1 {
+        font-size: 1.02rem;
+    }
+
+    .crc-form-wrapper {
+        padding: 16px 12px;
+        border-radius: 18px;
+    }
+
+    .crc-step-circle {
+        width: 34px;
+        height: 34px;
+        font-size: 0.78rem;
+    }
+
+    .crc-step-label {
+        font-size: 0.6rem;
+    }
+
+    .crc-steps-indicator::before {
+        top: 17px;
+    }
+
+    .crc-step-progress-bar {
+        top: 17px;
+    }
+
+    .crc-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .crc-journey-list {
+        padding: 14px;
+        border-radius: 18px;
+    }
+
+    .crc-journey-list-header h2 {
+        font-size: 0.9rem;
+    }
+
+    .crc-well-metrics {
+        gap: 4px;
+    }
+
+    .crc-well-metric-badge {
+        font-size: 0.58rem;
+        padding: 2px 6px;
+    }
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   18. UTILIDADES Y ANIMACIONES EXTRAS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Animación de entrada escalonada para los pozos */
+@keyframes crc-stagger-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.crc-well-row {
+    animation: crc-stagger-in 0.35s var(--crc-ease) both;
+}
+
+.crc-well-row:nth-child(1) { animation-delay: 0s; }
+.crc-well-row:nth-child(2) { animation-delay: 0.06s; }
+.crc-well-row:nth-child(3) { animation-delay: 0.12s; }
+.crc-well-row:nth-child(4) { animation-delay: 0.18s; }
+.crc-well-row:nth-child(5) { animation-delay: 0.24s; }
+.crc-well-row:nth-child(6) { animation-delay: 0.3s; }
+.crc-well-row:nth-child(7) { animation-delay: 0.36s; }
+.crc-well-row:nth-child(8) { animation-delay: 0.42s; }
+.crc-well-row:nth-child(9) { animation-delay: 0.48s; }
+.crc-well-row:nth-child(10) { animation-delay: 0.54s; }
+
+/* Scrollbar premium para la lista */
+.crc-journey-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.crc-journey-list::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: var(--crc-radius-pill);
+}
+
+/* Focus visible para accesibilidad */
+:focus-visible {
+    outline: 2px solid var(--crc-primary);
+    outline-offset: 2px;
+}
+
+/* Filter Chips for Journey History */
+.crc-filter-chip {
+    padding: 6px 14px;
+    border-radius: 9999px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+.crc-filter-chip:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+.crc-filter-chip.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.18);
+}
+
+/* Status badges for Journey History */
+.field-history-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    border-radius: 9999px;
+    letter-spacing: 0.5px;
+    margin-left: 8px;
+    border: 1px solid transparent;
+}
+.field-history-status-badge.status-draft {
+    background-color: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+.field-history-status-badge.status-submitted {
+    background-color: #fef3c7;
+    color: #b45309;
+    border-color: #fde68a;
+}
+.field-history-status-badge.status-review {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+.field-history-status-badge.status-approved {
+    background-color: #d1fae5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+.field-history-status-badge.status-rejected {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+/* Colores para los tags de tipo de pozo (BM / BCP) en el historial */
+.crc-well-type-tag.bm {
+    background-color: #3b82f6 !important;
+}
+.crc-well-type-tag.bcp {
+    background-color: #10b981 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   19. HISTORIAL DE JORNADAS — Responsividad Móvil (PWA)
+   ───────────────────────────────────────────────────────────────────────────── */
+.crc-history-filters {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 6px;
+    margin-bottom: 16px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.crc-history-filters::-webkit-scrollbar {
+    display: none;
+}
+
+.crc-history-table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 10px;
+}
+
+@media (max-width: 640px) {
+    .crc-journey-item {
+        padding: 14px !important;
+        border-radius: 14px !important;
+    }
+
+    .crc-history-item-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    .crc-history-item-actions {
+        width: 100% !important;
+        display: flex !important;
+        gap: 8px !important;
+    }
+
+    .crc-history-item-actions .crc-btn {
+        flex: 1 !important;
+        justify-content: center !important;
+        padding: 10px 8px !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Transformar tabla de historial en lista de tarjetas compactas en móviles */
+    .crc-history-table {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    .crc-history-table thead {
+        display: none !important;
+    }
+
+    .crc-history-table tbody {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    .crc-history-table tr {
+        display: flex !important;
+        flex-direction: column !important;
+        background: #f8fafc !important;
+        padding: 10px 12px !important;
+        border-radius: 10px !important;
+        border: 1px solid #e2e8f0 !important;
+        gap: 4px !important;
+    }
+
+    .crc-history-table td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 4px 0 !important;
+        border: none !important;
+        font-size: 0.82rem !important;
+    }
+
+    .crc-history-table td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: #64748b;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+}

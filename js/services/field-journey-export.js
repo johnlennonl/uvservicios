@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { getActiveOperationalScope, getOperationalScopeFileTag } from './operational-scope-context.js';
 
 export const REPORT_COLUMNS = [
     ['POZO', 'pozo'],
@@ -209,6 +210,82 @@ const WELL_PREVIEW_SECTIONS = [
     { title: 'Observaciones', items: [['Observaciones', 'observaciones_pozo']] }
 ];
 
+export const CRC_REPORT_COLUMNS = [
+    ['POZO', 'pozo'],
+    ['CAMPO', 'campo'],
+    ['EF', 'ef'],
+    ['ESTADO', 'estado'],
+    ['CATEGORIA', 'categoria'],
+    ['BRUTA', 'bruta'],
+    ['NETA', 'neta'],
+    ['%AyS', 'ays_percentage'],
+    ['FECHA', 'fecha'],
+    ['MES', 'mes'],
+    ['HORA', 'hora'],
+    ['ACTIVIDAD', 'actividad'],
+    ['ESTATUS', 'estatus'],
+    ['MARCA UNIDAD DE BOMBEO', 'bm_marca'],
+    ['MODELO UNIDAD DE BOMBEO', 'bm_modelo'],
+    ['TIRO', 'bm_tiro'],
+    ['RECORRIDO (IN)', 'bm_recorrido'],
+    ['SPM', 'bm_spm'],
+    ['ESTADO UNIDAD DE BOMBEO', 'bm_estado_unidad'],
+    ['THP (PSI)', 'thp_psi'],
+    ['CHP (PSI)', 'chp_psi'],
+    ['STUFFING (SUPERFICIE)', 'stuffing'],
+    ['RPM', 'bcp_rpm'],
+    ['TORQUE [LBF-IN]', 'bcp_torque'],
+    ['AMPERAJE (A)', 'bcp_amperaje'],
+    ['MODELO CABEZAL DE ROTACION', 'bcp_modelo_cabezal'],
+    ['MOTORREDUCTOR', 'bcp_motorreductor'],
+    ['STUFFING (BCP)', 'bcp_stuffing'],
+    ['NIVEL (FT)', 'well_nivel'],
+    ['SUMERGENCIA (FT)', 'well_sumergencia'],
+    ['PRESION INICIAL', 'well_presion_inicial'],
+    ['PRESION FINAL', 'well_presion_final'],
+    ['TIEMPO', 'well_tiempo_prueba'],
+    ['TÉCNICO 1', 'tecnico_1'],
+    ['TÉCNICO 2', 'tecnico_2'],
+    ['OBSERVACIONES', 'observaciones_pozo']
+];
+
+export function getExcelLayoutForScope(operationalScope) {
+    const scope = operationalScope || getActiveOperationalScope();
+    if (scope === 'crc_ll' || scope === 'ccrc_ll') {
+        const crcSectionGroups = [
+            { title: 'Informacion general', fields: ['pozo', 'campo', 'ef', 'estado', 'categoria', 'bruta', 'neta', 'ays_percentage'] },
+            { title: 'Jornada', fields: ['fecha', 'mes', 'hora', 'actividad', 'estatus'] },
+            { title: 'Bombeo Mecanico', fields: ['bm_marca', 'bm_modelo', 'bm_tiro', 'bm_recorrido', 'bm_spm', 'bm_estado_unidad'] },
+            { title: 'Superficie', fields: ['thp_psi', 'chp_psi', 'stuffing'] },
+            { title: 'Bombeo por Cavidad Progresiva', fields: ['bcp_rpm', 'bcp_torque', 'bcp_amperaje', 'bcp_modelo_cabezal', 'bcp_motorreductor', 'bcp_stuffing'] },
+            { title: 'Nivel', fields: ['well_nivel', 'well_sumergencia'] },
+            { title: 'Prueba de Presion', fields: ['well_presion_inicial', 'well_presion_final', 'well_tiempo_prueba'] },
+            { title: 'Tecnicos', fields: ['tecnico_1', 'tecnico_2'] },
+            { title: 'Observaciones', fields: ['observaciones_pozo'] }
+        ];
+
+        const reportColumnMap = new Map(CRC_REPORT_COLUMNS.map(([label, fieldName]) => [fieldName, { label, fieldName }]));
+        const exportColumns = crcSectionGroups.flatMap(group => (
+            group.fields.map(fieldName => {
+                const column = reportColumnMap.get(fieldName);
+                return column ? { ...column, groupTitle: group.title } : null;
+            }).filter(Boolean)
+        ));
+
+        return {
+            sectionGroups: crcSectionGroups,
+            exportColumns: exportColumns,
+            titleText: 'TOMA DE PARAMETROS OPERACIONALES - CONTRATO CCRC LAGUNILLAS LAGO'
+        };
+    }
+
+    return {
+        sectionGroups: EXCEL_SECTION_GROUPS,
+        exportColumns: EXCEL_EXPORT_COLUMNS,
+        titleText: 'REPORTE DE ACOMPANAMIENTO POZOS CON BOMBAS ELECTROSUMERGIBLES'
+    };
+}
+
 export async function exportFieldJourneyToExcel(journey, records, excelJs = window.ExcelJS) {
     if (!excelJs) {
         throw new Error('La libreria de Excel no esta disponible en esta vista.');
@@ -219,6 +296,9 @@ export async function exportFieldJourneyToExcel(journey, records, excelJs = wind
     if (normalizedRecords.length === 0) {
         throw new Error('La jornada no tiene pozos para exportar.');
     }
+
+    const scope = journey.operational_scope || records[0]?.operational_scope || '';
+    const layout = getExcelLayoutForScope(scope);
 
     const workbook = new excelJs.Workbook();
     workbook.creator = 'UV Servicios Campo';
@@ -241,7 +321,7 @@ export async function exportFieldJourneyToExcel(journey, records, excelJs = wind
     }
 
     buildExcelSummarySheet(summarySheet, normalizedJourney, normalizedRecords);
-    buildExcelDetailSheet(detailSheet, normalizedJourney, normalizedRecords);
+    buildExcelDetailSheet(detailSheet, normalizedJourney, normalizedRecords, layout.exportColumns, layout.sectionGroups, layout.titleText);
 
     const buffer = await workbook.xlsx.writeBuffer();
     downloadBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), buildJourneyExcelFileName(normalizedJourney));
@@ -256,6 +336,9 @@ export async function exportHistoricalFieldReportsToExcel(records = [], filters 
     if (normalizedRecords.length === 0) {
         throw new Error('No hay registros historicos para exportar con los filtros actuales.');
     }
+
+    const scope = filters.operationalScope || records[0]?.operational_scope || '';
+    const layout = getExcelLayoutForScope(scope);
 
     const workbook = new excelJs.Workbook();
     workbook.creator = 'UV Servicios Campo';
@@ -278,7 +361,7 @@ export async function exportHistoricalFieldReportsToExcel(records = [], filters 
     }
 
     buildHistoricalExcelSummarySheet(summarySheet, normalizedRecords, filters);
-    buildHistoricalExcelDetailSheet(detailSheet, normalizedRecords, filters);
+    buildHistoricalExcelDetailSheet(detailSheet, normalizedRecords, filters, layout.exportColumns, layout.sectionGroups, layout.titleText);
 
     const buffer = await workbook.xlsx.writeBuffer();
     downloadBlob(
@@ -306,9 +389,14 @@ export async function openFieldJourneyPdf(journey, records, reviewLog = [], targ
             throw new Error('La jornada no tiene pozos para exportar.');
         }
 
+    const isCrc = normalizedJourney.operational_scope === 'crc_ll' || normalizedJourney.operational_scope === 'ccrc_ll' || getActiveOperationalScope() === 'crc_ll' || getActiveOperationalScope() === 'ccrc_ll';
     const isVirtual = String(journey.id || '').startsWith('virtual_');
-    const reportTitle = isVirtual ? 'Ticket Diario de Monitoreo' : 'Reporte de acompañamiento pozos con bombas electrosumergibles';
-    const documentTitle = isVirtual ? 'Ticket Diario' : 'Consolidado Campo';
+    const contractTag = isCrc ? 'CCRC_LAGUNILLAS_LAGO' : 'BES';
+    const dateStr = normalizedJourney.fecha || new Date().toISOString().slice(0, 10);
+    const shiftTag = isCrc ? 'JORNADA_COMPLETA' : String(normalizedJourney.jornada || 'DIURNA').toUpperCase().replace(/\s+/g, '_');
+    
+    const reportTitle = isCrc ? 'TOMA DE PARÁMETROS OPERACIONALES - CONTRATO CCRC LAGUNILLAS LAGO' : (isVirtual ? 'Ticket Diario de Monitoreo' : 'Reporte de acompañamiento pozos con bombas electrosumergibles');
+    const documentTitle = `REPORTE_CAMPO_${contractTag}_${dateStr}_${shiftTag}`;
     const logoUrl = window.location.origin + '/img/UV-SERVICES-Logo-vectorial-sin-fondo.webp';
 
     // 1. Obtener documentos de soporte vinculados a esta jornada en Supabase
@@ -912,7 +1000,128 @@ function buildPdfWellMarkup(journey, pozoName, recordsList = [], soportesDocs = 
         `;
     }
 
-    // Render each reading as a separate row in the same table
+    const activeScope = recordsList[0]?.operational_scope || journey?.operational_scope || getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
+
+    if (isCrc) {
+        const rowsHtml = recordsList.map(record => {
+            const method = record.lift_method || '—';
+            
+            // Caudales
+            const BrutaVal = record.bruta !== undefined && record.bruta !== null ? `${record.bruta} B` : '--';
+            const NetaVal = record.neta !== undefined && record.neta !== null ? `${record.neta} B` : '--';
+            const AysVal = record.ays_percentage !== undefined && record.ays_percentage !== null ? `${parseFloat(record.ays_percentage).toFixed(1)}%` : '--';
+            
+            // Presiones
+            const ThpVal = record.thp_psi !== undefined && record.thp_psi !== null ? `${record.thp_psi} PSI` : '--';
+            const ChpVal = record.chp_psi !== undefined && record.chp_psi !== null ? `${record.chp_psi} PSI` : '--';
+            const StuffingVal = record.stuffing || '--';
+
+            // Parámetros dinámicos del método
+            let methodParamsHtml = '';
+            if (method === 'BM') {
+                methodParamsHtml = `
+                    <div style="font-size: 11px; line-height: 1.25;">
+                        <div><span style="color: #64748b;">Marca UB:</span> <b>${escapeHtml(record.bm_marca || '—')}</b></div>
+                        <div><span style="color: #64748b;">Modelo:</span> <b>${escapeHtml(record.bm_modelo || '—')}</b></div>
+                        <div><span style="color: #64748b;">Tiro/Rec:</span> <b>${escapeHtml(record.bm_tiro || '—')} / ${record.bm_recorrido || '—'}"</b></div>
+                        <div><span style="color: #2563eb; font-weight:700;">SPM:</span> <b style="color:#1d4ed8;">${record.bm_spm || '—'}</b></div>
+                        <div><span style="color: #64748b;">Estado:</span> <b>${escapeHtml(record.bm_estado_unidad || '—')}</b></div>
+                    </div>
+                `;
+            } else if (method === 'BCP') {
+                methodParamsHtml = `
+                    <div style="font-size: 11px; line-height: 1.25;">
+                        <div><span style="color: #10b981; font-weight:700;">RPM:</span> <b style="color:#047857;">${record.bcp_rpm || '—'}</b></div>
+                        <div><span style="color: #10b981; font-weight:700;">Torque:</span> <b style="color:#047857;">${record.bcp_torque || '—'} Lbf</b></div>
+                        <div><span style="color: #64748b;">Amp:</span> <b>${record.bcp_amperaje || '—'} A</b></div>
+                        <div><span style="color: #64748b;">Cabezal:</span> <b>${escapeHtml(record.bcp_modelo_cabezal || '—')}</b></div>
+                        <div><span style="color: #64748b;">Stuffing:</span> <b>${escapeHtml(record.bcp_stuffing || '—')}</b></div>
+                    </div>
+                `;
+            } else {
+                methodParamsHtml = '<span style="color:#94a3b8; font-size:11px;">No definido</span>';
+            }
+
+            // Nivel y Pruebas
+            const LevelStr = record.well_nivel !== undefined && record.well_nivel !== null ? `${record.well_nivel} FT` : '—';
+            const SumergenceStr = record.well_sumergencia !== undefined && record.well_sumergencia !== null ? `${record.well_sumergencia} FT` : '—';
+            const PresIniStr = record.well_presion_inicial !== undefined && record.well_presion_inicial !== null ? `${record.well_presion_inicial} PSI` : '—';
+            const PresFinStr = record.well_presion_final !== undefined && record.well_presion_final !== null ? `${record.well_presion_final} PSI` : '—';
+            const TestTimeStr = record.well_tiempo_prueba || '—';
+
+            const isRun = ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(String(record.estatus).toUpperCase().trim());
+
+            return `
+                <tr>
+                    <td style="font-weight: 700;">${escapeHtml(record.fecha || journey.fecha || '--')}<br><span style="font-size: 10px; color: #64748b; font-weight: 500;">${escapeHtml(record.hora || '--')}</span></td>
+                    <td style="font-weight: 800; text-align: center;"><span style="background:${method === 'BM' ? '#3b82f6' : '#10b981'}; color:#fff; padding:2px 6px; border-radius:4px; font-size:9px; font-weight: 800; text-transform: uppercase;">${method}</span></td>
+                    <td>
+                        <div style="font-size: 11px; line-height: 1.25;">
+                            <div><span style="color: #64748b;">Bruta:</span> <b>${BrutaVal}</b></div>
+                            <div><span style="color: #64748b;">Neta:</span> <b>${NetaVal}</b></div>
+                            <div><span style="color: #0f766e; font-weight:700;">%AyS:</span> <b style="color:#0f766e;">${AysVal}</b></div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-size: 11px; line-height: 1.25;">
+                            <div><span style="color: #1e40af;">THP:</span> <b>${ThpVal}</b></div>
+                            <div><span style="color: #0f766e;">CHP:</span> <b>${ChpVal}</b></div>
+                            <div><span style="color: #64748b;">Stuffing:</span> <b>${StuffingVal}</b></div>
+                        </div>
+                    </td>
+                    <td>${methodParamsHtml}</td>
+                    <td>
+                        <div style="font-size: 10px; line-height: 1.2;">
+                            <div><span style="color: #64748b;">Nivel/Sum:</span> <b>${LevelStr} / ${SumergenceStr}</b></div>
+                            <div><span style="color: #64748b;">Prueba:</span> <b>${PresIniStr} ➔ ${PresFinStr}</b></div>
+                            <div><span style="color: #64748b;">Tiempo:</span> <b>${TestTimeStr}</b></div>
+                        </div>
+                    </td>
+                    <td>
+                        <span style="display: inline-flex; align-items: center; gap: 4px; background: ${isRun ? '#dcfce7' : '#fee2e2'}; color: ${isRun ? '#15803d' : '#b91c1c'}; padding: 3px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800; text-transform: uppercase; border: 1px solid ${isRun ? '#bbf7d0' : '#fecaca'}; letter-spacing: 0.05em; line-height: 1; white-space: nowrap;">
+                            <span style="width: 5px; height: 5px; border-radius: 50%; background: ${isRun ? '#22c55e' : '#ef4444'}; display: inline-block;"></span>
+                            ${escapeHtml(record.estatus || '--')}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <article class="well">
+                <div class="well-head">
+                    <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #6366f1; flex-shrink: 0; margin-top: -1px;">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg>
+                        <span>POZO: ${escapeHtml(String(pozoName).toUpperCase())}</span>
+                        <span style="font-size: 9px; font-weight: 800; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #bbf7d0; margin-left: 6px; display: inline-flex; align-items: center; gap: 2px; line-height: 1;">🛢️ CRC LL</span>
+                    </h3>
+                    <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo UV" style="height: 20px; width: auto; margin: 0; opacity: 0.85;">
+                </div>
+                <table class="well-table">
+                    <thead>
+                        <tr>
+                            <th>FECHA/HORA</th>
+                            <th>MÉTODO</th>
+                            <th>PRODUCCIÓN (B/N/%AyS)</th>
+                            <th>PRESIONES (THP/CHP/STUFFING)</th>
+                            <th>PARÁMETROS DEL MÉTODO</th>
+                            <th>NIVEL Y PRUEBA DE PRESION</th>
+                            <th>ESTATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+                ${soportesHtml}
+            </article>
+        `;
+    }
+
+    // Render each reading as a separate row in the same table (BES Fallback)
     const rowsHtml = recordsList.map(record => {
         const FreqVal = record.frecuencia ? `${record.frecuencia} Hz` : '--';
         const GiroVal = record.sentido_giro || record.giro || '--';
@@ -1053,9 +1262,33 @@ function normalizeRecordForExport(record = {}) {
         out_vsd: payload.out_vsd || record.out_vsd || '',
         pip_psi: payload.pip_psi || record.pip_psi || '',
         pd_psi: payload.pd_psi || record.pd_psi || '',
-        thp_psi: payload.thp_psi || record.thp_psi || '',
-        chp_psi: payload.chp_psi || record.chp_psi || '',
-        lf_psi: payload.lf_psi || record.lf_psi || ''
+        thp_psi: payload.thp_psi !== undefined ? payload.thp_psi : (record.thp_psi !== undefined ? record.thp_psi : (payload.presion_thp || record.presion_thp || '')),
+        chp_psi: payload.chp_psi !== undefined ? payload.chp_psi : (record.chp_psi !== undefined ? record.chp_psi : (payload.presion_chp || record.presion_chp || '')),
+        lf_psi: payload.lf_psi !== undefined ? payload.lf_psi : (record.lf_psi !== undefined ? record.lf_psi : (payload.presion_lf || record.presion_lf || '')),
+        
+        // Bombeo Mecánico (BM)
+        bm_marca: payload.bm_marca || record.bm_marca || '',
+        bm_modelo: payload.bm_modelo || record.bm_modelo || '',
+        bm_tiro: payload.bm_tiro || record.bm_tiro || '',
+        bm_recorrido: payload.bm_recorrido || record.bm_recorrido || '',
+        bm_spm: payload.bm_spm || record.bm_spm || '',
+        bm_estado_unidad: payload.bm_estado_unidad || record.bm_estado_unidad || '',
+        
+        // Bombeo por Cavidad Progresiva (BCP)
+        bcp_rpm: payload.bcp_rpm || record.bcp_rpm || '',
+        bcp_torque: payload.bcp_torque || record.bcp_torque || '',
+        bcp_amperaje: payload.bcp_amperaje || record.bcp_amperaje || '',
+        bcp_modelo_cabezal: payload.bcp_modelo_cabezal || record.bcp_modelo_cabezal || '',
+        bcp_motorreductor: payload.bcp_motorreductor || record.bcp_motorreductor || '',
+        bcp_stuffing: payload.bcp_stuffing || record.bcp_stuffing || payload.stuffing || record.stuffing || '',
+        stuffing: payload.stuffing || record.stuffing || payload.bcp_stuffing || record.bcp_stuffing || '',
+
+        // Niveles y Pruebas
+        well_nivel: payload.well_nivel || record.well_nivel || payload.nivel_fluido_ft || record.nivel_fluido_ft || '',
+        well_sumergencia: payload.well_sumergencia || record.well_sumergencia || payload.sumergencia_ft || record.sumergencia_ft || '',
+        well_presion_inicial: payload.well_presion_inicial || record.well_presion_inicial || payload.presion_inicial || record.presion_inicial || '',
+        well_presion_final: payload.well_presion_final || record.well_presion_final || payload.presion_final || record.presion_final || '',
+        well_tiempo_prueba: payload.well_tiempo_prueba || record.well_tiempo_prueba || payload.tiempo_prueba_presion || record.tiempo_prueba_presion || ''
     };
 }
 
@@ -1065,13 +1298,15 @@ function summarizeRecordValues(records, fieldName) {
 }
 
 function buildExcelSummarySheet(worksheet, journey, records) {
-    worksheet.headerFooter.oddFooter = '&LUV Servicios Campo&CReporte de acompanamiento BES&RGenerado &D &T';
+    const scope = journey.operational_scope || records[0]?.operational_scope || getActiveOperationalScope();
+    const isCrc = scope === 'crc_ll' || scope === 'ccrc_ll';
+    worksheet.headerFooter.oddFooter = isCrc ? '&LUV Servicios Campo&CToma de Parámetros CCRC&RGenerado &D &T' : '&LUV Servicios Campo&CReporte de acompanamiento BES&RGenerado &D &T';
     worksheet.mergeCells('C1:J1');
     worksheet.mergeCells('C2:J2');
     worksheet.mergeCells('C3:J3');
     worksheet.getCell('C1').value = 'UV SERVICIOS CAMPO';
-    worksheet.getCell('C2').value = 'REPORTE DE ACOMPANAMIENTO POZOS CON BOMBAS ELECTROSUMERGIBLES';
-    worksheet.getCell('C3').value = `${journey.locacion_jornada || 'Locacion no definida'} · ${journey.fecha || '--'} · ${journey.jornada || '--'}`;
+    worksheet.getCell('C2').value = isCrc ? 'TOMA DE PARAMETROS OPERACIONALES - CONTRATO CCRC LAGUNILLAS LAGO' : 'REPORTE DE ACOMPANAMIENTO POZOS CON BOMBAS ELECTROSUMERGIBLES';
+    worksheet.getCell('C3').value = `${journey.locacion_jornada || 'Lagunillas Lago'} · ${journey.fecha || '--'} · ${journey.jornada || 'Jornada Completa'}`;
 
     styleExcelTitleBlock(worksheet, ['C1', 'C2', 'C3']);
 
@@ -1110,20 +1345,20 @@ function buildExcelSummarySheet(worksheet, journey, records) {
     worksheet.getRow(6).height = 10;
 }
 
-function buildExcelDetailSheet(worksheet, journey, records) {
-    worksheet.headerFooter.oddFooter = '&LUV Servicios Campo&CReporte de acompanamiento BES&RPagina &P de &N';
-    const totalColumns = EXCEL_EXPORT_COLUMNS.length;
+function buildExcelDetailSheet(worksheet, journey, records, exportColumns, sectionGroups, titleText) {
+    worksheet.headerFooter.oddFooter = `&LUV Servicios Campo&C${titleText}&RPagina &P de &N`;
+    const totalColumns = exportColumns.length;
     const lastColumnLetter = getExcelColumnLetter(totalColumns);
 
     worksheet.mergeCells(`C1:${lastColumnLetter}1`);
     worksheet.mergeCells(`C2:${lastColumnLetter}2`);
     worksheet.mergeCells(`C3:${lastColumnLetter}3`);
     worksheet.getCell('C1').value = 'UV SERVICIOS';
-    worksheet.getCell('C2').value = 'REPORTE DE ACOMPANAMIENTO POZOS CON BOMBAS ELECTROSUMERGIBLES';
+    worksheet.getCell('C2').value = titleText;
     worksheet.getCell('C3').value = `${journey.locacion_jornada || '--'} · ${journey.fecha || '--'} · ${journey.jornada || '--'} · ${records.length} pozo(s)`;
     styleExcelTitleBlock(worksheet, ['C1', 'C2', 'C3']);
 
-    worksheet.columns = EXCEL_EXPORT_COLUMNS.map(({ label, fieldName }) => ({
+    worksheet.columns = exportColumns.map(({ label, fieldName }) => ({
         width: calculateExcelColumnWidth(label, fieldName, records)
     }));
 
@@ -1131,8 +1366,8 @@ function buildExcelDetailSheet(worksheet, journey, records) {
     const headerRowIndex = 7;
     let currentColumn = 1;
 
-    EXCEL_SECTION_GROUPS.forEach((group, index) => {
-        const columnsForGroup = EXCEL_EXPORT_COLUMNS.filter(column => column.groupTitle === group.title);
+    sectionGroups.forEach((group, index) => {
+        const columnsForGroup = exportColumns.filter(column => column.groupTitle === group.title);
         if (columnsForGroup.length === 0) return;
 
         const startColumn = currentColumn;
@@ -1164,7 +1399,7 @@ function buildExcelDetailSheet(worksheet, journey, records) {
         const rowIndex = headerRowIndex + 1 + recordIndex;
         const row = worksheet.getRow(rowIndex);
 
-        EXCEL_EXPORT_COLUMNS.forEach(({ fieldName }, columnIndex) => {
+        exportColumns.forEach(({ fieldName }, columnIndex) => {
             const cell = row.getCell(columnIndex + 1);
             cell.value = formatExcelCellValue(record[fieldName], fieldName);
             cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
@@ -1176,7 +1411,7 @@ function buildExcelDetailSheet(worksheet, journey, records) {
 
     worksheet.autoFilter = {
         from: { row: headerRowIndex, column: 1 },
-        to: { row: headerRowIndex, column: EXCEL_EXPORT_COLUMNS.length }
+        to: { row: headerRowIndex, column: exportColumns.length }
     };
     worksheet.getRow(1).height = 28;
     worksheet.getRow(2).height = 54;
@@ -1192,7 +1427,7 @@ function buildHistoricalExcelSummarySheet(worksheet, records, filters = {}) {
     worksheet.mergeCells('C2:J2');
     worksheet.mergeCells('C3:J3');
     worksheet.getCell('C1').value = 'UV SERVICIOS CAMPO';
-    worksheet.getCell('C2').value = 'EXPORTACION HISTORICA DE MONITOREOS BES';
+    worksheet.getCell('C2').value = 'EXPORTACION HISTORICA DE MONITOREOS';
     worksheet.getCell('C3').value = buildHistoricalSummarySubtitle(records, filters);
 
     styleExcelTitleBlock(worksheet, ['C1', 'C2', 'C3']);
@@ -1231,20 +1466,20 @@ function buildHistoricalExcelSummarySheet(worksheet, records, filters = {}) {
     worksheet.getRow(6).height = 10;
 }
 
-function buildHistoricalExcelDetailSheet(worksheet, records, filters = {}) {
+function buildHistoricalExcelDetailSheet(worksheet, records, filters = {}, exportColumns, sectionGroups, titleText) {
     worksheet.headerFooter.oddFooter = '&LUV Servicios Campo&CHistorico consolidado&RPagina &P de &N';
-    const totalColumns = EXCEL_EXPORT_COLUMNS.length;
+    const totalColumns = exportColumns.length;
     const lastColumnLetter = getExcelColumnLetter(totalColumns);
 
     worksheet.mergeCells(`C1:${lastColumnLetter}1`);
     worksheet.mergeCells(`C2:${lastColumnLetter}2`);
     worksheet.mergeCells(`C3:${lastColumnLetter}3`);
     worksheet.getCell('C1').value = 'UV SERVICIOS';
-    worksheet.getCell('C2').value = 'HISTORICO CONSOLIDADO DE MONITOREOS BES';
+    worksheet.getCell('C2').value = titleText;
     worksheet.getCell('C3').value = buildHistoricalSummarySubtitle(records, filters);
     styleExcelTitleBlock(worksheet, ['C1', 'C2', 'C3']);
 
-    worksheet.columns = EXCEL_EXPORT_COLUMNS.map(({ label, fieldName }) => ({
+    worksheet.columns = exportColumns.map(({ label, fieldName }) => ({
         width: calculateExcelColumnWidth(label, fieldName, records)
     }));
 
@@ -1252,8 +1487,8 @@ function buildHistoricalExcelDetailSheet(worksheet, records, filters = {}) {
     const headerRowIndex = 7;
     let currentColumn = 1;
 
-    EXCEL_SECTION_GROUPS.forEach((group, index) => {
-        const columnsForGroup = EXCEL_EXPORT_COLUMNS.filter(column => column.groupTitle === group.title);
+    sectionGroups.forEach((group, index) => {
+        const columnsForGroup = exportColumns.filter(column => column.groupTitle === group.title);
         if (columnsForGroup.length === 0) return;
 
         const startColumn = currentColumn;
@@ -1284,7 +1519,7 @@ function buildHistoricalExcelDetailSheet(worksheet, records, filters = {}) {
     records.forEach((record, recordIndex) => {
         const rowIndex = headerRowIndex + 1 + recordIndex;
         const row = worksheet.getRow(rowIndex);
-        EXCEL_EXPORT_COLUMNS.forEach(({ fieldName }, columnIndex) => {
+        exportColumns.forEach(({ fieldName }, columnIndex) => {
             const cell = row.getCell(columnIndex + 1);
             cell.value = formatExcelCellValue(record[fieldName], fieldName);
             cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
@@ -1296,7 +1531,7 @@ function buildHistoricalExcelDetailSheet(worksheet, records, filters = {}) {
 
     worksheet.autoFilter = {
         from: { row: headerRowIndex, column: 1 },
-        to: { row: headerRowIndex, column: EXCEL_EXPORT_COLUMNS.length }
+        to: { row: headerRowIndex, column: exportColumns.length }
     };
     worksheet.getRow(1).height = 28;
     worksheet.getRow(2).height = 54;
@@ -1374,18 +1609,28 @@ function getExcelColumnLetter(columnNumber) {
 }
 
 function buildJourneyExcelFileName(journey) {
-    const parts = ['uvs-campo', sanitizeFileNameSegment(journey.locacion_jornada || 'jornada'), sanitizeFileNameSegment(journey.fecha || new Date().toISOString().slice(0, 10)), sanitizeFileNameSegment(journey.jornada || 'turno')].filter(Boolean);
-    return `${parts.join('_')}.xlsx`;
+    const scope = journey.operational_scope || getActiveOperationalScope();
+    const scopeTag = getOperationalScopeFileTag(scope);
+    const dateStr = journey.fecha || journey.journey_date || new Date().toISOString().slice(0, 10);
+    const isCrc = scope === 'crc_ll' || scope === 'ccrc_ll';
+    const shiftTag = isCrc ? 'JORNADA_COMPLETA' : String(journey.jornada || 'DIURNA').toUpperCase().replace(/\s+/g, '_');
+    
+    return `REPORTE_CAMPO_${scopeTag}_${dateStr}_${shiftTag}.xlsx`;
 }
 
 function buildHistoricalExcelFileName(filters = {}) {
-    const parts = [
-        'uvs-campo-historico',
-        sanitizeFileNameSegment(filters.pozo || 'todos-los-pozos'),
-        sanitizeFileNameSegment(filters.startDate || 'sin-inicio'),
-        sanitizeFileNameSegment(filters.endDate || 'sin-fin')
-    ].filter(Boolean);
-    return `${parts.join('_')}.xlsx`;
+    const activeScope = getActiveOperationalScope();
+    const scopeTag = getOperationalScopeFileTag(activeScope);
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    if (filters.pozo) {
+        return `HISTORICO_POZO_${filters.pozo}_${scopeTag}_${dateStr}.xlsx`;
+    }
+    if (filters.startDate || filters.endDate) {
+        const range = [filters.startDate, filters.endDate].filter(Boolean).join('_AL_');
+        return `HISTORICO_RANGO_${range}_${scopeTag}_${dateStr}.xlsx`;
+    }
+    return `HISTORICO_CAMPO_${scopeTag}_${dateStr}.xlsx`;
 }
 
 function sanitizeFileNameSegment(value) {

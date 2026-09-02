@@ -92,6 +92,7 @@ export async function initEstadisticas() {
         state.activeScopeFields = [...new Set(activeScopeWells.map(well => normalizeCampoName(well?.campo_name)).filter(Boolean))].sort();
         populateFieldFilterOptions();
         updateCustomReportWellsContext();
+        applyCrcEstadisticasView();
         await loadData();
     };
     renderOperationalScopeSwitcher(document.getElementById('stats-operational-scope-switcher'), operationalScopeContext, {
@@ -108,6 +109,8 @@ export async function initEstadisticas() {
     state.activeScopePozoNames = [...new Set(activeScopeWells.map(well => normalizePozoName(well?.pozo_name)).filter(Boolean))];
     state.activeScopeFields = [...new Set(activeScopeWells.map(well => normalizeCampoName(well?.campo_name)).filter(Boolean))].sort();
     populateFieldFilterOptions();
+    applyCrcEstadisticasView();
+    window.addEventListener('uv-operational-scope-change', applyCrcEstadisticasView);
 
     // 2. Configurar Logout
     const logoutBtn = document.getElementById('logout-btn');
@@ -238,6 +241,20 @@ export async function initEstadisticas() {
     }
 }
 
+function getScopeQueryVariants(scope) {
+    if (!scope) return [];
+    if (scope === 'ceiba_tomoporo' || scope === 'ct' || scope === 'cei' || scope === 'tom') {
+        return ['ceiba_tomoporo', 'ct', 'cei', 'tom'];
+    }
+    if (scope === 'crc_ll' || scope === 'ccrc_ll') {
+        return ['crc_ll', 'ccrc_ll'];
+    }
+    if (scope === 'bmm') {
+        return ['bmm', 'barua_motatan'];
+    }
+    return [scope];
+}
+
 // Carga de datos desde Supabase: monitoreo publicado + jornadas aprobadas/publicadas.
 async function loadData() {
     if (!state.month) return;
@@ -279,8 +296,9 @@ async function loadData() {
         }
 
         monitoringQuery = monitoringQuery.gte('fecha', start).lte('fecha', end);
-        if (state.activeOperationalScope) {
-            monitoringQuery = monitoringQuery.eq('operational_scope', state.activeOperationalScope);
+        const scopeVariants = getScopeQueryVariants(state.activeOperationalScope);
+        if (scopeVariants.length) {
+            monitoringQuery = monitoringQuery.in('operational_scope', scopeVariants);
         }
 
         const { data: monitoringData, error: monitoringError } = await monitoringQuery;
@@ -294,8 +312,8 @@ async function loadData() {
             .lte('journey_date', end)
             .order('journey_date', { ascending: false });
 
-        if (state.activeOperationalScope) {
-            journeysQuery = journeysQuery.eq('operational_scope', state.activeOperationalScope);
+        if (scopeVariants.length) {
+            journeysQuery = journeysQuery.in('operational_scope', scopeVariants);
         }
 
         const { data: journeysData, error: journeysError } = await journeysQuery;
@@ -510,6 +528,13 @@ function classifyOperationMode(record = {}) {
 }
 
 function classifyModeForChart(record = {}) {
+    const activeScope = getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
+    if (isCrc) {
+        const payload = record.raw_payload || {};
+        const act = record.actividad || payload.actividad || '';
+        return act.trim().toUpperCase() || 'NIVEL';
+    }
     return classifyOperationMode(record);
 }
 
@@ -566,33 +591,162 @@ function processMetrics() {
     document.getElementById('kpi-visitas-prom').textContent = nivelesEjecutados;
 
     // 5. Métricas de Ingeniería de Detalle
-    const pipValues = state.records.map(r => Number(r.pip)).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
-    const tmValues = state.records.map(r => Number(r.tm)).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
-    const frecValues = state.records.map(r => Number(r.frecuencia)).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+    const activeScope = getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
 
-    const avgPip = pipValues.length > 0 ? Math.round(pipValues.reduce((a, b) => a + b, 0) / pipValues.length) : '—';
-    const avgTm = tmValues.length > 0 ? Math.round(tmValues.reduce((a, b) => a + b, 0) / tmValues.length) : '—';
-    const avgFrec = frecValues.length > 0 ? (frecValues.reduce((a, b) => a + b, 0) / frecValues.length).toFixed(1) : '—';
+    if (isCrc) {
+        const bruteValues = state.records.map(r => Number(r.frecuencia)).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+        const netValues = state.records.map(r => Number(r.corriente_motor)).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+        const aysValues = state.records.map(r => Number(r.pip)).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+        const speedValues = state.records.map(r => Number(r.tm)).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
 
-    // % de registros que tienen telemetría de fondo (PIP o Tm activa)
-    const validSensorCount = state.records.filter(r => {
-        const pip = Number(r.pip);
-        const tm = Number(r.tm);
-        return (typeof pip === 'number' && !isNaN(pip) && pip > 0) || 
-               (typeof tm === 'number' && !isNaN(tm) && tm > 0);
-    }).length;
-    const sensorHealth = total > 0 ? Math.round((validSensorCount / total) * 100) : 0;
+        const avgBrute = bruteValues.length > 0 ? (bruteValues.reduce((a, b) => a + b, 0) / bruteValues.length).toFixed(1) : '—';
+        const avgNet = netValues.length > 0 ? (netValues.reduce((a, b) => a + b, 0) / netValues.length).toFixed(1) : '—';
+        const avgAys = aysValues.length > 0 ? (aysValues.reduce((a, b) => a + b, 0) / aysValues.length).toFixed(2) : '—';
+        const avgSpeed = speedValues.length > 0 ? (speedValues.reduce((a, b) => a + b, 0) / speedValues.length).toFixed(1) : '—';
 
-    // Inyectar en el panel de ingeniería
-    const ingPip = document.getElementById('ing-prom-pip');
-    const ingTm = document.getElementById('ing-prom-tm');
-    const ingFrec = document.getElementById('ing-prom-frec');
-    const ingSensor = document.getElementById('ing-sensor-health');
+        const ingPip = document.getElementById('ing-prom-pip');
+        const ingTm = document.getElementById('ing-prom-tm');
+        const ingFrec = document.getElementById('ing-prom-frec');
+        const ingSensor = document.getElementById('ing-sensor-health');
 
-    if (ingPip) ingPip.textContent = avgPip;
-    if (ingTm) ingTm.textContent = avgTm;
-    if (ingFrec) ingFrec.textContent = avgFrec;
-    if (ingSensor) ingSensor.textContent = `${sensorHealth}%`;
+        if (ingPip) {
+            ingPip.textContent = avgBrute;
+            if (ingPip.nextElementSibling) ingPip.nextElementSibling.textContent = 'BPD';
+            const labelDiv = ingPip.parentElement.previousElementSibling?.lastElementChild;
+            if (labelDiv) {
+                const labelStrong = labelDiv.querySelector('strong');
+                const labelSpan = labelDiv.querySelector('span');
+                if (labelStrong) labelStrong.textContent = 'Caudal Bruto Promedio';
+                if (labelSpan) labelSpan.textContent = 'Promedio de producción de fluido total';
+            }
+            const chartHeader = ingPip.closest('.chart-card')?.querySelector('.chart-title');
+            if (chartHeader) {
+                chartHeader.textContent = 'Métricas de Ingeniería (BM / BCP)';
+            }
+        }
+
+        if (ingTm) {
+            ingTm.textContent = avgNet;
+            if (ingTm.nextElementSibling) ingTm.nextElementSibling.textContent = 'BPD';
+            const labelDiv = ingTm.parentElement.previousElementSibling?.lastElementChild;
+            if (labelDiv) {
+                const labelStrong = labelDiv.querySelector('strong');
+                const labelSpan = labelDiv.querySelector('span');
+                if (labelStrong) labelStrong.textContent = 'Caudal Neto Promedio';
+                if (labelSpan) labelSpan.textContent = 'Promedio de producción de crudo neto';
+            }
+        }
+
+        if (ingFrec) {
+            ingFrec.textContent = avgAys;
+            if (ingFrec.nextElementSibling) ingFrec.nextElementSibling.textContent = '%';
+            const labelDiv = ingFrec.parentElement.previousElementSibling?.lastElementChild;
+            if (labelDiv) {
+                const labelStrong = labelDiv.querySelector('strong');
+                const labelSpan = labelDiv.querySelector('span');
+                if (labelStrong) labelStrong.textContent = 'Contenido de Agua Promedio';
+                if (labelSpan) labelSpan.textContent = 'Porcentaje promedio de agua y sedimento';
+            }
+        }
+
+        if (ingSensor) {
+            ingSensor.textContent = avgSpeed;
+            
+            // Buscar si ya existe el elemento de unidad small, si no existe o tiene %, cambiarlo a SPM/RPM
+            let unitSmall = ingSensor.nextElementSibling;
+            if (!unitSmall || unitSmall.tagName !== 'SMALL') {
+                unitSmall = document.createElement('small');
+                unitSmall.style = "font-size:11px; color:#64748B; font-weight:600; margin-left:4px;";
+                ingSensor.parentElement.appendChild(unitSmall);
+            }
+            unitSmall.textContent = 'SPM/RPM';
+
+            const labelDiv = ingSensor.parentElement.previousElementSibling?.lastElementChild;
+            if (labelDiv) {
+                const labelStrong = labelDiv.querySelector('strong');
+                const labelSpan = labelDiv.querySelector('span');
+                if (labelStrong) labelStrong.textContent = 'Velocidad Promedio';
+                if (labelSpan) labelSpan.textContent = 'Promedio de velocidad de bombeo';
+            }
+        }
+    } else {
+        const pipValues = state.records.map(r => Number(r.pip)).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+        const tmValues = state.records.map(r => Number(r.tm)).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+        const frecValues = state.records.map(r => Number(r.frecuencia)).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+
+        const avgPip = pipValues.length > 0 ? Math.round(pipValues.reduce((a, b) => a + b, 0) / pipValues.length) : '—';
+        const avgTm = tmValues.length > 0 ? Math.round(tmValues.reduce((a, b) => a + b, 0) / tmValues.length) : '—';
+        const avgFrec = frecValues.length > 0 ? (frecValues.reduce((a, b) => a + b, 0) / frecValues.length).toFixed(1) : '—';
+
+        // % de registros que tienen telemetría de fondo (PIP o Tm activa)
+        const validSensorCount = state.records.filter(r => {
+            const pip = Number(r.pip);
+            const tm = Number(r.tm);
+            return (typeof pip === 'number' && !isNaN(pip) && pip > 0) || 
+                   (typeof tm === 'number' && !isNaN(tm) && tm > 0);
+        }).length;
+        const sensorHealth = total > 0 ? Math.round((validSensorCount / total) * 100) : 0;
+
+        // Inyectar en el panel de ingeniería
+        const ingPip = document.getElementById('ing-prom-pip');
+        const ingTm = document.getElementById('ing-prom-tm');
+        const ingFrec = document.getElementById('ing-prom-frec');
+        const ingSensor = document.getElementById('ing-sensor-health');
+
+        if (ingPip) {
+            ingPip.textContent = avgPip;
+            if (ingPip.nextElementSibling) ingPip.nextElementSibling.textContent = 'psi';
+            const labelDiv = ingPip.parentElement.previousElementSibling?.lastElementChild;
+            if (labelDiv) {
+                const labelStrong = labelDiv.querySelector('strong');
+                const labelSpan = labelDiv.querySelector('span');
+                if (labelStrong) labelStrong.textContent = 'Presión de Entrada (PIP)';
+                if (labelSpan) labelSpan.textContent = 'Promedio general de fondo';
+            }
+            const chartHeader = ingPip.closest('.chart-card')?.querySelector('.chart-title');
+            if (chartHeader) {
+                chartHeader.textContent = 'Métricas de Ingeniería (BES)';
+            }
+        }
+        if (ingTm) {
+            ingTm.textContent = avgTm;
+            if (ingTm.nextElementSibling) ingTm.nextElementSibling.textContent = '°F';
+            const labelDiv = ingTm.parentElement.previousElementSibling?.lastElementChild;
+            if (labelDiv) {
+                const labelStrong = labelDiv.querySelector('strong');
+                const labelSpan = labelDiv.querySelector('span');
+                if (labelStrong) labelStrong.textContent = 'Temperatura de Motor (Tm)';
+                if (labelSpan) labelSpan.textContent = 'Salud térmica de los equipos';
+            }
+        }
+        if (ingFrec) {
+            ingFrec.textContent = avgFrec;
+            if (ingFrec.nextElementSibling) ingFrec.nextElementSibling.textContent = 'Hz';
+            const labelDiv = ingFrec.parentElement.previousElementSibling?.lastElementChild;
+            if (labelDiv) {
+                const labelStrong = labelDiv.querySelector('strong');
+                const labelSpan = labelDiv.querySelector('span');
+                if (labelStrong) labelStrong.textContent = 'Frecuencia Operativa VSD';
+                if (labelSpan) labelSpan.textContent = 'Velocidad promedio del variador';
+            }
+        }
+        if (ingSensor) {
+            ingSensor.textContent = `${sensorHealth}%`;
+            // Restablecer la unidad si existiera un small de SPM/RPM extra
+            const unitSmall = ingSensor.nextElementSibling;
+            if (unitSmall && unitSmall.tagName === 'SMALL' && unitSmall.textContent === 'SPM/RPM') {
+                unitSmall.remove();
+            }
+            const labelDiv = ingSensor.parentElement.previousElementSibling?.lastElementChild;
+            if (labelDiv) {
+                const labelStrong = labelDiv.querySelector('strong');
+                const labelSpan = labelDiv.querySelector('span');
+                if (labelStrong) labelStrong.textContent = 'Salud de Sensores de Fondo';
+                if (labelSpan) labelSpan.textContent = '% registros con lecturas válidas';
+            }
+        }
+    }
 
     const metaCampo = document.getElementById('pdf-report-meta-campo');
     const metaPeriodo = document.getElementById('pdf-report-meta-periodo');
@@ -611,6 +765,7 @@ function processMetrics() {
 function getContractDisplayName() {
     if (state.activeOperationalScope === 'bmm') return 'BARUA / MOTATAN / MENE GRANDE';
     if (state.activeOperationalScope === 'ceiba_tomoporo') return 'LA CEIBA / TOMOPORO';
+    if (state.activeOperationalScope === 'crc_ll' || state.activeOperationalScope === 'ccrc_ll') return 'CCRC LAGUNILLAS LAGO';
     return String(state.activeOperationalScope || 'CONTRATO ACTIVO').replace(/_/g, ' ').toUpperCase();
 }
 
@@ -659,9 +814,10 @@ function renderMonthlyBrief({ total = 0, pozosUnicos = new Set(), diagnosticoEnt
     const journeyCounts = calculateJourneyCounts(total);
 
     const offCount = state.records.filter(record => String(record.estatus || '').trim().toUpperCase().includes('OFF')).length;
+    const isCrcScope = state.activeOperationalScope === 'crc_ll' || state.activeOperationalScope === 'ccrc_ll';
     if (title) title.textContent = `Resumen de Actividades ${getMonthLabel().toUpperCase()}`;
     if (contract) contract.textContent = getContractDisplayName();
-    if (campo) campo.textContent = state.field === 'TODOS' ? getContractDisplayName() : state.field;
+    if (campo) campo.textContent = isCrcScope ? 'CCRC LAGUNILLAS LAGO' : (state.field === 'TODOS' ? getContractDisplayName() : state.field);
     if (estadoPozo) estadoPozo.textContent = offCount > 0 ? 'OPERANDO / PARADO' : 'OPERANDO';
     if (recorridoTotal) recorridoTotal.textContent = String(journeyCounts.totalJourneys);
     if (diurno) diurno.textContent = String(journeyCounts.diurnoCount);
@@ -830,8 +986,86 @@ function normalizeCampo(raw) {
     return val;
 }
 
+function applyCrcEstadisticasView() {
+    const activeScope = getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
+
+    // 1. Gráfico 1: Total de visitas por campo (#status-field-section)
+    const chartVisitasCampoSection = document.getElementById('status-field-section');
+    if (chartVisitasCampoSection) chartVisitasCampoSection.style.display = isCrc ? 'none' : '';
+
+    // Comparativos por campo
+    const modoOpCampoSection = document.getElementById('modo-operacion-campo-section');
+    const diagCampoSection = document.getElementById('diagnostico-campo-section');
+    const fieldDetailSummarySection = document.getElementById('field-detail-summary-section');
+    if (modoOpCampoSection) modoOpCampoSection.style.display = isCrc ? 'none' : '';
+    if (diagCampoSection) diagCampoSection.style.display = isCrc ? 'none' : '';
+    if (fieldDetailSummarySection) fieldDetailSummarySection.style.display = isCrc ? 'none' : '';
+
+    // 2. Atención Requerida (#pozos-off-list-section)
+    const pozosOffSection = document.getElementById('pozos-off-list-section');
+    if (pozosOffSection) pozosOffSection.style.display = isCrc ? 'none' : '';
+
+    // 3. Métricas de Ingeniería (#ingenieria-resumen-section)
+    const ingenieriaSection = document.getElementById('ingenieria-resumen-section');
+    if (ingenieriaSection) ingenieriaSection.style.display = isCrc ? 'none' : '';
+
+    // 4. Volcado VSD en Echometer y Adjuntos de Campo
+    const vsdKpiItem = document.getElementById('kpi-vsd-item');
+    if (vsdKpiItem) vsdKpiItem.style.display = isCrc ? 'none' : '';
+
+    // 5. Tipo de Sistema
+    const briefTipoSistema = document.getElementById('brief-tipo-sistema');
+    if (briefTipoSistema) briefTipoSistema.textContent = isCrc ? 'BM / BCP' : 'BES';
+
+    // 6. Ocultar Diurno y Nocturno solo para CCRC
+    const rowDiurno = document.getElementById('brief-row-diurno');
+    const rowNocturno = document.getElementById('brief-row-nocturno');
+    if (rowDiurno) rowDiurno.style.display = isCrc ? 'none' : '';
+    if (rowNocturno) rowNocturno.style.display = isCrc ? 'none' : '';
+
+    // 7. Ocultar SOLO el botón de la pestaña "Reportes Personalizados" para CCRC
+    const customReportsTabBtn = document.getElementById('tab-btn-custom-reports');
+    const customReportsSection = document.getElementById('custom-reports-section');
+    const overviewSection = document.getElementById('overview-section');
+    const overviewBtn = document.getElementById('tab-btn-overview');
+
+    if (customReportsTabBtn) {
+        if (isCrc) {
+            customReportsTabBtn.style.setProperty('display', 'none', 'important');
+        } else {
+            customReportsTabBtn.style.removeProperty('display');
+        }
+    }
+
+    // Garantizar que la sección principal de Resumen General esté visible
+    if (overviewSection) {
+        overviewSection.style.removeProperty('display');
+        overviewSection.hidden = false;
+    }
+
+    if (customReportsSection) {
+        if (isCrc) {
+            customReportsSection.style.setProperty('display', 'none', 'important');
+            customReportsSection.hidden = true;
+            if (overviewBtn) {
+                overviewBtn.classList.add('active');
+                overviewBtn.setAttribute('aria-selected', 'true');
+            }
+            if (customReportsTabBtn) {
+                customReportsTabBtn.classList.remove('active');
+                customReportsTabBtn.setAttribute('aria-selected', 'false');
+            }
+        } else {
+            customReportsSection.style.removeProperty('display');
+        }
+    }
+}
+
 // Renderizado de Gráficos (Chart.js) — Informe mensual corporativo.
 function renderCharts() {
+    applyCrcEstadisticasView();
+
     // Destruir gráficos anteriores (excluyendo el gráfico de cobertura de adjuntos para evitar colisión de ciclos de vida)
     Object.entries(state.charts).forEach(([key, chart]) => {
         if (key === 'attachmentsProgress') return;
@@ -1162,6 +1396,12 @@ function renderAttachmentsSummary() {
     const list = document.getElementById('field-attachments-summary-list');
     if (!list) return;
 
+    const activeScope = getActiveOperationalScope();
+    const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
+
+    const vsdKpiItem = document.getElementById('kpi-vsd-item');
+    if (vsdKpiItem) vsdKpiItem.style.display = isCrc ? 'none' : '';
+
     const documentsMap = getDocumentsByPozoAndCategory();
     const rowsByPozo = new Map();
 
@@ -1212,14 +1452,18 @@ function renderAttachmentsSummary() {
         const countVsd = rows.filter(row => row.dataVsd || row.vsdDocs > 0).length;
         const countPics = rows.filter(row => row.supportDocs > 0).length;
 
+        const labels = isCrc ? ['Echómetro', 'Soportes'] : ['Echómetro', 'Volcado VSD', 'Soportes'];
+        const chartData = isCrc ? [countEcho, countPics] : [countEcho, countVsd, countPics];
+        const chartColors = isCrc ? ['rgba(16, 185, 129, 0.85)', 'rgba(139, 92, 246, 0.85)'] : ['rgba(16, 185, 129, 0.85)', 'rgba(37, 99, 235, 0.85)', 'rgba(139, 92, 246, 0.85)'];
+
         state.charts.attachmentsProgress = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: ['Echómetro', 'Volcado VSD', 'Soportes'],
+                labels,
                 datasets: [{
                     label: 'Pozos con datos',
-                    data: [countEcho, countVsd, countPics],
-                    backgroundColor: ['rgba(16, 185, 129, 0.85)', 'rgba(37, 99, 235, 0.85)', 'rgba(139, 92, 246, 0.85)'],
+                    data: chartData,
+                    backgroundColor: chartColors,
                     borderRadius: 6,
                     barThickness: 14
                 }]
@@ -1248,7 +1492,7 @@ function renderAttachmentsSummary() {
     }
 
     if (!rows.length) {
-        list.innerHTML = '<div class="attachments-empty-state">Sin Echometer, volcados VSD o soportes cargados en este período.</div>';
+        list.innerHTML = `<div class="attachments-empty-state">Sin Echometer ${isCrc ? 'o soportes' : ', volcados VSD o soportes'} cargados en este período.</div>`;
         return;
     }
 
@@ -1256,11 +1500,15 @@ function renderAttachmentsSummary() {
         const hasEcho = row.echometer || row.echoDocs > 0;
         const hasVsd = row.dataVsd || row.vsdDocs > 0;
         
-        // Calcular porcentaje de completitud (33.3% por cada tipo de adjunto)
         let completeness = 0;
-        if (hasEcho) completeness += 33.3;
-        if (hasVsd) completeness += 33.3;
-        if (row.supportDocs > 0) completeness += 33.4;
+        if (isCrc) {
+            if (hasEcho) completeness += 50;
+            if (row.supportDocs > 0) completeness += 50;
+        } else {
+            if (hasEcho) completeness += 33.3;
+            if (hasVsd) completeness += 33.3;
+            if (row.supportDocs > 0) completeness += 33.4;
+        }
         completeness = Math.round(completeness);
 
         const echoBadge = hasEcho 
@@ -1275,9 +1523,9 @@ function renderAttachmentsSummary() {
             ? `<span class="badge-attachment-info"><i class="fa-solid fa-camera"></i> ${row.supportDocs} fotos</span>`
             : `<span class="badge-attachment-empty"><i class="fa-solid fa-circle-minus"></i> Sin fotos</span>`;
 
-        let progressColor = '#eab308'; // Amarillo (bajo)
-        if (completeness > 80) progressColor = '#10b981'; // Verde (alto)
-        else if (completeness > 40) progressColor = '#2563eb'; // Azul (medio)
+        let progressColor = '#eab308';
+        if (completeness > 80) progressColor = '#10b981';
+        else if (completeness > 40) progressColor = '#2563eb';
 
         const formattedDate = row.fecha && row.fecha !== '—' ? row.fecha.split('-').reverse().join('/') : '—';
 
@@ -1287,7 +1535,7 @@ function renderAttachmentsSummary() {
                 <td style="color: #475569; padding: 10px 14px; font-size: 0.82rem;">${escapeHtml(row.campo || '—')}</td>
                 <td style="color: #64748b; font-size: 0.78rem; padding: 10px 14px;">${escapeHtml(formattedDate)}</td>
                 <td style="padding: 10px 14px; text-align: center;">${echoBadge}</td>
-                <td style="padding: 10px 14px; text-align: center;">${vsdBadge}</td>
+                ${isCrc ? '' : `<td style="padding: 10px 14px; text-align: center;">${vsdBadge}</td>`}
                 <td style="padding: 10px 14px; text-align: center;">${supportBadge}</td>
                 <td style="padding: 10px 14px; vertical-align: middle; width: 140px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -1301,18 +1549,29 @@ function renderAttachmentsSummary() {
         `;
     }).join('');
 
+    const tableHeadersHtml = isCrc ? `
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Pozo</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Campo</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Última Visita</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 120px;">Echometer</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 110px;">Soportes</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; width: 130px;">Completitud</th>
+    ` : `
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Pozo</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Campo</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Última Visita</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 120px;">Echometer</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 120px;">Volcados VSD</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 110px;">Soportes</th>
+        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; width: 130px;">Completitud</th>
+    `;
+
     list.innerHTML = `
         <div class="stats-table-responsive" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
             <table class="stats-table" style="width: 100%; min-width: 800px; border-collapse: collapse; text-align: left; font-family: 'Outfit', sans-serif;">
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Pozo</th>
-                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Campo</th>
-                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569;">Última Visita</th>
-                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 120px;">Echometer</th>
-                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 120px;">Volcados VSD</th>
-                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; text-align: center; width: 110px;">Soportes</th>
-                        <th style="padding: 10px 14px; font-weight: 800; text-transform: uppercase; font-size: 0.7rem; color: #475569; width: 130px;">Completitud</th>
+                        ${tableHeadersHtml}
                     </tr>
                 </thead>
                 <tbody>
@@ -1456,15 +1715,15 @@ function renderAlertasTable(filterText, selectedPozos, selectedStatus) {
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="font-weight:600;white-space:nowrap;width:100px;">${pozo}</td>
-            <td style="white-space:nowrap;color:#64748B;width:110px;">${campo}</td>
-            <td style="white-space:nowrap;color:#64748B;width:105px;">${fecha}</td>
-            <td style="width:130px;text-align:center;padding:10px 8px;">
+            <td style="font-weight:700; white-space:nowrap; padding: 10px 14px;">${pozo}</td>
+            <td style="white-space:nowrap; color:#64748B; padding: 10px 14px;">${campo}</td>
+            <td style="white-space:nowrap; color:#64748B; padding: 10px 14px;">${fecha}</td>
+            <td style="padding: 10px 14px; text-align: center; white-space: nowrap;">
                 <span class="pozo-option-state ${isRun ? 'active-run' : isOff ? 'inactive-off' : 'inactive'}" title="${estatus}">
                     ${estatusVisual}
                 </span>
             </td>
-            <td title="${obs.replace(/"/g, '&quot;')}">${obs}</td>
+            <td style="padding: 10px 14px;" title="${obs.replace(/"/g, '&quot;')}">${obs}</td>
         `;
         tbody.appendChild(tr);
     });

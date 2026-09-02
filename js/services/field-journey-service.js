@@ -4,7 +4,7 @@ import { getAccessProfile } from '../core/access-control.js';
 import { getActiveOperationalScope, getActiveOperationalScopeWellNames } from './operational-scope-context.js';
 import { previewMonitoringSync, syncMonitoringRecords } from './monitoring-records-service.js';
 import { getWellTechnicalData } from './technical-measurements-service.js';
-import { REPORT_COLUMNS } from './field-journey-export.js';
+import { REPORT_COLUMNS, CRC_REPORT_COLUMNS } from './field-journey-export.js';
 import { normalizeOperationalStatus } from './monitoring-shared.js';
 
 const CONSOLIDATED_OPERATIONAL_TABLE = 'consolidated_dashboard_operational';
@@ -702,27 +702,143 @@ export async function saveFieldJourneyReports(reports = []) {
 }
 
 export async function getFieldJourneyHistory(limit = 150) {
-    const session = await ensureFieldWriteAccess();
-    const accessProfile = getAccessProfile(session);
+    const { session, accessProfile } = await ensureFieldSessionAccess();
 
     try {
-        // If the current user is a field operator, only return a limited set of columns
-        // to avoid exposing sensitive measurement fields. Administrators and supervisors
-        // continue receiving the full record set.
-        const selectColumns = accessProfile?.isFieldOperator
-            ? 'id, client_report_id, report_date, report_time, jornada, equipo_guardia, locacion_jornada, pozo, updated_at'
-            : '*';
+        const userEmail = session?.user?.email?.trim();
 
-        const { data, error } = await supabase
-            .from('field_journey_reports')
-            .select(selectColumns)
-            .eq('user_email', session.user.email)
-            .order('report_date', { ascending: false })
-            .order('report_time', { ascending: false })
+        let query = supabase
+            .from('field_journeys')
+            .select('*');
+
+        if (userEmail) {
+            query = query.or(`submitted_by_email.ilike.${userEmail},operational_scope.eq.crc_ll`);
+        } else {
+            query = query.eq('operational_scope', 'crc_ll');
+        }
+
+        const { data: journeys, error: journeysError } = await query
+            .order('journey_date', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(limit);
 
-        if (error) throw error;
-        return data || [];
+        if (journeysError) throw journeysError;
+
+        const journeyList = Array.isArray(journeys) ? journeys : [];
+        if (journeyList.length === 0) return [];
+
+        const journeyIds = journeyList.map(journey => journey.id).filter(Boolean);
+
+        // 2. Obtener los registros detallados correspondientes a esas jornadas
+        const { data: records, error: recordsError } = await supabase
+            .from('field_journey_records')
+            .select('*')
+            .in('journey_id', journeyIds)
+            .order('report_time', { ascending: true })
+            .order('pozo', { ascending: true });
+
+        if (recordsError) throw recordsError;
+
+        // 3. Aplanar / mapear los registros al formato que espera la vista de historial (field_journey_reports shape)
+        const mappedReports = [];
+        const recordsByJourney = new Map();
+        (records || []).forEach(record => {
+            const key = record.journey_id;
+            if (!recordsByJourney.has(key)) {
+                recordsByJourney.set(key, []);
+            }
+            recordsByJourney.get(key).push(record);
+        });
+
+        journeyList.forEach(journey => {
+            const jRecords = recordsByJourney.get(journey.id) || [];
+            
+            if (jRecords.length === 0) {
+                mappedReports.push({
+                    id: `empty-${journey.id}`,
+                    journey_id: journey.id,
+                    client_report_id: null,
+                    report_date: journey.journey_date,
+                    report_time: '--:--',
+                    jornada: journey.jornada,
+                    equipo_guardia: journey.equipo_guardia || (journey.tecnico_1 ? [journey.tecnico_1, journey.tecnico_2].filter(Boolean).join(', ') : '--'),
+                    locacion_jornada: journey.locacion_jornada || (journey.operational_scope === 'crc_ll' ? 'Lagunillas Lago' : '--'),
+                    pozo: 'Sin visitas registradas',
+                    updated_at: journey.updated_at,
+                    status: journey.status,
+                    tecnico_1: journey.tecnico_1 || '',
+                    tecnico_2: journey.tecnico_2 || '',
+                    lift_method: 'BM',
+                    isEmptyJourney: true
+                });
+            } else {
+                jRecords.forEach(rec => {
+                    const rawPayload = (rec.raw_payload && typeof rec.raw_payload === 'object') ? rec.raw_payload : {};
+                    
+                    mappedReports.push({
+                        id: rec.id,
+                        journey_id: journey.id,
+                        client_report_id: rec.source_client_report_id || rec.id,
+                        report_date: rec.report_date || journey.journey_date,
+                        report_time: rec.report_time,
+                        jornada: journey.jornada,
+                        equipo_guardia: journey.equipo_guardia || rawPayload.equipo_guardia || (rawPayload.tecnico_1 ? [rawPayload.tecnico_1, rawPayload.tecnico_2].filter(Boolean).join(', ') : '--'),
+                        locacion_jornada: journey.locacion_jornada || (journey.operational_scope === 'crc_ll' ? 'Lagunillas Lago' : rawPayload.locacion_jornada || '--'),
+                        pozo: rec.pozo,
+                        updated_at: rec.updated_at || journey.updated_at,
+                        status: journey.status,
+                        tecnico_1: journey.tecnico_1 || rawPayload.tecnico_1 || '',
+                        tecnico_2: journey.tecnico_2 || rawPayload.tecnico_2 || '',
+                        
+                        // Métricas operativas legadas para PDF/Excel y visualización detallada:
+                        hz: rec.frecuencia ?? rawPayload.hz ?? rawPayload.frecuencia,
+                        sentido_giro: rec.sentido_giro ?? rawPayload.sentido_giro,
+                        v_vsd: rec.out_vsd ?? rawPayload.v_vsd ?? rawPayload.out_vsd,
+                        i_mot: rec.i_motor ?? rawPayload.i_mot ?? rawPayload.i_motor,
+                        v_mot: rec.v_motor ?? rawPayload.v_mot ?? rawPayload.v_motor,
+                        thp: rec.thp_psi ?? rawPayload.thp ?? rawPayload.thp_psi,
+                        lf: rec.lf_psi ?? rawPayload.lf ?? rawPayload.lf_psi,
+                        chp: rec.chp_psi ?? rawPayload.chp ?? rawPayload.chp_psi,
+                        pi: rec.pip_psi ?? rawPayload.pi ?? rawPayload.pip_psi,
+                        pd: rec.pd_psi ?? rawPayload.pd ?? rawPayload.pd_psi,
+                        ti: rec.ti_f ?? rawPayload.ti ?? rawPayload.ti_f,
+                        tm: rec.tm_f ?? rawPayload.tm ?? rawPayload.tm_f,
+                        ivsd_a: rawPayload.ivsd_a ?? rawPayload.i_vsd_a,
+                        ivsd_b: rawPayload.ivsd_b ?? rawPayload.i_vsd_b,
+                        ivsd_c: rawPayload.ivsd_c ?? rawPayload.i_vsd_c,
+                        comentario: rec.observaciones_pozo ?? rawPayload.comentario ?? rawPayload.observaciones_pozo,
+                        
+                        // Campos específicos de CRC LL:
+                        lift_method: rec.lift_method || rawPayload.lift_method || (rawPayload.bm_spm ? 'BM' : rawPayload.bcp_rpm ? 'BCP' : 'BM'),
+                        bm_marca: rec.bm_marca || rawPayload.bm_marca,
+                        bm_modelo: rec.bm_modelo || rawPayload.bm_modelo,
+                        bm_tiro: rec.bm_tiro || rawPayload.bm_tiro,
+                        bm_recorrido: rec.bm_recorrido || rawPayload.bm_recorrido,
+                        bm_spm: rec.bm_spm || rawPayload.bm_spm || rawPayload.spm,
+                        bm_estado_unidad: rec.bm_estado_unidad || rawPayload.bm_estado_unidad,
+                        bcp_rpm: rec.bcp_rpm || rawPayload.bcp_rpm || rawPayload.rpm,
+                        bcp_torque: rec.bcp_torque || rawPayload.bcp_torque || rawPayload.torque,
+                        bcp_amperaje: rec.bcp_amperaje || rawPayload.bcp_amperaje,
+                        bcp_modelo_cabezal: rec.bcp_modelo_cabezal || rawPayload.bcp_modelo_cabezal,
+                        bcp_motorreductor: rec.bcp_motorreductor || rawPayload.bcp_motorreductor,
+                        bcp_stuffing: rec.bcp_stuffing || rawPayload.bcp_stuffing,
+                        stuffing: rec.stuffing || rawPayload.stuffing,
+                        
+                        well_nivel: rec.well_nivel || rawPayload.well_nivel || rawPayload.nivel,
+                        well_sumergencia: rec.well_sumergencia || rawPayload.well_sumergencia || rawPayload.sumergencia,
+                        well_presion_inicial: rec.well_presion_inicial || rawPayload.well_presion_inicial || rawPayload.presion_inicial,
+                        well_presion_final: rec.well_presion_final || rawPayload.well_presion_final || rawPayload.presion_final,
+                        well_tiempo_prueba: rec.well_tiempo_prueba || rawPayload.well_tiempo_prueba || rawPayload.tiempo_prueba,
+                        
+                        bruta: rec.bruta ?? rawPayload.bruta,
+                        neta: rec.neta ?? rawPayload.neta,
+                        ays_percentage: rec.ays_percentage ?? rawPayload.ays_percentage
+                    });
+                });
+            }
+        });
+
+        return mappedReports;
     } catch (error) {
         throw wrapFieldJourneyError(error);
     }
@@ -942,8 +1058,6 @@ export async function getAdminFieldJourneys(options = {}) {
     const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 120;
     const scopeGuard = await resolveActiveScopeGuard(options);
 
-    if (!scopeGuard.pozoNames.length) return [];
-
     let query = supabase
         .from('field_journeys')
         .select('*')
@@ -972,6 +1086,13 @@ export async function getAdminFieldJourneys(options = {}) {
         const journeyList = Array.isArray(journeys) ? journeys : [];
         if (journeyList.length === 0) return [];
 
+        // Aplicar fallback para locacion_jornada en contratos crc_ll
+        journeyList.forEach(journey => {
+            if (!journey.locacion_jornada && journey.operational_scope === 'crc_ll') {
+                journey.locacion_jornada = 'Lagunillas Lago';
+            }
+        });
+
         journeyList.sort((a, b) => {
             const dateComp = String(b.journey_date || '').localeCompare(String(a.journey_date || ''));
             if (dateComp !== 0) return dateComp;
@@ -988,7 +1109,6 @@ export async function getAdminFieldJourneys(options = {}) {
             .from('field_journey_records')
             .select('journey_id, pozo, report_time, raw_payload')
             .in('journey_id', journeyIds)
-            .in('pozo', scopeGuard.pozoNames)
             .order('report_time', { ascending: true })
             .order('pozo', { ascending: true });
 
@@ -1079,7 +1199,7 @@ export async function getFieldWorkflowDiagnostics() {
     }
 }
 
-export async function getAdminFieldJourneyDetail(journeyId) {
+export async function getAdminFieldJourneyDetail(journeyId, options = {}) {
     await ensureFieldAdminReadAccess();
 
     const normalizedJourneyId = String(journeyId || '').trim();
@@ -1088,10 +1208,7 @@ export async function getAdminFieldJourneyDetail(journeyId) {
     }
 
     try {
-        const scopeGuard = await resolveActiveScopeGuard();
-        if (!scopeGuard.pozoNames.length) {
-            throw new Error('El contrato activo no tiene pozos configurados para mostrar esta jornada.');
-        }
+        const scopeGuard = await resolveActiveScopeGuard(options);
 
         const [{ data: journey, error: journeyError }, { data: records, error: recordsError }, { data: reviewLog, error: reviewLogError }] = await Promise.all([
             supabase
@@ -1119,16 +1236,24 @@ export async function getAdminFieldJourneyDetail(journeyId) {
             throw new Error('La jornada solicitada no existe o ya no está disponible.');
         }
 
-        let scopedRecords = [];
-        if (records && records.length > 0) {
-            scopedRecords = filterRecordsByScope(records, scopeGuard);
-            if (!scopedRecords.length) {
-                throw new Error('La jornada seleccionada no pertenece al contrato activo.');
-            }
-        } else {
-            const journeyScope = String(journey.operational_scope || '').trim().toLowerCase();
-            if (journeyScope && journeyScope !== scopeGuard.operationalScope) {
-                throw new Error('La jornada seleccionada no pertenece al contrato activo.');
+        // Aplicar fallback para locacion_jornada en contratos crc_ll
+        if (!journey.locacion_jornada && journey.operational_scope === 'crc_ll') {
+            journey.locacion_jornada = 'Lagunillas Lago';
+        }
+
+        const journeyScope = String(journey.operational_scope || '').trim().toLowerCase();
+        const activeScope = String(scopeGuard.operationalScope || '').trim().toLowerCase();
+
+        // Validar si la jornada pertenece al contrato activo
+        if (journeyScope && activeScope && journeyScope !== activeScope) {
+            throw new Error('La jornada seleccionada no pertenece al contrato activo.');
+        }
+
+        let scopedRecords = records || [];
+        if (records && records.length > 0 && scopeGuard.pozoSet && scopeGuard.pozoSet.size > 0) {
+            const filtered = filterRecordsByScope(records, scopeGuard);
+            if (filtered.length > 0) {
+                scopedRecords = filtered;
             }
         }
 
@@ -2262,7 +2387,36 @@ export async function saveAdminFieldJourneyReview(journeyId, options = {}) {
 
 function mapWorkflowRecordToMonitoringRecord(record = {}) {
     const payload = record?.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
-    const operationalScope = normalizeOperationalScopeValue(record.operational_scope || payload.operational_scope);
+    const finalPayload = (payload.raw_payload && typeof payload.raw_payload === 'object') ? payload.raw_payload : payload;
+    const operationalScope = normalizeOperationalScopeValue(record.operational_scope || payload.operational_scope || finalPayload.operational_scope);
+
+    if (operationalScope === 'crc_ll') {
+        const method = String(record.lift_method || finalPayload.lift_method || '').trim().toUpperCase();
+        const spm = record.bm_spm ?? finalPayload.bm_spm ?? record.spm ?? finalPayload.spm;
+        const rpm = record.bcp_rpm ?? finalPayload.bcp_rpm ?? record.rpm ?? finalPayload.rpm;
+        const speedVal = method === 'BCP' ? rpm : spm;
+
+        return {
+            operational_scope: operationalScope,
+            pozo_name: String(record.pozo || payload.pozo || finalPayload.pozo || '').trim().toUpperCase(),
+            campo: String(record.campo || payload.campo || finalPayload.campo || '').trim(),
+            fecha: record.report_date || payload.fecha || finalPayload.fecha || null,
+            hora: record.report_time || payload.hora || finalPayload.hora || '00:00:00',
+            frecuencia: normalizeOptionalNumber(record.bruta ?? payload.bruta ?? finalPayload.bruta ?? record.bbpd ?? payload.bbpd ?? finalPayload.bbpd),
+            corriente_motor: normalizeOptionalNumber(record.neta ?? payload.neta ?? finalPayload.neta ?? record.bnpd ?? payload.bnpd ?? finalPayload.bnpd),
+            presion_thp: normalizeOptionalNumber(record.thp_psi ?? payload.thp_psi ?? finalPayload.thp_psi),
+            presion_chp: normalizeOptionalNumber(record.chp_psi ?? payload.chp_psi ?? finalPayload.chp_psi),
+            presion_lf: null,
+            pip: normalizeOptionalNumber(record.ays_percentage ?? payload.ays_percentage ?? finalPayload.ays_percentage),
+            tm: normalizeOptionalNumber(speedVal),
+            vsd_a: null,
+            vsd_b: null,
+            vsd_c: null,
+            sentido_giro: String(record.actividad || payload.actividad || finalPayload.actividad || '').trim(),
+            estatus: normalizeOperationalStatus(record.estatus || payload.estatus || finalPayload.estatus) || null,
+            observaciones: String(record.observaciones_pozo || payload.observaciones_pozo || finalPayload.observaciones_pozo || '').trim()
+        };
+    }
 
     return {
         operational_scope: operationalScope,
@@ -2337,12 +2491,39 @@ function getConsolidatedFieldValue(record = {}, payload = {}, fieldName = '') {
     if (fieldName === 'estado') return String(record.estado ?? payload.estado ?? '').trim();
     if (fieldName === 'actividad') return String(record.actividad ?? payload.actividad ?? '').trim();
     if (fieldName === 'estatus') return String(record.estatus ?? payload.estatus ?? '').trim();
+
+    // Fallbacks para CCRC presiones, BM y BCP
+    if (fieldName === 'thp_psi') return record.thp_psi ?? payload.thp_psi ?? record.presion_thp ?? payload.presion_thp ?? '';
+    if (fieldName === 'chp_psi') return record.chp_psi ?? payload.chp_psi ?? record.presion_chp ?? payload.presion_chp ?? '';
+    if (fieldName === 'stuffing') return record.stuffing ?? payload.stuffing ?? record.bcp_stuffing ?? payload.bcp_stuffing ?? '';
+    if (fieldName === 'bm_marca') return record.bm_marca ?? payload.bm_marca ?? '';
+    if (fieldName === 'bm_modelo') return record.bm_modelo ?? payload.bm_modelo ?? '';
+    if (fieldName === 'bm_tiro') return record.bm_tiro ?? payload.bm_tiro ?? '';
+    if (fieldName === 'bm_recorrido') return record.bm_recorrido ?? payload.bm_recorrido ?? '';
+    if (fieldName === 'bm_spm') return record.bm_spm ?? payload.bm_spm ?? '';
+    if (fieldName === 'bm_estado_unidad') return record.bm_estado_unidad ?? payload.bm_estado_unidad ?? '';
+    if (fieldName === 'bcp_rpm') return record.bcp_rpm ?? payload.bcp_rpm ?? '';
+    if (fieldName === 'bcp_torque') return record.bcp_torque ?? payload.bcp_torque ?? '';
+    if (fieldName === 'bcp_amperaje') return record.bcp_amperaje ?? payload.bcp_amperaje ?? '';
+    if (fieldName === 'bcp_modelo_cabezal') return record.bcp_modelo_cabezal ?? payload.bcp_modelo_cabezal ?? '';
+    if (fieldName === 'bcp_motorreductor') return record.bcp_motorreductor ?? payload.bcp_motorreductor ?? '';
+    if (fieldName === 'bcp_stuffing') return record.bcp_stuffing ?? payload.bcp_stuffing ?? record.stuffing ?? payload.stuffing ?? '';
+    if (fieldName === 'well_nivel') return record.well_nivel ?? payload.well_nivel ?? record.nivel_fluido_ft ?? payload.nivel_fluido_ft ?? '';
+    if (fieldName === 'well_sumergencia') return record.well_sumergencia ?? payload.well_sumergencia ?? record.sumergencia_ft ?? payload.sumergencia_ft ?? '';
+    if (fieldName === 'well_presion_inicial') return record.well_presion_inicial ?? payload.well_presion_inicial ?? record.presion_inicial ?? payload.presion_inicial ?? '';
+    if (fieldName === 'well_presion_final') return record.well_presion_final ?? payload.well_presion_final ?? record.presion_final ?? payload.presion_final ?? '';
+    if (fieldName === 'well_tiempo_prueba') return record.well_tiempo_prueba ?? payload.well_tiempo_prueba ?? record.tiempo_prueba_presion ?? payload.tiempo_prueba_presion ?? '';
+
     return record[fieldName] ?? payload[fieldName] ?? '';
 }
 
 function buildConsolidatedFieldRowData(record = {}, profile = null, levelTest = null) {
     const payload = record.raw_payload && typeof record.raw_payload === 'object' ? record.raw_payload : {};
-    return Object.fromEntries(REPORT_COLUMNS.map(([label, fieldName]) => {
+    const scope = normalizeOperationalScopeValue(record.operational_scope || payload.operational_scope || getActiveOperationalScope());
+    const isCrc = scope === 'crc_ll' || scope === 'ccrc_ll';
+    const columnsToUse = isCrc ? (CRC_REPORT_COLUMNS || REPORT_COLUMNS) : REPORT_COLUMNS;
+
+    return Object.fromEntries(columnsToUse.map(([label, fieldName]) => {
         let value = '';
         
         if (profile && fieldName === 'fabricante') value = profile.pump_manufacturer || '';
@@ -2354,10 +2535,10 @@ function buildConsolidatedFieldRowData(record = {}, profile = null, levelTest = 
         else if (profile && fieldName === 'motor') value = profile.motor_manufacturer || profile.motor_model || '';
         else if (profile && fieldName === 'sensor') value = profile.sensor_model || '';
         else if (profile && fieldName === 'drainvalue') value = profile.drain_valve || '';
-        else if (fieldName === 'nivel_fluido_ft') {
+        else if (fieldName === 'nivel_fluido_ft' || fieldName === 'well_nivel') {
             value = levelTest?.nivel_dinamico ?? getConsolidatedFieldValue(record, payload, fieldName);
         }
-        else if (fieldName === 'sumergencia_ft') {
+        else if (fieldName === 'sumergencia_ft' || fieldName === 'well_sumergencia') {
             value = levelTest?.sumergencia ?? getConsolidatedFieldValue(record, payload, fieldName);
         }
         else if (fieldName === 'pip_echometer_psi') {

@@ -7,7 +7,8 @@ export const ACCESS_ROLES = Object.freeze({
     BASE_DATOS: 'base_datos',
     GESTOR_USUARIOS: 'gestor_usuarios',
     GERENCIAL: 'gerencial', // Nuevo Rol Gerencial
-    SEGURIDAD: 'seguridad' // Nuevo Rol de Seguridad/SIAHO
+    SEGURIDAD: 'seguridad', // Nuevo Rol de Seguridad/SIAHO
+    CRC: 'crc' // Rol de captura de parámetros CRC LL
 });
 
 const ALLOWED_ACCESS_ROLES = new Set(Object.values(ACCESS_ROLES));
@@ -53,6 +54,7 @@ export function getAccessProfile(sessionOrUser) {
     const isGestorUsuarios = role === ACCESS_ROLES.GESTOR_USUARIOS;
     const isGerencial = role === ACCESS_ROLES.GERENCIAL; // Nuevo
     const isSeguridad = role === ACCESS_ROLES.SEGURIDAD; // Nuevo
+    const isCrcOperator = role === ACCESS_ROLES.CRC; // Nuevo
 
     return {
         email,
@@ -64,19 +66,20 @@ export function getAccessProfile(sessionOrUser) {
         isGestorUsuarios,
         isGerencial, // Nuevo
         isSeguridad, // Nuevo
+        isCrcOperator, // Nuevo
         isAdmin,
         isSupervisor,
-        canViewDashboard: !isGestorUsuarios && !isServicesOperator && !isSeguridad,
-        canViewConsolidado: !isGestorUsuarios && !isServicesOperator && !isSeguridad,
+        canViewDashboard: !isGestorUsuarios && !isServicesOperator && !isSeguridad && !isCrcOperator,
+        canViewConsolidado: !isGestorUsuarios && !isServicesOperator && !isSeguridad && !isCrcOperator,
         canModifyConsolidadoBase: isAdmin || isSupervisor,
         canViewManagement: isAdmin || isSupervisor || isGerencial, // Gerencial puede ver gestión/jornadas
         canEditData: isAdmin || isSupervisor,
-        canCreateFieldReports: isAdmin || isSupervisor || isFieldOperator,
-        canViewFieldModule: isAdmin || isSupervisor || isFieldOperator,
+        canCreateFieldReports: isAdmin || isSupervisor || isFieldOperator || isCrcOperator,
+        canViewFieldModule: isAdmin || isSupervisor || isFieldOperator || isCrcOperator,
         canViewFieldHistory: !isGestorUsuarios && !isServicesOperator && !isSeguridad,
-        canViewJourneyModule: isAdmin || isSupervisor || isFieldOperator,
+        canViewJourneyModule: isAdmin || isSupervisor || isFieldOperator || isCrcOperator,
         canViewJourneyHistory: !isGestorUsuarios && !isServicesOperator && !isSeguridad,
-        canViewStats: !isGestorUsuarios && !isServicesOperator && !isSeguridad,
+        canViewStats: !isGestorUsuarios && !isServicesOperator && !isSeguridad && !isCrcOperator,
         canViewBaseDatos: isBaseDatos || isGerencial || isAdmin || isSupervisor || isSeguridad, // Gerencial, Admin, Supervisor y Seguridad pueden ver base-datos.html
         canManageUsers: isGestorUsuarios || isAdmin
     };
@@ -93,6 +96,10 @@ export function getDefaultRouteForAccessProfile(accessProfile) {
 
     if (accessProfile?.isFieldOperator) {
         return 'field.html';
+    }
+
+    if (accessProfile?.isCrcOperator) {
+        return 'crc/field-crc.html'; // Redirección para el capturador CRC LL
     }
 
     if (accessProfile?.isGestorUsuarios) {

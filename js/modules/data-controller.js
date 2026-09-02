@@ -2,7 +2,7 @@ let pozoOutsideClickListener = null;
 
 import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } from '../auth.js';
         import { getPozosHistorySummary, getMonitoringData, getTechnicalHistory, deleteRecord, getWellBESProfile, getWellLevelTests, deleteLevelTest } from '../data-service.js';
-        import { getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from '../services/operational-scope-context.js';
+        import { getActiveOperationalScope, getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from '../services/operational-scope-context.js';
         import { supabase } from '../supabaseClient.js';
         import { openFieldJourneyPdf } from '../services/field-journey-export.js';
 
@@ -32,10 +32,6 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
         function getSelectedTicketShift() {
             return document.getElementById('ticket-shift')?.value === 'night' ? 'night' : 'day';
-        }
-
-        function getTicketShiftLabel(shift = getSelectedTicketShift()) {
-            return shift === 'night' ? 'Jornada Nocturna' : 'Jornada Diurna';
         }
 
         function applyDataAccessProfile() {
@@ -279,7 +275,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         return rightKey.localeCompare(leftKey);
                     })
                 }))
-                .sort((left, right) => left.pozoName.localeCompare(right.pozoName));
+                .sort((left, right) => left.pozoName.localeCompare(right.pozoName, undefined, { numeric: true, sensitivity: 'base' }));
         }
 
         function addDaysToIsoDate(dateValue, days = 1) {
@@ -288,12 +284,23 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             return date.toISOString().slice(0, 10);
         }
 
+        function getTicketShiftLabel(shift = getSelectedTicketShift()) {
+            if (getActiveOperationalScope() === 'crc_ll') {
+                return 'Jornada Completa';
+            }
+            return shift === 'night' ? 'Jornada Nocturna' : 'Jornada Diurna';
+        }
+
         function getOperationalShiftForRecord(record = {}, journeyMap = null) {
             const rawDate = String(record.fecha || '').slice(0, 10);
             const rawTime = String(record.hora || '00:00').slice(0, 5);
             const [hourText = '0', minuteText = '0'] = rawTime.split(':');
             const minutes = (Number(hourText) * 60) + Number(minuteText);
             if (!rawDate || !Number.isFinite(minutes)) return null;
+
+            if (getActiveOperationalScope() === 'crc_ll' || record.operational_scope === 'crc_ll') {
+                return { operationalDate: rawDate, shift: 'day' };
+            }
 
             // Respect explicitly defined shift value (e.g. Diurna/Nocturna)
             let shiftVal = record.jornada;
@@ -304,7 +311,9 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
             if (shiftVal) {
                 const cleanJornada = String(shiftVal).toLowerCase();
-                if (cleanJornada.includes('diurna')) {
+                if (cleanJornada.includes('completa')) {
+                    return { operationalDate: rawDate, shift: 'day' };
+                } else if (cleanJornada.includes('diurna')) {
                     return { operationalDate: rawDate, shift: 'day' };
                 } else if (cleanJornada.includes('nocturna')) {
                     return {
@@ -428,6 +437,81 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
         function buildOperationalRowHtml(record, includeActions = false) {
             const recordId = record.id || record.ID || null;
+            const activeScope = getActiveOperationalScope();
+
+            if (activeScope === 'crc_ll') {
+                const pozoName = String(record.pozo_name || record.pozo || '').trim().toUpperCase();
+                const wellMeta = activeScopeWellCatalog.find(w => w.pozo_name === pozoName);
+                const liftMethod = wellMeta?.lift_method || 'BM';
+                const speedUnit = liftMethod === 'BCP' ? 'RPM' : 'SPM';
+
+                return `
+                    <tr>
+                        <td class="cell-date">
+                            <span class="date-main">${formatMonitoringTextCell(record.fecha)}</span>
+                            <span class="time-sub">${formatMonitoringTextCell(record.hora)}</span>
+                        </td>
+                        <td class="cell-freq">
+                            <span class="value-highlight">${formatMonitoringNumberCell(record.frecuencia)}</span>
+                            <span class="unit-label">BPD</span>
+                        </td>
+                        <td class="cell-giro">
+                            <span class="value-highlight">${formatMonitoringNumberCell(record.corriente_motor)}</span>
+                            <span class="unit-label">BPD</span>
+                        </td>
+                        <td class="cell-current">
+                            <span class="value-highlight">${formatMonitoringNumberCell(record.pip, 2)}</span>
+                            <span class="unit-label">%</span>
+                        </td>
+                        <td class="cell-pip-tm">
+                            <span class="value-highlight">${formatMonitoringNumberCell(record.tm, 1)}</span>
+                            <span class="unit-label">${speedUnit}</span>
+                        </td>
+                        <td class="cell-presion">
+                            <div class="telemetry-block-group horizontal">
+                                <div class="telemetry-item thp">
+                                    <span class="lbl">THP</span>
+                                    <span class="val">${formatMonitoringTextCell(record.presion_thp, '--')}</span>
+                                    <span class="uni">PSI</span>
+                                </div>
+                                <div class="telemetry-item chp">
+                                    <span class="lbl">CHP</span>
+                                    <span class="val">${formatMonitoringTextCell(record.presion_chp, '--')}</span>
+                                    <span class="uni">PSI</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="cell-vsd">
+                            <span class="value-badge-plain">${formatMonitoringTextCell(record.sentido_giro, '--')}</span>
+                        </td>
+                        <td class="cell-status">
+                            ${(() => {
+                                const normEst = String(record.estatus || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                                const isRun = normEst.includes('RUN') || normEst.includes('OPERANDO') || normEst.includes('ACTIVO');
+                                const statusClass = isRun ? 'status-run' : 'status-off';
+                                return `
+                                    <span class="status-badge-premium ${statusClass}">
+                                        <span class="status-dot"></span>
+                                        <span>${formatMonitoringTextCell(record.estatus)}</span>
+                                    </span>
+                                `;
+                            })()}
+                        </td>
+                        <td class="cell-actions" style="text-align: right; white-space: nowrap;">
+                            <button class="btn-action btn-view-premium" onclick="openFullDataModal('${escapeHtml(recordId)}')" aria-label="Ver detalles">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <span>Ver</span>
+                            </button>
+                            ${includeActions && currentAccessProfile.canEditData ? `
+                            <button class="btn-action btn-edit-premium" data-id="${escapeHtml(recordId)}">Editar</button>
+                            <button class="btn-action btn-delete-premium" data-id="${escapeHtml(recordId)}">Borrar</button>` : ''}
+                        </td>
+                    </tr>
+                `;
+            }
 
             return `
                 <tr>
@@ -497,7 +581,8 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                     </td>
                     <td class="cell-status">
                         ${(() => {
-                            const isRun = ['RUN', 'RUN / ATENCION AL CLIENTE'].includes(String(record.estatus).toUpperCase().trim());
+                            const normEst = String(record.estatus || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                            const isRun = normEst.includes('RUN') || normEst.includes('OPERANDO') || normEst.includes('ACTIVO');
                             const statusClass = isRun ? 'status-run' : 'status-off';
                             return `
                                 <span class="status-badge-premium ${statusClass}">
@@ -565,7 +650,41 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                     <div class="daily-ticket-shift-body">
                         ${shiftGroup.groups.length === 0
                             ? '<div class="daily-ticket-empty">No hay monitoreos en esta jornada.</div>'
-                            : shiftGroup.groups.map(group => `
+                            : shiftGroup.groups.map(group => {
+                                const activeScope = getActiveOperationalScope();
+                                const pozoName = group.pozoName;
+                                const wellMeta = activeScopeWellCatalog.find(w => w.pozo_name === pozoName);
+                                const liftMethod = wellMeta?.lift_method || 'BM';
+
+                                const methodBadge = activeScope === 'crc_ll'
+                                    ? `<span style="font-size: 0.68rem; font-weight: 800; background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 4px;">⚙️ ${liftMethod}</span>`
+                                    : `<span style="font-size: 0.68rem; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #bae6fd; display: inline-flex; align-items: center; gap: 4px;">⚡ BES</span>`;
+
+                                const tableHeaders = activeScope === 'crc_ll'
+                                    ? `
+                                        <th>Fecha/Hora</th>
+                                        <th>Caudal Bruto</th>
+                                        <th>Caudal Neto</th>
+                                        <th>Contenido Agua</th>
+                                        <th>SPM / RPM</th>
+                                        <th>Presiones (THP/CHP)</th>
+                                        <th>Actividad</th>
+                                        <th>Estatus</th>
+                                        <th style="text-align: right;"></th>
+                                    `
+                                    : `
+                                        <th>Fecha/Hora</th>
+                                        <th>Frecuencia</th>
+                                        <th>Giro</th>
+                                        <th>Corriente M.</th>
+                                        <th>PIP / TM</th>
+                                        <th>Presiones (THP/CHP/LF)</th>
+                                        <th>VSD A/B/C</th>
+                                        <th>Estatus</th>
+                                        <th style="text-align: right;"></th>
+                                    `;
+
+                                return `
                                 <article class="history-card daily-ticket-history-card">
                                     <div class="daily-ticket-history-topbar">
                                         <div>
@@ -583,7 +702,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                                                     <line x1="13.5" y1="17.2" x2="13.5" y2="21" stroke-width="0.7" />
                                                 </svg>
                                                 <span>${escapeHtml(group.pozoName)}</span>
-                                                <span style="font-size: 0.68rem; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #bae6fd; display: inline-flex; align-items: center; gap: 4px;">⚡ BES</span>
+                                                ${methodBadge}
                                             </h3>
                                             <p>Historial operativo consolidado del pozo para esta jornada.</p>
                                         </div>
@@ -599,15 +718,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                                         <table class="history-table daily-ticket-history-table">
                                             <thead>
                                                 <tr>
-                                                    <th>Fecha/Hora</th>
-                                                    <th>Frecuencia</th>
-                                                    <th>Giro</th>
-                                                    <th>Corriente M.</th>
-                                                    <th>PIP / TM</th>
-                                                    <th>Presiones (THP/CHP/LF)</th>
-                                                    <th>VSD A/B/C</th>
-                                                    <th>Estatus</th>
-                                                    <th style="text-align: right;"></th>
+                                                    ${tableHeaders}
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -617,7 +728,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                                     </div>
                                     <div id="photos-${escapeHtml(group.pozoName)}"></div>
                                 </article>
-                            `).join('')}
+                            `}).join('')}
                     </div>
                 </section>
             `;
@@ -635,6 +746,8 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
         }
 
         async function openWellDetailTab(pozoName, records) {
+            const activeScope = getActiveOperationalScope();
+            const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
             // Open tab synchronously to avoid popup blocker
             const detailWindow = window.open('', '_blank');
             if (!detailWindow) {
@@ -678,7 +791,12 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                             extraData = exactMatch.row_data || {};
                         }
                     }
-                    allExtendedRecords.push({ ...extraData, ...record });
+                    const extendedRecord = { ...extraData, ...record };
+                    const activeScope = getActiveOperationalScope();
+                    if (activeScope === 'crc_ll' && !extendedRecord.locacion_jornada) {
+                        extendedRecord.locacion_jornada = 'Lagunillas Lago';
+                    }
+                    allExtendedRecords.push(extendedRecord);
                 }
 
                 // Fetch all documents for this pozo on this date
@@ -771,7 +889,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         if (attachmentCards) {
                             attachmentsHtml = `
                             <section class="detail-section attachments-section" style="background: #f8fafc; border-color: #e2e8f0;">
-                                <h3 style="color: #475569;">📁 Archivos Técnicos de Campo del Día</h3>
+                                        <h3 style="color: #475569;">📁 Archivos Técnicos de Campo del Día</h3>
                                 <div class="attachments-grid">${attachmentCards}</div>
                             </section>`;
                         }
@@ -779,106 +897,227 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 } catch (e) { console.warn('Documents fetch error:', e); }
 
                 // PARAM_SECTIONS reuse
-                const SECTIONS = [
-                    { id: 'jornada', title: '📋 Jornada', color: '#1E3A8A', bg: '#EFF6FF', border: '#BFDBFE', fields: [
-                        { key: 'tecnico_1', label: 'Técnico 1' },
-                        { key: 'tecnico_2', label: 'Técnico 2' },
-                        { key: 'equipo_guardia', label: 'Equipo de Guardia' },
-                        { key: 'locacion_jornada', label: 'Locación de la Jornada' },
-                        { key: 'jornada', label: 'Jornada' },
-                        { key: 'pozo', label: 'Pozo' },
-                        { key: 'campo', label: 'Campo' },
-                        { key: 'fecha', label: 'Fecha' },
-                        { key: 'hora', label: 'Hora' }
-                    ]},
-                    { id: 'info_general', title: '📍 Información General', color: '#0F766E', bg: '#F0FDF4', border: '#99F6E4', fields: [
-                        { key: 'ef', label: 'EF' },
-                        { key: 'estado', label: 'Estado' },
-                        { key: 'categoria', label: 'Categoría' },
-                        { key: 'potencial', label: 'Potencial', unit: 'BPD' },
-                        { key: 'bruta', label: 'Bruta', unit: 'BPD' },
-                        { key: 'neta', label: 'Neta', unit: 'BPD' },
-                        { key: 'ays_percentage', label: '% AyS', unit: '%' },
-                        { key: 'actividad', label: 'Actividad' },
-                        { key: 'estatus', label: 'Estatus' }
-                    ]},
-                    { id: 'parametros_operacionales', title: '⚙️ Parámetros Operacionales', color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', fields: [
-                        { key: 'frecuencia', label: 'Frecuencia', unit: 'Hz' },
-                        { key: 'modo_operacion', label: 'Modo de Operación' },
-                        { key: 'sentido_giro', label: 'Sentido de Giro' },
-                        { key: 'i_motor', label: 'I Motor', unit: 'A' },
-                        { key: 'v_motor', label: 'V Motor', unit: 'V' },
-                        { key: 'out_vsd', label: 'Out VSD', unit: 'V' },
-                        { key: 'i_vsd_a', label: 'I VSD A', unit: 'A' },
-                        { key: 'i_vsd_b', label: 'I VSD B', unit: 'A' },
-                        { key: 'i_vsd_c', label: 'I VSD C', unit: 'A' },
-                        { key: 'prom_i_vsd', label: 'Prom I VSD', unit: 'A' },
-                        { key: 'desv_fase_a', label: 'ABS IA PROM VSD', unit: '%' },
-                        { key: 'desv_fase_b', label: 'ABS IB PROM VSD', unit: '%' },
-                        { key: 'desv_fase_c', label: 'ABS IC PROM VSD', unit: '%' },
-                        { key: 'max_desviacion_vsd', label: 'MAXIMO ABS I VSD', unit: '%' },
-                        { key: 'desbalance_corriente_vsd', label: '% Desbalance Corriente VSD', unit: '%' },
-                        { key: 'posee_sensor_fondo', label: 'Posee Sensor de Fondo' },
-                        { key: 'descarga_datas_sensor', label: 'Descargó Data del Sensor' },
-                        { key: 'pip_psi', label: 'PIP', unit: 'psi' },
-                        { key: 'pd_psi', label: 'PD', unit: 'psi' },
-                        { key: 'ti_f', label: 'Ti', unit: '°F' },
-                        { key: 'tm_f', label: 'Tm', unit: '°F' },
-                        { key: 'vx_g', label: 'Vx', unit: 'G' },
-                        { key: 'vy_g', label: 'Vy', unit: 'G' },
-                        { key: 'vz_g', label: 'Vz', unit: 'G' }
-                    ]},
-                    { id: 'sistema_bes', title: '🔌 Sistema BES', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', fields: [
-                        { key: 'amp_nominal_motor', label: 'Amp Nominal Motor', unit: 'A' },
-                        { key: 'volt_nominal_motor', label: 'Volt Nominal Motor', unit: 'V' },
-                        { key: 'frec_max_hz', label: 'Frec Max', unit: 'Hz' },
-                        { key: 'low_speed_hz', label: 'Low Speed', unit: 'Hz' },
-                        { key: 'ul_a', label: 'UL', unit: 'A' },
-                        { key: 'ol_a', label: 'OL', unit: 'A' },
-                        { key: 'i_limit_a', label: 'I-Limit', unit: 'A' },
-                        { key: 'tiempo_desaceleracion_seg', label: 'Tiempo de Desaceleración', unit: 'seg' },
-                        { key: 'low_pip_shutdown_psi', label: 'Low PIP Shutdown', unit: 'psi' },
-                        { key: 'max_high_temp_shutdown_f', label: 'Max High Temp. Shutdown', unit: '°F' }
-                    ]},
-                    { id: 'superficie', title: '🏗️ Superficie & Equipamiento', color: '#475569', bg: '#F1F5F9', border: '#CBD5E1', fields: [
-                        { key: 'baja_datos', label: 'Descargó Data del VDF' },
-                        { key: 'vsd_kva', label: 'VSD', unit: 'kVA' },
-                        { key: 'marca_vsd', label: 'Marca VSD' },
-                        { key: 'modelo_vsd', label: 'Modelo VSD' },
-                        { key: 'tx_kva', label: 'Tx', unit: 'kVA' },
-                        { key: 'tap_v', label: 'Tap', unit: 'V' },
-                        { key: 'rt', label: 'R.T' },
-                        { key: 'estado_tx', label: 'Estado del Tx' },
-                        { key: 'estado_vsd', label: 'Estado del VSD' },
-                        { key: 'estado_panel_sensor_choques', label: 'Estado Panel Sensor / Choques' },
-                        { key: 'estado_aterramiento', label: 'Estado del Aterramiento' },
-                        { key: 'condicion_cableado', label: 'Condición del Cableado' },
-                        { key: 'condicion_caseta', label: 'Condición de la Jaula' },
-                        { key: 'temperatura_caseta', label: 'Temperatura de la Caseta del VDF', unit: '°C' },
-                        { key: 'estado_fosa_porcentaje', label: 'Estado de Fosa', unit: '%' },
-                        { key: 'estado_biw_conector', label: 'Estado del BIW/Conector' },
-                        { key: 'estado_manometros', label: 'Estado de Manómetros' },
-                        { key: 'estado_cabezal', label: 'Estado del Cabezal' },
-                        { key: 'estado_tomamuestras', label: 'Estado de Tomamuestras' },
-                        { key: 'estado_caja_venteo', label: 'Estado Caja de Venteo' }
-                    ]},
-                    { id: 'presiones_superficie', title: '📈 Presiones de Superficie & Echometer', color: '#0D9488', bg: '#F0FDF4', border: '#BBF7D0', fields: [
-                        { key: 'echometer', label: 'Echometer' },
-                        { key: 'thp_psi', label: 'THP', unit: 'psi' },
-                        { key: 'chp_psi', label: 'CHP', unit: 'psi' },
-                        { key: 'lf_psi', label: 'LF', unit: 'psi' },
-                        { key: 'cond_chp', label: 'Cond. CHP' },
-                        { key: 'nivel_fluido_ft', label: 'Nivel de Fluido', unit: 'ft' },
-                        { key: 'sumergencia_ft', label: 'Sumergencia', unit: 'ft' },
-                        { key: 'pip_echometer_psi', label: 'PIP Echometer', unit: 'psi' },
-                        { key: 'diagnostico', label: 'Diagnóstico' }
-                    ]},
-                    { id: 'prueba_electrica', title: '⚡ Prueba Eléctrica', color: '#B91C1C', bg: '#FEF2F2', border: '#FECACA', fields: [
-                        { key: 'resistencia_ab_ohm', label: 'Resistencia A-B', unit: 'Ohm' },
-                        { key: 'resistencia_bc_ohm', label: 'Resistencia B-C', unit: 'Ohm' },
-                        { key: 'resistencia_ca_ohm', label: 'Resistencia C-A', unit: 'Ohm' },
-                        { key: 'aislamiento_fase_tierra_mohm', label: 'Aislamiento Fase-Tierra', unit: 'MOhm' }
-                    ]},
+                let SECTIONS;
+                if (isCrc) {
+                    const pozoNameUpper = String(pozoName || '').trim().toUpperCase();
+                    const wellMeta = activeScopeWellCatalog.find(w => w.pozo_name === pozoNameUpper);
+                    const liftMethod = wellMeta?.lift_method || (records && records[0] ? (records[0].lift_method || records[0].raw_payload?.lift_method) : '') || 'BM';
+
+                    const liftMethodFields = liftMethod === 'BCP'
+                        ? [
+                            { key: 'bcp_rpm', label: 'RPM', unit: '' },
+                            { key: 'bcp_torque', label: 'Torque', unit: 'LBF-IN' },
+                            { key: 'bcp_amperaje', label: 'Corriente Motor BCP', unit: 'A' },
+                            { key: 'bcp_modelo_cabezal', label: 'Modelo Cabezal', unit: '' },
+                            { key: 'bcp_motorreductor', label: 'Motorreductor', unit: '' },
+                            { key: 'bcp_stuffing', label: 'Stuffing Box', unit: '' }
+                          ]
+                        : [
+                            { key: 'bm_marca', label: 'Marca Unidad', unit: '' },
+                            { key: 'bm_modelo', label: 'Modelo Unidad', unit: '' },
+                            { key: 'bm_tiro', label: 'Tiro', unit: '' },
+                            { key: 'bm_recorrido', label: 'Recorrido', unit: 'IN' },
+                            { key: 'bm_spm', label: 'Velocidad (SPM)', unit: 'SPM' },
+                            { key: 'bm_estado_unidad', label: 'Estado Unidad', unit: '' }
+                          ];
+
+                    SECTIONS = [
+                        {
+                            id: 'jornada',
+                            title: '📋 Identificación & Guardia',
+                            color: '#1E3A8A',
+                            bg: '#EFF6FF',
+                            border: '#BFDBFE',
+                            fields: [
+                                { key: 'tecnico_1', label: 'Técnico 1' },
+                                { key: 'tecnico_2', label: 'Técnico 2' },
+                                { key: 'equipo_guardia', label: 'Equipo de Guardia' },
+                                { key: 'locacion_jornada', label: 'Locación' },
+                                { key: 'jornada', label: 'Jornada' },
+                                { key: 'pozo', label: 'Pozo' },
+                                { key: 'campo', label: 'Campo' },
+                                { key: 'fecha', label: 'Fecha' },
+                                { key: 'hora', label: 'Hora' }
+                            ]
+                        },
+                        {
+                            id: 'info_general',
+                            title: '🛢️ Producción & Flujos',
+                            color: '#0F766E',
+                            bg: '#F0FDF4',
+                            border: '#99F6E4',
+                            fields: [
+                                { key: 'ef', label: 'EF' },
+                                { key: 'estado', label: 'Estado' },
+                                { key: 'categoria', label: 'Categoría' },
+                                { key: 'potencial', label: 'Potencial', unit: 'BPD' },
+                                { key: 'frecuencia', label: 'Caudal Bruto', unit: 'BPD' },
+                                { key: 'bruta', label: 'Caudal Bruto', unit: 'BPD' },
+                                { key: 'corriente_motor', label: 'Caudal Neto', unit: 'BPD' },
+                                { key: 'neta', label: 'Caudal Neto', unit: 'BPD' },
+                                { key: 'pip', label: 'Contenido de Agua (% AyS)', unit: '%' },
+                                { key: 'ays_percentage', label: 'Contenido de Agua (% AyS)', unit: '%' },
+                                { key: 'actividad', label: 'Actividad' },
+                                { key: 'estatus', label: 'Estatus' }
+                            ]
+                        },
+                        {
+                            id: 'parametros_levantamiento',
+                            title: `⚙️ Parámetros de Levantamiento (${liftMethod})`,
+                            color: '#D97706',
+                            bg: '#FFFBEB',
+                            border: '#FDE68A',
+                            fields: liftMethodFields
+                        },
+                        {
+                            id: 'presiones_superficie',
+                            title: '📈 Parámetros Operativos (Presiones)',
+                            color: '#0D9488',
+                            bg: '#F0FDF4',
+                            border: '#BBF7D0',
+                            fields: [
+                                { key: 'echometer', label: 'Echometer' },
+                                { key: 'presion_thp', label: 'Presión THP', unit: 'psi' },
+                                { key: 'thp_psi', label: 'Presión THP', unit: 'psi' },
+                                { key: 'presion_chp', label: 'Presión CHP', unit: 'psi' },
+                                { key: 'chp_psi', label: 'Presión CHP', unit: 'psi' },
+                                { key: 'stuffing', label: 'Presión Stuffing Box', unit: 'psi' },
+                                { key: 'nivel_fluido_ft', label: 'Nivel de Fluido', unit: 'ft' },
+                                { key: 'sumergencia_ft', label: 'Sumergencia', unit: 'ft' }
+                            ]
+                        },
+                        {
+                            id: 'pruebas_nivel',
+                            title: '📏 Pruebas de Nivel & Presión',
+                            color: '#7C3AED',
+                            bg: '#F5F3FF',
+                            border: '#DDD6FE',
+                            fields: [
+                                { key: 'well_nivel', label: 'Nivel del Fluido', unit: 'ft' },
+                                { key: 'well_sumergencia', label: 'Sumergencia', unit: 'ft' },
+                                { key: 'well_presion_inicial', label: 'Presión Inicial', unit: 'psi' },
+                                { key: 'presion_inicial', label: 'Presión Inicial', unit: 'psi' },
+                                { key: 'well_presion_final', label: 'Presión Final', unit: 'psi' },
+                                { key: 'presion_final', label: 'Presión Final', unit: 'psi' },
+                                { key: 'well_tiempo_prueba', label: 'Tiempo de Prueba' },
+                                { key: 'tiempo_prueba_presion', label: 'Tiempo de Prueba (min)' }
+                            ]
+                        },
+                        {
+                            id: 'observaciones_sec',
+                            title: '🩺 Observaciones & Actividad',
+                            color: '#334155',
+                            bg: '#F8FAFC',
+                            border: '#E2E8F0',
+                            fields: [
+                                { key: 'sentido_giro', label: 'Actividad' },
+                                { key: 'actividad', label: 'Actividad' },
+                                { key: 'observaciones_pozo', label: 'Observaciones Pozo' },
+                                { key: 'observaciones', label: 'Observaciones' }
+                            ]
+                        }
+                    ];
+                } else {
+                    SECTIONS = [
+                        { id: 'jornada', title: '📋 Jornada', color: '#1E3A8A', bg: '#EFF6FF', border: '#BFDBFE', fields: [
+                            { key: 'tecnico_1', label: 'Técnico 1' },
+                            { key: 'tecnico_2', label: 'Técnico 2' },
+                            { key: 'equipo_guardia', label: 'Equipo de Guardia' },
+                            { key: 'locacion_jornada', label: 'Locación de la Jornada' },
+                            { key: 'jornada', label: 'Jornada' },
+                            { key: 'pozo', label: 'Pozo' },
+                            { key: 'campo', label: 'Campo' },
+                            { key: 'fecha', label: 'Fecha' },
+                            { key: 'hora', label: 'Hora' }
+                        ]},
+                        { id: 'info_general', title: '📍 Información General', color: '#0F766E', bg: '#F0FDF4', border: '#99F6E4', fields: [
+                            { key: 'ef', label: 'EF' },
+                            { key: 'estado', label: 'Estado' },
+                            { key: 'categoria', label: 'Categoría' },
+                            { key: 'potencial', label: 'Potencial', unit: 'BPD' },
+                            { key: 'bruta', label: 'Bruta', unit: 'BPD' },
+                            { key: 'neta', label: 'Neta', unit: 'BPD' },
+                            { key: 'ays_percentage', label: '% AyS', unit: '%' },
+                            { key: 'actividad', label: 'Actividad' },
+                            { key: 'estatus', label: 'Estatus' }
+                        ]},
+                        { id: 'parametros_operacionales', title: '⚙️ Parámetros Operacionales', color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', fields: [
+                            { key: 'frecuencia', label: 'Frecuencia', unit: 'Hz' },
+                            { key: 'modo_operacion', label: 'Modo de Operación' },
+                            { key: 'sentido_giro', label: 'Sentido de Giro' },
+                            { key: 'i_motor', label: 'I Motor', unit: 'A' },
+                            { key: 'v_motor', label: 'V Motor', unit: 'V' },
+                            { key: 'out_vsd', label: 'Out VSD', unit: 'V' },
+                            { key: 'i_vsd_a', label: 'I VSD A', unit: 'A' },
+                            { key: 'i_vsd_b', label: 'I VSD B', unit: 'A' },
+                            { key: 'i_vsd_c', label: 'I VSD C', unit: 'A' },
+                            { key: 'prom_i_vsd', label: 'Prom I VSD', unit: 'A' },
+                            { key: 'desv_fase_a', label: 'ABS IA PROM VSD', unit: '%' },
+                            { key: 'desv_fase_b', label: 'ABS IB PROM VSD', unit: '%' },
+                            { key: 'desv_fase_c', label: 'ABS IC PROM VSD', unit: '%' },
+                            { key: 'max_desviacion_vsd', label: 'MAXIMO ABS I VSD', unit: '%' },
+                            { key: 'desbalance_corriente_vsd', label: '% Desbalance Corriente VSD', unit: '%' },
+                            { key: 'posee_sensor_fondo', label: 'Posee Sensor de Fondo' },
+                            { key: 'descarga_datas_sensor', label: 'Descargó Data del Sensor' },
+                            { key: 'pip_psi', label: 'PIP', unit: 'psi' },
+                            { key: 'pd_psi', label: 'PD', unit: 'psi' },
+                            { key: 'ti_f', label: 'Ti', unit: '°F' },
+                            { key: 'tm_f', label: 'Tm', unit: '°F' },
+                            { key: 'vx_g', label: 'Vx', unit: 'G' },
+                            { key: 'vy_g', label: 'Vy', unit: 'G' },
+                            { key: 'vz_g', label: 'Vz', unit: 'G' }
+                        ]},
+                        { id: 'sistema_bes', title: '🔌 Sistema BES', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', fields: [
+                            { key: 'amp_nominal_motor', label: 'Amp Nominal Motor', unit: 'A' },
+                            { key: 'volt_nominal_motor', label: 'Volt Nominal Motor', unit: 'V' },
+                            { key: 'frec_max_hz', label: 'Frec Max', unit: 'Hz' },
+                            { key: 'low_speed_hz', label: 'Low Speed', unit: 'Hz' },
+                            { key: 'ul_a', label: 'UL', unit: 'A' },
+                            { key: 'ol_a', label: 'OL', unit: 'A' },
+                            { key: 'i_limit_a', label: 'I-Limit', unit: 'A' },
+                            { key: 'tiempo_desaceleracion_seg', label: 'Tiempo de Desaceleración', unit: 'seg' },
+                            { key: 'low_pip_shutdown_psi', label: 'Low PIP Shutdown', unit: 'psi' },
+                            { key: 'max_high_temp_shutdown_f', label: 'Max High Temp. Shutdown', unit: '°F' }
+                        ]},
+                        { id: 'superficie', title: '🏗️ Superficie & Equipamiento', color: '#475569', bg: '#F1F5F9', border: '#CBD5E1', fields: [
+                            { key: 'baja_datos', label: 'Descargó Data del VDF' },
+                            { key: 'vsd_kva', label: 'VSD', unit: 'kVA' },
+                            { key: 'marca_vsd', label: 'Marca VSD' },
+                            { key: 'modelo_vsd', label: 'Modelo VSD' },
+                            { key: 'tx_kva', label: 'Tx', unit: 'kVA' },
+                            { key: 'tap_v', label: 'Tap', unit: 'V' },
+                            { key: 'rt', label: 'R.T' },
+                            { key: 'estado_tx', label: 'Estado del Tx' },
+                            { key: 'estado_vsd', label: 'Estado del VSD' },
+                            { key: 'estado_panel_sensor_choques', label: 'Estado Panel Sensor / Choques' },
+                            { key: 'estado_aterramiento', label: 'Estado del Aterramiento' },
+                            { key: 'condicion_cableado', label: 'Condición del Cableado' },
+                            { key: 'condicion_caseta', label: 'Condición de la Jaula' },
+                            { key: 'temperatura_caseta', label: 'Temperatura de la Caseta del VDF', unit: '°C' },
+                            { key: 'estado_fosa_porcentaje', label: 'Estado de Fosa', unit: '%' },
+                            { key: 'estado_biw_conector', label: 'Estado del BIW/Conector' },
+                            { key: 'estado_manometros', label: 'Estado de Manómetros' },
+                            { key: 'estado_cabezal', label: 'Estado del Cabezal' },
+                            { key: 'estado_tomamuestras', label: 'Estado de Tomamuestras' },
+                            { key: 'estado_caja_venteo', label: 'Estado Caja de Venteo' }
+                        ]},
+                        { id: 'presiones_superficie', title: '📈 Presiones de Superficie & Echometer', color: '#0D9488', bg: '#F0FDF4', border: '#BBF7D0', fields: [
+                            { key: 'echometer', label: 'Echometer' },
+                            { key: 'thp_psi', label: 'THP', unit: 'psi' },
+                            { key: 'chp_psi', label: 'CHP', unit: 'psi' },
+                            { key: 'lf_psi', label: 'LF', unit: 'psi' },
+                            { key: 'cond_chp', label: 'Cond. CHP' },
+                            { key: 'nivel_fluido_ft', label: 'Nivel de Fluido', unit: 'ft' },
+                            { key: 'sumergencia_ft', label: 'Sumergencia', unit: 'ft' },
+                            { key: 'pip_echometer_psi', label: 'PIP Echometer', unit: 'psi' },
+                            { key: 'diagnostico', label: 'Diagnóstico' }
+                        ]},
+                        { id: 'prueba_electrica', title: '⚡ Prueba Eléctrica', color: '#B91C1C', bg: '#FEF2F2', border: '#FECACA', fields: [
+                            { key: 'resistencia_ab_ohm', label: 'Resistencia A-B', unit: 'Ohm' },
+                            { key: 'resistencia_bc_ohm', label: 'Resistencia B-C', unit: 'Ohm' },
+                            { key: 'resistencia_ca_ohm', label: 'Resistencia C-A', unit: 'Ohm' },
+                            { key: 'aislamiento_fase_tierra_mohm', label: 'Aislamiento Fase-Tierra', unit: 'MOhm' }
+                        ]},
                     { id: 'tx_bobina_primaria', title: '🌀 Tx Bobina Primaria', color: '#4F46E5', bg: '#E0E7FF', border: '#C7D2FE', fields: [
                         { key: 'ff_x1_x2_v', label: 'FASE-FASE X1-X2', unit: 'V' },
                         { key: 'ff_x2_x3_v', label: 'FASE-FASE X2-X3', unit: 'V' },
@@ -954,6 +1193,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         { key: 'observaciones_pozo', label: 'Observaciones del Pozo' }
                     ]}
                 ];
+                }
 
                 const excludeKeys = new Set(['id', 'ID', 'deleted_at', 'user_id', 'is_historical', 'pozo_id', 'row_data', 'raw_payload', 'created_at', 'updated_at', 'synced_at', 'operational_scope']);
                 const cleanStr = str => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1490,68 +1730,139 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             }
 
             if (activeHistoryMode === 'technical') {
+                const activeScope = getActiveOperationalScope();
+                const isCrc = activeScope === 'crc_ll';
+                if (isCrc) {
+                    thead.innerHTML = `
+                        <tr>
+                            <th>
+                                <span class="technical-history-head">
+                                    <span class="technical-history-head-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                                            <path d="M16 2v4M8 2v4M3 10h18"></path>
+                                        </svg>
+                                    </span>
+                                    <span>Fecha Medición</span>
+                                </span>
+                            </th>
+                            <th>
+                                <span class="technical-history-head">
+                                    <span class="technical-history-head-icon barrel">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <ellipse cx="12" cy="5" rx="6" ry="2.5"></ellipse>
+                                            <path d="M6 5v14c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V5"></path>
+                                            <path d="M6 12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <span>Barril Bruto</span>
+                                </span>
+                            </th>
+                            <th>
+                                <span class="technical-history-head">
+                                    <span class="technical-history-head-icon water">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M12 3C9 7 6 10.2 6 14a6 6 0 0012 0c0-3.8-3-7-6-11z"></path>
+                                        </svg>
+                                    </span>
+                                    <span>% Agua</span>
+                                </span>
+                            </th>
+                            <th>
+                                <span class="technical-history-head">
+                                    <span class="technical-history-head-icon net">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M4 15l4-4 4 4 8-8"></path>
+                                            <path d="M14 7h6v6"></path>
+                                        </svg>
+                                    </span>
+                                    <span>Barriles Netos</span>
+                                </span>
+                            </th>
+                        </tr>
+                    `;
+                } else {
+                    thead.innerHTML = `
+                        <tr>
+                            <th>
+                                <span class="technical-history-head">
+                                    <span class="technical-history-head-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                                            <path d="M16 2v4M8 2v4M3 10h18"></path>
+                                        </svg>
+                                    </span>
+                                    <span>Fecha Medición</span>
+                                </span>
+                            </th>
+                            <th>
+                                <span class="technical-history-head">
+                                    <span class="technical-history-head-icon barrel">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M12 3v18"></path>
+                                            <path d="M7 8h7a3 3 0 010 6H7"></path>
+                                        </svg>
+                                    </span>
+                                    <span>Potencial</span>
+                                </span>
+                            </th>
+                            <th>
+                                <span class="technical-history-head">
+                                    <span class="technical-history-head-icon barrel">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <ellipse cx="12" cy="5" rx="6" ry="2.5"></ellipse>
+                                            <path d="M6 5v14c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V5"></path>
+                                            <path d="M6 12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5"></path>
+                                        </svg>
+                                    </span>
+                                    <span>Barril Bruto</span>
+                                </span>
+                            </th>
+                            <th>
+                                <span class="technical-history-head">
+                                    <span class="technical-history-head-icon water">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M12 3C9 7 6 10.2 6 14a6 6 0 0012 0c0-3.8-3-7-6-11z"></path>
+                                        </svg>
+                                    </span>
+                                    <span>% Agua</span>
+                                </span>
+                            </th>
+                            <th>
+                                <span class="technical-history-head">
+                                    <span class="technical-history-head-icon net">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M4 15l4-4 4 4 8-8"></path>
+                                            <path d="M14 7h6v6"></path>
+                                        </svg>
+                                    </span>
+                                    <span>Barriles Netos</span>
+                                </span>
+                            </th>
+                        </tr>
+                    `;
+                }
+                return;
+            }
+            // Carga el catalogo de pozos una sola vez y prepara el selector principal.
+
+            const activeScope = getActiveOperationalScope();
+            if (activeScope === 'crc_ll') {
                 thead.innerHTML = `
                     <tr>
-                        <th>
-                            <span class="technical-history-head">
-                                <span class="technical-history-head-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                        <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-                                        <path d="M16 2v4M8 2v4M3 10h18"></path>
-                                    </svg>
-                                </span>
-                                <span>Fecha Medición</span>
-                            </span>
-                        </th>
-                        <th>
-                            <span class="technical-history-head">
-                                <span class="technical-history-head-icon barrel">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                        <path d="M12 3v18"></path>
-                                        <path d="M7 8h7a3 3 0 010 6H7"></path>
-                                    </svg>
-                                </span>
-                                <span>Potencial</span>
-                            </span>
-                        </th>
-                        <th>
-                            <span class="technical-history-head">
-                                <span class="technical-history-head-icon barrel">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                        <ellipse cx="12" cy="5" rx="6" ry="2.5"></ellipse>
-                                        <path d="M6 5v14c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V5"></path>
-                                        <path d="M6 12c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5"></path>
-                                    </svg>
-                                </span>
-                                <span>Barril Bruto</span>
-                            </span>
-                        </th>
-                        <th>
-                            <span class="technical-history-head">
-                                <span class="technical-history-head-icon water">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                        <path d="M12 3C9 7 6 10.2 6 14a6 6 0 0012 0c0-3.8-3-7-6-11z"></path>
-                                    </svg>
-                                </span>
-                                <span>% Agua</span>
-                            </span>
-                        </th>
-                        <th>
-                            <span class="technical-history-head">
-                                <span class="technical-history-head-icon net">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                        <path d="M4 15l4-4 4 4 8-8"></path>
-                                        <path d="M14 7h6v6"></path>
-                                    </svg>
-                                </span>
-                                <span>Barriles Netos</span>
-                            </span>
-                        </th>
+                        <th>Fecha/Hora</th>
+                        <th>Caudal Bruto</th>
+                        <th>Caudal Neto</th>
+                        <th>Contenido Agua</th>
+                        <th>SPM / RPM</th>
+                        <th>Presiones (THP/CHP)</th>
+                        <th>Actividad</th>
+                        <th>Estatus</th>
+                        ${currentAccessProfile.canEditData ? '<th style="text-align: right;">Acciones</th>' : '<th style="text-align: right;"></th>'}
                     </tr>
                 `;
                 return;
             }
-            // Carga el catalogo de pozos una sola vez y prepara el selector principal.
 
             thead.innerHTML = `
                 <tr>
@@ -1587,6 +1898,22 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
             applyDataAccessProfile();
             renderHistoryHead();
+
+            // Adaptar pestañas del historial según el contrato (CCRC LL)
+            const isCrc = getActiveOperationalScope() === 'crc_ll';
+            const btnSensor = document.getElementById('btn-sensor-history');
+            const btnVsd = document.getElementById('btn-vsd-history');
+            if (isCrc) {
+                if (btnSensor) btnSensor.style.display = 'none';
+                if (btnVsd) btnVsd.style.display = 'none';
+                if (activeHistoryMode === 'sensor' || activeHistoryMode === 'vsd') {
+                    activeHistoryMode = 'operational';
+                }
+            } else {
+                if (btnSensor) btnSensor.style.display = 'inline-flex';
+                if (btnVsd) btnVsd.style.display = 'inline-flex';
+            }
+
             document.getElementById('logout-btn').addEventListener('click', logout);
             document.getElementById('mobile-logout-btn').addEventListener('click', logout);
             document.getElementById('btn-operational-history').addEventListener('click', () => setHistoryMode('operational'));
@@ -1605,10 +1932,62 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             await initPozos();
         }
 
+        let activeScopeWellCatalog = [];
+
         async function initPozos() {
             try {
-                const summaries = await getPozosHistorySummary();
-                pozoSummaries = (summaries || []).filter(item => isPozoAllowedByActiveScope(item.pozo_name));
+                const activeScope = getActiveOperationalScope();
+                const ticketShiftSelect = document.getElementById('ticket-shift');
+                if (ticketShiftSelect) {
+                    if (activeScope === 'crc_ll') {
+                        ticketShiftSelect.innerHTML = '<option value="day" selected>Jornada Completa</option>';
+                    } else {
+                        ticketShiftSelect.innerHTML = '<option value="day">Jornada Diurna</option><option value="night">Jornada Nocturna</option>';
+                    }
+                }
+
+                const { data: wellsData } = await supabase
+                    .from('field_well_catalog')
+                    .select('pozo_name, lift_method, campo_name')
+                    .eq('operational_scope', activeScope);
+                activeScopeWellCatalog = wellsData || [];
+
+                // Optimización crítica de rendimiento: en lugar de descargar y procesar las más de 12,000 filas de
+                // la tabla monitoreo_pozos mediante getPozosHistorySummary, consultamos de forma súper rápida e
+                // indexada el último registro de estado de cada uno de los pozos pertenecientes al catálogo activo.
+                const pozoNames = activeScopeWellCatalog.map(w => w.pozo_name).filter(Boolean);
+                
+                const normalizeEstatus = (val) => {
+                    const norm = String(val || '').trim().toUpperCase();
+                    if (['RUN', 'OPERANDO', 'ARRANCADO', 'ENCENDIDO', 'MARCHA'].includes(norm)) return 'RUN';
+                    if (['OFF', 'PARADO', 'DETENIDO', 'APAGADO', 'DETENCION'].includes(norm)) return 'OFF';
+                    return norm || null;
+                };
+
+                const promises = pozoNames.map(async (pozoName) => {
+                    const { data, error } = await supabase
+                        .from('monitoreo_pozos')
+                        .select('pozo_name, fecha, hora, estatus')
+                        .eq('pozo_name', pozoName)
+                        .order('fecha', { ascending: false })
+                        .order('hora', { ascending: false })
+                        .limit(1);
+                    
+                    if (error) {
+                        console.warn(`No se pudo obtener último registro para pozo ${pozoName} en Data:`, error);
+                    }
+                    
+                    const latest = data?.[0];
+                    return {
+                        pozo_name: pozoName,
+                        latest_fecha: latest?.fecha || null,
+                        latest_hora: latest?.hora || null,
+                        latest_estatus: latest?.estatus ? normalizeEstatus(latest.estatus) : null,
+                        has_records: !!latest
+                    };
+                });
+                
+                pozoSummaries = await Promise.all(promises);
                 renderPozoOptions();
 
                 const input = document.getElementById('pozo-selector-input');
@@ -2238,6 +2617,24 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 return escapeHtml(value === undefined || value === null || value === '' ? fallback : value);
             };
 
+            const isCrc = getActiveOperationalScope() === 'crc_ll';
+            const potencialCardHtml = isCrc ? '' : `
+                            <div class="technical-detail-card emphasis gross">
+                                <div class="technical-detail-card-head">
+                                    <span class="technical-detail-icon gross">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M4 18V8"></path>
+                                            <path d="M10 18V4"></path>
+                                            <path d="M16 18v-7"></path>
+                                            <path d="M22 18H2"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="technical-detail-label">Potencial</span>
+                                </div>
+                                <strong>${formatNumberCell(record.potencial)}</strong>
+                            </div>
+            `;
+
             Swal.fire({
                 title: `Medición Técnica · ${formatTextCell(record.pozo_name, activePozo || 'Pozo')}`,
                 html: `
@@ -2290,20 +2687,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                                 </div>
                                 <strong>${formatTextCell(record.ef)}</strong>
                             </div>
-                            <div class="technical-detail-card emphasis gross">
-                                <div class="technical-detail-card-head">
-                                    <span class="technical-detail-icon gross">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                            <path d="M4 18V8"></path>
-                                            <path d="M10 18V4"></path>
-                                            <path d="M16 18v-7"></path>
-                                            <path d="M22 18H2"></path>
-                                        </svg>
-                                    </span>
-                                    <span class="technical-detail-label">Potencial</span>
-                                </div>
-                                <strong>${formatNumberCell(record.potencial)}</strong>
-                            </div>
+                            ${potencialCardHtml}
                             <div class="technical-detail-card emphasis gross">
                                 <div class="technical-detail-card-head">
                                     <span class="technical-detail-icon gross">
@@ -2443,12 +2827,27 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             }
 
             if (activeHistoryMode === 'technical') {
+                const activeScope = getActiveOperationalScope();
+                const isCrc = activeScope === 'crc_ll';
                 currentRecordData.forEach(record => {
                     const tr = document.createElement('tr');
                     tr.className = 'technical-history-row';
                     tr.tabIndex = 0;
                     tr.setAttribute('role', 'button');
                     tr.setAttribute('aria-label', `Ver detalle de medicion tecnica ${formatTextCell(record.fecha)}`);
+                    
+                    const potencialCell = isCrc ? '' : `
+                        <td>
+                            <div class="technical-history-metric">
+                                <span class="technical-history-badge barrel">PT</span>
+                                <div>
+                                    <div class="technical-history-metric-value">${formatNumberCell(record.potencial, 2)}</div>
+                                    <div class="technical-history-metric-label">Potencial</div>
+                                </div>
+                            </div>
+                        </td>
+                    `;
+
                     tr.innerHTML = `
                         <td>
                             <div class="technical-history-date-cell">
@@ -2464,15 +2863,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                                 </div>
                             </div>
                         </td>
-                        <td>
-                            <div class="technical-history-metric">
-                                <span class="technical-history-badge barrel">PT</span>
-                                <div>
-                                    <div class="technical-history-metric-value">${formatNumberCell(record.potencial, 2)}</div>
-                                    <div class="technical-history-metric-label">Potencial</div>
-                                </div>
-                            </div>
-                        </td>
+                        ${potencialCell}
                         <td>
                             <div class="technical-history-metric">
                                 <span class="technical-history-badge barrel">BB</span>
@@ -2581,331 +2972,481 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
         // Abre el modal con todos los parametros del registro
         window.openFullDataModal = async function(recordId) {
-            const record = currentRecordData.find(r => String(r.id || r.ID || '') === String(recordId || ''));
+            let record = currentRecordData.find(r => String(r.id || r.ID || '') === String(recordId || ''));
             if (!record) return;
+
+            const activeScope = getActiveOperationalScope();
+            const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll';
+            
+            // Cargar los campos de raw_payload originales si es CCRC para tener los parámetros específicos
+            if (isCrc) {
+                try {
+                    const normalizedPozo = String(record.pozo_name || record.pozo || '').trim().toUpperCase();
+                    const { data: recordsData } = await supabase
+                        .from('field_journey_records')
+                        .select('raw_payload')
+                        .eq('pozo', normalizedPozo)
+                        .eq('report_date', record.fecha)
+                        .limit(1);
+
+                    if (recordsData && recordsData.length > 0 && recordsData[0].raw_payload) {
+                        const payload = recordsData[0].raw_payload;
+                        record = {
+                            ...record,
+                            ...payload,
+                            raw_payload: payload
+                        };
+                    }
+                    if (!record.locacion_jornada) {
+                        record.locacion_jornada = 'Lagunillas Lago';
+                    }
+                } catch (e) {
+                    console.error('Error al cargar raw_payload de field_journey_records:', e);
+                }
+            }
 
             const formatVal = (v) => (v !== null && v !== undefined && v !== '') ? v : '--';
             const pozo = record.pozo_name || record.pozo;
 
             document.getElementById('modal-full-data-subtitle').textContent = `Pozo: ${formatVal(pozo)} | Fecha: ${formatVal(record.fecha)} ${formatVal(record.hora)}`;
 
-            const PARAM_SECTIONS = [
-                {
-                    id: 'general',
-                    title: '📍 Identificación, Ubicación & Personal de Guardia',
-                    color: '#2563EB',
-                    bg: '#EFF6FF',
-                    border: '#BFDBFE',
-                    fields: [
-                        { key: 'pozo_name', label: 'Pozo' },
-                        { key: 'pozo', label: 'Pozo' },
-                        { key: 'POZO', label: 'Pozo' },
-                        { key: 'campo', label: 'Campo' },
-                        { key: 'CAMPO', label: 'Campo' },
-                        { key: 'locacion_jornada', label: 'Locación Jornada' },
-                        { key: 'LOCACION JORNADA', label: 'Locación Jornada' },
-                        { key: 'ef', label: 'Estación / Fila (EF)' },
-                        { key: 'EF', label: 'Estación / Fila (EF)' },
-                        { key: 'estacion', label: 'Estación' },
-                        { key: 'fecha', label: 'Fecha Lectura' },
-                        { key: 'FECHA', label: 'Fecha Lectura' },
-                        { key: 'report_date', label: 'Fecha Lectura' },
-                        { key: 'hora', label: 'Hora Lectura' },
-                        { key: 'HORA', label: 'Hora Lectura' },
-                        { key: 'report_time', label: 'Hora Lectura' },
-                        { key: 'estatus', label: 'Estatus Operativo' },
-                        { key: 'ESTATUS', label: 'Estatus Operativo' },
-                        { key: 'actividad', label: 'Actividad' },
-                        { key: 'ACTIVIDAD', label: 'Actividad' },
-                        { key: 'categoria', label: 'Categoría' },
-                        { key: 'CATEGORIA', label: 'Categoría' },
-                        { key: 'jornada', label: 'Jornada' },
-                        { key: 'estado', label: 'Estado Pozo' },
-                        { key: 'modo_operacion', label: 'Modo de Operación' },
-                        { key: 'MODO OPERACION', label: 'Modo de Operación' },
-                        { key: 'tecnico_1', label: 'Técnico 1' },
-                        { key: 'TECNICO 1', label: 'Técnico 1' },
-                        { key: 'tecnico1', label: 'Técnico 1' },
-                        { key: 'tecnico_2', label: 'Técnico 2' },
-                        { key: 'TECNICO 2', label: 'Técnico 2' },
-                        { key: 'tecnico2', label: 'Técnico 2' },
-                        { key: 'equipo_guardia', label: 'Equipo Guardia' },
-                        { key: 'EQUIPO GUARDIA', label: 'Equipo Guardia' }
-                    ]
-                },
-                {
-                    id: 'inspeccion',
-                    title: '🛡️ Inspección de Superficie & Estado de Instalaciones',
-                    color: '#334155',
-                    bg: '#F8FAFC',
-                    border: '#E2E8F0',
-                    fields: [
-                        { key: 'condicion_caseta', label: 'Condición de la Jaula' },
-                        { key: 'CONDICION CASETA', label: 'Condición de la Jaula' },
-                        { key: 'temperatura_caseta', label: 'Temperatura de la Caseta del VDF', unit: '°C' },
-                        { key: 'TEMPERATURA CASETA', label: 'Temperatura de la Caseta del VDF', unit: '°C' },
-                        { key: 'estado_manometros', label: 'Estado Manómetros' },
-                        { key: 'ESTADO MANOMETROS', label: 'Estado Manómetros' },
-                        { key: 'condicion_cableado', label: 'Condición Cableado' },
-                        { key: 'CONDICION CABLEADO', label: 'Condición Cableado' },
-                        { key: 'estado_caja_venteo', label: 'Estado Caja Venteo' },
-                        { key: 'ESTADO CAJA VENTEO', label: 'Estado Caja Venteo' },
-                        { key: 'estado_aterramiento', label: 'Estado Aterramiento' },
-                        { key: 'ESTADO ATERRAMIENTO', label: 'Estado Aterramiento' },
-                        { key: 'estado_biw_conector', label: 'Estado BIW / Conector' },
-                        { key: 'ESTADO BIW CONECTOR', label: 'Estado BIW / Conector' },
-                        { key: 'estado_tomamuestras', label: 'Estado Tomamuestras' },
-                        { key: 'ESTADO TOMAMUESTRAS', label: 'Estado Tomamuestras' },
-                        { key: 'estado_fosa_porcentaje', label: 'Estado Fosa', unit: '%' },
-                        { key: 'ESTADO FOSA PORCENTAJE', label: 'Estado Fosa', unit: '%' },
-                        { key: 'estado_panel_sensor_choques', label: 'Estado Panel Sensor Choques' },
-                        { key: 'ESTADO PANEL SENSOR CHOQUES', label: 'Estado Panel Sensor Choques' },
-                        { key: 'estado_cabezal', label: 'Estado Cabezal' },
-                        { key: 'ESTADO CABEZAL', label: 'Estado Cabezal' },
-                        { key: 'estado_tx', label: 'Estado Transformador (TX)' },
-                        { key: 'ESTADO TX', label: 'Estado Transformador (TX)' },
-                        { key: 'estado_vsd', label: 'Estado Variador VSD' },
-                        { key: 'ESTADO VSD', label: 'Estado Variador VSD' },
-                        { key: 'cond_chp', label: 'Condición CHP' },
-                        { key: 'COND CHP', label: 'Condición CHP' },
-                        { key: 'echometer', label: 'Echometer' },
-                        { key: 'ECHOMETER', label: 'Echometer' },
-                        { key: 'baja_datos', label: 'Baja Datos' },
-                        { key: 'BAJA DATOS', label: 'Baja Datos' },
-                        { key: 'descarga_datas_sensor', label: 'Descarga Datas Sensor' },
-                        { key: 'DESCARGA DATAS SENSOR', label: 'Descarga Datas Sensor' },
-                        { key: 'posee_sensor_fondo', label: 'Posee Sensor de Fondo' },
-                        { key: 'POSEE SENSOR FONDO', label: 'Posee Sensor de Fondo' }
-                    ]
-                },
-                {
-                    id: 'especificaciones_placa',
-                    title: '⚙️ Especificaciones de Placa & Equipos VSD / TX / BES',
-                    color: '#475569',
-                    bg: '#F1F5F9',
-                    border: '#CBD5E1',
-                    fields: [
-                        { key: 'marca_vsd', label: 'Marca VSD' },
-                        { key: 'MARCA VSD', label: 'Marca VSD' },
-                        { key: 'modelo_vsd', label: 'Modelo VSD' },
-                        { key: 'MODELO VSD', label: 'Modelo VSD' },
-                        { key: 'vsd_kva', label: 'Potencia VSD', unit: 'kVA' },
-                        { key: 'VSD KVA', label: 'Potencia VSD', unit: 'kVA' },
-                        { key: 'amp_nominal_motor', label: 'Amperaje Nominal Motor', unit: 'A' },
-                        { key: 'AMP NOMINAL MOTOR', label: 'Amperaje Nominal Motor', unit: 'A' },
-                        { key: 'volt_nominal_motor', label: 'Voltaje Nominal Motor', unit: 'V' },
-                        { key: 'VOLT NOMINAL MOTOR', label: 'Voltaje Nominal Motor', unit: 'V' },
-                        { key: 'tx_kva', label: 'Capacidad Transformador TX', unit: 'kVA' },
-                        { key: 'TX KVA', label: 'Capacidad Transformador TX', unit: 'kVA' },
-                        { key: 'tap_v', label: 'Tap Transformador', unit: 'V' },
-                        { key: 'TAP [V]', label: 'Tap Transformador', unit: 'V' },
-                        { key: 'TAP V', label: 'Tap Transformador', unit: 'V' },
-                        { key: 'motor', label: 'Modelo Motor BES' },
-                        { key: 'MOTOR', label: 'Modelo Motor BES' },
-                        { key: 'bomba', label: 'Modelo Bomba BES' },
-                        { key: 'BOMBA', label: 'Modelo Bomba BES' },
-                        { key: 'sellos', label: 'Sección Sellos / Protector' },
-                        { key: 'SELLOS', label: 'Sección Sellos / Protector' },
-                        { key: 'sensor', label: 'Sensor de Fondo' },
-                        { key: 'SENSOR', label: 'Sensor de Fondo' },
-                        { key: 'sentido_giro', label: 'Sentido de Giro' },
-                        { key: 'SENTIDO GIRO', label: 'Sentido de Giro' },
-                        { key: 'potencial', label: 'Potencial' },
-                        { key: 'POTENCIAL', label: 'Potencial' }
-                    ]
-                },
-                {
-                    id: 'presiones',
-                    title: '📈 Parámetros Operativos (Presiones)',
-                    color: '#0D9488',
-                    bg: '#F0FDF4',
-                    border: '#BBF7D0',
-                    fields: [
-                        { key: 'presion_chp', label: 'Presión CHP', unit: 'psi' },
-                        { key: 'chp_psi', label: 'Presión CHP', unit: 'psi' },
-                        { key: 'chp', label: 'Presión CHP', unit: 'psi' },
-                        { key: 'CHP (PSI)', label: 'Presión CHP', unit: 'psi' },
-                        { key: 'CHP PSI', label: 'Presión CHP', unit: 'psi' },
-                        { key: 'presion_thp', label: 'Presión THP', unit: 'psi' },
-                        { key: 'thp_psi', label: 'Presión THP', unit: 'psi' },
-                        { key: 'thp', label: 'Presión THP', unit: 'psi' },
-                        { key: 'THP (PSI)', label: 'Presión THP', unit: 'psi' },
-                        { key: 'THP PSI', label: 'Presión THP', unit: 'psi' },
-                        { key: 'presion_lf', label: 'Presión LF', unit: 'psi' },
-                        { key: 'lf_psi', label: 'Presión LF', unit: 'psi' },
-                        { key: 'lf', label: 'Presión LF', unit: 'psi' },
-                        { key: 'LF (PSI)', label: 'Presión LF', unit: 'psi' },
-                        { key: 'LF PSI', label: 'Presión LF', unit: 'psi' },
-                        { key: 'pip', label: 'Presión PIP (Intake)', unit: 'psi' },
-                        { key: 'pip_psi', label: 'Presión PIP (Intake)', unit: 'psi' },
-                        { key: 'PIP (PSI)', label: 'Presión PIP (Intake)', unit: 'psi' },
-                        { key: 'PIP PSI', label: 'Presión PIP (Intake)', unit: 'psi' },
-                        { key: 'PIP', label: 'Presión PIP (Intake)', unit: 'psi' },
-                        { key: 'pd_psi', label: 'Presión PD (Descarga)', unit: 'psi' },
-                        { key: 'pd', label: 'Presión PD (Descarga)', unit: 'psi' },
-                        { key: 'PD (PSI)', label: 'Presión PD (Descarga)', unit: 'psi' },
-                        { key: 'PD PSI', label: 'Presión PD (Descarga)', unit: 'psi' },
-                        { key: 'pd_max_psi', label: 'Presión PD Máxima', unit: 'psi' },
-                        { key: 'PD MAX PSI', label: 'Presión PD Máxima', unit: 'psi' },
-                        { key: 'pct_pip', label: 'Nivel Presión (% PIP)', unit: '%' },
-                        { key: '% PIP', label: 'Nivel Presión (% PIP)', unit: '%' },
-                        { key: '%PIP', label: 'Nivel Presión (% PIP)', unit: '%' }
-                    ]
-                },
-                {
-                    id: 'electricos',
-                    title: '⚡ Parámetros Eléctricos & Mediciones VSD',
-                    color: '#D97706',
-                    bg: '#FFFBEB',
-                    border: '#FDE68A',
-                    fields: [
-                        { key: 'frecuencia', label: 'Frecuencia / Speed', unit: 'Hz' },
-                        { key: 'frec', label: 'Frecuencia / Speed', unit: 'Hz' },
-                        { key: 'FREC', label: 'Frecuencia / Speed', unit: 'Hz' },
-                        { key: 'hz', label: 'Frecuencia / Speed', unit: 'Hz' },
-                        { key: 'out_vsd', label: 'Salida VSD', unit: 'Hz' },
-                        { key: 'frec_max_hz', label: 'Frecuencia Máxima', unit: 'Hz' },
-                        { key: 'FREC MAX HZ', label: 'Frecuencia Máxima', unit: 'Hz' },
-                        { key: 'low_speed_hz', label: 'Velocidad Mínima (Low Speed)', unit: 'Hz' },
-                        { key: 'v_motor', label: 'Voltaje Motor', unit: 'V' },
-                        { key: 'V MOTOR', label: 'Voltaje Motor', unit: 'V' },
-                        { key: 'corriente_motor', label: 'Corriente Motor', unit: 'A' },
-                        { key: 'i_motor', label: 'Corriente Motor', unit: 'A' },
-                        { key: 'corriente_vsd_a', label: 'Corriente VSD Fase A', unit: 'A' },
-                        { key: 'vsd_a', label: 'Corriente VSD Fase A', unit: 'A' },
-                        { key: 'i_vsd_a', label: 'Corriente VSD Fase A', unit: 'A' },
-                        { key: 'corriente_vsd_b', label: 'Corriente VSD Fase B', unit: 'A' },
-                        { key: 'vsd_b', label: 'Corriente VSD Fase B', unit: 'A' },
-                        { key: 'i_vsd_b', label: 'Corriente VSD Fase B', unit: 'A' },
-                        { key: 'corriente_vsd_c', label: 'Corriente VSD Fase C', unit: 'A' },
-                        { key: 'vsd_c', label: 'Corriente VSD Fase C', unit: 'A' },
-                        { key: 'i_vsd_c', label: 'Corriente VSD Fase C', unit: 'A' },
-                        { key: 'prom_i_vsd', label: 'Promedio Corriente VSD', unit: 'A' },
-                        { key: 'PROM I VSD', label: 'Promedio Corriente VSD', unit: 'A' },
-                        { key: 'desbalance_corriente_vsd', label: 'Desbalance Corriente VSD', unit: '%' },
-                        { key: 'DESBALANCE CORRIENTE VSD', label: 'Desbalance Corriente VSD', unit: '%' },
-                        { key: 'desv_fase_a', label: 'Desviación Fase A', unit: '%' },
-                        { key: 'DESV FASE A', label: 'Desviación Fase A', unit: '%' },
-                        { key: 'desv_fase_b', label: 'Desviación Fase B', unit: '%' },
-                        { key: 'DESV FASE B', label: 'Desviación Fase B', unit: '%' },
-                        { key: 'desv_fase_c', label: 'Desviación Fase C', unit: '%' },
-                        { key: 'DESV FASE C', label: 'Desviación Fase C', unit: '%' },
-                        { key: 'max_desviacion_vsd', label: 'Máxima Desviación VSD', unit: '%' },
-                        { key: 'MAX DESVIACION VSD', label: 'Máxima Desviación VSD', unit: '%' },
-                        { key: 'ul_a', label: 'Voltaje UL A', unit: 'V' },
-                        { key: 'UL [A]', label: 'Voltaje UL A', unit: 'V' },
-                        { key: 'UL A', label: 'Voltaje UL A', unit: 'V' },
-                        { key: 'ol_a', label: 'Corriente Límite OL A', unit: 'A' },
-                        { key: 'OL [A]', label: 'Corriente Límite OL A', unit: 'A' },
-                        { key: 'OL A', label: 'Corriente Límite OL A', unit: 'A' },
-                        { key: 'i_limit_a', label: 'Límite Corriente (I-Limit)', unit: 'A' },
-                        { key: 'pct_amp', label: 'Carga Motor (% AMP)', unit: '%' },
-                        { key: '% AMP', label: 'Carga Motor (% AMP)', unit: '%' },
-                        { key: '%AMP', label: 'Carga Motor (% AMP)', unit: '%' },
-                        { key: 'amp', label: 'Carga Motor (% AMP)', unit: '%' },
-                        { key: 'pct_volt', label: 'Voltaje Motor (% VOLT)', unit: '%' },
-                        { key: '% VOLT', label: 'Voltaje Motor (% VOLT)', unit: '%' },
-                        { key: '%VOLT', label: 'Voltaje Motor (% VOLT)', unit: '%' },
-                        { key: 'volt', label: 'Voltaje Motor (% VOLT)', unit: '%' }
-                    ]
-                },
-                {
-                    id: 'protecciones',
-                    title: '🚨 Ajustes de Protección & Shutdowns (Límites de Seguridad)',
-                    color: '#DC2626',
-                    bg: '#FEF2F2',
-                    border: '#FECACA',
-                    fields: [
-                        { key: 'low_pip_shutdown_psi', label: 'Límite Parada PIP (Low PIP Shutdown)', unit: 'psi' },
-                        { key: 'LOW PIP SHUTDOWN PSI', label: 'Límite Parada PIP (Low PIP Shutdown)', unit: 'psi' },
-                        { key: 'max_high_temp_shutdown_f', label: 'Límite Parada Temp (High Temp Shutdown)', unit: '°F' },
-                        { key: 'MAX HIGH TEMP SHUTDOWN F', label: 'Límite Parada Temp (High Temp Shutdown)', unit: '°F' },
-                        { key: 'delta_presion_psi', label: 'Diferencial Presión (Delta Presión)', unit: 'psi' },
-                        { key: 'DELTA PRESION PSI', label: 'Diferencial Presión (Delta Presión)', unit: 'psi' },
-                        { key: 'porcentaje_delta_presion', label: 'Porcentaje Delta Presión', unit: '%' },
-                        { key: 'PORCENTAJE DELTA PRESION', label: 'Porcentaje Delta Presión', unit: '%' }
-                    ]
-                },
-                {
-                    id: 'sensores',
-                    title: '🌡️ Temperatura & Sensórica (Fondo / Motor / Caseta del VDF)',
-                    color: '#7C3AED',
-                    bg: '#F5F3FF',
-                    border: '#DDD6FE',
-                    fields: [
-                        { key: 'tm', label: 'Temperatura Motor (TM)', unit: '°F' },
-                        { key: 'tm_f', label: 'Temperatura Motor (TM)', unit: '°F' },
-                        { key: 'TM (°F)', label: 'Temperatura Motor (TM)', unit: '°F' },
-                        { key: 'TM F', label: 'Temperatura Motor (TM)', unit: '°F' },
-                        { key: 'tif', label: 'Temperatura Intake (TIF)', unit: '°F' },
-                        { key: 'ti_f', label: 'Temperatura Intake (TIF)', unit: '°F' },
-                        { key: 'TI (°F)', label: 'Temperatura Intake (TIF)', unit: '°F' },
-                        { key: 'TIF (°F)', label: 'Temperatura Intake (TIF)', unit: '°F' },
-                        { key: 'TI F', label: 'Temperatura Intake (TIF)', unit: '°F' },
-                        { key: 'vx_g', label: 'Vibración X', unit: 'G' },
-                        { key: 'VX [G]', label: 'Vibración X', unit: 'G' },
-                        { key: 'vy_g', label: 'Vibración Y', unit: 'G' },
-                        { key: 'VY [G]', label: 'Vibración Y', unit: 'G' },
-                        { key: 'vz_g', label: 'Vibración Z', unit: 'G' },
-                        { key: 'VZ [G]', label: 'Vibración Z', unit: 'G' },
-                        { key: 'pct_temp', label: 'Temperatura Motor (% TEMP)', unit: '%' },
-                        { key: '% TEMP', label: 'Temperatura Motor (% TEMP)', unit: '%' },
-                        { key: '%TEMP', label: 'Temperatura Motor (% TEMP)', unit: '%' },
-                        { key: 'temp', label: 'Temperatura Motor (% TEMP)', unit: '%' }
-                    ]
-                },
-                {
-                    id: 'produccion',
-                    title: '🛢️ Producción & Flujos',
-                    color: '#0284C7',
-                    bg: '#F0F9FF',
-                    border: '#BAE6FD',
-                    fields: [
-                        { key: 'bruta', label: 'Producción Bruta', unit: 'BPD' },
-                        { key: 'BRUTA', label: 'Producción Bruta', unit: 'BPD' },
-                        { key: 'neta', label: 'Producción Neta', unit: 'BPD' },
-                        { key: 'NETA', label: 'Producción Neta', unit: 'BPD' },
-                        { key: 'ol_a', label: 'Corte de Agua (BSW / OL)', unit: '%' },
-                        { key: 'bsw', label: 'Corte de Agua (BSW)', unit: '%' },
-                        { key: 'rt', label: 'Relación Gas / RT', unit: '' },
-                        { key: 'R.T', label: 'Relación Gas / RT', unit: '' },
-                        { key: 'ays', label: '% AYS', unit: '%' },
-                        { key: '%AYS', label: '% AYS', unit: '%' },
-                        { key: '% AYS', label: '% AYS', unit: '%' },
-                        { key: 'ays_percentage', label: '% AYS', unit: '%' },
-                        { key: 'AYS PERCENTAGE', label: '% AYS', unit: '%' }
-                    ]
-                },
-                {
-                    id: 'diagnostico',
-                    title: '🩺 Diagnóstico Operativo & Observaciones',
-                    color: '#15803D',
-                    bg: '#F0FDF4',
-                    border: '#86EFAC',
-                    fields: [
-                        { key: 'diagnostico', label: 'Diagnóstico Operativo' },
-                        { key: 'DIAGNOSTICO', label: 'Diagnóstico Operativo' },
-                        { key: 'observaciones', label: 'Observaciones' },
-                        { key: 'OBSERVACIONES', label: 'Observaciones' },
-                        { key: 'observaciones_pozo', label: 'Observaciones Pozo' },
-                        { key: 'OBSERVACIONES DEL POZO', label: 'Observaciones Pozo' }
-                    ]
-                },
-                {
-                    id: 'auditoria',
-                    title: '🕒 Trazabilidad & Registro de Sistema',
-                    color: '#64748B',
-                    bg: '#F8FAFC',
-                    border: '#E2E8F0',
-                    fields: [
-                        { key: 'created_at', label: 'Fecha de Creación' },
-                        { key: 'CREATEDAT', label: 'Fecha de Creación' },
-                        { key: 'updated_at', label: 'Última Actualización' },
-                        { key: 'UPDATEDAT', label: 'Última Actualización' },
-                        { key: 'synced_at', label: 'Fecha de Sincronización' }
-                    ]
-                }
-            ];
+            let PARAM_SECTIONS;
+
+            if (isCrc) {
+                const pozoName = String(record.pozo_name || record.pozo || '').trim().toUpperCase();
+                const wellMeta = activeScopeWellCatalog.find(w => w.pozo_name === pozoName);
+                const liftMethod = wellMeta?.lift_method || record.lift_method || 'BM';
+
+                const liftMethodFields = liftMethod === 'BCP'
+                    ? [
+                        { key: 'bcp_rpm', label: 'RPM', unit: '' },
+                        { key: 'bcp_torque', label: 'Torque', unit: 'LBF-IN' },
+                        { key: 'bcp_amperaje', label: 'Corriente Motor BCP', unit: 'A' },
+                        { key: 'bcp_modelo_cabezal', label: 'Modelo Cabezal', unit: '' },
+                        { key: 'bcp_motorreductor', label: 'Motorreductor', unit: '' },
+                        { key: 'bcp_stuffing', label: 'Stuffing Box', unit: '' }
+                      ]
+                    : [
+                        { key: 'bm_marca', label: 'Marca Unidad', unit: '' },
+                        { key: 'bm_modelo', label: 'Modelo Unidad', unit: '' },
+                        { key: 'bm_tiro', label: 'Tiro', unit: '' },
+                        { key: 'bm_recorrido', label: 'Recorrido', unit: 'IN' },
+                        { key: 'bm_spm', label: 'Velocidad (SPM)', unit: 'SPM' },
+                        { key: 'bm_estado_unidad', label: 'Estado Unidad', unit: '' }
+                      ];
+
+                PARAM_SECTIONS = [
+                    {
+                        id: 'general',
+                        title: '📍 Identificación, Ubicación & Personal de Guardia',
+                        color: '#2563EB',
+                        bg: '#EFF6FF',
+                        border: '#BFDBFE',
+                        fields: [
+                            { key: 'pozo_name', label: 'Pozo' },
+                            { key: 'pozo', label: 'Pozo' },
+                            { key: 'campo', label: 'Campo' },
+                            { key: 'ef', label: 'Estación / Fila (EF)' },
+                            { key: 'fecha', label: 'Fecha Lectura' },
+                            { key: 'report_date', label: 'Fecha Lectura' },
+                            { key: 'hora', label: 'Hora Lectura' },
+                            { key: 'report_time', label: 'Hora Lectura' },
+                            { key: 'locacion_jornada', label: 'Locación Jornada' },
+                            { key: 'estatus', label: 'Estatus Operativo' },
+                            { key: 'categoria', label: 'Categoría' },
+                            { key: 'jornada', label: 'Jornada' },
+                            { key: 'lift_method', label: 'Método Levantamiento' },
+                            { key: 'tecnico_1', label: 'Técnico 1' },
+                            { key: 'tecnico_2', label: 'Técnico 2' },
+                            { key: 'equipo_guardia', label: 'Equipo Guardia' }
+                        ]
+                    },
+                    {
+                        id: 'produccion',
+                        title: '🛢️ Producción & Flujos',
+                        color: '#0284C7',
+                        bg: '#F0F9FF',
+                        border: '#BAE6FD',
+                        fields: [
+                            { key: 'frecuencia', label: 'Caudal Bruto', unit: 'BPD' },
+                            { key: 'bruta', label: 'Caudal Bruto', unit: 'BPD' },
+                            { key: 'corriente_motor', label: 'Caudal Neto', unit: 'BPD' },
+                            { key: 'neta', label: 'Caudal Neto', unit: 'BPD' },
+                            { key: 'pip', label: 'Contenido de Agua (% AyS)', unit: '%' },
+                            { key: 'ays_percentage', label: 'Contenido de Agua (% AyS)', unit: '%' }
+                        ]
+                    },
+                    {
+                        id: 'parametros_levantamiento',
+                        title: `⚙️ Parámetros de Levantamiento (${liftMethod})`,
+                        color: '#D97706',
+                        bg: '#FFFBEB',
+                        border: '#FDE68A',
+                        fields: liftMethodFields
+                    },
+                    {
+                        id: 'presiones',
+                        title: '📈 Parámetros Operativos (Presiones)',
+                        color: '#0D9488',
+                        bg: '#F0FDF4',
+                        border: '#BBF7D0',
+                        fields: [
+                            { key: 'presion_thp', label: 'Presión THP', unit: 'psi' },
+                            { key: 'thp_psi', label: 'Presión THP', unit: 'psi' },
+                            { key: 'thp', label: 'Presión THP', unit: 'psi' },
+                            { key: 'presion_chp', label: 'Presión CHP', unit: 'psi' },
+                            { key: 'chp_psi', label: 'Presión CHP', unit: 'psi' },
+                            { key: 'chp', label: 'Presión CHP', unit: 'psi' },
+                            { key: 'stuffing', label: 'Presión Stuffing Box', unit: 'psi' }
+                        ]
+                    },
+                    {
+                        id: 'pruebas_nivel',
+                        title: '📏 Pruebas de Nivel (Echometer)',
+                        color: '#7C3AED',
+                        bg: '#F5F3FF',
+                        border: '#DDD6FE',
+                        fields: [
+                            { key: 'well_nivel', label: 'Nivel del Fluido', unit: 'ft' },
+                            { key: 'well_sumergencia', label: 'Sumergencia', unit: 'ft' },
+                            { key: 'well_presion_inicial', label: 'Presión Inicial', unit: 'psi' },
+                            { key: 'well_presion_final', label: 'Presión Final', unit: 'psi' },
+                            { key: 'well_tiempo_prueba', label: 'Tiempo de Prueba' }
+                        ]
+                    },
+                    {
+                        id: 'diagnostico',
+                        title: '🩺 Actividad & Observaciones',
+                        color: '#15803D',
+                        bg: '#F0FDF4',
+                        border: '#86EFAC',
+                        fields: [
+                            { key: 'sentido_giro', label: 'Actividad' },
+                            { key: 'actividad', label: 'Actividad' },
+                            { key: 'observaciones', label: 'Observaciones' },
+                            { key: 'observaciones_pozo', label: 'Observaciones Pozo' }
+                        ]
+                    }
+                ];
+            } else {
+                PARAM_SECTIONS = [
+                    {
+                        id: 'general',
+                        title: '📍 Identificación, Ubicación & Personal de Guardia',
+                        color: '#2563EB',
+                        bg: '#EFF6FF',
+                        border: '#BFDBFE',
+                        fields: [
+                            { key: 'pozo_name', label: 'Pozo' },
+                            { key: 'pozo', label: 'Pozo' },
+                            { key: 'POZO', label: 'Pozo' },
+                            { key: 'campo', label: 'Campo' },
+                            { key: 'CAMPO', label: 'Campo' },
+                            { key: 'locacion_jornada', label: 'Locación Jornada' },
+                            { key: 'LOCACION JORNADA', label: 'Locación Jornada' },
+                            { key: 'ef', label: 'Estación / Fila (EF)' },
+                            { key: 'EF', label: 'Estación / Fila (EF)' },
+                            { key: 'estacion', label: 'Estación' },
+                            { key: 'fecha', label: 'Fecha Lectura' },
+                            { key: 'FECHA', label: 'Fecha Lectura' },
+                            { key: 'report_date', label: 'Fecha Lectura' },
+                            { key: 'hora', label: 'Hora Lectura' },
+                            { key: 'HORA', label: 'Hora Lectura' },
+                            { key: 'report_time', label: 'Hora Lectura' },
+                            { key: 'estatus', label: 'Estatus Operativo' },
+                            { key: 'ESTATUS', label: 'Estatus Operativo' },
+                            { key: 'actividad', label: 'Actividad' },
+                            { key: 'ACTIVIDAD', label: 'Actividad' },
+                            { key: 'categoria', label: 'Categoría' },
+                            { key: 'CATEGORIA', label: 'Categoría' },
+                            { key: 'jornada', label: 'Jornada' },
+                            { key: 'estado', label: 'Estado Pozo' },
+                            { key: 'modo_operacion', label: 'Modo de Operación' },
+                            { key: 'MODO OPERACION', label: 'Modo de Operación' },
+                            { key: 'tecnico_1', label: 'Técnico 1' },
+                            { key: 'TECNICO 1', label: 'Técnico 1' },
+                            { key: 'tecnico1', label: 'Técnico 1' },
+                            { key: 'tecnico_2', label: 'Técnico 2' },
+                            { key: 'TECNICO 2', label: 'Técnico 2' },
+                            { key: 'tecnico2', label: 'Técnico 2' },
+                            { key: 'equipo_guardia', label: 'Equipo Guardia' },
+                            { key: 'EQUIPO GUARDIA', label: 'Equipo Guardia' }
+                        ]
+                    },
+                    {
+                        id: 'inspeccion',
+                        title: '🛡️ Inspección de Superficie & Estado de Instalaciones',
+                        color: '#334155',
+                        bg: '#F8FAFC',
+                        border: '#E2E8F0',
+                        fields: [
+                            { key: 'condicion_caseta', label: 'Condición de la Jaula' },
+                            { key: 'CONDICION CASETA', label: 'Condición de la Jaula' },
+                            { key: 'temperatura_caseta', label: 'Temperatura de la Caseta del VDF', unit: '°C' },
+                            { key: 'TEMPERATURA CASETA', label: 'Temperatura de la Caseta del VDF', unit: '°C' },
+                            { key: 'estado_manometros', label: 'Estado Manómetros' },
+                            { key: 'ESTADO MANOMETROS', label: 'Estado Manómetros' },
+                            { key: 'condicion_cableado', label: 'Condición Cableado' },
+                            { key: 'CONDICION CABLEADO', label: 'Condición Cableado' },
+                            { key: 'estado_caja_venteo', label: 'Estado Caja Venteo' },
+                            { key: 'ESTADO CAJA VENTEO', label: 'Estado Caja Venteo' },
+                            { key: 'estado_aterramiento', label: 'Estado Aterramiento' },
+                            { key: 'ESTADO ATERRAMIENTO', label: 'Estado Aterramiento' },
+                            { key: 'estado_biw_conector', label: 'Estado BIW / Conector' },
+                            { key: 'ESTADO BIW CONECTOR', label: 'Estado BIW / Conector' },
+                            { key: 'estado_tomamuestras', label: 'Estado Tomamuestras' },
+                            { key: 'ESTADO TOMAMUESTRAS', label: 'Estado Tomamuestras' },
+                            { key: 'estado_fosa_porcentaje', label: 'Estado Fosa', unit: '%' },
+                            { key: 'ESTADO FOSA PORCENTAJE', label: 'Estado Fosa', unit: '%' },
+                            { key: 'estado_panel_sensor_choques', label: 'Estado Panel Sensor Choques' },
+                            { key: 'ESTADO PANEL SENSOR CHOQUES', label: 'Estado Panel Sensor Choques' },
+                            { key: 'estado_cabezal', label: 'Estado Cabezal' },
+                            { key: 'ESTADO CABEZAL', label: 'Estado Cabezal' },
+                            { key: 'estado_tx', label: 'Estado Transformador (TX)' },
+                            { key: 'ESTADO TX', label: 'Estado Transformador (TX)' },
+                            { key: 'estado_vsd', label: 'Estado Variador VSD' },
+                            { key: 'ESTADO VSD', label: 'Estado Variador VSD' },
+                            { key: 'cond_chp', label: 'Condición CHP' },
+                            { key: 'COND CHP', label: 'Condición CHP' },
+                            { key: 'echometer', label: 'Echometer' },
+                            { key: 'ECHOMETER', label: 'Echometer' },
+                            { key: 'baja_datos', label: 'Baja Datos' },
+                            { key: 'BAJA DATOS', label: 'Baja Datos' },
+                            { key: 'descarga_datas_sensor', label: 'Descarga Datas Sensor' },
+                            { key: 'DESCARGA DATAS SENSOR', label: 'Descarga Datas Sensor' },
+                            { key: 'posee_sensor_fondo', label: 'Posee Sensor de Fondo' },
+                            { key: 'POSEE SENSOR FONDO', label: 'Posee Sensor de Fondo' }
+                        ]
+                    },
+                    {
+                        id: 'especificaciones_placa',
+                        title: '⚙️ Especificaciones de Placa & Equipos VSD / TX / BES',
+                        color: '#475569',
+                        bg: '#F1F5F9',
+                        border: '#CBD5E1',
+                        fields: [
+                            { key: 'marca_vsd', label: 'Marca VSD' },
+                            { key: 'MARCA VSD', label: 'Marca VSD' },
+                            { key: 'modelo_vsd', label: 'Modelo VSD' },
+                            { key: 'MODELO VSD', label: 'Modelo VSD' },
+                            { key: 'vsd_kva', label: 'Potencia VSD', unit: 'kVA' },
+                            { key: 'VSD KVA', label: 'Potencia VSD', unit: 'kVA' },
+                            { key: 'amp_nominal_motor', label: 'Amperaje Nominal Motor', unit: 'A' },
+                            { key: 'AMP NOMINAL MOTOR', label: 'Amperaje Nominal Motor', unit: 'A' },
+                            { key: 'volt_nominal_motor', label: 'Voltaje Nominal Motor', unit: 'V' },
+                            { key: 'VOLT NOMINAL MOTOR', label: 'Voltaje Nominal Motor', unit: 'V' },
+                            { key: 'tx_kva', label: 'Capacidad Transformador TX', unit: 'kVA' },
+                            { key: 'TX KVA', label: 'Capacidad Transformador TX', unit: 'kVA' },
+                            { key: 'tap_v', label: 'Tap Transformador', unit: 'V' },
+                            { key: 'TAP [V]', label: 'Tap Transformador', unit: 'V' },
+                            { key: 'TAP V', label: 'Tap Transformador', unit: 'V' },
+                            { key: 'motor', label: 'Modelo Motor BES' },
+                            { key: 'MOTOR', label: 'Modelo Motor BES' },
+                            { key: 'bomba', label: 'Modelo Bomba BES' },
+                            { key: 'BOMBA', label: 'Modelo Bomba BES' },
+                            { key: 'sellos', label: 'Sección Sellos / Protector' },
+                            { key: 'SELLOS', label: 'Sección Sellos / Protector' },
+                            { key: 'sensor', label: 'Sensor de Fondo' },
+                            { key: 'SENSOR', label: 'Sensor de Fondo' },
+                            { key: 'sentido_giro', label: 'Sentido de Giro' },
+                            { key: 'SENTIDO GIRO', label: 'Sentido de Giro' },
+                            { key: 'potencial', label: 'Potencial' },
+                            { key: 'POTENCIAL', label: 'Potencial' }
+                        ]
+                    },
+                    {
+                        id: 'presiones',
+                        title: '📈 Parámetros Operativos (Presiones)',
+                        color: '#0D9488',
+                        bg: '#F0FDF4',
+                        border: '#BBF7D0',
+                        fields: [
+                            { key: 'presion_chp', label: 'Presión CHP', unit: 'psi' },
+                            { key: 'chp_psi', label: 'Presión CHP', unit: 'psi' },
+                            { key: 'chp', label: 'Presión CHP', unit: 'psi' },
+                            { key: 'CHP (PSI)', label: 'Presión CHP', unit: 'psi' },
+                            { key: 'CHP PSI', label: 'Presión CHP', unit: 'psi' },
+                            { key: 'presion_thp', label: 'Presión THP', unit: 'psi' },
+                            { key: 'thp_psi', label: 'Presión THP', unit: 'psi' },
+                            { key: 'thp', label: 'Presión THP', unit: 'psi' },
+                            { key: 'THP (PSI)', label: 'Presión THP', unit: 'psi' },
+                            { key: 'THP PSI', label: 'Presión THP', unit: 'psi' },
+                            { key: 'presion_lf', label: 'Presión LF', unit: 'psi' },
+                            { key: 'lf_psi', label: 'Presión LF', unit: 'psi' },
+                            { key: 'lf', label: 'Presión LF', unit: 'psi' },
+                            { key: 'LF (PSI)', label: 'Presión LF', unit: 'psi' },
+                            { key: 'LF PSI', label: 'Presión LF', unit: 'psi' },
+                            { key: 'pip', label: 'Presión PIP (Intake)', unit: 'psi' },
+                            { key: 'pip_psi', label: 'Presión PIP (Intake)', unit: 'psi' },
+                            { key: 'PIP (PSI)', label: 'Presión PIP (Intake)', unit: 'psi' },
+                            { key: 'PIP PSI', label: 'Presión PIP (Intake)', unit: 'psi' },
+                            { key: 'PIP', label: 'Presión PIP (Intake)', unit: 'psi' },
+                            { key: 'pd_psi', label: 'Presión PD (Descarga)', unit: 'psi' },
+                            { key: 'pd', label: 'Presión PD (Descarga)', unit: 'psi' },
+                            { key: 'PD (PSI)', label: 'Presión PD (Descarga)', unit: 'psi' },
+                            { key: 'PD PSI', label: 'Presión PD (Descarga)', unit: 'psi' },
+                            { key: 'pd_max_psi', label: 'Presión PD Máxima', unit: 'psi' },
+                            { key: 'PD MAX PSI', label: 'Presión PD Máxima', unit: 'psi' },
+                            { key: 'pct_pip', label: 'Nivel Presión (% PIP)', unit: '%' },
+                            { key: '% PIP', label: 'Nivel Presión (% PIP)', unit: '%' },
+                            { key: '%PIP', label: 'Nivel Presión (% PIP)', unit: '%' }
+                        ]
+                    },
+                    {
+                        id: 'electricos',
+                        title: '⚡ Parámetros Eléctricos & Mediciones VSD',
+                        color: '#D97706',
+                        bg: '#FFFBEB',
+                        border: '#FDE68A',
+                        fields: [
+                            { key: 'frecuencia', label: 'Frecuencia / Speed', unit: 'Hz' },
+                            { key: 'frec', label: 'Frecuencia / Speed', unit: 'Hz' },
+                            { key: 'FREC', label: 'Frecuencia / Speed', unit: 'Hz' },
+                            { key: 'hz', label: 'Frecuencia / Speed', unit: 'Hz' },
+                            { key: 'out_vsd', label: 'Salida VSD', unit: 'Hz' },
+                            { key: 'frec_max_hz', label: 'Frecuencia Máxima', unit: 'Hz' },
+                            { key: 'FREC MAX HZ', label: 'Frecuencia Máxima', unit: 'Hz' },
+                            { key: 'low_speed_hz', label: 'Velocidad Mínima (Low Speed)', unit: 'Hz' },
+                            { key: 'v_motor', label: 'Voltaje Motor', unit: 'V' },
+                            { key: 'V MOTOR', label: 'Voltaje Motor', unit: 'V' },
+                            { key: 'corriente_motor', label: 'Corriente Motor', unit: 'A' },
+                            { key: 'i_motor', label: 'Corriente Motor', unit: 'A' },
+                            { key: 'corriente_vsd_a', label: 'Corriente VSD Fase A', unit: 'A' },
+                            { key: 'vsd_a', label: 'Corriente VSD Fase A', unit: 'A' },
+                            { key: 'i_vsd_a', label: 'Corriente VSD Fase A', unit: 'A' },
+                            { key: 'corriente_vsd_b', label: 'Corriente VSD Fase B', unit: 'A' },
+                            { key: 'vsd_b', label: 'Corriente VSD Fase B', unit: 'A' },
+                            { key: 'i_vsd_b', label: 'Corriente VSD Fase B', unit: 'A' },
+                            { key: 'corriente_vsd_c', label: 'Corriente VSD Fase C', unit: 'A' },
+                            { key: 'vsd_c', label: 'Corriente VSD Fase C', unit: 'A' },
+                            { key: 'i_vsd_c', label: 'Corriente VSD Fase C', unit: 'A' },
+                            { key: 'prom_i_vsd', label: 'Promedio Corriente VSD', unit: 'A' },
+                            { key: 'PROM I VSD', label: 'Promedio Corriente VSD', unit: 'A' },
+                            { key: 'desbalance_corriente_vsd', label: 'Desbalance Corriente VSD', unit: '%' },
+                            { key: 'DESBALANCE CORRIENTE VSD', label: 'Desbalance Corriente VSD', unit: '%' },
+                            { key: 'desv_fase_a', label: 'Desviación Fase A', unit: '%' },
+                            { key: 'DESV FASE A', label: 'Desviación Fase A', unit: '%' },
+                            { key: 'desv_fase_b', label: 'Desviación Fase B', unit: '%' },
+                            { key: 'DESV FASE B', label: 'Desviación Fase B', unit: '%' },
+                            { key: 'desv_fase_c', label: 'Desviación Fase C', unit: '%' },
+                            { key: 'DESV FASE C', label: 'Desviación Fase C', unit: '%' },
+                            { key: 'max_desviacion_vsd', label: 'Máxima Desviación VSD', unit: '%' },
+                            { key: 'MAX DESVIACION VSD', label: 'Máxima Desviación VSD', unit: '%' },
+                            { key: 'ul_a', label: 'Voltaje UL A', unit: 'V' },
+                            { key: 'UL [A]', label: 'Voltaje UL A', unit: 'V' },
+                            { key: 'UL A', label: 'Voltaje UL A', unit: 'V' },
+                            { key: 'ol_a', label: 'Corriente Límite OL A', unit: 'A' },
+                            { key: 'OL [A]', label: 'Corriente Límite OL A', unit: 'A' },
+                            { key: 'OL A', label: 'Corriente Límite OL A', unit: 'A' },
+                            { key: 'i_limit_a', label: 'Límite Corriente (I-Limit)', unit: 'A' },
+                            { key: 'pct_amp', label: 'Carga Motor (% AMP)', unit: '%' },
+                            { key: '% AMP', label: 'Carga Motor (% AMP)', unit: '%' },
+                            { key: '%AMP', label: 'Carga Motor (% AMP)', unit: '%' },
+                            { key: 'amp', label: 'Carga Motor (% AMP)', unit: '%' },
+                            { key: 'pct_volt', label: 'Voltaje Motor (% VOLT)', unit: '%' },
+                            { key: '% VOLT', label: 'Voltaje Motor (% VOLT)', unit: '%' },
+                            { key: '%VOLT', label: 'Voltaje Motor (% VOLT)', unit: '%' },
+                            { key: 'volt', label: 'Voltaje Motor (% VOLT)', unit: '%' }
+                        ]
+                    },
+                    {
+                        id: 'protecciones',
+                        title: '🚨 Ajustes de Protección & Shutdowns (Límites de Seguridad)',
+                        color: '#DC2626',
+                        bg: '#FEF2F2',
+                        border: '#FECACA',
+                        fields: [
+                            { key: 'low_pip_shutdown_psi', label: 'Límite Parada PIP (Low PIP Shutdown)', unit: 'psi' },
+                            { key: 'LOW PIP SHUTDOWN PSI', label: 'Límite Parada PIP (Low PIP Shutdown)', unit: 'psi' },
+                            { key: 'max_high_temp_shutdown_f', label: 'Límite Parada Temp (High Temp Shutdown)', unit: '°F' },
+                            { key: 'MAX HIGH TEMP SHUTDOWN F', label: 'Límite Parada Temp (High Temp Shutdown)', unit: '°F' },
+                            { key: 'delta_presion_psi', label: 'Diferencial Presión (Delta Presión)', unit: 'psi' },
+                            { key: 'DELTA PRESION PSI', label: 'Diferencial Presión (Delta Presión)', unit: 'psi' },
+                            { key: 'porcentaje_delta_presion', label: 'Porcentaje Delta Presión', unit: '%' },
+                            { key: 'PORCENTAJE DELTA PRESION', label: 'Porcentaje Delta Presión', unit: '%' }
+                        ]
+                    },
+                    {
+                        id: 'sensores',
+                        title: '🌡️ Temperatura & Sensórica (Fondo / Motor / Caseta del VDF)',
+                        color: '#7C3AED',
+                        bg: '#F5F3FF',
+                        border: '#DDD6FE',
+                        fields: [
+                            { key: 'tm', label: 'Temperatura Motor (TM)', unit: '°F' },
+                            { key: 'tm_f', label: 'Temperatura Motor (TM)', unit: '°F' },
+                            { key: 'TM (°F)', label: 'Temperatura Motor (TM)', unit: '°F' },
+                            { key: 'TM F', label: 'Temperatura Motor (TM)', unit: '°F' },
+                            { key: 'tif', label: 'Temperatura Intake (TIF)', unit: '°F' },
+                            { key: 'ti_f', label: 'Temperatura Intake (TIF)', unit: '°F' },
+                            { key: 'TI (°F)', label: 'Temperatura Intake (TIF)', unit: '°F' },
+                            { key: 'TIF (°F)', label: 'Temperatura Intake (TIF)', unit: '°F' },
+                            { key: 'TI F', label: 'Temperatura Intake (TIF)', unit: '°F' },
+                            { key: 'vx_g', label: 'Vibración X', unit: 'G' },
+                            { key: 'VX [G]', label: 'Vibración X', unit: 'G' },
+                            { key: 'vy_g', label: 'Vibración Y', unit: 'G' },
+                            { key: 'VY [G]', label: 'Vibración Y', unit: 'G' },
+                            { key: 'vz_g', label: 'Vibración Z', unit: 'G' },
+                            { key: 'VZ [G]', label: 'Vibración Z', unit: 'G' },
+                            { key: 'pct_temp', label: 'Temperatura Motor (% TEMP)', unit: '%' },
+                            { key: '% TEMP', label: 'Temperatura Motor (% TEMP)', unit: '%' },
+                            { key: '%TEMP', label: 'Temperatura Motor (% TEMP)', unit: '%' },
+                            { key: 'temp', label: 'Temperatura Motor (% TEMP)', unit: '%' }
+                        ]
+                    },
+                    {
+                        id: 'produccion',
+                        title: '🛢️ Producción & Flujos',
+                        color: '#0284C7',
+                        bg: '#F0F9FF',
+                        border: '#BAE6FD',
+                        fields: [
+                            { key: 'bruta', label: 'Producción Bruta', unit: 'BPD' },
+                            { key: 'BRUTA', label: 'Producción Bruta', unit: 'BPD' },
+                            { key: 'neta', label: 'Producción Neta', unit: 'BPD' },
+                            { key: 'NETA', label: 'Producción Neta', unit: 'BPD' },
+                            { key: 'ol_a', label: 'Corte de Agua (BSW / OL)', unit: '%' },
+                            { key: 'bsw', label: 'Corte de Agua (BSW)', unit: '%' },
+                            { key: 'rt', label: 'Relación Gas / RT', unit: '' },
+                            { key: 'R.T', label: 'Relación Gas / RT', unit: '' },
+                            { key: 'ays', label: '% AYS', unit: '%' },
+                            { key: '%AYS', label: '% AYS', unit: '%' },
+                            { key: '% AYS', label: '% AYS', unit: '%' },
+                            { key: 'ays_percentage', label: '% AYS', unit: '%' },
+                            { key: 'AYS PERCENTAGE', label: '% AYS', unit: '%' }
+                        ]
+                    },
+                    {
+                        id: 'diagnostico',
+                        title: '🩺 Diagnóstico Operativo & Observaciones',
+                        color: '#15803D',
+                        bg: '#F0FDF4',
+                        border: '#86EFAC',
+                        fields: [
+                            { key: 'diagnostico', label: 'Diagnóstico Operativo' },
+                            { key: 'DIAGNOSTICO', label: 'Diagnóstico Operativo' },
+                            { key: 'observaciones', label: 'Observaciones' },
+                            { key: 'OBSERVACIONES', label: 'Observaciones' },
+                            { key: 'observaciones_pozo', label: 'Observaciones Pozo' },
+                            { key: 'OBSERVACIONES DEL POZO', label: 'Observaciones Pozo' }
+                        ]
+                    },
+                    {
+                        id: 'auditoria',
+                        title: '🕒 Trazabilidad & Registro de Sistema',
+                        color: '#64748B',
+                        bg: '#F8FAFC',
+                        border: '#E2E8F0',
+                        fields: [
+                            { key: 'created_at', label: 'Fecha de Creación' },
+                            { key: 'CREATEDAT', label: 'Fecha de Creación' },
+                            { key: 'updated_at', label: 'Última Actualización' },
+                            { key: 'UPDATEDAT', label: 'Última Actualización' },
+                            { key: 'synced_at', label: 'Fecha de Sincronización' }
+                        ]
+                    }
+                ];
+            }
 
             const excludeKeys = new Set(['id', 'ID', 'deleted_at', 'user_id', 'is_historical', 'pozo_id', 'row_data', 'raw_payload']);
 

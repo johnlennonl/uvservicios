@@ -12,7 +12,8 @@ import {
     getUserOperationalScopes,
     setUserOperationalScopes,
     upsertFieldTechnician,
-    upsertFieldWell
+    upsertFieldWell,
+    clearOperationalContractsCache
 } from './services/operational-contracts-service.js';
 
 // DOM elements — se capturan en initGestionUsuarios() para compatibilidad SPA
@@ -52,12 +53,18 @@ const CONTRACT_PLACEHOLDERS = Object.freeze({
         technician: 'Ej: Tecnico BMM',
         pozo: 'Ej: BAR-001 / MOT-001 / MG-001',
         campo: 'BARUA / MOTATAN / MENE GRANDE'
+    },
+    crc_ll: {
+        technician: 'Ej: Tecnico CRC',
+        pozo: 'Ej: CRC-BM-01 / CRC-BCP-01',
+        campo: 'LAGUNILLAS LAGO'
     }
 });
 
 const CONTRACT_FIELD_OPTIONS = Object.freeze({
     ceiba_tomoporo: ['LA CEIBA', 'TOMOPORO'],
-    bmm: ['BARUA', 'MOTATAN', 'MENE GRANDE']
+    bmm: ['BARUA', 'MOTATAN', 'MENE GRANDE'],
+    crc_ll: ['LAGUNILLAS LAGO']
 });
 
 const ALL_OPERATIONAL_SCOPES_VALUE = '__all_contracts__';
@@ -172,6 +179,12 @@ function buildFieldOptionsMarkup(scopeKey, selectedValue = '') {
 
 function syncContractFieldControl() {
     const currentField = document.getElementById('contract-well-field');
+    const liftGroup = document.getElementById('contract-well-lift-group');
+
+    if (liftGroup) {
+        liftGroup.style.display = selectedOperationalScope === 'crc_ll' ? 'flex' : 'none';
+    }
+
     if (!currentField) return;
 
     const wrapper = currentField.parentElement;
@@ -235,16 +248,36 @@ function renderOperationalScopeOptions(selectEl, selectedScope = DEFAULT_OPERATI
         .map(scope => String(scope || '').trim())
         .filter(Boolean));
 
-    const contracts = operationalContracts.length > 0
-        ? operationalContracts
-        : [
-            { scope_key: 'ceiba_tomoporo', display_name: 'Ceiba / Tomoporo' },
-            { scope_key: 'bmm', display_name: 'Barua / Motatan / Mene Grande' }
-        ];
+    const hasBmm = selectedScopes.has('bmm');
+    const hasCeiba = selectedScopes.has('ceiba_tomoporo') || selectedScopes.has('ct') || selectedScopes.has('cei') || selectedScopes.has('tom');
+    const hasCrc = selectedScopes.has('crc_ll') || selectedScopes.has('ccrc_ll');
 
-    selectEl.innerHTML = contracts.map(contract => `
-        <option value="${escapeHtml(contract.scope_key)}" ${selectedScopes.has(contract.scope_key) ? 'selected' : ''}>
-            ${escapeHtml(contract.display_name)}
+    let activeValue = 'bmm';
+    if (hasBmm && hasCeiba && hasCrc) {
+        activeValue = 'todos';
+    } else if (hasBmm && hasCeiba) {
+        activeValue = 'bmm_ceiba_tomoporo';
+    } else if (hasCrc) {
+        activeValue = 'crc_ll';
+    } else if (hasCeiba) {
+        activeValue = 'ceiba_tomoporo';
+    } else if (hasBmm) {
+        activeValue = 'bmm';
+    } else if (selectedScopes.size > 0) {
+        activeValue = Array.from(selectedScopes)[0];
+    }
+
+    const options = [
+        { value: 'bmm', label: 'BMM' },
+        { value: 'ceiba_tomoporo', label: 'CEI/TOM' },
+        { value: 'crc_ll', label: 'CCRC' },
+        { value: 'bmm_ceiba_tomoporo', label: 'BMM + CEIBA / TOM' },
+        { value: 'todos', label: 'BMM + CEIBA / TOM + CCRC' }
+    ];
+
+    selectEl.innerHTML = options.map(opt => `
+        <option value="${opt.value}" ${opt.value === activeValue ? 'selected' : ''}>
+            ${escapeHtml(opt.label)}
         </option>
     `).join('');
 }
@@ -253,26 +286,40 @@ function getAvailableOperationalContracts() {
     return operationalContracts.length > 0
         ? operationalContracts
         : [
-            { scope_key: 'ceiba_tomoporo', display_name: 'Ceiba / Tomoporo' },
-            { scope_key: 'bmm', display_name: 'Mene Grande / Barua / Motatan' }
+            { scope_key: 'bmm', display_name: 'BMM' },
+            { scope_key: 'ceiba_tomoporo', display_name: 'CEI/TOM' },
+            { scope_key: 'crc_ll', display_name: 'CCRC' }
         ];
 }
 
 function getContractDisplayName(contract = {}) {
-    if (contract.scope_key === 'bmm') return 'Mene Grande / Barua / Motatan';
-    return contract.display_name || contract.scope_key || 'Contrato';
+    const key = contract.scope_key || '';
+    if (key === 'bmm') return 'BMM';
+    if (key === 'ceiba_tomoporo' || key === 'ct') return 'CEI/TOM';
+    if (key === 'crc_ll' || key === 'ccrc_ll') return 'CCRC';
+    return contract.display_name || key || 'Contrato';
 }
 
 function getSelectedOperationalScopes(selectEl) {
     if (!selectEl) return [DEFAULT_OPERATIONAL_SCOPE];
-    const selected = Array.from(selectEl.selectedOptions || [])
-        .map(option => option.value)
-        .filter(Boolean);
-    const values = selected.length > 0 ? selected : [selectEl.value || DEFAULT_OPERATIONAL_SCOPE];
-    if (values.includes(ALL_OPERATIONAL_SCOPES_VALUE)) {
-        return getAvailableOperationalContracts().map(contract => contract.scope_key);
+    const val = String(selectEl.value || '').trim();
+
+    if (val === 'todos' || val === 'all' || val === ALL_OPERATIONAL_SCOPES_VALUE) {
+        return ['bmm', 'ceiba_tomoporo', 'crc_ll'];
     }
-    return values.filter(value => value !== ALL_OPERATIONAL_SCOPES_VALUE);
+    if (val === 'bmm_ceiba_tomoporo' || val === 'ambos') {
+        return ['bmm', 'ceiba_tomoporo'];
+    }
+    if (val === 'crc_ll' || val === 'ccrc_ll') {
+        return ['crc_ll'];
+    }
+    if (val === 'ceiba_tomoporo' || val === 'ct') {
+        return ['ceiba_tomoporo'];
+    }
+    if (val === 'bmm') {
+        return ['bmm'];
+    }
+    return [val || DEFAULT_OPERATIONAL_SCOPE];
 }
 
 function syncUserScopeSelectMode(roleSelect, scopeSelect, helpEl) {
@@ -282,15 +329,10 @@ function syncUserScopeSelectMode(roleSelect, scopeSelect, helpEl) {
     const isGlobalRole = ['admin', 'supervisor', 'base_datos', 'gestor_usuarios', 'gerencial', 'seguridad'].includes(roleSelect.value);
     const scopeContainer = scopeSelect.closest('label');
     if (scopeContainer) {
-        if (isGlobalRole) {
-            scopeContainer.style.display = 'none';
-        } else {
-            scopeContainer.style.display = 'block';
-        }
+        scopeContainer.style.display = isGlobalRole ? 'none' : 'block';
     }
 
-    const allowAllContractsOption = roleSelect.value === 'cliente_view';
-    let selectedScopes = getSelectedOperationalScopes(scopeSelect);
+    let selectedScopes = [];
     if (scopeSelect.dataset.selectedScopes) {
         try {
             const parsedScopes = JSON.parse(scopeSelect.dataset.selectedScopes);
@@ -301,29 +343,14 @@ function syncUserScopeSelectMode(roleSelect, scopeSelect, helpEl) {
             selectedScopes = getSelectedOperationalScopes(scopeSelect);
         }
         delete scopeSelect.dataset.selectedScopes;
+    } else {
+        selectedScopes = getSelectedOperationalScopes(scopeSelect);
     }
-    const contracts = getAvailableOperationalContracts();
-    const allContractsSelected = contracts.length > 1
-        && contracts.every(contract => selectedScopes.includes(contract.scope_key));
 
-    scopeSelect.multiple = false;
-    scopeSelect.size = 1;
-    scopeSelect.innerHTML = contracts.map(contract => `
-        <option value="${escapeHtml(contract.scope_key)}" ${!allContractsSelected && selectedScopes[0] === contract.scope_key ? 'selected' : ''}>
-            ${escapeHtml(getContractDisplayName(contract))}
-        </option>
-    `).join('') + (allowAllContractsOption && contracts.length > 1 ? `
-        <option value="${ALL_OPERATIONAL_SCOPES_VALUE}" ${allContractsSelected ? 'selected' : ''}>Ambos</option>
-    ` : '');
-
-    if (!allowAllContractsOption && allContractsSelected && scopeSelect.options.length > 0) {
-        scopeSelect.options[0].selected = true;
-    }
+    renderOperationalScopeOptions(scopeSelect, selectedScopes);
 
     if (helpEl) {
-        helpEl.textContent = allowAllContractsOption
-            ? 'Cliente de visualización: elige Ceiba / Tomoporo, Mene Grande / Barua / Motatan o Ambos. Con Ambos podrá cambiar desde el selector superior.'
-            : 'Este rol queda asociado a un contrato principal y no tendrá opción Ambos.';
+        helpEl.textContent = 'Selecciona el contrato principal o la combinación de contratos para el acceso del cliente.';
     }
 }
 
@@ -471,7 +498,7 @@ async function renderSelectedContractCatalogs() {
                 <div class="contract-item-row">
                     <span>${escapeHtml(well.pozo_name)}</span>
                     <div class="contract-item-actions">
-                        <small>${escapeHtml(well.campo_name)} · ${recordLabel} · ${well.active ? 'Activo' : 'Inactivo'}</small>
+                        <small>${escapeHtml(well.campo_name)}${well.lift_method ? ` (${escapeHtml(well.lift_method)})` : ''} · ${recordLabel} · ${well.active ? 'Activo' : 'Inactivo'}</small>
                         <button type="button" class="contract-manage-btn" data-well-id="${escapeHtml(well.id)}">Gestionar</button>
                         <button type="button" class="contract-delete-btn" data-delete-well-id="${escapeHtml(well.id)}">Eliminar</button>
                     </div>
@@ -632,6 +659,13 @@ async function openWellManager(well) {
                         ${buildContractOptionsMarkup(well.operational_scope)}
                     </select>
                 </label>
+                <label class="input-group-manager" id="swal-well-lift-group" style="display: ${well.operational_scope === 'crc_ll' ? 'flex' : 'none'};">
+                    <span>Método de Levantamiento</span>
+                    <select id="swal-well-lift" class="swal2-select" style="margin:0; width:100%; box-sizing:border-box;">
+                        <option value="BM" ${well.lift_method !== 'BCP' ? 'selected' : ''}>Bombeo Mecánico (BM)</option>
+                        <option value="BCP" ${well.lift_method === 'BCP' ? 'selected' : ''}>Cavidades Progresivas (BCP)</option>
+                    </select>
+                </label>
             </div>
         `,
         showCancelButton: true,
@@ -660,36 +694,63 @@ async function openWellManager(well) {
                 nextControl.innerHTML = buildWellFieldControlMarkup(scopeField.value, fieldControl.value).trim();
                 fieldControl.replaceWith(nextControl.firstElementChild);
                 syncModalField();
+
+                const liftGroup = document.getElementById('swal-well-lift-group');
+                if (liftGroup) {
+                    liftGroup.style.display = scopeField.value === 'crc_ll' ? 'flex' : 'none';
+                }
             });
         },
         preConfirm: () => ({
             pozoName: document.getElementById('swal-well-name')?.value || '',
             campoName: document.getElementById('swal-well-field')?.value || '',
-            operationalScope: document.getElementById('swal-well-scope')?.value || well.operational_scope
+            operationalScope: document.getElementById('swal-well-scope')?.value || well.operational_scope,
+            liftMethod: document.getElementById('swal-well-scope')?.value === 'crc_ll' ? (document.getElementById('swal-well-lift')?.value || 'BM') : null
         })
     });
 
     if (result.isConfirmed) {
-        await upsertFieldWell({
-            id: well.id,
-            pozoName: result.value.pozoName,
-            campoName: result.value.campoName,
-            operationalScope: result.value.operationalScope,
-            active: well.active
-        });
-        selectedOperationalScope = result.value.operationalScope;
-        await refreshOperationalManager();
+        try {
+            await upsertFieldWell({
+                id: well.id,
+                pozoName: result.value.pozoName,
+                campoName: result.value.campoName,
+                operationalScope: result.value.operationalScope,
+                liftMethod: result.value.liftMethod,
+                active: well.active
+            });
+            selectedOperationalScope = result.value.operationalScope;
+            await refreshOperationalManager();
+            Swal.fire({ icon: 'success', title: 'Pozo actualizado', timer: 1500, showConfirmButton: false });
+        } catch (err) {
+            console.error('Error al guardar cambios del pozo:', err);
+            const msg = err?.message || 'Error desconocido al guardar.';
+            Swal.fire({
+                icon: 'error',
+                title: 'No se pudo guardar',
+                html: `<p style="text-align:left;font-size:0.9rem;">${escapeHtml(msg)}</p>
+                       <p style="text-align:left;font-size:0.82rem;color:#64748b;margin-top:8px;">Si el nombre del pozo ya existe en otro registro, primero elimina o renombra el pozo duplicado.</p>`,
+                confirmButtonColor: '#ef4444'
+            });
+        }
     }
 
     if (result.isDenied) {
-        await upsertFieldWell({
-            id: well.id,
-            pozoName: well.pozo_name,
-            campoName: well.campo_name,
-            operationalScope: well.operational_scope,
-            active: !well.active
-        });
-        await refreshOperationalManager();
+        try {
+            await upsertFieldWell({
+                id: well.id,
+                pozoName: well.pozo_name,
+                campoName: well.campo_name,
+                operationalScope: well.operational_scope,
+                liftMethod: well.lift_method,
+                active: !well.active
+            });
+            await refreshOperationalManager();
+            Swal.fire({ icon: 'success', title: well.active ? 'Pozo desactivado' : 'Pozo activado', timer: 1500, showConfirmButton: false });
+        } catch (err) {
+            console.error('Error al cambiar estado del pozo:', err);
+            Swal.fire({ icon: 'error', title: 'No se pudo cambiar el estado', text: err?.message || 'Error desconocido.', confirmButtonColor: '#ef4444' });
+        }
     }
 }
 
@@ -1196,17 +1257,21 @@ export async function initGestionUsuarios() {
         event.preventDefault();
         const pozoInput = document.getElementById('contract-well-name');
         const campoInput = document.getElementById('contract-well-field');
+        const liftInput = document.getElementById('contract-well-lift');
         const inferredField = inferFieldFromPozo(pozoInput?.value || '');
         if (campoInput && inferredField) campoInput.value = inferredField;
+
+        const liftMethodVal = selectedOperationalScope === 'crc_ll' ? (liftInput?.value || 'BM') : null;
 
         try {
             await upsertFieldWell({
                 pozoName: pozoInput?.value || '',
                 campoName: campoInput?.value || '',
-                operationalScope: selectedOperationalScope
+                operationalScope: selectedOperationalScope,
+                liftMethod: liftMethodVal
             });
             pozoInput.value = '';
-            campoInput.value = '';
+            if (campoInput && campoInput.tagName === 'INPUT') campoInput.value = '';
             await refreshOperationalContractStats();
             await renderOperationalContractsControl();
             contractsStatusEl.textContent = `Pozo agregado a ${getContractLabel(selectedOperationalScope)}.`;
@@ -1217,6 +1282,19 @@ export async function initGestionUsuarios() {
 
     formContractWell?.addEventListener('input', (event) => {
         if (event.target?.id === 'contract-well-name') syncFieldFromWellName();
+    });
+
+    // Importación de pozos masiva desde Excel
+    document.getElementById('btn-import-wells-xlsx')?.addEventListener('click', () => {
+        document.getElementById('import-wells-xlsx-file')?.click();
+    });
+
+    document.getElementById('import-wells-xlsx-file')?.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            handleImportWellsXlsx(file);
+            event.target.value = '';
+        }
     });
 
     // Table Header Sorting listeners
@@ -1811,4 +1889,286 @@ export function destroyGestionUsuarios() {
     formChangePassword = changePassUserId = null;
     newPasswordInput = confirmPasswordInput = togglePasswordsVis = btnSubmitChangePass = btnAdminResetPin = null;
     logsTimeline = logsTimelineLoader = logsEmptyMessage = null;
+}
+
+async function handleImportWellsXlsx(file) {
+    if (!file) return;
+
+    try {
+        Swal.fire({
+            title: 'Procesando archivo...',
+            html: '<p style="color:#64748b;">Cargando la librería de Excel e importando pozos...</p>',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        // Cargar XLSX si no está presente
+        if (!window.XLSX) {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+            document.head.appendChild(script);
+            await new Promise(resolve => script.onload = resolve);
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                if (rows.length < 2) {
+                    Swal.fire('Error', 'El archivo de Excel no contiene suficientes filas (cabecera + datos).', 'error');
+                    return;
+                }
+
+                // Detectar cabecera y columnas
+                const rawHeaders = rows[0].map(h => String(h || '').trim().toLowerCase());
+                
+                const colIndexes = {
+                    pozo: -1, metodo: -1, campo: -1, estacion: -1, bbpd: -1, bnpd: -1, ays: -1
+                };
+
+                const headersMap = {
+                    pozo: ['pozo', 'well', 'nombre', 'name', 'pozos'],
+                    metodo: ['método', 'metodo', 'levantamiento', 'tipo', 'lift_method', 'method', 'sistema'],
+                    campo: ['campo', 'field'],
+                    estacion: ['estación', 'estacion', 'ef', 'estacion_flujo', 'flow_station', 'flow station', 'estación de flujo'],
+                    bbpd: ['bbpd', 'bruta', 'produccion bruta', 'producción bruta', 'gross', 'crudo bruto', 'bruto'],
+                    bnpd: ['bnpd', 'neta', 'produccion neta', 'producción neta', 'net', 'crudo neto', 'neto'],
+                    ays: ['ays', '%ays', 'ays%', '% ays', '% agua y sedimento', 'agua y sedimento', 'water cut', 'agua']
+                };
+
+                rawHeaders.forEach((header, index) => {
+                    for (const [key, aliases] of Object.entries(headersMap)) {
+                        if (aliases.includes(header) || aliases.some(alias => header.includes(alias))) {
+                            if (colIndexes[key] === -1) {
+                                colIndexes[key] = index;
+                            }
+                        }
+                    }
+                });
+
+                if (colIndexes.pozo === -1) {
+                    Swal.fire('Error', 'No se pudo identificar la columna de "Pozo" en la cabecera del Excel.', 'error');
+                    return;
+                }
+
+                const wellsToUpsert = [];
+                const prodToInsert = [];
+                const todayStr = new Date().toISOString().split('T')[0];
+
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length === 0) continue;
+
+                    const pozoVal = colIndexes.pozo !== -1 ? String(row[colIndexes.pozo] || '').trim().toUpperCase() : '';
+                    if (!pozoVal) continue; // Salta si no hay nombre de pozo
+
+                    // Resolver Método (BM / BCP)
+                    const rawMetodo = colIndexes.metodo !== -1 ? String(row[colIndexes.metodo] || '').trim().toUpperCase() : '';
+                    const liftMethod = rawMetodo.includes('BCP') ? 'BCP' : 'BM';
+
+                    // Resolver Campo
+                    const campoVal = colIndexes.campo !== -1 ? String(row[colIndexes.campo] || '').trim().toUpperCase() : 'LAGUNILLAS LAGO';
+
+                    // Resolver Estacion
+                    const estacionVal = colIndexes.estacion !== -1 ? String(row[colIndexes.estacion] || '').trim().toUpperCase() : 'NINGUNO';
+
+                    // Resolver Producción
+                    const bbpdVal = colIndexes.bbpd !== -1 ? parseFloat(row[colIndexes.bbpd]) || 0 : 0;
+                    const bnpdVal = colIndexes.bnpd !== -1 ? parseFloat(row[colIndexes.bnpd]) || 0 : 0;
+                    
+                    let aysVal = 0;
+                    const rawAysCell = colIndexes.ays !== -1 ? row[colIndexes.ays] : null;
+                    const parsedAys = rawAysCell !== undefined && rawAysCell !== null && rawAysCell !== '' ? parseFloat(rawAysCell) : NaN;
+                    
+                    if (!isNaN(parsedAys) && parsedAys > 0) {
+                        aysVal = parsedAys;
+                        if (aysVal <= 1 && String(rawAysCell).includes('.')) {
+                            aysVal = aysVal * 100;
+                        }
+                    } else {
+                        aysVal = bbpdVal > 0 ? ((bbpdVal - bnpdVal) / bbpdVal) * 100 : 0;
+                    }
+
+                    wellsToUpsert.push({
+                        pozo_name: pozoVal,
+                        campo_name: campoVal,
+                        operational_scope: selectedOperationalScope,
+                        lift_method: selectedOperationalScope === 'crc_ll' ? liftMethod : null,
+                        active: true,
+                        updated_at: new Date().toISOString()
+                    });
+
+                    // Añadir producción si tiene valores o estación definida
+                    if (bbpdVal > 0 || bnpdVal > 0 || (estacionVal && estacionVal !== 'NINGUNO')) {
+                        prodToInsert.push({
+                            pozo_name: pozoVal,
+                            campo_name: campoVal,
+                            ef: estacionVal,
+                            bbpd: bbpdVal,
+                            bnpd: bnpdVal,
+                            ays_percentage: parseFloat(aysVal.toFixed(2)),
+                            fecha: todayStr,
+                            operational_scope: selectedOperationalScope
+                        });
+                    }
+                }
+
+                if (wellsToUpsert.length === 0) {
+                    Swal.fire('Atención', 'No se encontraron pozos válidos para importar.', 'warning');
+                    return;
+                }
+
+                // Generar tabla HTML de vista previa
+                let previewHtml = `
+                    <p style="text-align: left; margin-bottom: 10px; color: #475569; font-size: 0.85rem;">
+                        A continuación se presenta el listado de los pozos detectados en el archivo Excel con sus datos de configuración y producción.
+                    </p>
+                    <div style="max-height: 280px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left; white-space: nowrap;">
+                            <thead>
+                                <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1; position: sticky; top: 0; z-index: 10;">
+                                    <th style="padding: 10px 8px; font-weight: 700; color: #1e293b;">Pozo</th>
+                                    <th style="padding: 10px 8px; font-weight: 700; color: #1e293b;">Campo</th>
+                                    <th style="padding: 10px 8px; font-weight: 700; color: #1e293b;">Método</th>
+                                    <th style="padding: 10px 8px; font-weight: 700; color: #1e293b;">Estación (EF)</th>
+                                    <th style="padding: 10px 8px; font-weight: 700; color: #1e293b;">BBPD</th>
+                                    <th style="padding: 10px 8px; font-weight: 700; color: #1e293b;">BNPD</th>
+                                    <th style="padding: 10px 8px; font-weight: 700; color: #1e293b;">%AyS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                for (let i = 0; i < wellsToUpsert.length; i++) {
+                    const w = wellsToUpsert[i];
+                    const p = prodToInsert.find(prod => prod.pozo_name === w.pozo_name) || {};
+                    
+                    const methodTag = w.lift_method 
+                        ? `<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: 700; background-color: ${w.lift_method === 'BCP' ? '#e0f2fe' : '#fef3c7'}; color: ${w.lift_method === 'BCP' ? '#0369a1' : '#b45309'};">${w.lift_method}</span>`
+                        : '<span style="color: #94a3b8;">—</span>';
+                    
+                    const efVal = p.ef || '—';
+                    const bbpdVal = p.bbpd !== undefined ? p.bbpd : '—';
+                    const bnpdVal = p.bnpd !== undefined ? p.bnpd : '—';
+                    const aysVal = p.ays_percentage !== undefined ? `${p.ays_percentage}%` : '—';
+
+                    previewHtml += `
+                        <tr style="border-bottom: 1px solid #f1f5f9; background-color: ${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                            <td style="padding: 8px; font-weight: 700; color: #0f172a;">${escapeHtml(w.pozo_name)}</td>
+                            <td style="padding: 8px; color: #475569;">${escapeHtml(w.campo_name)}</td>
+                            <td style="padding: 8px;">${methodTag}</td>
+                            <td style="padding: 8px; color: #0f172a; font-weight: 600;">${escapeHtml(efVal)}</td>
+                            <td style="padding: 8px; color: #1e293b;">${bbpdVal}</td>
+                            <td style="padding: 8px; color: #1e293b;">${bnpdVal}</td>
+                            <td style="padding: 8px; color: #0f766e; font-weight: 600;">${aysVal}</td>
+                        </tr>
+                    `;
+                }
+
+                previewHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                    <p style="margin-top: 15px; font-size: 0.875rem; color: #1e293b; text-align: center;">
+                        ¿Confirmas la importación de estos <strong>${wellsToUpsert.length}</strong> pozos con su configuración de producción y estaciones a Supabase?
+                    </p>
+                `;
+
+                const result = await Swal.fire({
+                    title: 'Vista Previa de Importación',
+                    html: previewHtml,
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, importar catálogo y producción',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#10b981',
+                    cancelButtonColor: '#ef4444',
+                    width: '650px'
+                });
+
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Importando datos...',
+                        html: '<p style="color:#64748b;">Guardando pozos y registros de producción...</p>',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    // 1. Subir a Supabase (catálogo de pozos)
+                    const { error: wellsError } = await supabase
+                        .from('field_well_catalog')
+                        .upsert(wellsToUpsert, { onConflict: 'pozo_name' });
+
+                    if (wellsError) throw wellsError;
+
+                    let productionImported = false;
+                    let rlsErrorOccurred = false;
+
+                    // 2. Subir a Supabase (datos de producción e historial si hay registros)
+                    if (prodToInsert.length > 0) {
+                        try {
+                            // 2.1 Tabla de instantánea actual
+                            const { error: prodError } = await supabase
+                                .from('well_production')
+                                .upsert(prodToInsert, { onConflict: 'pozo_name' });
+
+                            if (prodError) throw prodError;
+
+                            // 2.2 Tabla de historial técnico
+                            const { error: histError } = await supabase
+                                .from('well_production_history')
+                                .upsert(prodToInsert, { onConflict: 'pozo_name,fecha' });
+
+                            if (histError) throw histError;
+
+                            productionImported = true;
+                        } catch (prodErr) {
+                            console.warn('Advertencia: No se pudo guardar la producción técnica debido a políticas RLS:', prodErr);
+                            rlsErrorOccurred = true;
+                        }
+                    }
+
+                    clearOperationalContractsCache();
+                    await refreshOperationalContractStats();
+                    await renderOperationalContractsControl();
+
+                    if (rlsErrorOccurred) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Catálogo cargado (Sin producción)',
+                            text: `Se importaron ${wellsToUpsert.length} pozo(s) correctamente, pero los datos de producción/estación requieren un rol con privilegios de Monitoreo Técnico (Admin, Supervisor, Gerencial).`,
+                            confirmButtonColor: '#f59e0b'
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Importación Completa!',
+                            text: productionImported 
+                                ? `Se importaron ${wellsToUpsert.length} pozo(s) correctamente con sus estaciones y datos de producción.`
+                                : `Se importaron ${wellsToUpsert.length} pozo(s) correctamente al catálogo activo.`,
+                            confirmButtonColor: '#10b981'
+                        });
+                    }
+                }
+
+            } catch (err) {
+                console.error('Error importando datos de Excel:', err);
+                Swal.fire('Error al procesar el Excel', err.message || 'Ocurrió un error inesperado.', 'error');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+
+    } catch (e) {
+        console.error('Error al iniciar importación:', e);
+        Swal.fire('Error', 'No se pudo leer el archivo.', 'error');
+    }
 }

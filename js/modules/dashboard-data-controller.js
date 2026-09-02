@@ -5,11 +5,13 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
         import { getMonitoringData, getUniquePozos, getLatestDate, insertRecord, updateRecord, syncMonitoringRecords, previewMonitoringSync, saveTechnicalMeasurement, syncTechnicalMeasurements, previewTechnicalMeasurements, getRecordById, getWellTechnicalData, getRecentTechnicalMeasurements, deleteRecord, getWellBESProfile, upsertWellBESProfile, buildMonitoringRecordKey, getWellLevelTests, saveLevelTest, getRecentLevelTests, previewLevelTestsSync, syncLevelTests } from '../data-service.js';
         import { getActiveOperationalScope, getActiveOperationalScopeWellNames, initOperationalScopeContext, renderOperationalScopeSwitcher } from '../services/operational-scope-context.js';
         import { previewManualMonitoringIntoConsolidated, upsertManualMonitoringIntoConsolidated } from '../services/consolidado-service.js';
+        import { getFieldWellsByScope } from '../services/operational-contracts-service.js';
 
         let isEditing = false;
         let knownPozos = new Set();
         let activeOperationalScope = 'ceiba_tomoporo';
         let activeScopePozoNames = [];
+        let activeScopeWells = [];
         let activeScopePozoSet = new Set();
         let activeRecentHistoryMode = 'operational';
         const ACTIVE_POZO_STORAGE_KEY = 'uv-selected-pozo';
@@ -363,10 +365,13 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 }
             });
             activeOperationalScope = getActiveOperationalScope();
-            setActiveScopePozoNames(await getActiveOperationalScopeWellNames().catch(error => {
-                console.warn('No se pudieron cargar pozos del contrato activo en Gestion:', error);
-                return [];
-            }));
+            try {
+                activeScopeWells = await getFieldWellsByScope(activeOperationalScope);
+            } catch (error) {
+                console.warn('No se pudieron cargar pozos del catálogo en Gestion:', error);
+                activeScopeWells = [];
+            }
+            setActiveScopePozoNames(activeScopeWells.map(w => w.pozo_name));
             await initApp();
             document.addEventListener('click', managementOutsideClickListener);
             document.addEventListener('click', importNavigationLockListener, true);
@@ -384,6 +389,38 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             resetLevelForm();
             await refreshPozoLists();
             initializeManagementPozoSelectors();
+
+            // Configurar inputs de producción técnica según el contrato (CCRC vs otros)
+            const bnpdInput = document.getElementById('bnpd_tech');
+            const aysInput = document.getElementById('ays_tech');
+            const potencialInput = document.getElementById('potencial_tech');
+            const potencialGroup = potencialInput?.closest('.form-group');
+
+            if (activeOperationalScope === 'crc_ll') {
+                if (bnpdInput) {
+                    bnpdInput.readOnly = false;
+                    bnpdInput.placeholder = '0.00';
+                }
+                if (aysInput) {
+                    aysInput.readOnly = true;
+                    aysInput.placeholder = 'Auto-cálculo';
+                }
+                if (potencialGroup) {
+                    potencialGroup.style.display = 'none';
+                }
+            } else {
+                if (bnpdInput) {
+                    bnpdInput.readOnly = true;
+                    bnpdInput.placeholder = 'Auto-cálculo';
+                }
+                if (aysInput) {
+                    aysInput.readOnly = false;
+                    aysInput.placeholder = '0.00';
+                }
+                if (potencialGroup) {
+                    potencialGroup.style.display = 'block';
+                }
+            }
 
             const storedPozo = getStoredSelectedPozo();
             if (storedPozo) {
@@ -406,20 +443,27 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                 loadAndFillForm(editId);
             }
 
-            // Recalcula BNPD en vivo a partir de BBPD y porcentaje de agua.
+            // Recalcula parámetros de producción en vivo
             const bbpdInput = document.getElementById('bbpd_tech');
-            const aysInput = document.getElementById('ays_tech');
-            const bnpdInput = document.getElementById('bnpd_tech');
 
-            const calculateBNPD = () => {
-                const bbpd = parseFloat(bbpdInput.value) || 0;
-                const ays = parseFloat(aysInput.value) || 0;
-                const bnpd = bbpd * (1 - (ays / 100));
-                bnpdInput.value = bnpd.toFixed(2);
+            const calculateTechnicalFields = () => {
+                const bbpd = parseFloat(bbpdInput?.value) || 0;
+                if (activeOperationalScope === 'crc_ll') {
+                    // CCRC calcula el porcentaje de agua (%AyS) a partir de Bruta y Neta
+                    const bnpd = parseFloat(bnpdInput?.value) || 0;
+                    const ays = bbpd > 0 ? ((bbpd - bnpd) / bbpd) * 100 : 0;
+                    if (aysInput) aysInput.value = ays.toFixed(2);
+                } else {
+                    // Los demás contratos calculan Neta (BNPD) a partir de Bruta y %AyS
+                    const ays = parseFloat(aysInput?.value) || 0;
+                    const bnpd = bbpd * (1 - (ays / 100));
+                    if (bnpdInput) bnpdInput.value = bnpd.toFixed(2);
+                }
             };
 
-            bbpdInput?.addEventListener('input', calculateBNPD);
-            aysInput?.addEventListener('input', calculateBNPD);
+            bbpdInput?.addEventListener('input', calculateTechnicalFields);
+            aysInput?.addEventListener('input', calculateTechnicalFields);
+            bnpdInput?.addEventListener('input', calculateTechnicalFields);
             document.getElementById('pozo_name')?.addEventListener('change', () => syncDailyPozoContext());
             document.getElementById('tech_pozo_name')?.addEventListener('change', () => syncTechnicalPozoContext());
             document.getElementById('pump_pozo_name')?.addEventListener('change', () => syncPumpPozoContext());
@@ -573,6 +617,12 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             setStoredSelectedPozo(pozoName);
             document.getElementById('pump_pozo_name').value = pozoName;
             await updatePozoRecordStatus(pozoName, 'daily');
+
+            // Auto-asignar el campo desde el catálogo de pozos
+            const wellObj = activeScopeWells.find(w => normalizePozoName(w.pozo_name) === normalizePozoName(pozoName));
+            if (wellObj?.campo_name) {
+                document.getElementById('campo').value = wellObj.campo_name;
+            }
         }
 
         // Carga la ficha tecnica actual del pozo para editarla o completarla.
@@ -587,9 +637,12 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             }
 
             const techData = await getWellTechnicalData(pozoName);
+            const wellObj = activeScopeWells.find(w => normalizePozoName(w.pozo_name) === normalizePozoName(pozoName));
+            const campoName = wellObj?.campo_name || techData?.campo_name || '';
+
             populateTechnicalForm(techData, {
                 pozo_name: pozoName,
-                campo_name: techData?.campo_name || ''
+                campo_name: campoName
             });
         }
 
@@ -2520,15 +2573,24 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             const pozoName = normalizedRow.pozo || normalizedRow.pozo_name;
             if (!pozoName) return null;
 
+            const bbpd = parseCsvNumber(normalizedRow.bbpd);
+            const bnpd = parseCsvNumber(normalizedRow.bnpd);
+            let ays = parseCsvNumber(normalizedRow.ays || normalizedRow.ays_percentage);
+
+            // Si es CCRC y el AYS no viene o viene en 0, lo calculamos a partir de Bruta y Neta
+            if (activeOperationalScope === 'crc_ll' && (ays === 0 || isNaN(ays))) {
+                ays = bbpd > 0 ? ((bbpd - bnpd) / bbpd) * 100 : 0;
+            }
+
             return {
                 pozo_name: String(pozoName).trim(),
                 campo_name: String(normalizedRow.campo || normalizedRow.campo_name || '').trim(),
                 ef: String(normalizedRow.ef || normalizedRow.estacion || '').trim(),
                 fecha: toIsoDate(normalizedRow.fecha_ultima_medicion || normalizedRow.fecha_medicion || normalizedRow.fecha),
                 potencial: parseCsvNumber(normalizedRow.potencial),
-                bbpd: parseCsvNumber(normalizedRow.bbpd),
-                ays_percentage: parseCsvNumber(normalizedRow.ays || normalizedRow.ays_percentage),
-                bnpd: parseCsvNumber(normalizedRow.bnpd),
+                bbpd: bbpd,
+                ays_percentage: ays,
+                bnpd: bnpd,
                 cat_number: parseCsvInteger(normalizedRow.cat || normalizedRow.cat_number, 1)
             };
         }

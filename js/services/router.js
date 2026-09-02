@@ -322,6 +322,42 @@ function ensureScrollToTopButton() {
 /**
  * Inicializa el motor de scroll inercial suave Lenis.
  */
+/**
+ * Detecta si un elemento es un contenedor scrollable interno (select, modal, input, textarea, etc.)
+ */
+function isScrollableInnerElement(node) {
+    if (!node || node === document.body || node === document.documentElement) return false;
+
+    let curr = node;
+    while (curr && curr !== document.body && curr !== document.documentElement) {
+        if (curr.nodeType === 1) {
+            const tagName = curr.tagName;
+            if (['SELECT', 'TEXTAREA', 'INPUT', 'OPTION'].includes(tagName)) {
+                return true;
+            }
+            if (curr.hasAttribute('data-lenis-prevent') || curr.classList.contains('lenis-prevent')) {
+                return true;
+            }
+            if (curr.classList.contains('campo-admin-modal') ||
+                curr.classList.contains('swal2-container') ||
+                curr.classList.contains('campo-admin-modal-body') ||
+                curr.classList.contains('campo-admin-modal-review-panel') ||
+                curr.classList.contains('off-wells-list') ||
+                curr.classList.contains('alertas-table-wrap') ||
+                curr.classList.contains('pozo-filter-dropdown') ||
+                curr.classList.contains('pozo-filter-list')) {
+                return true;
+            }
+            const overflowY = window.getComputedStyle(curr).overflowY;
+            if ((overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') && curr.scrollHeight > curr.clientHeight) {
+                return true;
+            }
+        }
+        curr = curr.parentElement;
+    }
+    return false;
+}
+
 let lenisRafId = null;
 
 function initLenis() {
@@ -347,6 +383,7 @@ function initLenis() {
         wheelMultiplier: 0.95,
         touchMultiplier: 1.5,
         infinite: false,
+        prevent: (node) => isScrollableInnerElement(node)
     });
 
     // Bucle de actualización (RequestAnimationFrame)
@@ -359,58 +396,11 @@ function initLenis() {
     lenisRafId = requestAnimationFrame(raf);
 }
 
-// Mapa para almacenar los estados de animación activa de contenedores internos
-const activeScrollAnimations = new Map();
-
 /**
- * Intercepta y suaviza el desplazamiento con rueda de mouse en contenedores internos protegidos.
+ * Los contenedores internos utilizan el desplazamiento nativo e instantáneo con rueda de ratón.
  */
 function initNestedSmoothScroll() {
-    document.addEventListener('wheel', (e) => {
-        // Encontrar el contenedor más cercano con la directiva prevent
-        const container = e.target.closest('[data-lenis-prevent]');
-        if (!container) return;
-
-        // Validar si el contenedor tiene desbordamiento vertical y es scrollable
-        const hasScroll = container.scrollHeight > container.clientHeight;
-        if (!hasScroll) return;
-
-        // Evitar el desplazamiento instantáneo del navegador
-        e.preventDefault();
-
-        // Obtener o crear el estado de animación para este contenedor
-        let state = activeScrollAnimations.get(container);
-        if (!state) {
-            state = {
-                target: container.scrollTop,
-                current: container.scrollTop,
-                frameId: null
-            };
-            activeScrollAnimations.set(container, state);
-        }
-
-        // Calcular nuevo objetivo de desplazamiento
-        const maxScroll = container.scrollHeight - container.clientHeight;
-        state.target = Math.max(0, Math.min(maxScroll, state.target + e.deltaY));
-
-        // Iniciar bucle de interpolación si no está activo
-        if (!state.frameId) {
-            const animate = () => {
-                const diff = state.target - state.current;
-                if (Math.abs(diff) > 0.5) {
-                    state.current += diff * 0.12; // Factor de amortiguación suave (0.12)
-                    container.scrollTop = state.current;
-                    state.frameId = requestAnimationFrame(animate);
-                } else {
-                    container.scrollTop = state.target;
-                    state.current = state.target;
-                    state.frameId = null;
-                    activeScrollAnimations.delete(container);
-                }
-            };
-            state.frameId = requestAnimationFrame(animate);
-        }
-    }, { passive: false });
+    // Desplazamiento nativo del navegador habilitado sin bloqueo de eventos wheel
 }
 
 /**

@@ -13,13 +13,23 @@ const wellsCache = new Map();
 const techniciansCache = new Map();
 export const userScopesCache = new Map();
 
+export function clearOperationalContractsCache() {
+    contractsCache.clear();
+    wellsCache.clear();
+    techniciansCache.clear();
+}
+
 export function normalizeOperationalScope(value) {
     return String(value || '').trim().toLowerCase() || DEFAULT_OPERATIONAL_SCOPE;
 }
 
 function buildOperationalCatalogError(error) {
     const message = String(error?.message || error || '');
-    if (/operational_contracts|field_technicians|field_well_catalog|user_operational_scopes/i.test(message)) {
+    const code = error?.code || error?.details?.code || '';
+
+    // Solo mostrar "falta crear tablas" cuando realmente la tabla no existe (42P01 = undefined_table en PostgreSQL)
+    // o cuando PostgREST indica que la relación no existe (código 404 o "relation does not exist")
+    if (code === '42P01' || /relation .* does not exist/i.test(message) || /Could not find.*in the schema cache/i.test(message)) {
         return new Error('Falta crear las tablas de contratos operativos. Ejecuta supabase/operational_contracts.sql en Supabase y recarga la pagina.');
     }
 
@@ -78,6 +88,14 @@ export async function getFieldTechniciansByScope(scopeKey, { includeInactive = f
     }
 }
 
+export function sortWellsNaturally(wellsList = []) {
+    return [...wellsList].sort((a, b) => {
+        const nameA = String(a?.pozo_name || a?.pozo || a?.name || '');
+        const nameB = String(b?.pozo_name || b?.pozo || b?.name || '');
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+    });
+}
+
 export async function getFieldWellsByScope(scopeKey, { includeInactive = false } = {}) {
     const normalizedScope = normalizeOperationalScope(scopeKey);
     const cacheKey = `${normalizedScope}:${includeInactive}`;
@@ -98,7 +116,7 @@ export async function getFieldWellsByScope(scopeKey, { includeInactive = false }
         const { data, error } = await query;
         if (error) throw error;
         
-        const result = data || [];
+        const result = sortWellsNaturally(data || []);
         wellsCache.set(cacheKey, result);
         return result;
     } catch (error) {
@@ -167,13 +185,14 @@ export async function upsertFieldTechnician({ id = null, fullName, operationalSc
             .single();
 
         if (error) throw error;
+        clearOperationalContractsCache();
         return data;
     } catch (error) {
         throw buildOperationalCatalogError(error);
     }
 }
 
-export async function upsertFieldWell({ id = null, pozoName, campoName, operationalScope, active = true }) {
+export async function upsertFieldWell({ id = null, pozoName, campoName, operationalScope, liftMethod = null, active = true }) {
     const payload = {
         pozo_name: String(pozoName || '').trim().toUpperCase(),
         campo_name: String(campoName || '').trim().toUpperCase(),
@@ -182,18 +201,117 @@ export async function upsertFieldWell({ id = null, pozoName, campoName, operatio
         updated_at: new Date().toISOString()
     };
 
+    if (liftMethod) {
+        payload.lift_method = liftMethod;
+    }
+
     if (!payload.pozo_name) throw new Error('Indica el nombre del pozo.');
     if (!payload.campo_name) throw new Error('Indica el campo del pozo.');
     if (id) payload.id = id;
 
+    // Obtener nombre anterior antes de actualizar para cascada
+    let oldPozoName = null;
+    if (id) {
+        try {
+            const { data: oldWell } = await supabase
+                .from(WELLS_TABLE)
+                .select('pozo_name')
+                .eq('id', id)
+                .maybeSingle();
+            if (oldWell) {
+                oldPozoName = oldWell.pozo_name;
+            }
+        } catch (e) {
+            console.warn('No se pudo consultar el pozo anterior:', e);
+        }
+    }
+
     try {
-        const { data, error } = await supabase
-            .from(WELLS_TABLE)
-            .upsert(payload, { onConflict: id ? 'id' : 'pozo_name' })
-            .select('*')
-            .single();
+        let data, error;
+
+        if (id) {
+            // Editar pozo existente: usar update directo para evitar conflicto de dual unique constraint
+            const updatePayload = { ...payload };
+            delete updatePayload.id; // no incluir id en el SET
+            ({ data, error } = await supabase
+                .from(WELLS_TABLE)
+                .update(updatePayload)
+                .eq('id', id)
+                .select('*')
+                .single());
+        } else {
+            // Crear pozo nuevo: usar upsert por nombre
+            ({ data, error } = await supabase
+                .from(WELLS_TABLE)
+                .upsert(payload, { onConflict: 'pozo_name' })
+                .select('*')
+                .single());
+        }
 
         if (error) throw error;
+
+        // Cascada de actualización de nombre si cambió
+        if (oldPozoName && oldPozoName !== payload.pozo_name) {
+            const newName = payload.pozo_name;
+            const scope = payload.operational_scope;
+            
+            // 1. well_production
+            try {
+                await supabase
+                    .from('well_production')
+                    .update({ pozo_name: newName })
+                    .eq('pozo_name', oldPozoName)
+                    .eq('operational_scope', scope);
+            } catch (err) {
+                console.warn('RLS/Error actualizando well_production:', err);
+            }
+
+            // 2. well_production_history
+            try {
+                await supabase
+                    .from('well_production_history')
+                    .update({ pozo_name: newName })
+                    .eq('pozo_name', oldPozoName)
+                    .eq('operational_scope', scope);
+            } catch (err) {
+                console.warn('RLS/Error actualizando well_production_history:', err);
+            }
+
+            // 3. field_journey_records
+            try {
+                await supabase
+                    .from('field_journey_records')
+                    .update({ pozo: newName })
+                    .eq('pozo', oldPozoName)
+                    .eq('operational_scope', scope);
+            } catch (err) {
+                console.warn('RLS/Error actualizando field_journey_records:', err);
+            }
+
+            // 4. well_level_tests
+            try {
+                await supabase
+                    .from('well_level_tests')
+                    .update({ pozo_name: newName })
+                    .eq('pozo_name', oldPozoName)
+                    .eq('operational_scope', scope);
+            } catch (err) {
+                console.warn('RLS/Error actualizando well_level_tests:', err);
+            }
+
+            // 5. well_bes_profile
+            try {
+                await supabase
+                    .from('well_bes_profile')
+                    .update({ pozo_name: newName })
+                    .eq('pozo_name', oldPozoName)
+                    .eq('operational_scope', scope);
+            } catch (err) {
+                console.warn('RLS/Error actualizando well_bes_profile:', err);
+            }
+        }
+
+        clearOperationalContractsCache();
         return data;
     } catch (error) {
         throw buildOperationalCatalogError(error);
@@ -203,6 +321,21 @@ export async function upsertFieldWell({ id = null, pozoName, campoName, operatio
 export async function deleteFieldWell(id) {
     const wellId = String(id || '').trim();
     if (!wellId) throw new Error('No se pudo identificar el pozo a eliminar.');
+
+    // Obtener detalles del pozo antes de borrar para cascada
+    let wellToDelete = null;
+    try {
+        const { data: existingWell } = await supabase
+            .from(WELLS_TABLE)
+            .select('pozo_name, operational_scope')
+            .eq('id', wellId)
+            .maybeSingle();
+        if (existingWell) {
+            wellToDelete = existingWell;
+        }
+    } catch (e) {
+        console.warn('No se pudo consultar el pozo a eliminar:', e);
+    }
 
     try {
         const { data, error } = await supabase
@@ -215,6 +348,69 @@ export async function deleteFieldWell(id) {
         if (!data || data.length === 0) {
             throw new Error('No tienes permisos suficientes en la base de datos (RLS) para eliminar este pozo, o el pozo ya fue eliminado por otro usuario.');
         }
+
+        // Cascada de eliminación de registros asociados si existía el pozo
+        if (wellToDelete) {
+            const oldName = wellToDelete.pozo_name;
+            const scope = wellToDelete.operational_scope;
+
+            // 1. well_production
+            try {
+                await supabase
+                    .from('well_production')
+                    .delete()
+                    .eq('pozo_name', oldName)
+                    .eq('operational_scope', scope);
+            } catch (err) {
+                console.warn('RLS/Error eliminando well_production:', err);
+            }
+
+            // 2. well_production_history
+            try {
+                await supabase
+                    .from('well_production_history')
+                    .delete()
+                    .eq('pozo_name', oldName)
+                    .eq('operational_scope', scope);
+            } catch (err) {
+                console.warn('RLS/Error eliminando well_production_history:', err);
+            }
+
+            // 3. field_journey_records
+            try {
+                await supabase
+                    .from('field_journey_records')
+                    .delete()
+                    .eq('pozo', oldName)
+                    .eq('operational_scope', scope);
+            } catch (err) {
+                console.warn('RLS/Error eliminando field_journey_records:', err);
+            }
+
+            // 4. well_level_tests
+            try {
+                await supabase
+                    .from('well_level_tests')
+                    .delete()
+                    .eq('pozo_name', oldName)
+                    .eq('operational_scope', scope);
+            } catch (err) {
+                console.warn('RLS/Error eliminando well_level_tests:', err);
+            }
+
+            // 5. well_bes_profile
+            try {
+                await supabase
+                    .from('well_bes_profile')
+                    .delete()
+                    .eq('pozo_name', oldName)
+                    .eq('operational_scope', scope);
+            } catch (err) {
+                console.warn('RLS/Error eliminando well_bes_profile:', err);
+            }
+        }
+
+        clearOperationalContractsCache();
         return true;
     } catch (error) {
         throw buildOperationalCatalogError(error);

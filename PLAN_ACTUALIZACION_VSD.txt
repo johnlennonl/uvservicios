@@ -1,0 +1,40 @@
+PLAN DE IMPLEMENTACIÓN: ACTUALIZACIÓN AUTOMÁTICA DE FICHAS BES AL PUBLICAR JORNADAS DE CAMPO
+
+Este plan detalla los cambios necesarios para actualizar la base técnica (Ficha BES de los pozos) de forma automática cuando el administrador aprueba/publica una jornada de campo que contiene nuevos datos de VSD o Transformador.
+
+---
+
+CAMBIOS PROPUESTOS
+
+1. Servicios y Capa de Datos (Backend)
+
+* Archivo: js/services/field-journey-service.js
+* Acciones:
+  - Añadir la importación de 'getWellBESProfile' y 'upsertWellBESProfile' desde './bes-profile-service.js'.
+  - Modificar 'previewAdminFieldJourneyPublication(journeyId)' para consultar y comparar las condiciones de superficie de los registros de la jornada contra la tabla 'well_bes_profile' (Ficha BES). Retornar una lista de cambios detectados ('besChanges') conteniendo el pozo, los valores anteriores y los nuevos valores de los campos: vsd_kva, marca_vsd, modelo_vsd, tx_kva, tap_v y rt.
+  - Modificar 'publishAdminFieldJourneyToDashboard(journeyId, options = {})' para aceptar un parámetro de opciones 'options' para recibir 'updateBesProfiles' (booleano). Si es true, iterar por los registros de la jornada y para cada pozo que tenga valores de VSD/Tx no vacíos, obtener su perfil técnico BES actual, combinarlo con los nuevos valores y hacer un 'upsertWellBESProfile' para actualizar la ficha maestra de forma permanente.
+
+---
+
+2. Panel Administrativo (UI / Frontend)
+
+* Archivo: js/campo-admin.js
+* Acciones:
+  - Modificar 'buildPublicationPreviewHtml(preview, reviewSummary, records)' para verificar si 'preview.besChanges' tiene datos. Si hay cambios, generar y mostrar una sección visual interactiva en el modal llamada "Actualizaciones de Ficha BES (VSD / Tx)" que liste los pozos y los cambios específicos detectados.
+  - Agregar un checkbox interactivo en la parte inferior del modal:
+    [x] Actualizar Fichas BES maestras con las nuevas Condiciones de Superficie detectadas
+  - Modificar 'confirmPublicationPreview(preview, reviewSummary)' implementando el hook 'preConfirm' en SweetAlert para capturar el estado del checkbox antes de cerrar la alerta. Retornar un objeto { confirmed: true, updateBesProfiles: true/false } en lugar de un simple valor booleano.
+  - Modificar 'showPublicationReadiness()' para recibir el objeto retornado por 'confirmPublicationPreview' y pasar el valor de 'updateBesProfiles' a la llamada de 'publishAdminFieldJourneyToDashboard(journeyId, { updateBesProfiles })'.
+
+---
+
+PLAN DE VERIFICACIÓN
+
+Pruebas Manuales:
+1. Cargar un pozo que tenga la ficha BES vacía o desactualizada en el dispositivo móvil del técnico de campo.
+2. Rellenar los datos de Condiciones de Superficie (ej: VSD: 150 KVA, Marca VSD: ABB) usando el botón "Modificar VSD / Tx".
+3. Guardar y enviar la jornada al flujo administrativo.
+4. Desde la pantalla de campo-admin.html, seleccionar la jornada y presionar "Publicar".
+5. Verificar que el SweetAlert muestre la nueva sección destacada detallando que el pozo modificó sus parámetros de VSD y contenga el checkbox activado.
+6. Confirmar la publicación con el checkbox activo.
+7. Abrir una nueva jornada en campo y verificar que al seleccionar el mismo pozo, los datos de VSD salgan precargados automáticamente.

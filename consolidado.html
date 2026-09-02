@@ -90,6 +90,7 @@
                     </svg>
                     Campo
                 </a>
+
                 <a href="stats.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v18M12 7v14M19 11v10M3 21h18" />
@@ -317,15 +318,15 @@
                             Personalizada</span>
 
                         <div class="consolidado-export-options" role="group" aria-label="Origen del consolidado">
-                            <label class="consolidado-export-option">
+                            <label class="consolidado-export-option" id="source-opt-base">
                                 <input type="radio" name="consolidado-export-source" value="base" checked>
                                 <span>Base histórica</span>
                             </label>
-                            <label class="consolidado-export-option">
+                            <label class="consolidado-export-option" id="source-opt-operativo">
                                 <input type="radio" name="consolidado-export-source" value="operativo">
                                 <span>Nuevo Campo</span>
                             </label>
-                            <label class="consolidado-export-option">
+                            <label class="consolidado-export-option" id="source-opt-completo">
                                 <input type="radio" name="consolidado-export-source" value="completo">
                                 <span>Base + nuevo</span>
                             </label>

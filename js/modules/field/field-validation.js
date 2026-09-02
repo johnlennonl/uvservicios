@@ -226,6 +226,7 @@ const WARNING_LIMIT_RULES = [
 export function validateFieldReport(payload, options = {}) {
     const normalizedPayload = payload || {};
     const context = options.context || 'default';
+    const operationalScope = options.operationalScope || normalizedPayload.operational_scope || normalizedPayload.operationalScope || '';
     const blockers = [];
     const warnings = [];
     const infos = [];
@@ -296,69 +297,100 @@ export function validateFieldReport(payload, options = {}) {
     const estatusNorm = estatus.replace(/[^A-Z]/g, '');
     const isOffLike = ['OFF', 'PARADAMANUAL', 'RUNATENCIONALCLIENTE', 'OFFATENCIONALCLIENTE'].includes(estatusNorm);
     const poseeSensor = String(normalizedPayload.posee_sensor_fondo || '').trim().toUpperCase() === 'SI';
+    const isCrc = (operationalScope === 'crc_ll');
 
-    if (isOffLike) {
-        if (!hasValue(normalizedPayload.diagnostico)) {
-            blockers.push(`Al estar el pozo en estatus ${estatus}, el DIAGNÓSTICO es obligatorio.`);
-        }
-    } else {
-        const missingElectrico = [];
-        if (!hasValue(normalizedPayload.frecuencia)) missingElectrico.push('Frecuencia');
-        if (!hasValue(normalizedPayload.i_motor)) missingElectrico.push('I Motor');
-        if (!hasValue(normalizedPayload.v_motor)) missingElectrico.push('V Motor');
-        if (!hasValue(normalizedPayload.out_vsd)) missingElectrico.push('Out VSD');
-        if (!hasValue(normalizedPayload.i_vsd_a)) missingElectrico.push('I VSD A');
-        if (!hasValue(normalizedPayload.i_vsd_b)) missingElectrico.push('I VSD B');
-        if (!hasValue(normalizedPayload.i_vsd_c)) missingElectrico.push('I VSD C');
+    if (isCrc) {
+        if (estatus === 'RUN') {
+            const missingPresionesCrc = [];
+            if (!hasValue(normalizedPayload.thp_psi)) missingPresionesCrc.push('THP');
+            if (!hasValue(normalizedPayload.chp_psi)) missingPresionesCrc.push('CHP');
+            if (missingPresionesCrc.length > 0) {
+                blockers.push(`Completa las presiones de superficie obligatorias: ${missingPresionesCrc.join(', ')}.`);
+            }
 
-        if (missingElectrico.length > 0) {
-            blockers.push(`Al estar el pozo en estatus RUN, los siguientes parámetros eléctricos son obligatorios: ${missingElectrico.join(', ')}.`);
-        }
+            const bruta = getNumericValue(normalizedPayload.bruta);
+            const neta = getNumericValue(normalizedPayload.neta);
 
-        if (!hasValue(normalizedPayload.posee_sensor_fondo)) {
-            blockers.push('Indica si el pozo POSEE SENSOR DE FONDO?.');
-        } else if (poseeSensor) {
-            const estadoPanel = String(normalizedPayload.estado_panel_sensor_choques || '').trim().toUpperCase();
-            const isPanelBueno = estadoPanel === 'BUENO';
+            if (bruta === null) {
+                blockers.push('El caudal Bruto (BBPD) es obligatorio.');
+            } else if (bruta < 0) {
+                blockers.push('El caudal Bruto no puede ser negativo.');
+            }
 
-            if (isPanelBueno) {
-                const missingFondo = [];
-                if (!hasValue(normalizedPayload.pip_psi)) missingFondo.push('PIP');
-                if (!hasValue(normalizedPayload.tm_f)) missingFondo.push('TM');
+            if (neta === null) {
+                blockers.push('El caudal Neto (BNPD) es obligatorio.');
+            } else if (neta < 0) {
+                blockers.push('El caudal Neto no puede ser negativo.');
+            }
 
-                if (missingFondo.length > 0) {
-                    blockers.push(`Al indicar que POSEE SENSOR DE FONDO y el panel está en estado BUENO, los siguientes parámetros de fondo son obligatorios: ${missingFondo.join(', ')}.`);
-                }
+            if (bruta !== null && neta !== null && neta > bruta) {
+                blockers.push('El caudal Neto (petróleo) no puede ser mayor que el caudal Bruto (fluido total).');
             }
         }
+    } else {
+        if (isOffLike && !isCrc) {
+            if (!hasValue(normalizedPayload.diagnostico)) {
+                blockers.push(`Al estar el pozo en estatus ${estatus}, el DIAGNÓSTICO es obligatorio.`);
+            }
+        } else {
+            const missingElectrico = [];
+            if (!hasValue(normalizedPayload.frecuencia)) missingElectrico.push('Frecuencia');
+            if (!hasValue(normalizedPayload.i_motor)) missingElectrico.push('I Motor');
+            if (!hasValue(normalizedPayload.v_motor)) missingElectrico.push('V Motor');
+            if (!hasValue(normalizedPayload.out_vsd)) missingElectrico.push('Out VSD');
+            if (!hasValue(normalizedPayload.i_vsd_a)) missingElectrico.push('I VSD A');
+            if (!hasValue(normalizedPayload.i_vsd_b)) missingElectrico.push('I VSD B');
+            if (!hasValue(normalizedPayload.i_vsd_c)) missingElectrico.push('I VSD C');
 
-        const missingPresiones = [];
-        if (!hasValue(normalizedPayload.thp_psi)) missingPresiones.push('THP');
-        if (!hasValue(normalizedPayload.chp_psi)) missingPresiones.push('CHP');
-        if (!hasValue(normalizedPayload.lf_psi)) missingPresiones.push('LF');
-        if (!hasValue(normalizedPayload.echometer)) missingPresiones.push('ECHOMETER?');
-        if (missingPresiones.length > 0) {
-            blockers.push(`Completa las presiones de superficie obligatorias: ${missingPresiones.join(', ')}.`);
-        }
+            if (missingElectrico.length > 0) {
+                blockers.push(`Al estar el pozo en estatus RUN, los siguientes parámetros eléctricos son obligatorios: ${missingElectrico.join(', ')}.`);
+            }
 
-        const missingSuperficie = [];
-        if (!hasValue(normalizedPayload.baja_datos)) missingSuperficie.push('DESCARGÓ DATA DEL VDF?');
-        if (!hasValue(normalizedPayload.estado_tx)) missingSuperficie.push('ESTADO DEL TX');
-        if (!hasValue(normalizedPayload.estado_vsd)) missingSuperficie.push('ESTADO DEL VSD');
-        if (!hasValue(normalizedPayload.estado_panel_sensor_choques)) missingSuperficie.push('PANEL DEL SENSOR');
-        if (!hasValue(normalizedPayload.estado_aterramiento)) missingSuperficie.push('ATERRAMIENTO');
-        if (!hasValue(normalizedPayload.condicion_cableado)) missingSuperficie.push('CONDICIÓN DE CABLEADO');
-        if (!hasValue(normalizedPayload.condicion_caseta)) missingSuperficie.push('CONDICIÓN DE LA JAULA');
-        if (!hasValue(normalizedPayload.temperatura_caseta)) missingSuperficie.push('TEMPERATURA DE LA CASETA DEL VDF');
-        if (!hasValue(normalizedPayload.estado_fosa_porcentaje)) missingSuperficie.push('ESTADO DE FOSA [%]');
-        if (!hasValue(normalizedPayload.estado_biw_conector)) missingSuperficie.push('BIW/CONECTOR');
-        if (!hasValue(normalizedPayload.estado_manometros)) missingSuperficie.push('MANÓMETROS');
-        if (!hasValue(normalizedPayload.estado_cabezal)) missingSuperficie.push('ESTADO DEL CABEZAL');
-        if (!hasValue(normalizedPayload.estado_tomamuestras)) missingSuperficie.push('TOMAMUESTRAS');
-        if (!hasValue(normalizedPayload.estado_caja_venteo)) missingSuperficie.push('CAJA DE VENTEO');
+            if (!hasValue(normalizedPayload.posee_sensor_fondo)) {
+                blockers.push('Indica si el pozo POSEE SENSOR DE FONDO?.');
+            } else if (poseeSensor) {
+                const estadoPanel = String(normalizedPayload.estado_panel_sensor_choques || '').trim().toUpperCase();
+                const isPanelBueno = estadoPanel === 'BUENO';
 
-        if (missingSuperficie.length > 0) {
-            blockers.push(`Faltan datos de inspección física en Condiciones de Superficie: ${missingSuperficie.join(', ')}.`);
+                if (isPanelBueno) {
+                    const missingFondo = [];
+                    if (!hasValue(normalizedPayload.pip_psi)) missingFondo.push('PIP');
+                    if (!hasValue(normalizedPayload.tm_f)) missingFondo.push('TM');
+
+                    if (missingFondo.length > 0) {
+                        blockers.push(`Al indicar que POSEE SENSOR DE FONDO y el panel está en estado BUENO, los siguientes parámetros de fondo son obligatorios: ${missingFondo.join(', ')}.`);
+                    }
+                }
+            }
+
+            const missingPresiones = [];
+            if (!hasValue(normalizedPayload.thp_psi)) missingPresiones.push('THP');
+            if (!hasValue(normalizedPayload.chp_psi)) missingPresiones.push('CHP');
+            if (!hasValue(normalizedPayload.lf_psi)) missingPresiones.push('LF');
+            if (!hasValue(normalizedPayload.echometer)) missingPresiones.push('ECHOMETER?');
+            if (missingPresiones.length > 0) {
+                blockers.push(`Completa las presiones de superficie obligatorias: ${missingPresiones.join(', ')}.`);
+            }
+
+            const missingSuperficie = [];
+            if (!hasValue(normalizedPayload.baja_datos)) missingSuperficie.push('DESCARGÓ DATA DEL VDF?');
+            if (!hasValue(normalizedPayload.estado_tx)) missingSuperficie.push('ESTADO DEL TX');
+            if (!hasValue(normalizedPayload.estado_vsd)) missingSuperficie.push('ESTADO DEL VSD');
+            if (!hasValue(normalizedPayload.estado_panel_sensor_choques)) missingSuperficie.push('PANEL DEL SENSOR');
+            if (!hasValue(normalizedPayload.estado_aterramiento)) missingSuperficie.push('ATERRAMIENTO');
+            if (!hasValue(normalizedPayload.condicion_cableado)) missingSuperficie.push('CONDICIÓN DE CABLEADO');
+            if (!hasValue(normalizedPayload.condicion_caseta)) missingSuperficie.push('CONDICIÓN DE LA JAULA');
+            if (!hasValue(normalizedPayload.temperatura_caseta)) missingSuperficie.push('TEMPERATURA DE LA CASETA DEL VDF');
+            if (!hasValue(normalizedPayload.estado_fosa_porcentaje)) missingSuperficie.push('ESTADO DE FOSA [%]');
+            if (!hasValue(normalizedPayload.estado_biw_conector)) missingSuperficie.push('BIW/CONECTOR');
+            if (!hasValue(normalizedPayload.estado_manometros)) missingSuperficie.push('MANÓMETROS');
+            if (!hasValue(normalizedPayload.estado_cabezal)) missingSuperficie.push('ESTADO DEL CABEZAL');
+            if (!hasValue(normalizedPayload.estado_tomamuestras)) missingSuperficie.push('TOMAMUESTRAS');
+            if (!hasValue(normalizedPayload.estado_caja_venteo)) missingSuperficie.push('CAJA DE VENTEO');
+
+            if (missingSuperficie.length > 0) {
+                blockers.push(`Faltan datos de inspección física en Condiciones de Superficie: ${missingSuperficie.join(', ')}.`);
+            }
         }
     }
 
@@ -366,18 +398,20 @@ export function validateFieldReport(payload, options = {}) {
         blockers.push('Las OBSERVACIONES del pozo son obligatorias.');
     }
 
-    if (!hasValue(normalizedPayload.diagnostico)) {
+    if (!isCrc && !hasValue(normalizedPayload.diagnostico)) {
         blockers.push('El DIAGNÓSTICO es obligatorio antes de agregar el registro.');
     }
 
     const frecuencia = getNumericValue(normalizedPayload.frecuencia);
 
-    if (estatus === 'RUN' && frecuencia === null) {
-        warnings.push('El estatus esta en RUN pero la frecuencia quedo vacia.');
-    }
+    if (!isCrc) {
+        if (estatus === 'RUN' && frecuencia === null) {
+            warnings.push('El estatus esta en RUN pero la frecuencia quedo vacia.');
+        }
 
-    if (['OFF', 'PARADA MANUAL'].includes(estatus) && frecuencia !== null && frecuencia > 5) {
-        warnings.push(`El estatus esta en ${estatus} pero la frecuencia sigue alta. Revisa si el estado era correcto.`);
+        if (['OFF', 'PARADA MANUAL'].includes(estatus) && frecuencia !== null && frecuencia > 5) {
+            warnings.push(`El estatus esta en ${estatus} pero la frecuencia sigue alta. Revisa si el estado era correcto.`);
+        }
     }
 
     if (!hasValue(normalizedPayload.tecnico_1) && !hasValue(normalizedPayload.equipo_guardia)) {

@@ -1,0 +1,34 @@
+==============================================================================
+REPORTE TÉCNICO: CAMBIOS REALIZADOS DESDE EL ÚLTIMO COMMIT (UNCOMMITTED CHANGES)
+==============================================================================
+
+Este documento detalla todas las modificaciones y adaptaciones aplicadas en la base de código desde el último commit, actuando bajo la perspectiva de un Desarrollador Frontend Senior y un Desarrollador Backend Senior.
+
+------------------------------------------------------------------------------
+1. OPCIONES CLARAS DE ASIGNACIÓN DE CONTRATOS PARA USUARIOS CLIENTE (gestion-usuarios.html & js/gestion-usuarios.js)
+------------------------------------------------------------------------------
+* Se reemplazó el menú desplegable "Seleccionar contrato" en la gestión de usuarios por las 5 opciones exactas solicitadas:
+  1. **BMM** (`bmm`) -> Acceso a Barua / Motatan / Mene Grande.
+  2. **CEI/TOM** (`ceiba_tomoporo`) -> Acceso a La Ceiba / Tomoporo.
+  3. **CCRC** (`crc_ll`) -> Acceso a CCRC Lagunillas Lago.
+  4. **BMM + CEIBA / TOM** (`bmm_ceiba_tomoporo`) -> Acceso combinado a BMM y Ceiba/Tomoporo.
+  5. **BMM + CEIBA / TOM + CCRC** (`todos`) -> Acceso completo a los 3 contratos operativos.
+* Se actualizaron `renderOperationalScopeOptions()`, `getSelectedOperationalScopes()` y `syncUserScopeSelectMode()` para mapear las selecciones directamente hacia Supabase y permitir la alternancia en el selector superior de los clientes.
+
+------------------------------------------------------------------------------
+2. RESOLUCIÓN DE CONSULTA MULTI-ÁMBITO EN ESTADÍSTICAS PARA BMM Y LA CEIBA / TOMOPORO
+------------------------------------------------------------------------------
+* Las consultas en `loadData()` utilizan `getScopeQueryVariants(scope)` con `.in('operational_scope', scopeVariants)` recuperando las jornadas históricas de BMM y Ceiba/Tomoporo.
+
+------------------------------------------------------------------------------
+3. REGLAS EXCLUSIVAS DE ESTADÍSTICAS PARA CCRC LAGUNILLAS LAGO
+------------------------------------------------------------------------------
+* Ocultamiento de la pestaña **Reportes Personalizados** exclusivamente en CCRC.
+* Resumen de Actividades muestra únicamente **Recorrido Total**.
+* Tipo de Sistema muestra **`BM / BCP`**.
+
+------------------------------------------------------------------------------
+4. RESTAURACIÓN DEL SCROLL DE RUEDA DE RATÓN
+------------------------------------------------------------------------------
+* Se restauró el scroll nativo en contenedores internos, modales, selects e inputs en `js/services/router.js`.
+==============================================================================

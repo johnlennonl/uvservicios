@@ -316,6 +316,9 @@ export async function getWellDocumentSummaryCounts({ operationalScope = null } =
  */
 export async function uploadWellDocument({ file, pozoName, category, description = '', uploadedBy = 'Sistema', operationalScope = null, documentDate = null, folderId = null }) {
     if (!file) throw new Error('Debes seleccionar un archivo para cargar.');
+    if (!(file instanceof Blob) && !(file instanceof File)) {
+        throw new Error('El archivo requiere ser vuelto a seleccionar desde tu dispositivo.');
+    }
     if (!pozoName) throw new Error('El nombre del pozo es obligatorio.');
     if (!category) throw new Error('Debes seleccionar una categoría temática.');
 
@@ -379,7 +382,7 @@ export async function uploadWellDocument({ file, pozoName, category, description
             .from(BUCKET_NAME)
             .upload(filePath, fileToUpload, {
                 cacheControl: '3600',
-                upsert: false
+                upsert: true
             });
 
         if (uploadError) {
@@ -413,32 +416,26 @@ export async function uploadWellDocument({ file, pozoName, category, description
             .single();
 
         if (dbError) {
-            let columnMissing = false;
-            const cleanPayload = { ...documentPayload };
+            console.warn('[well-documents-service] Primer intento de insert fallo; reintentando con payload minimo:', dbError.message);
+            const minimalPayload = {
+                pozo_name: cleanPozo,
+                categoria: cleanCategory,
+                nombre_archivo: fileToUpload.name,
+                file_path: filePath,
+                file_size: fileToUpload.size || 0,
+                file_type: fileExt,
+                descripcion: String(description || '').trim(),
+                uploaded_by: String(uploadedBy || 'Administrador').trim()
+            };
+            const retryResult = await supabase
+                .from('well_historical_documents')
+                .insert([minimalPayload])
+                .select();
             
-            if (isMissingColumnError(dbError, 'fecha_documento')) {
-                console.warn('[well-documents-service] La columna fecha_documento no existe; excluyendo.');
-                delete cleanPayload.fecha_documento;
-                columnMissing = true;
-            }
-            if (isMissingColumnError(dbError, 'folder_id')) {
-                console.warn('[well-documents-service] La columna folder_id no existe; excluyendo.');
-                delete cleanPayload.folder_id;
-                columnMissing = true;
-            }
-            if (isMissingOperationalScopeColumn(dbError)) {
-                console.warn('[well-documents-service] La columna operational_scope no existe; excluyendo.');
-                delete cleanPayload.operational_scope;
-                columnMissing = true;
-            }
-            
-            if (columnMissing) {
-                let retryResult = await supabase
-                    .from('well_historical_documents')
-                    .insert([cleanPayload])
-                    .select()
-                    .single();
-                dbData = retryResult.data;
+            if (!retryResult.error) {
+                dbData = (retryResult.data && retryResult.data[0]) ? retryResult.data[0] : null;
+                dbError = null;
+            } else {
                 dbError = retryResult.error;
             }
         }
@@ -464,21 +461,24 @@ export async function uploadWellDocument({ file, pozoName, category, description
  */
 const signedUrlsCache = new Map();
 
-export async function getDocumentDownloadUrl(filePath = '', expiresInSeconds = 3600) {
+export async function getDocumentDownloadUrl(filePath = '', expiresInSeconds = 3600, customFileName = '') {
     if (!filePath) return '#';
-    if (signedUrlsCache.has(filePath)) {
-        return signedUrlsCache.get(filePath);
+    
+    let fileNameToUse = customFileName;
+    if (!fileNameToUse) {
+        const rawBase = String(filePath).split('/').pop() || '';
+        const cleanSegment = rawBase.replace(/^[a-f0-9-]{36}_?/i, '').replace(/[^a-zA-Z0-9._-]+/g, '_');
+        fileNameToUse = cleanSegment.length > 3 ? cleanSegment.toUpperCase() : `DOCUMENTO_SOPORTE_${new Date().toISOString().slice(0, 10)}.xlsx`;
     }
 
     try {
-        // Generar URL firmada temporal (válida por 1 hora) para Bucket Privado
+        // Generar URL firmada temporal con header Content-Disposition para forzar nombre técnico en navegador
         const { data, error } = await supabase
             .storage
             .from(BUCKET_NAME)
-            .createSignedUrl(filePath, expiresInSeconds);
+            .createSignedUrl(filePath, expiresInSeconds, { download: fileNameToUse });
 
         if (!error && data?.signedUrl) {
-            signedUrlsCache.set(filePath, data.signedUrl);
             return data.signedUrl;
         }
     } catch (err) {

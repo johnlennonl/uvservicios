@@ -1889,7 +1889,7 @@ async function addCurrentReportToJourney() {
     }
 
     const payload = await resolveReportProductionMeasures(getFormPayload(), { writeToForm: true });
-    const validation = validateFieldReport(payload, { context: 'field' });
+    const validation = validateFieldReport(payload, { context: 'field', operationalScope: currentOperationalScope });
 
     const isDevConfirmed = await checkAndWarnHistoricalDeviation(payload);
     if (!isDevConfirmed) return;

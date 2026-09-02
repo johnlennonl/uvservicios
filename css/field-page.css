@@ -3458,4 +3458,75 @@ div.swal2-container,
     z-index: 9999999 !important;
 }
 
+/* Filter Chips for Journey History */
+.crc-filter-chip {
+    padding: 6px 14px;
+    border-radius: 9999px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+.crc-filter-chip:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+.crc-filter-chip.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.18);
+}
+
+/* Status badges for Journey History */
+.field-history-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    border-radius: 9999px;
+    letter-spacing: 0.5px;
+    margin-left: 8px;
+    border: 1px solid transparent;
+}
+.field-history-status-badge.status-draft {
+    background-color: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+.field-history-status-badge.status-submitted {
+    background-color: #fef3c7;
+    color: #b45309;
+    border-color: #fde68a;
+}
+.field-history-status-badge.status-review {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+.field-history-status-badge.status-approved {
+    background-color: #d1fae5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+.field-history-status-badge.status-rejected {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+/* Colores para los tags de tipo de pozo (BM / BCP) en el historial */
+.crc-well-type-tag.bm {
+    background-color: #3b82f6 !important;
+}
+.crc-well-type-tag.bcp {
+    background-color: #10b981 !important;
+}
+
 

@@ -576,6 +576,7 @@
                     </svg>
                     Campo
                 </a>
+
                 <a href="stats.html" class="nav-link active">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 20V10" />
@@ -767,11 +768,11 @@
                                     <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Empresa</dt><dd>UV SERVICIOS</dd></div>
                                     <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Campo</dt><dd id="brief-campo">TODOS LOS CAMPOS</dd></div>
                                     <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Estado del pozo</dt><dd id="brief-estado-pozo">OPERANDO / PARADO</dd></div>
-                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Tipo de sistema</dt><dd>BES</dd></div>
+                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Tipo de sistema</dt><dd id="brief-tipo-sistema">BES</dd></div>
                                     <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Servicio</dt><dd>MONITOREO</dd></div>
                                     <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Recorrido total</dt><dd id="brief-recorrido-total">0</dd></div>
-                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Diurno</dt><dd id="brief-diurno">0</dd></div>
-                                    <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Nocturno</dt><dd id="brief-nocturno">0</dd></div>
+                                    <div id="brief-row-diurno" style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Diurno</dt><dd id="brief-diurno">0</dd></div>
+                                    <div id="brief-row-nocturno" style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Nocturno</dt><dd id="brief-nocturno">0</dd></div>
                                     <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Pozos</dt><dd id="brief-pozos-count">0</dd></div>
                                     <div style="grid-template-columns: 200px minmax(0, 1fr) !important;"><dt>Actividad</dt><dd id="brief-actividad">TOMA DE PARAMETROS OPERATIVOS</dd></div>
                                     <div style="grid-template-columns: 200px minmax(0, 1fr) !important; align-items: start !important; min-height: auto !important; padding-top: 8px !important; padding-bottom: 8px !important; border-bottom: none !important;">
@@ -1078,7 +1079,7 @@
                                     <span>Echometer ejecutados</span>
                                     <strong id="kpi-echometer-ejecutados">0</strong>
                                 </div>
-                                <div class="attachments-kpi-item">
+                                <div class="attachments-kpi-item" id="kpi-vsd-item">
                                     <span>Volcados VSD subidos</span>
                                     <strong id="kpi-vsd-adjuntos">0</strong>
                                 </div>

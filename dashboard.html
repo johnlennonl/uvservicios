@@ -93,6 +93,7 @@
                     </svg>
                     Campo
                 </a>
+
                 <a href="stats.html" class="nav-link">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v18M12 7v14M19 11v10M3 21h18" />
@@ -470,41 +471,41 @@
                 <!-- Indicadores rapidos -->
                 <div class="elite-card col-1 gauge-card">
                     <div class="card-header-industrial">
-                        <h3>Frecuencia</h3>
+                        <h3 id="card1-title">Frecuencia</h3>
                     </div>
                     <div id="gauge-frecuencia" class="chart-space"></div>
                     <div class="kpi-range-labels">
-                        <span>Min: 0</span>
-                        <span>Max: 60</span>
+                        <span id="card1-min">Min: 0</span>
+                        <span id="card1-max">Max: 60</span>
                     </div>
                 </div>
                 <div class="elite-card col-1 gauge-card">
                     <div class="card-header-industrial">
-                        <h3>Presión PIP</h3>
+                        <h3 id="card2-title">Presión PIP</h3>
                     </div>
                     <div id="gauge-pip" class="chart-space"></div>
                     <div class="kpi-range-labels">
-                        <span>Min: 0</span>
-                        <span>Max: 5000</span>
+                        <span id="card2-min">Min: 0</span>
+                        <span id="card2-max">Max: 5000</span>
                     </div>
                 </div>
                 <div class="elite-card col-1 gauge-card">
                     <div class="card-header-industrial">
-                        <h3>Temp. TM</h3>
+                        <h3 id="card3-title">Temp. TM</h3>
                     </div>
                     <div id="gauge-tm" class="chart-space"></div>
                     <div class="kpi-range-labels">
-                        <span>Min: 0</span>
-                        <span>Max: 450</span>
+                        <span id="card3-min">Min: 0</span>
+                        <span id="card3-max">Max: 450</span>
                     </div>
                 </div>
                 <div class="elite-card col-1">
                     <div class="card-header-industrial">
-                        <h3>Estatus BES</h3>
+                        <h3 id="card4-title">Estatus BES</h3>
                     </div>
                     <div id="donut-status" class="chart-space"></div>
                     <div id="rotation-badge" class="rotation-badge" style="display: none;">
-                        <span class="rotation-badge-label">Giro</span>
+                        <span id="card4-badge-label" class="rotation-badge-label">Giro</span>
                         <span id="rotation-badge-value" class="rotation-badge-value">--</span>
                     </div>
                 </div>
@@ -551,44 +552,44 @@
                 </div>
 
                 <!-- Bloque de tendencias historicas -->
-                <div class="elite-card col-4 trend-card">
+                <div class="elite-card col-4 trend-card" id="large-chart1-card">
                     <div class="card-header-industrial">
-                        <h3>Frecuencia</h3>
+                        <h3 id="large-chart1-title">Frecuencia</h3>
                     </div>
                     <div id="chart-frecuencia" class="trend-space trend-space-wide"></div>
                 </div>
 
-                <div class="elite-card col-4 trend-card">
+                <div class="elite-card col-4 trend-card" id="large-chart2-card">
                     <div class="card-header-industrial">
-                        <h3>Presión PIP</h3>
+                        <h3 id="large-chart2-title">Presión PIP</h3>
                     </div>
                     <div id="chart-pip" class="trend-space trend-space-wide"></div>
                 </div>
 
-                <div class="elite-card col-4 trend-card">
+                <div class="elite-card col-4 trend-card" id="large-chart3-card">
                     <div class="card-header-industrial">
-                        <h3>Temperatura Motor</h3>
+                        <h3 id="large-chart3-title">Temperatura Motor</h3>
                     </div>
                     <div id="chart-tm" class="trend-space trend-space-wide"></div>
                 </div>
 
-                <div class="elite-card col-4 trend-card">
+                <div class="elite-card col-4 trend-card" id="large-chart4-card">
                     <div class="card-header-industrial">
-                        <h3>Corriente Motor</h3>
+                        <h3 id="large-chart4-title">Corriente Motor</h3>
                     </div>
                     <div id="chart-motor-curr" class="trend-space trend-space-wide"></div>
                 </div>
 
-                <div class="elite-card col-4 trend-card">
+                <div class="elite-card col-4 trend-card" id="large-chart5-card">
                     <div class="card-header-industrial">
-                        <h3>Presiones Superficie (THP / CHP / LF)</h3>
+                        <h3 id="large-chart5-title">Presiones Superficie (THP / CHP / LF)</h3>
                     </div>
                     <div id="chart-superficie" class="trend-space" style="min-height: 250px;"></div>
                 </div>
 
-                <div class="elite-card col-4 trend-card">
+                <div class="elite-card col-4 trend-card" id="large-chart6-card">
                     <div class="card-header-industrial">
-                        <h3>VSD Trífasico Corriente (Fases A/B/C)</h3>
+                        <h3 id="large-chart6-title">VSD Trífasico Corriente (Fases A/B/C)</h3>
                     </div>
                     <div id="chart-vsd-triphase" class="trend-space"></div>
                 </div>

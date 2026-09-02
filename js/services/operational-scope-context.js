@@ -28,6 +28,14 @@ function canUseAllContracts(accessProfile) {
     return ['admin', 'supervisor', 'gestor_usuarios', 'base_datos', 'gerencial'].includes(accessProfile?.role);
 }
 
+export function getOperationalScopeFileTag(scopeKey = '') {
+    const scope = String(scopeKey || getActiveOperationalScope() || '').toLowerCase();
+    if (scope === 'crc_ll' || scope === 'ccrc_ll') return 'CCRC_LAGUNILLAS_LAGO';
+    if (scope === 'bmm') return 'BMM_BARUA_MOTATAN';
+    if (scope === 'tom' || scope === 'cei' || scope === 'ct') return 'CEIBA_TOMOPORO';
+    return 'CEIBA_TOMOPORO';
+}
+
 function applyOperationalScopeTheme(scopeKey) {
     const normalizedScope = normalizeOperationalScope(scopeKey);
     document.body.classList.remove('operational-scope-ct', 'operational-scope-bmm');

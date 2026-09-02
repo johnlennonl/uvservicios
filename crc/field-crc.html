@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="../img/pwa-icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>UV Servicios | Captura CCRC Lagunillas Lago</title>
+    <meta name="description" content="Captura de parámetros para pozos BM y BCP del contrato CCRC Lagunillas Lago.">
+    <link rel="icon" type="image/png" href="../img/pwa-icon-192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/dashboard-page.css">
+    <link rel="stylesheet" href="css/crc-style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <!-- Sidebar for Desktop -->
+        <aside class="sidebar field-sidebar">
+            <img src="../img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
+            <nav>
+                <a href="field-crc.html" class="nav-link field-nav-link active" aria-current="page">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Captura y Envío
+                </a>
+                <a href="#panel-crc-history" class="nav-link" id="nav-link-history">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2" />
+                    </svg>
+                    Historial
+                </a>
+
+            </nav>
+            <button id="sidebar-logout-btn-desktop" class="sidebar-logout" style="margin-top:auto; background:transparent; border:none; text-align:left; width:100%; cursor:pointer;">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Cerrar Sesión
+            </button>
+        </aside>
+
+        <!-- Contenido Principal -->
+        <main class="main-container field-main-container">
+            <div class="crc-app-container">
+        
+        <!-- Header -->
+        <header class="crc-header">
+            <div class="crc-header-flex">
+                <div class="crc-brand">
+                    <h1>Captura de Parámetros CCRC Lagunillas Lago</h1>
+                </div>
+            </div>
+        </header>
+
+        <!-- Banner de Borrador Activo -->
+        <div id="crc-draft-banner" class="crc-draft-banner" style="display:none;">
+            <span><i class="fa-solid fa-floppy-disk"></i> Borrador local detectado.</span>
+            <button type="button" id="btn-restore-draft">Recuperar Datos</button>
+        </div>
+
+        <!-- PANEL DE INICIO DE JORNADA -->
+        <section id="panel-start-journey" class="crc-form-wrapper">
+            <div class="crc-start-journey-panel">
+                <!-- Banner de Jornada Activa en Inicio -->
+                <div id="crc-active-warning-banner" style="display:none; background:#eff6ff; border: 1px solid #bfdbfe; color:#1e40af; padding: 16px; border-radius: 12px; margin-bottom: 24px; text-align: left; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <p style="margin:0 0 10px 0; font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; gap: 8px; color: #1e3a8a;">
+                        <i class="fa-solid fa-circle-info" style="font-size:1.1rem; color:#2563eb;"></i> Tienes una jornada activa en curso
+                    </p>
+                    <button type="button" id="btn-resume-active-journey" class="crc-btn crc-btn-primary" style="padding: 10px 16px; font-size: 0.8rem; height: auto; min-height: auto; margin:0; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-solid fa-circle-play"></i> Continuar Jornada Activa
+                    </button>
+                </div>
+
+                <div class="crc-start-journey-icon">
+                    <i class="fa-solid fa-play"></i>
+                </div>
+                <h2>Iniciar Nueva Jornada</h2>
+                <p>Configura los datos de la jornada y técnicos antes de iniciar la toma de parámetros.</p>
+                
+                <form id="form-start-journey" style="text-align: left;" class="crc-form-grid">
+                    <div class="crc-field-group">
+                        <label class="crc-label">Fecha de Jornada <span class="required">*</span></label>
+                        <input type="date" id="journey-date" class="crc-input" required>
+                    </div>
+
+                    <div class="crc-field-group">
+                        <label class="crc-label">Hora de Inicio <span class="required">*</span></label>
+                        <input type="time" id="journey-start-time" class="crc-input" required>
+                    </div>
+                    
+                    <div class="crc-field-group">
+                        <label class="crc-label">Técnico Principal <span class="required">*</span></label>
+                        <select id="journey-tech1" class="crc-select" required>
+                            <option value="">Selecciona Técnico...</option>
+                        </select>
+                    </div>
+
+                    <div class="crc-field-group">
+                        <label class="crc-label">Técnico de Apoyo</label>
+                        <select id="journey-tech2" class="crc-select">
+                            <option value="">Ninguno</option>
+                        </select>
+                    </div>
+
+                    <div class="crc-field-group full-width crc-center-action" style="margin-top: 16px;">
+                        <button type="submit" class="crc-btn crc-btn-primary">
+                            <i class="fa-solid fa-circle-check"></i> Iniciar Jornada
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- PANEL DE HISTORIAL EMBEBIDO -->
+        <section id="panel-crc-history" class="crc-form-wrapper" style="margin-top: 24px; padding-bottom: 80px;">
+            <div class="crc-start-journey-panel" style="text-align: left;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(226, 232, 240, 0.8); padding-bottom: 12px; margin-bottom: 16px;">
+                    <h2 style="margin:0; font-size:1.2rem; font-weight:800; color:var(--text-main); display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Historial de Jornadas CCRC LL
+                    </h2>
+                    <!-- Botón de Actualizar -->
+                    <button type="button" id="btn-refresh-history" class="crc-btn crc-btn-secondary" style="padding: 8px 12px; font-size:0.8rem; height: auto; min-height: unset; margin: 0;">
+                        <i class="fa-solid fa-arrow-rotate-right"></i> Actualizar
+                    </button>
+                </div>
+                
+                <!-- Chips de Filtros -->
+                <div class="crc-history-filters" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+                    <button type="button" class="crc-filter-chip active" data-status="all">Todas</button>
+                    <button type="button" class="crc-filter-chip" data-status="draft">En curso</button>
+                    <button type="button" class="crc-filter-chip" data-status="submitted">Pendientes</button>
+                    <button type="button" class="crc-filter-chip" data-status="approved">Aprobadas</button>
+                    <button type="button" class="crc-filter-chip" data-status="rejected">Rechazadas</button>
+                </div>
+
+                <div id="crc-history-status" style="color:var(--text-light); font-size:0.88rem; margin-bottom:12px;">Cargando historial de jornadas...</div>
+                <div id="crc-history-list" class="crc-history-list" style="display:grid; gap:16px;">
+                    <!-- Se renderiza dinámicamente -->
+                </div>
+            </div>
+        </section>
+
+        <!-- PANEL PRINCIPAL DE TRABAJO (Solo visible con jornada activa) -->
+        <main id="panel-active-journey" style="display:none;">
+            
+            <!-- Resumen Informativo de la Jornada activa -->
+            <div class="crc-active-status-bar">
+                <div class="crc-active-status-info">
+                    <i class="fa-solid fa-clock"></i> Jornada activa: <strong id="lbl-active-date">...</strong> a las <strong id="lbl-active-time">...</strong>
+                </div>
+                <div class="crc-active-status-actions">
+                    <button type="button" id="btn-pause-exit" class="crc-btn-header-action pause"><i class="fa-solid fa-house"></i> Salir al Inicio (Pausar)</button>
+                    <button type="button" id="btn-cancel-journey" class="crc-btn-header-action cancel"><i class="fa-solid fa-trash-can"></i> Terminar y Descartar</button>
+                </div>
+            </div>
+
+            <!-- Botón para Registrar Nuevo Pozo -->
+            <div class="crc-center-action">
+                <button type="button" id="btn-open-capture" class="crc-btn crc-btn-primary" style="padding:14px 24px;">
+                    <i class="fa-solid fa-plus"></i> Capturar Parámetros de Pozo
+                </button>
+            </div>
+
+            <!-- Listado de Pozos Registrados en esta Jornada -->
+            <section class="crc-journey-list">
+                <div class="crc-journey-list-header">
+                    <h2>Pozos Visitados (<span id="count-wells">0</span>)</h2>
+                    <span class="crc-well-type-tag" style="background:#64748b; color:#fff;" id="lbl-journey-status">Borrador</span>
+                </div>
+                <div id="journey-wells-container">
+                    <div style="text-align:center; padding: 24px; color:var(--text-light);">
+                        <i class="fa-solid fa-oil-well" style="font-size:2rem; margin-bottom:8px; display:block;"></i>
+                        Aún no has registrado ningún pozo en este turno.
+                    </div>
+                </div>
+            </section>
+
+            <!-- Acciones de Envío / Transmisión final -->
+            <div class="crc-desktop-actions">
+                <button type="button" id="btn-submit-journey" class="crc-btn crc-btn-success" style="padding:14px 22px; font-size:0.95rem;" disabled>
+                    <i class="fa-solid fa-paper-plane"></i> Enviar Jornada a Revisión!
+                </button>
+                <button type="button" id="btn-copy-journey-summary" class="crc-btn crc-btn-secondary" style="padding:14px 20px; font-size:0.92rem; background-color: #f1f5f9; border-color: #cbd5e1; color: #1e293b; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fa-solid fa-copy"></i> Copiar Resumen para WhatsApp
+                </button>
+            </div>
+        </main>
+
+        <!-- FORMULARIO DE CAPTURA POR PASOS (MODAL / PANTALLA SOBREPUESTA) -->
+        <section id="panel-capture-form" class="crc-form-wrapper" style="display:none; margin-top:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+                <h2 style="margin:0; font-size:1.15rem; font-weight:800; color:var(--text-main);">Captura del Pozo</h2>
+                <button type="button" id="btn-close-capture" class="crc-action-icon" style="font-size:1.4rem;">✕</button>
+            </div>
+
+            <!-- Indicador visual de pasos — Iconos temáticos -->
+            <div class="crc-steps-indicator">
+                <div class="crc-step-progress-bar" id="step-progress-line"></div>
+                <div class="crc-step-node active" data-step="1">
+                    <div class="crc-step-circle"><i class="fa-solid fa-oil-well"></i></div>
+                    <span class="crc-step-label">Pozo</span>
+                </div>
+                <div class="crc-step-node" data-step="2">
+                    <div class="crc-step-circle"><i class="fa-solid fa-gears"></i></div>
+                    <span class="crc-step-label">Método</span>
+                </div>
+                <div class="crc-step-node" data-step="3">
+                    <div class="crc-step-circle"><i class="fa-solid fa-droplet"></i></div>
+                    <span class="crc-step-label">Producción</span>
+                </div>
+                <div class="crc-step-node" data-step="4">
+                    <div class="crc-step-circle"><i class="fa-solid fa-clipboard-check"></i></div>
+                    <span class="crc-step-label">Resumen</span>
+                </div>
+            </div>
+
+            <form id="form-well-capture">
+                <!-- PASO 1: Selección de Pozo y Estatus -->
+                <div class="crc-form-step-content active" data-step="1">
+                    <div class="crc-form-grid">
+                        <div class="crc-field-group">
+                            <label class="crc-label">Buscar / Seleccionar Pozo <span class="required">*</span></label>
+                            <div style="display:flex; flex-direction:column; gap:6px;">
+                                <div style="position:relative;">
+                                    <input type="text" id="well-pozo-search" class="crc-input" placeholder="🔍 Escribe el pozo (ej: 01, BM, BCP)..." autocomplete="off" style="padding-left:36px; background:#fff; font-weight:600; border-color:var(--crc-primary);">
+                                    <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--crc-primary); pointer-events:none;"></i>
+                                </div>
+                                <select id="well-pozo" class="crc-select" required style="background:#fff;">
+                                    <option value="">Cargando catálogo...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Método de Levantamiento</label>
+                            <input type="text" id="well-lift-method-read" class="crc-input" value="No definido" disabled>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Campo / Ubicación</label>
+                            <input type="text" id="well-campo" class="crc-input" placeholder="Auto-completado" disabled>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Estación de Flujo (EF)</label>
+                            <input type="text" id="well-ef" class="crc-input" placeholder="Auto-completado" disabled>
+                        </div>
+
+                            <input type="hidden" id="well-estado" value="">
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Categoría <span class="required">*</span></label>
+                            <select id="well-categoria" class="crc-select" required>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                            </select>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Estatus Pozo <span class="required">*</span></label>
+                            <select id="well-estatus" class="crc-select" required>
+                                <option value="RUN">RUN</option>
+                                <option value="OFF">OFF</option>
+                            </select>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Actividad <span class="required">*</span></label>
+                            <select id="well-actividad" class="crc-select" required>
+                                <option value="NIVEL">NIVEL</option>
+                                <option value="CARTA + NIVEL">CARTA + NIVEL</option>
+                                <option value="CARTA">CARTA</option>
+                                <option value="PRUEBA DE VALVULA">PRUEBA DE VALVULA</option>
+                                <option value="CARTA , NIVEL + PRUEBA DE VALVULA">CARTA , NIVEL + PRUEBA DE VALVULA</option>
+                            </select>
+                        </div>
+
+
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Hora de Toma <span class="required">*</span></label>
+                            <input type="time" id="well-time" class="crc-input" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASO 2: Parámetros Técnicos Dinámicos (BM o BCP) -->
+                <div class="crc-form-step-content" data-step="2">
+                    <!-- Sección Bombeo Mecánico (BM) -->
+                    <div id="section-bm-params" class="crc-form-grid" style="display:none;">
+                        <div class="crc-section-header">
+                            <h3><i class="fa-solid fa-gears"></i> Parámetros de Bombeo Mecánico</h3>
+                            <span class="crc-badge-method bm">BM</span>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Marca Unidad de Bombeo</label>
+                            <input type="text" id="bm-marca" class="crc-input" placeholder="Ej: Lufkin">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Modelo Unidad de Bombeo</label>
+                            <input type="text" id="bm-modelo" class="crc-input" placeholder="Ej: C-320D">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Tiro</label>
+                            <input type="text" id="bm-tiro" class="crc-input" placeholder="Ej: Central">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Recorrido (IN)</label>
+                            <input type="number" step="any" id="bm-recorrido" class="crc-input" placeholder="Pulgadas (ej: 86)">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">SPM (Golpes/Minuto)</label>
+                            <input type="number" step="any" id="bm-spm" class="crc-input" placeholder="Emboladas por min">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Estado Unidad de Bombeo</label>
+                            <input type="text" id="bm-estado-unidad" class="crc-input" placeholder="Ej: BUENO, OPERATIVA, PARADA">
+                        </div>
+                    </div>
+
+                    <!-- Sección Bombeo Cavidades Progresivas (BCP) -->
+                    <div id="section-bcp-params" class="crc-form-grid" style="display:none;">
+                        <div class="crc-section-header">
+                            <h3><i class="fa-solid fa-gauge-high"></i> Parámetros de Cavidades Progresivas</h3>
+                            <span class="crc-badge-method bcp">BCP</span>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">RPM (Rotación Cabezal)</label>
+                            <input type="number" step="any" id="bcp-rpm" class="crc-input" placeholder="Velocidad RPM">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Torque (LBF-IN)</label>
+                            <input type="number" step="any" id="bcp-torque" class="crc-input" placeholder="Fuerza en Lbf-in">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Amperaje Motor (A)</label>
+                            <input type="number" step="any" id="bcp-amperaje" class="crc-input" placeholder="Corriente motor">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Modelo Cabezal Rotación</label>
+                            <input type="text" id="bcp-modelo-cabezal" class="crc-input" placeholder="Modelo cabezal">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Motorreductor</label>
+                            <input type="text" id="bcp-motorreductor" class="crc-input" placeholder="Tipo / Relación">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASO 3: Producción y Superficie (Cálculos de %AyS e Inspección) -->
+                <div class="crc-form-step-content" data-step="3">
+                    <div class="crc-form-grid">
+                        <div class="crc-section-header">
+                            <h3><i class="fa-solid fa-droplet"></i> Caudales y Presiones</h3>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Bruta (BBPD)</label>
+                            <input type="number" step="any" id="well-bruta" class="crc-input" placeholder="Caudal Bruto total">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Neta (BNPD)</label>
+                            <input type="number" step="any" id="well-neta" class="crc-input" placeholder="Caudal Neto Petróleo">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Porcentaje %AyS (Cálculo Automático)</label>
+                            <input type="text" id="well-ays" class="crc-input" value="0.00 %" disabled style="font-weight:700; color:var(--primary-color);">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">THP (PSI) <span class="required">*</span></label>
+                            <input type="number" step="any" id="well-thp" class="crc-input" placeholder="Presión de Cabezal" required>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">CHP (PSI) <span class="required">*</span></label>
+                            <input type="number" step="any" id="well-chp" class="crc-input" placeholder="Presión Casing" required>
+                            <span style="font-size: 0.7rem; color: #64748b; margin-top: 4px; display: block; line-height: 1.3;">
+                                Nota: Si CHP es 0, favor especificar en observaciones de pozo si está <strong>al aire</strong> o <strong>a la línea</strong>.
+                            </span>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Stuffing (Superficie)</label>
+                            <select id="well-stuffing" class="crc-select">
+                                <option value="">Seleccione...</option>
+                                <option value="BUENO">BUENO</option>
+                                <option value="CON FUGA">CON FUGA</option>
+                                <option value="MALO">MALO</option>
+                            </select>
+                        </div>
+
+                        <div class="crc-section-header">
+                            <h3><i class="fa-solid fa-water"></i> Niveles y Pruebas de Presión</h3>
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Nivel (FT)</label>
+                            <input type="number" step="any" id="well-nivel" class="crc-input" placeholder="Nivel dinámico en pies">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Sumergencia (FT)</label>
+                            <input type="number" step="any" id="well-sumergencia" class="crc-input" placeholder="Sumergencia en pies">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Presión Inicial (PSI)</label>
+                            <input type="number" step="any" id="well-presion-inicial" class="crc-input" placeholder="Prueba de presión inicial">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Presión Final (PSI)</label>
+                            <input type="number" step="any" id="well-presion-final" class="crc-input" placeholder="Prueba de presión final">
+                        </div>
+
+                        <div class="crc-field-group">
+                            <label class="crc-label">Tiempo de Prueba</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="number" step="any" id="well-tiempo-prueba-num" class="crc-input" placeholder="Cantidad (ej: 30)" style="flex: 2;">
+                                <select id="well-tiempo-prueba-unit" class="crc-select" style="flex: 1; min-width: 95px;">
+                                    <option value="MIN">MIN</option>
+                                    <option value="HORA">HORA</option>
+                                    <option value="SEG">SEG</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="crc-field-group full-width" style="margin-top: 10px;">
+                            <label class="crc-label">Observaciones</label>
+                            <textarea id="well-observaciones" class="crc-textarea" rows="3" placeholder="Inspección visual, ruidos golpeteo, estado general..."></textarea>
+                        </div>
+
+                        <div class="crc-field-group" style="margin-top: 16px;">
+                            <label class="crc-label"><i class="fa-solid fa-camera"></i> Agregar Fotos</label>
+                            <label for="well-attachments-photos" class="crc-attachments-zone" id="lbl-attachments-photos" style="padding: 12px; font-size: 0.85rem; height: auto; min-height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                <i class="fa-solid fa-camera" style="font-size: 1.2rem; margin-bottom: 4px;"></i>
+                                <span id="lbl-photos-text" style="font-weight: 700;">Toca para agregar fotos</span>
+                                <small id="photos-count-badge" style="display:none; color: #2563eb; font-weight:800; margin-top: 4px;"></small>
+                            </label>
+                            <input type="file" id="well-attachments-photos" accept="image/*" multiple style="display:none;">
+                            <div id="photos-preview-container" class="crc-previews-grid"></div>
+                        </div>
+
+                        <div class="crc-field-group" style="margin-top: 16px;">
+                            <label class="crc-label"><i class="fa-solid fa-file-waveform"></i> Agregar Archivo Echometer</label>
+                            <label for="well-attachments-echometer" class="crc-attachments-zone" id="lbl-attachments-echometer" style="padding: 12px; font-size: 0.85rem; height: auto; min-height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                <i class="fa-solid fa-file-waveform" style="font-size: 1.2rem; margin-bottom: 4px;"></i>
+                                <span id="lbl-echometer-text" style="font-weight: 700;">Toca para agregar archivo</span>
+                                <small id="echometer-count-badge" style="display:none; color: #2563eb; font-weight:800; margin-top: 4px;"></small>
+                            </label>
+                            <input type="file" id="well-attachments-echometer" multiple style="display:none;">
+                            <div id="echometer-preview-container" class="crc-previews-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASO 4: Resumen del Reporte del Pozo -->
+                <div class="crc-form-step-content" data-step="4">
+                    <div class="crc-summary-container">
+                        <div class="crc-draft-banner" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">
+                            <span><i class="fa-solid fa-circle-info"></i> Revisa detalladamente los parámetros antes de guardar el registro en el recorrido.</span>
+                        </div>
+
+                        <div class="crc-summary-section">
+                            <div class="crc-summary-title">Identificación y Estatus</div>
+                            <div class="crc-summary-grid">
+                                <div class="crc-summary-item">
+                                    <span class="crc-summary-label">Pozo</span>
+                                    <strong class="crc-summary-value" id="sum-pozo">-</strong>
+                                </div>
+                                <div class="crc-summary-item">
+                                    <span class="crc-summary-label">Ubicación / EF</span>
+                                    <strong class="crc-summary-value" id="sum-ef">-</strong>
+                                </div>
+                                <div class="crc-summary-item">
+                                    <span class="crc-summary-label">Método</span>
+                                    <strong class="crc-summary-value" id="sum-method">-</strong>
+                                </div>
+                                <div class="crc-summary-item">
+                                    <span class="crc-summary-label">Hora Toma</span>
+                                    <strong class="crc-summary-value" id="sum-hora">-</strong>
+                                </div>
+                                <div class="crc-summary-item">
+                                    <span class="crc-summary-label">Estatus / Actividad</span>
+                                    <strong class="crc-summary-value" id="sum-estatus">-</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="crc-summary-section">
+                            <div class="crc-summary-title">Producción y Presiones</div>
+                            <div class="crc-summary-grid">
+                                <div class="crc-summary-item">
+                                    <span class="crc-summary-label">Caudal Bruto / Neto</span>
+                                    <strong class="crc-summary-value" id="sum-produccion">-</strong>
+                                </div>
+                                <div class="crc-summary-item">
+                                    <span class="crc-summary-label">Porcentaje %AyS</span>
+                                    <strong class="crc-summary-value" id="sum-ays">-</strong>
+                                </div>
+                                <div class="crc-summary-item">
+                                    <span class="crc-summary-label">Presiones (THP / CHP)</span>
+                                    <strong class="crc-summary-value" id="sum-presiones">-</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="crc-summary-section" id="sum-section-technical">
+                            <div class="crc-summary-title">Parámetros del Sistema de Levantamiento</div>
+                            <div class="crc-summary-grid" id="sum-grid-technical">
+                                <!-- Se llena dinámicamente -->
+                            </div>
+                        </div>
+
+                        <div class="crc-summary-section">
+                            <div class="crc-summary-title">Observaciones</div>
+                            <p style="margin:0; font-size:0.88rem; line-height:1.4;" id="sum-observaciones">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Acciones de Navegación del Capturador -->
+                <div class="crc-form-actions">
+                    <button type="button" id="btn-step-prev" class="crc-btn crc-btn-secondary" style="visibility:hidden;">
+                        <i class="fa-solid fa-arrow-left"></i> Atrás
+                    </button>
+                    <button type="button" id="btn-step-next" class="crc-btn crc-btn-primary">
+                        Siguiente <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                    <button type="button" id="btn-add-well" class="crc-btn crc-btn-success" style="display:none;">
+                        <i class="fa-solid fa-circle-plus"></i> Guardar Pozo en Jornada
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Barra inferior de acciones rápidas (Estilo Mobile Bottom Nav) -->
+        <nav class="crc-bottom-nav">
+            <button type="button" id="nav-capture-btn" class="crc-nav-action active">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Capturar</span>
+            </button>
+            <a href="#panel-crc-history" class="crc-nav-action" id="mobile-nav-history" style="text-decoration: none; color: inherit;">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span>Historial</span>
+            </a>
+            <button type="button" id="nav-logout-btn" class="crc-nav-action logout">
+                <i class="fa-solid fa-power-off"></i>
+                <span>Salir</span>
+            </button>
+        </nav>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Cargar controlador JavaScript como módulo ES6 -->
+    <script type="module" src="js/crc-controller.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="img/pwa-icon-192.png">
+    <title>UV Servicios | Administración CRC LL</title>
+    <link class="favicon" rel="icon" type="image/png" href="img/pwa-icon-192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard-page.css">
+    <link rel="stylesheet" href="crc/css/crc-style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body class="access-protected-nav">
+    <!-- Loader global -->
+    <div id="premium-loader" class="premium-loader-overlay">
+        <div class="loader-logo-pulse">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV" style="width: 140px; height: 140px; object-fit: contain;">
+        </div>
+    </div>
+
+    <!-- Si ya se visitó el portal, ocultamos el loader para evitar parpadeo y simular SPA -->
+    <script>
+        if (sessionStorage.getItem('dashboard-visited')) {
+            document.getElementById('premium-loader').classList.add('hidden');
+        }
+    </script>
+
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="Logo" class="sidebar-logo" width="180" height="180">
+            <nav>
+                <a href="dashboard.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="dashboard-data.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    Gestión
+                </a>
+                <a href="gestion-usuarios.html" class="nav-link" style="display: none;">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Usuarios
+                </a>
+                <a href="data.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                    Data
+                </a>
+                <a href="consolidado.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16M4 10h16M4 15h16M4 20h16"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 5v15M14 5v15"></path>
+                    </svg>
+                    Consolidado
+                </a>
+                <a href="campo-admin.html" class="nav-link nav-link-campo">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 6h6"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 10h6"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 14h3"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
+                    </svg>
+                    Campo
+                </a>
+                <a href="crc-admin.html" class="nav-link nav-link-crc active" aria-current="page">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    CRC LL
+                </a>
+                <a href="stats.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v18M12 7v14M19 11v10M3 21h18" />
+                    </svg>
+                    Estadísticas
+                </a>
+                <a href="base-datos.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                    Base de Datos
+                </a>
+                <a href="notificacion.html" class="nav-link">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    Notificaciones
+                </a>
+            </nav>
+            <button id="sidebar-logout-btn" class="sidebar-logout" style="margin-top:auto; background:transparent; border:none; text-align:left; width:100%; cursor:pointer;">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3h4a3 3 0 013 3v1" />
+                </svg>
+                Cerrar Sesión
+            </button>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-container" style="padding: 24px;">
+            <header class="page-hero" style="background:var(--bg-gradient); padding: 30px; border-radius: 20px; color:#fff; margin-bottom: 24px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                    <div>
+                        <span style="font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#818cf8;">CONTRATO CRC - LAGUNILLAS LAGO</span>
+                        <h1 style="margin:6px 0 0 0; font-size:1.6rem; font-weight:800;">Panel de Operaciones CRC</h1>
+                        <p style="margin:4px 0 0 0; font-size:0.88rem; color:#cbd5e1;">Revisa y publica jornadas de campo, descarga soportes técnicos y monitorea parámetros de pozos BM / BCP.</p>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Tabs de Navegación del Panel CRC -->
+            <div class="crc-tabs-container" style="display:flex; gap:12px; margin-bottom:24px; border-bottom:2px solid #cbd5e1; padding-bottom:12px;">
+                <button type="button" class="crc-tab-btn active" data-tab="journeys" style="padding:10px 20px; font-weight:800; border:none; background:none; border-bottom:3px solid #2563eb; color:#2563eb; cursor:pointer; font-size:0.92rem; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Aprobación de Jornadas
+                </button>
+                <button type="button" class="crc-tab-btn" data-tab="wells" style="padding:10px 20px; font-weight:600; border:none; background:none; color:#64748b; cursor:pointer; font-size:0.92rem; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-industry"></i> Fichas de Pozos y Monitoreo
+                </button>
+            </div>
+
+            <!-- CONTENIDO TAB: JORNADAS -->
+            <div id="tab-content-journeys" class="crc-tab-content-pane">
+                <div style="display:grid; grid-template-columns: 1fr; gap: 24px;">
+                    
+                    <!-- Tabla de Jornadas Pendientes y Realizadas -->
+                    <section class="crc-form-wrapper" style="background:#ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 24px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+                            <h2 style="margin:0; font-size:1.05rem; font-weight:800; color:var(--text-main);"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Jornadas CRC LL</h2>
+                            <span class="crc-well-type-tag" style="background:#2563eb;" id="lbl-total-journeys">0 jornadas</span>
+                        </div>
+
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.88rem;" id="table-journeys">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+                                        <th style="padding:12px; font-weight:700;">Fecha</th>
+                                        <th style="padding:12px; font-weight:700;">Turno</th>
+                                        <th style="padding:12px; font-weight:700;">Técnicos</th>
+                                        <th style="padding:12px; font-weight:700;">Guardia</th>
+                                        <th style="padding:12px; font-weight:700;">Estatus</th>
+                                        <th style="padding:12px; font-weight:700; text-align:right;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-journeys">
+                                    <tr>
+                                        <td colspan="6" style="padding:24px; text-align:center; color:var(--text-light);">
+                                            <i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem; margin-bottom:8px; display:block;"></i>
+                                            Cargando jornadas...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- Detalle de la Jornada Seleccionada para Revisión -->
+                    <section id="panel-journey-detail" class="crc-form-wrapper" style="background:#ffffff; display:none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 24px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+                            <div>
+                                <h2 style="margin:0; font-size:1.1rem; font-weight:800; color:var(--text-main);"><i class="fa-solid fa-file-invoice"></i> Detalle de Guardia en Revisión</h2>
+                                <p style="margin:4px 0 0 0; font-size:0.78rem; color:var(--text-muted);">
+                                    Registrado por <strong id="det-user">...</strong> el <span id="det-created">...</span>
+                                </p>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button type="button" class="crc-btn crc-btn-secondary" id="btn-close-detail" style="padding:8px 14px; font-size:0.78rem;">Cerrar Detalle</button>
+                            </div>
+                        </div>
+
+                        <!-- Listado de registros técnicos de la jornada -->
+                        <div style="overflow-x:auto; margin-bottom:20px;">
+                            <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;" id="table-records">
+                                <thead>
+                                    <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1;">
+                                        <th style="padding:10px; font-weight:700;">Pozo</th>
+                                        <th style="padding:10px; font-weight:700;">Método</th>
+                                        <th style="padding:10px; font-weight:700;">Hora</th>
+                                        <th style="padding:10px; font-weight:700;">Caudal (B/N/%AyS)</th>
+                                        <th style="padding:10px; font-weight:700;">THP / CHP</th>
+                                        <th style="padding:10px; font-weight:700;">Parámetros Técnicos</th>
+                                        <th style="padding:10px; font-weight:700;">Observaciones</th>
+                                        <th style="padding:10px; font-weight:700;">Soportes Adjuntos</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-records">
+                                    <!-- Se llena dinámicamente con los registros del pozo -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Acciones del Administrador sobre la jornada -->
+                        <div style="display:flex; justify-content:flex-end; gap:12px; border-top:1px solid #e2e8f0; padding-top:16px;" id="journey-admin-actions">
+                            <button type="button" class="crc-btn crc-btn-secondary" id="btn-reject-journey" style="background:#fef2f2; color:#ef4444; border-color:#fee2e2;">
+                                <i class="fa-solid fa-circle-xmark"></i> Rechazar Guardia
+                            </button>
+                            <button type="button" class="crc-btn crc-btn-success" id="btn-publish-journey" style="padding:12px 24px;">
+                                <i class="fa-solid fa-circle-check"></i> Aprobar y Publicar Guardia
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- CONTENIDO TAB: FICHA DE POZOS -->
+            <div id="tab-content-wells" class="crc-tab-content-pane" style="display:none;">
+                <div style="display:grid; grid-template-columns: 1fr; gap:35px;">
+                    
+                    <!-- Sección BM -->
+                    <div>
+                        <h3 style="font-size:1.15rem; font-weight:800; color:var(--text-main); margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                            <span style="background:#dbeafe; color:#2563eb; padding:6px 12px; border-radius:8px; font-size:0.8rem; font-weight:800;">BM</span>
+                            Pozos por Bombeo Mecánico (BM)
+                        </h3>
+                        <div id="grid-wells-bm" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap:20px;">
+                            <div style="grid-column:1/-1; padding:24px; text-align:center; color:var(--text-light); background:#fff; border-radius:12px;">
+                                Cargando pozos de Bombeo Mecánico...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección BCP -->
+                    <div>
+                        <h3 style="font-size:1.15rem; font-weight:800; color:var(--text-main); margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                            <span style="background:#ccfbf1; color:#0d9488; padding:6px 12px; border-radius:8px; font-size:0.8rem; font-weight:800;">BCP</span>
+                            Pozos por Bombeo de Cavidades Progresivas (BCP)
+                        </h3>
+                        <div id="grid-wells-bcp" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap:20px;">
+                            <div style="grid-column:1/-1; padding:24px; text-align:center; color:var(--text-light); background:#fff; border-radius:12px;">
+                                Cargando pozos de Bombeo de Cavidades Progresivas...
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/services/router.js"></script>
+</body>
+
+</html>

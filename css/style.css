@@ -45,6 +45,12 @@ body.operational-scope-bmm {
     --scope-accent-soft: rgba(15, 118, 110, 0.11);
 }
 
+/* Ocultar botones de Sensor de Fondo y VSD en la vista de Data si es el contrato CCRC LL */
+body[data-operational-scope="crc_ll"] #btn-sensor-history,
+body[data-operational-scope="crc_ll"] #btn-vsd-history {
+    display: none !important;
+}
+
 .operational-scope-transition-overlay {
     position: fixed;
     inset: 0;
@@ -2756,4 +2762,63 @@ html.lenis, html.lenis body {
     margin: 6px 0 0 0 !important;
     line-height: 1.1 !important;
     font-family: 'Outfit', sans-serif !important;
+}
+
+/* ==========================================================================
+   SCROLL SUAVE Y PROPAGACIÓN NATURAL EN MODALES, FORMULARIOS Y CONTENEDORES
+   ========================================================================== */
+
+.modal,
+.modal-body,
+.swal2-popup,
+.swal2-html-container,
+.campo-admin-detail-shell,
+.field-main-container,
+.crc-app-container,
+.campo-admin-modal-body,
+.campo-admin-modal-card,
+.consolidado-card,
+select,
+input,
+textarea {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: auto;
+}
+
+.swal2-html-container::-webkit-scrollbar,
+.campo-admin-detail-shell::-webkit-scrollbar,
+.campo-admin-modal-body::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar,
+.crc-app-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.swal2-html-container::-webkit-scrollbar-track,
+.campo-admin-detail-shell::-webkit-scrollbar-track,
+.campo-admin-modal-body::-webkit-scrollbar-track,
+.modal-body::-webkit-scrollbar-track,
+.crc-app-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 4px;
+}
+
+.swal2-html-container::-webkit-scrollbar-thumb,
+.campo-admin-detail-shell::-webkit-scrollbar-thumb,
+.campo-admin-modal-body::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb,
+.crc-app-container::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.5);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+.swal2-html-container::-webkit-scrollbar-thumb:hover,
+.campo-admin-detail-shell::-webkit-scrollbar-thumb:hover,
+.campo-admin-modal-body::-webkit-scrollbar-thumb:hover,
+.modal-body::-webkit-scrollbar-thumb:hover,
+.crc-app-container::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
 }

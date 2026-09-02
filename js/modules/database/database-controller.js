@@ -169,7 +169,9 @@ const state = {
     currentFolders: [],
     currentAllDocs: [],
     currentSubfolders: [],
-    allFoldersList: []
+    allFoldersList: [],
+    activeLiftMethod: null, // Filtro BM / BCP para el contrato CRC LL
+    wellsMetadata: new Map() // Mapa de pozo_name -> well metadata (incluyendo lift_method)
 };
 
 /**
@@ -673,9 +675,13 @@ async function loadDatabaseModule() {
         // Cargar pozos desde el catálogo del contrato activo. Si el catálogo no responde,
         // se conserva el fallback legacy para no bloquear la consulta de expedientes.
         let rawPozos = [];
+        state.wellsMetadata.clear();
         try {
             const scopedWells = await getFieldWellsByScope(state.activeOperationalScope);
             rawPozos = (scopedWells || []).map(well => well.pozo_name);
+            (scopedWells || []).forEach(well => {
+                state.wellsMetadata.set(String(well.pozo_name).trim().toUpperCase(), well);
+            });
         } catch (scopeError) {
             console.warn('[database-controller] No se pudo cargar catálogo por contrato, usando pozos globales:', scopeError);
             rawPozos = await getUniquePozos();
@@ -1013,15 +1019,87 @@ function renderWellsView(filterText = '') {
     const searchInput = document.getElementById('well-search-input');
     if (!grid) return;
 
+    // Si es el contrato CRC LL y no se ha seleccionado el método de levantamiento, mostrar las dos carpetas virtuales
+    if (state.activeOperationalScope === 'crc_ll' && state.activeLiftMethod === null) {
+        if (badge) badge.textContent = 'Selecciona un método de levantamiento artificial';
+        
+        // Calcular conteos de documentos para BM y BCP
+        let bmDocs = 0;
+        let bcpDocs = 0;
+        state.pozosList.forEach(pozo => {
+            const counts = state.summaryCounts[pozo] || { total: 0 };
+            const wellMeta = state.wellsMetadata.get(pozo);
+            if (wellMeta?.lift_method === 'BM') {
+                bmDocs += (counts.total || 0);
+            } else if (wellMeta?.lift_method === 'BCP') {
+                bcpDocs += (counts.total || 0);
+            }
+        });
+
+        grid.innerHTML = `
+            <div class="well-card lift-method-folder-card" data-method="BM" style="border-left: 5px solid #2563eb; cursor: pointer;">
+                <div class="well-card-top">
+                    <div class="well-card-icon" style="background: rgba(37,99,235,0.1); color: #2563eb;">
+                        <i class="fa-solid fa-folder-closed"></i>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="well-card-badge" style="background:#2563eb; color:#fff;">${bmDocs} doc${bmDocs === 1 ? '' : 's'}</span>
+                    </div>
+                </div>
+                <h3 class="well-card-title">Expedientes de Pozos por BM</h3>
+                <div class="well-card-action">
+                    <span>Bombeo Mecánico</span>
+                    <strong>Abrir listado <i class="fa-solid fa-chevron-right"></i></strong>
+                </div>
+            </div>
+            
+            <div class="well-card lift-method-folder-card" data-method="BCP" style="border-left: 5px solid #10b981; cursor: pointer;">
+                <div class="well-card-top">
+                    <div class="well-card-icon" style="background: rgba(16,185,129,0.1); color: #10b981;">
+                        <i class="fa-solid fa-folder-closed"></i>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="well-card-badge" style="background:#10b981; color:#fff;">${bcpDocs} doc${bcpDocs === 1 ? '' : 's'}</span>
+                    </div>
+                </div>
+                <h3 class="well-card-title">Expedientes de Pozos por BCP</h3>
+                <div class="well-card-action">
+                    <span>Bombeo de Cavidades Progresivas</span>
+                    <strong>Abrir listado <i class="fa-solid fa-chevron-right"></i></strong>
+                </div>
+            </div>
+        `;
+
+        // Eventos para seleccionar el método
+        grid.querySelectorAll('.lift-method-folder-card').forEach(card => {
+            card.addEventListener('click', () => {
+                state.activeLiftMethod = card.dataset.method;
+                renderWellsView();
+            });
+        });
+        return;
+    }
+
     const term = String(filterText || searchInput?.value || '').trim().toLowerCase();
-    const filteredPozos = term 
-        ? state.pozosList.filter(p => p.toLowerCase().includes(term))
-        : state.pozosList;
+    
+    // Filtrar la lista de pozos por término de búsqueda Y por método de levantamiento si corresponde
+    let filteredPozos = state.pozosList;
+    if (state.activeOperationalScope === 'crc_ll' && state.activeLiftMethod !== null) {
+        filteredPozos = filteredPozos.filter(pozo => {
+            const wellMeta = state.wellsMetadata.get(pozo);
+            return wellMeta?.lift_method === state.activeLiftMethod;
+        });
+    }
+
+    if (term) {
+        filteredPozos = filteredPozos.filter(p => p.toLowerCase().includes(term));
+    }
 
     if (badge) {
+        const methodLabel = state.activeLiftMethod ? ` (${state.activeLiftMethod})` : '';
         badge.textContent = term 
-            ? `${filteredPozos.length} de ${state.pozosList.length} pozos`
-            : `${state.pozosList.length} pozo${state.pozosList.length === 1 ? '' : 's'} disponible${state.pozosList.length === 1 ? '' : 's'}`;
+            ? `${filteredPozos.length} de ${state.pozosList.length} pozos${methodLabel}`
+            : `${filteredPozos.length} pozo${filteredPozos.length === 1 ? '' : 's'} disponible${filteredPozos.length === 1 ? '' : 's'}${methodLabel}`;
     }
 
     if (filteredPozos.length === 0) {
@@ -1029,7 +1107,7 @@ function renderWellsView(filterText = '') {
             <div class="empty-panel" style="grid-column: 1 / -1; padding:32px; text-align:center;">
                 <i class="fa-solid fa-magnifying-glass" style="font-size:2.2rem; color:#94a3b8; margin-bottom:10px;"></i>
                 <strong style="display:block; font-size:1.05rem; color:#0f172a;">No se encontró ningún pozo con "${term}"</strong>
-                <span style="color:#64748b; font-size:0.88rem;">Intenta con otro término de búsqueda (ej: CEI0003, TOM0010).</span>
+                <span style="color:#64748b; font-size:0.88rem;">Intenta con otro término de búsqueda.</span>
             </div>
         `;
         return;
@@ -1038,6 +1116,8 @@ function renderWellsView(filterText = '') {
     grid.innerHTML = filteredPozos.map(pozo => {
         const counts = state.summaryCounts[pozo] || { total: 0 };
         const totalDocs = counts.total || 0;
+        const wellMeta = state.wellsMetadata.get(pozo);
+        const methodBadge = wellMeta?.lift_method ? `<span class="well-card-badge" style="background:#475569; color:#fff; font-size:0.7rem; font-weight:700;">${wellMeta.lift_method}</span>` : '';
         return `
             <div class="well-card" data-pozo="${pozo}">
                 <div class="well-card-top">
@@ -1045,6 +1125,7 @@ function renderWellsView(filterText = '') {
                         <i class="fa-solid fa-oil-well"></i>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
+                        ${methodBadge}
                         <span class="well-card-badge">${totalDocs} doc${totalDocs === 1 ? '' : 's'}</span>
                         <img src="img/UV-SERVICES-Logo-vectorial-sin-fondo.webp" alt="UV" class="card-uv-mini-logo">
                     </div>
@@ -1096,6 +1177,8 @@ async function ensureDefaultFoldersExist(pozoName) {
             categories = GENERAL_CATEGORIES;
         } else if (cleanPozo === '_GERENCIAL') {
             categories = GERENCIAL_CATEGORIES;
+        } else if (cleanScope === 'crc_ll') {
+            categories = DOCUMENT_CATEGORIES.filter(c => ['REGISTROS_ECHOMETER', 'SOPORTES'].includes(c.key));
         }
 
         categories.forEach(cat => {
@@ -2349,12 +2432,24 @@ function updateBreadcrumb() {
             </div>
         `;
     } else {
+        const isRootActive = !state.activePozo && state.activeLiftMethod === null;
         html += `
-            <div class="db-breadcrumb-item ${!state.activePozo ? 'is-active' : ''}" id="bc-root" style="cursor:pointer;">
+            <div class="db-breadcrumb-item ${isRootActive ? 'is-active' : ''}" id="bc-root" style="cursor:pointer;">
                 <i class="fa-solid fa-database"></i>
                 <span>Pozos Registrados</span>
             </div>
         `;
+
+        if (state.activeOperationalScope === 'crc_ll' && state.activeLiftMethod !== null) {
+            const isMethodActive = !state.activePozo;
+            html += `
+                <span class="db-breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+                <div class="db-breadcrumb-item ${isMethodActive ? 'is-active' : ''}" id="bc-lift-method" style="cursor:pointer;">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span>${state.activeLiftMethod === 'BM' ? 'Bombeo Mecánico (BM)' : 'Bombeo PC (BCP)'}</span>
+                </div>
+            `;
+        }
 
         if (state.activePozo) {
             html += `
@@ -2410,6 +2505,21 @@ function updateBreadcrumb() {
         document.getElementById('bc-root')?.addEventListener('click', () => {
             const btnCreateFolder = document.getElementById('btn-create-folder');
             if (btnCreateFolder) btnCreateFolder.style.display = 'none';
+            state.activeLiftMethod = null;
+            state.activePozo = null;
+            state.activeCategory = null;
+            state.activeFolderId = null;
+            state.currentFolderPath = [];
+            renderWellsView();
+        });
+
+        document.getElementById('bc-lift-method')?.addEventListener('click', () => {
+            const btnCreateFolder = document.getElementById('btn-create-folder');
+            if (btnCreateFolder) btnCreateFolder.style.display = 'none';
+            state.activePozo = null;
+            state.activeCategory = null;
+            state.activeFolderId = null;
+            state.currentFolderPath = [];
             renderWellsView();
         });
         
