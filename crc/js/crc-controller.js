@@ -4,7 +4,7 @@
 
 import { getSession, logout, getAccessProfile, applyNavigationAccessProfile } from '../../js/auth.js';
 import { getFieldTechniciansByScope, getFieldWellsByScope, sortWellsNaturally } from '../../js/services/operational-contracts-service.js';
-import { submitFieldJourneyWorkflow, autosaveFieldJourneyDraft, getFieldJourneyHistory } from '../../js/services/field-journey-service.js';
+import { submitFieldJourneyWorkflow, autosaveFieldJourneyDraft, getFieldJourneyHistory, getLatestFieldJourneyDraft } from '../../js/services/field-journey-service.js';
 import { supabase } from '../../js/supabaseClient.js';
 import { uploadWellDocument, getWellDocuments, deleteWellDocument, getDocumentDownloadUrl } from '../../js/services/well-documents-service.js';
 import { getWellTechnicalData } from '../../js/services/technical-measurements-service.js';
@@ -247,7 +247,103 @@ function restoreLocalJourneyState() {
         syncDraftToSupabase().catch(e => console.warn('Error al auto-sincronizar borrador activo en CRC:', e));
     } else {
         showStartJourneyView();
+        checkRemoteDraftInSupabase();
     }
+}
+
+async function checkRemoteDraftInSupabase() {
+    try {
+        const remoteDraft = await getLatestFieldJourneyDraft();
+        if (remoteDraft && remoteDraft.journey && Array.isArray(remoteDraft.records) && remoteDraft.records.length > 0) {
+            const remoteBanner = document.getElementById('crc-remote-draft-banner');
+            const remoteText = document.getElementById('crc-remote-draft-text');
+            const restoreBtn = document.getElementById('btn-restore-remote-draft');
+            
+            if (remoteBanner) {
+                remoteBanner.style.display = 'block';
+                if (remoteText) {
+                    remoteText.innerHTML = `<i class="fa-solid fa-cloud-arrow-down" style="font-size:1.1rem; color:#10b981;"></i> Se detectó una jornada activa en la nube (${remoteDraft.journey.journey_date}) con <strong>${remoteDraft.records.length} pozo(s)</strong> capturado(s).`;
+                }
+                if (restoreBtn) {
+                    restoreBtn.onclick = () => restoreRemoteDraft(remoteDraft);
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('[crc-controller] Error al consultar borrador remoto en Supabase:', err);
+    }
+}
+
+function restoreRemoteDraft(remoteDraft) {
+    const j = remoteDraft.journey;
+    const recs = remoteDraft.records || [];
+
+    state.activeJourney = {
+        id: j.id,
+        date: j.journey_date,
+        shift: j.jornada || 'Jornada Completa',
+        startTime: '00:00',
+        tech1: '',
+        tech2: '',
+        crew: j.equipo_guardia || 'Equipo CCRC',
+        created_at: j.created_at || new Date().toISOString()
+    };
+
+    state.reports = recs.map(rec => {
+        const raw = rec.raw_payload || {};
+        return {
+            id: rec.source_client_report_id || rec.id || generateUUID(),
+            pozo: rec.pozo,
+            fecha: rec.report_date,
+            hora: rec.report_time,
+            campo: rec.campo || raw.campo || '',
+            ef: rec.ef || raw.ef || '',
+            estado: rec.estado || raw.estado || '',
+            categoria: rec.categoria || raw.categoria || '1',
+            estatus: rec.estatus || raw.estatus || 'RUN',
+            actividad: rec.actividad || raw.actividad || 'NIVEL',
+
+            lift_method: raw.lift_method || (raw.bm_spm ? 'BM' : raw.bcp_rpm ? 'BCP' : 'BM'),
+            bm_marca: raw.bm_marca || '',
+            bm_modelo: raw.bm_modelo || '',
+            bm_tiro: raw.bm_tiro || '',
+            bm_recorrido: raw.bm_recorrido || '',
+            bm_spm: raw.bm_spm || '',
+            bm_estado_unidad: raw.bm_estado_unidad || '',
+            bcp_rpm: raw.bcp_rpm || '',
+            bcp_torque: raw.bcp_torque || '',
+            bcp_amperaje: raw.bcp_amperaje || '',
+            bcp_modelo_cabezal: raw.bcp_modelo_cabezal || '',
+            bcp_motorreductor: raw.bcp_motorreductor || '',
+            bcp_stuffing: raw.bcp_stuffing || raw.stuffing || '',
+
+            bruta: rec.bruta ?? raw.bruta ?? '',
+            neta: rec.neta ?? raw.neta ?? '',
+            ays_percentage: rec.ays_percentage ?? raw.ays_percentage ?? '',
+
+            thp_psi: rec.thp_psi ?? raw.thp_psi ?? '',
+            chp_psi: rec.chp_psi ?? raw.chp_psi ?? '',
+            stuffing: rec.stuffing || raw.stuffing || '',
+
+            well_nivel: raw.well_nivel || '',
+            well_sumergencia: raw.well_sumergencia || '',
+            well_presion_inicial: raw.well_presion_inicial || '',
+            well_presion_final: raw.well_presion_final || '',
+            well_tiempo_prueba: raw.well_tiempo_prueba || '',
+            observaciones_pozo: rec.observaciones_pozo || raw.observaciones_pozo || ''
+        };
+    });
+
+    localStorage.setItem(CRC_JORNADA_HEADER_KEY, JSON.stringify(state.activeJourney));
+    localStorage.setItem(CRC_WELL_REPORTS_KEY, JSON.stringify(state.reports));
+
+    showActiveJourneyView();
+    Swal.fire({
+        icon: 'success',
+        title: '¡Jornada Restaurada!',
+        text: `Se recuperó exitosamente la jornada en curso con ${state.reports.length} pozo(s) desde Supabase.`,
+        confirmButtonText: 'Continuar jornada'
+    });
 }
 
 function showStartJourneyView() {
@@ -1783,18 +1879,26 @@ async function syncDraftToSupabase() {
 
         if (payloadReports.length === 0) {
             // Si no hay reportes, solo borramos los registros del borrador previo pero conservamos la cabecera
-            await supabase
-                .from('field_journey_records')
-                .delete()
-                .eq('journey_id', state.activeJourney.id);
-            console.log('Registros de borrador limpiados (0 pozos), cabecera conservada.');
+            try {
+                await supabase
+                    .from('field_journey_records')
+                    .delete()
+                    .eq('journey_id', state.activeJourney.id);
+                console.log('Registros de borrador limpiados (0 pozos), cabecera conservada.');
+            } catch (delErr) {
+                console.warn('Advertencia al limpiar borrador previo:', delErr);
+            }
         } else {
-            await autosaveFieldJourneyDraft(payloadReports, {
-                journeyId: state.activeJourney.id,
-                operationalScope: 'crc_ll'
-            });
-            console.log('Borrador de jornada sincronizado con Supabase.');
-            loadJourneyHistory().catch(e => console.warn('History refresh error:', e));
+            try {
+                await autosaveFieldJourneyDraft(payloadReports, {
+                    journeyId: state.activeJourney.id,
+                    operationalScope: 'crc_ll'
+                });
+                console.log('Borrador de jornada sincronizado con Supabase.');
+                loadJourneyHistory().catch(e => console.warn('History refresh error:', e));
+            } catch (draftErr) {
+                console.warn('Borrador conservado en almacenamiento local (sincronización remota sujeta a políticas de Supabase):', draftErr);
+            }
         }
 
         // Subir archivos adjuntos inmediatamente en tiempo real para el monitoreo en vivo

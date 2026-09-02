@@ -716,13 +716,8 @@ export async function getFieldJourneyHistory(limit = 150) {
 
         let query = supabase
             .from('field_journeys')
-            .select('*');
-
-        if (userEmail) {
-            query = query.or(`submitted_by_email.ilike.${userEmail},operational_scope.eq.crc_ll,operational_scope.eq.ccrc_ll`);
-        } else {
-            query = query.in('operational_scope', ['crc_ll', 'ccrc_ll']);
-        }
+            .select('*')
+            .in('operational_scope', ['crc_ll', 'ccrc_ll']);
 
         const { data: journeys, error: journeysError } = await query
             .order('journey_date', { ascending: false })
