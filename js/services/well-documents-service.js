@@ -461,6 +461,30 @@ export async function uploadWellDocument({ file, pozoName, category, description
  */
 const signedUrlsCache = new Map();
 
+export async function getDocumentInlineUrl(filePath = '', expiresInSeconds = 3600) {
+    if (!filePath) return '#';
+    try {
+        // Generar URL firmada con entrega INLINE para abrir imágenes y PDFs directamente en la pestaña del navegador
+        const { data, error } = await supabase
+            .storage
+            .from(BUCKET_NAME)
+            .createSignedUrl(filePath, expiresInSeconds, { download: false });
+
+        if (!error && data?.signedUrl) {
+            return data.signedUrl;
+        }
+    } catch (err) {
+        console.warn('[well-documents-service] Advertencia generando URL inline:', err);
+    }
+
+    const { data } = supabase
+        .storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(filePath);
+
+    return data?.publicUrl || '#';
+}
+
 export async function getDocumentDownloadUrl(filePath = '', expiresInSeconds = 3600, customFileName = '') {
     if (!filePath) return '#';
     
@@ -472,7 +496,7 @@ export async function getDocumentDownloadUrl(filePath = '', expiresInSeconds = 3
     }
 
     try {
-        // Generar URL firmada temporal con header Content-Disposition para forzar nombre técnico en navegador
+        // Generar URL firmada temporal con header Content-Disposition para forzar descarga física
         const { data, error } = await supabase
             .storage
             .from(BUCKET_NAME)

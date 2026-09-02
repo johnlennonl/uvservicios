@@ -345,15 +345,18 @@ async function loadData() {
         try {
             const { data: documentData, error: documentsError } = await supabase
                 .from('well_historical_documents')
-                .select('id, pozo_name, categoria, nombre_archivo, descripcion, uploaded_by, created_at')
+                .select('id, pozo_name, categoria, nombre_archivo, descripcion, uploaded_by, created_at, fecha_documento')
                 .is('deleted_at', null)
                 .in('pozo_name', state.activeScopePozoNames)
                 .in('categoria', ['REGISTROS_ECHOMETER', 'VOLCADOS_VSD', 'DATA_SENSOR_FONDO', 'SOPORTES'])
-                .gte('created_at', `${start}T00:00:00.000Z`)
-                .lte('created_at', `${end}T23:59:59.999Z`)
                 .order('created_at', { ascending: false });
             if (documentsError) throw documentsError;
-            documents = documentData || [];
+            
+            // Filtrar documentos por la fecha REAL del documento (fecha_documento)
+            documents = (documentData || []).filter(doc => {
+                const effectiveDate = String(doc.fecha_documento || doc.created_at || '').slice(0, 10);
+                return effectiveDate >= start && effectiveDate <= end;
+            });
         } catch (documentsError) {
             console.warn('No se pudieron cargar adjuntos de campo para Estadisticas:', documentsError);
             documents = [];
@@ -1374,19 +1377,15 @@ function getExecutedLevelPozoNames() {
 }
 
 function getExecutedLevelCountsByPozo() {
-    const documentsMap = getDocumentsByPozoAndCategory();
     const counts = new Map();
 
-    state.records.forEach(record => {
-        const pozo = normalizePozoName(record.pozo_name);
-        if (!pozo || !hasExecutedLevel(record)) return;
+    // Contar ÚNICAMENTE los archivos reales de Echómetro (REGISTROS_ECHOMETER)
+    // enviados desde Campo o integrados manualmente a la Base de Datos
+    state.fieldDocuments.forEach(doc => {
+        const pozo = normalizePozoName(doc.pozo_name);
+        const category = String(doc.categoria || '').trim().toUpperCase();
+        if (!pozo || category !== 'REGISTROS_ECHOMETER') return;
         counts.set(pozo, (counts.get(pozo) || 0) + 1);
-    });
-
-    documentsMap.forEach((count, key) => {
-        const [pozo, category] = String(key || '').split('|');
-        if (category !== 'REGISTROS_ECHOMETER' || !pozo) return;
-        counts.set(pozo, Math.max(counts.get(pozo) || 0, Number(count) || 0));
     });
 
     return counts;
@@ -1452,7 +1451,7 @@ function renderAttachmentsSummary() {
         const countVsd = rows.filter(row => row.dataVsd || row.vsdDocs > 0).length;
         const countPics = rows.filter(row => row.supportDocs > 0).length;
 
-        const labels = isCrc ? ['Echómetro', 'Soportes'] : ['Echómetro', 'Volcado VSD', 'Soportes'];
+        const labels = isCrc ? ['Echómetro', 'Soportes'] : ['Echómetro', 'Baja de Data del VSD', 'Soportes'];
         const chartData = isCrc ? [countEcho, countPics] : [countEcho, countVsd, countPics];
         const chartColors = isCrc ? ['rgba(16, 185, 129, 0.85)', 'rgba(139, 92, 246, 0.85)'] : ['rgba(16, 185, 129, 0.85)', 'rgba(37, 99, 235, 0.85)', 'rgba(139, 92, 246, 0.85)'];
 

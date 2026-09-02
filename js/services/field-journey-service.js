@@ -81,6 +81,13 @@ function normalizeJourneyStatus(value) {
     return normalized || 'submitted';
 }
 
+function normalizeJornadaValue(val) {
+    const norm = String(val || '').trim();
+    if (/nocturna/i.test(norm)) return 'Nocturna';
+    if (/especial/i.test(norm)) return 'Especial';
+    return 'Diurna';
+}
+
 function normalizeUuid(value) {
     const raw = String(value || '').trim();
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)
@@ -590,10 +597,10 @@ function mapFieldReportToRow(report, session, operationalScope = '') {
 
 function buildWorkflowJourneyRow(reports, session, journeyId, operationalScope = '') {
     const firstReport = reports[0] || {};
-    const submittedAt = new Date().toISOString();
     const locationLabel = buildJourneyLocationLabel(reports);
     const normalizedOperationalScope = normalizeOperationalScopeValue(operationalScope || firstReport.operational_scope);
     const journeyStartDate = resolveJourneyStartDate(reports) || firstReport.fecha;
+    const submittedAt = new Date().toISOString();
 
     return {
         id: journeyId || undefined,
@@ -601,7 +608,7 @@ function buildWorkflowJourneyRow(reports, session, journeyId, operationalScope =
         submitted_by_user_id: session.user.id,
         submitted_by_email: session.user.email,
         journey_date: journeyStartDate,
-        jornada: firstReport.jornada || 'Diurna',
+        jornada: normalizeJornadaValue(firstReport.jornada),
         equipo_guardia: String(firstReport.equipo_guardia || '').trim(),
         locacion_jornada: locationLabel || String(firstReport.locacion_jornada || '').trim() || null,
         status: 'submitted',
@@ -622,7 +629,7 @@ function buildWorkflowDraftJourneyRow(reports, session, journeyId, operationalSc
         submitted_by_user_id: session.user.id,
         submitted_by_email: session.user.email,
         journey_date: journeyStartDate,
-        jornada: firstReport.jornada || 'Diurna',
+        jornada: normalizeJornadaValue(firstReport.jornada),
         equipo_guardia: String(firstReport.equipo_guardia || '').trim() || 'Sin definir',
         locacion_jornada: locationLabel || String(firstReport.locacion_jornada || '').trim() || null,
         status: 'draft',
@@ -712,9 +719,9 @@ export async function getFieldJourneyHistory(limit = 150) {
             .select('*');
 
         if (userEmail) {
-            query = query.or(`submitted_by_email.ilike.${userEmail},operational_scope.eq.crc_ll`);
+            query = query.or(`submitted_by_email.ilike.${userEmail},operational_scope.eq.crc_ll,operational_scope.eq.ccrc_ll`);
         } else {
-            query = query.eq('operational_scope', 'crc_ll');
+            query = query.in('operational_scope', ['crc_ll', 'ccrc_ll']);
         }
 
         const { data: journeys, error: journeysError } = await query
@@ -1068,7 +1075,11 @@ export async function getAdminFieldJourneys(options = {}) {
         .limit(safeLimit);
 
     if (scopeGuard.operationalScope) {
-        query = query.eq('operational_scope', scopeGuard.operationalScope);
+        if (scopeGuard.operationalScope === 'crc_ll' || scopeGuard.operationalScope === 'ccrc_ll') {
+            query = query.in('operational_scope', ['crc_ll', 'ccrc_ll']);
+        } else {
+            query = query.eq('operational_scope', scopeGuard.operationalScope);
+        }
     }
 
     if (options.startDate) {
@@ -1892,22 +1903,12 @@ export async function autosaveFieldJourneyDraft(reports = [], options = {}) {
     normalizedReports = await inheritReportsProductionMeasures(normalizedReports);
 
     try {
-        // Eliminar el borrador previo si existe para limpiar en cascada registros y logs de soporte
-        if (requestedJourneyId) {
-            const { error: deleteJourneyError } = await supabase
-                .from('field_journeys')
-                .delete()
-                .eq('id', requestedJourneyId)
-                .eq('status', 'draft');
-            if (deleteJourneyError) throw deleteJourneyError;
-        }
-
         const operationalScope = normalizeOperationalScopeValue(options.operationalScope);
         normalizedReports = normalizedReports.map(report => ({ ...report, operational_scope: operationalScope }));
         const journeyRow = buildWorkflowDraftJourneyRow(normalizedReports, session, requestedJourneyId, operationalScope);
         const { data: journey, error: journeyError } = await supabase
             .from('field_journeys')
-            .insert(journeyRow)
+            .upsert(journeyRow, { onConflict: 'id' })
             .select('id, status, updated_at')
             .single();
 
@@ -2040,14 +2041,6 @@ export async function submitFieldJourneyWorkflow(reports = [], options = {}) {
                 oldRecords = fetchedRecords;
                 if (oldRecords) {
                     originalPozos = oldRecords.map(r => String(r.pozo || '').trim().toUpperCase()).filter(Boolean);
-                }
-                // Eliminar la jornada previa de forma limpia para que Cascade elimine registros y logs
-                if (existingJourney.status === 'draft' || existingJourney.status === 'rejected') {
-                    const { error: deleteJourneyError } = await supabase
-                        .from('field_journeys')
-                        .delete()
-                        .eq('id', targetJourneyId);
-                    if (deleteJourneyError) throw deleteJourneyError;
                 }
             }
         }

@@ -1,33 +1,48 @@
 ==============================================================================
-REPORTE TÉCNICO: CAMBIOS REALIZADOS DESDE EL ÚLTIMO COMMIT (UNCOMMITTED CHANGES)
+REPORTE TÉCNICO COMPLETO: EVALUACIÓN Y AUDITORÍA DE CAMBIOS REALIZADOS
 ==============================================================================
 
-Este documento detalla todas las modificaciones y adaptaciones aplicadas en la base de código desde el último commit, actuando bajo la perspectiva de un Desarrollador Frontend Senior y un Desarrollador Backend Senior.
+Este documento contiene la auditoría exhaustiva de todos los cambios, correcciones de errores, optimizaciones de rendimiento y rediseños UI/UX aplicados en la plataforma UV Servicios desde el último commit.
 
 ------------------------------------------------------------------------------
-1. ESTANDARIZACIÓN DE LA LISTA DESPLEGABLE DE DIAGNÓSTICO EN CAMPO (field.html & field-mobile.html)
+1. REGLA EXCLUSIVA DE CONTEO EN NIVELES EJECUTADOS (js/estadisticas.js & stats.html)
 ------------------------------------------------------------------------------
-* Se eliminó la opción "OTRO / ESCRIBIR DIAGNÓSTICO" y la entrada de texto libre del formulario de captura.
-* Se estandarizaron los 20 diagnósticos oficiales únicos, ordenados de forma alfabética:
-  1. SIN FALLA
-  2. ATASCAMIENTO
-  3. BAJA CARGA
-  4. BAJA PRODUCCIÓN
-  5. BALANCEADO
-  6. BALANCEADO E IDO A TIERRA
-  7. DESBALANCE EQUIPO DE FONDO
-  8. DESBALANCEADO EQUIPO DE FONDO E IDO A TIERRA
-  9. FALLA DE COMUNICACIÓN
-  10. FALLA ELÉCTRICA
-  11. FALLA EN ESTACIÓN 11-7
-  12. FALLA GENERADOR
-  13. FALLA VSD
-  14. PARADA MANUAL
-  15. PÉRDIDA DE SEÑAL
-  16. PROGRAMACIÓN VSD
-  17. REGISTRO
-  18. SIN PRODUCCIÓN
-  19. SOBRECORRIENTE
-  20. SUB TENSIÓN
-* Garantiza 100% de compatibilidad con las reglas de clasificación del motor de Estadísticas y los reportes de Admin Campo.
+* **Criterio de Conteo Exclusivo:** Se eliminó la verificación de casillas numéricas o flags de texto en reportes (`echometer = SI`, `nivel_fluido_ft`, etc.). La función `getExecutedLevelCountsByPozo()` cuenta ÚNICAMENTE Y DE FORMA EXCLUSIVA los archivos reales de Echómetro (`categoria = 'REGISTROS_ECHOMETER'`) almacenados en la tabla `well_historical_documents`.
+* **Renombrado VSD:** Se actualizó la etiqueta "Volcados VSD subidos" a "Baja de Data del VSD" en la interfaz de Estadísticas.
+* **Simplificación de Interfaz:** Se ocultó la tabla de desglose de adjuntos (`#field-attachments-summary-list`) con `style="display: none !important;"`.
+
+------------------------------------------------------------------------------
+2. CORRECCIÓN DE SINTAXIS Y MANEJO DE ADJUNTOS EN CAMPO (js/modules/field/field-controller.js)
+------------------------------------------------------------------------------
+* **Corrección de Error Crítico:** Se detectó y eliminó una re-declaración duplicada de la constante `const isExtraWell` dentro de `openFieldAttachmentsModal()`, resolviendo el `SyntaxError` que bloqueaba el módulo.
+* **Ajuste de Conteo:** Se unificó el conteo de adjuntos acumulados (`attachedCount`) considerando los arreglos de archivos Soportes, Echómetro, Data Sensor y VSD.
+
+------------------------------------------------------------------------------
+3. SEGURIDAD CSP Y COMPATIBILIDAD CON SERVIDORES LOCALES (field-crc.html, crc-admin.html, campo-admin.html)
+------------------------------------------------------------------------------
+* **Metaetiquetas CSP:** Se incorporaron directivas Content-Security-Policy ajustadas en los archivos HTML del sistema.
+* **Permisos Autorizados:** Permite la ejecución de scripts locales (`http://127.0.0.1:*`, `http://localhost:*`), conexiones WebSocket de Live Server (`ws:`, `wss:`), servicios de Supabase (`https://*.supabase.co`) y librerías CDN externas autorizadas (`cdn.jsdelivr.net` para SweetAlert2 y ExcelJS, `cdnjs.cloudflare.com` para FontAwesome).
+
+------------------------------------------------------------------------------
+4. REDISEÑO UI/UX SENIOR DE FIELD CCRC LAGUNILLAS LAGO (crc/field-crc.html & crc/css/crc-style.css)
+------------------------------------------------------------------------------
+* **Eliminación de Contenedor Volando/Aislado:** Se removió la restricción estrecha (`max-width: 1000px; margin: 28px auto`) que encajonaba la vista sobre un fondo vacío. `.crc-app-container` ahora utiliza un Grid Layout fluido Enterprise (máximo `1380px`) integrado al menú lateral.
+* **Modal Overlay Emergente (#panel-capture-form):** El formulario de captura de 4 pasos se convirtió en una tarjeta emergente flotante centrada (`max-width: 780px`) sobre un telón oscuro semi-transparente (`background: rgba(15, 23, 42, 0.82)`).
+* **Eliminación de Cuellos de Botella de Rendimiento (Blur):** Se eliminaron todas las reglas de filtro `backdrop-filter: blur(...)` para evitar latencia, sobrecalentamiento y caídas de FPS en dispositivos móviles o GPUs integradas.
+* **Prevención de Corte Vertical en Escritorio:** El contenedor modal interno (`.crc-capture-modal-inner`) restringe su altura a `calc(100vh - 32px)`. Los campos del paso activo poseen scroll vertical interno con scrollbar personalizado, garantizando que la cabecera y los botones de acción (`[Atrás]`, `[Siguiente]`, `[Guardar Pozo]`) queden anclados permanentemente en la parte inferior (`position: sticky`).
+* **Ocultamiento Inteligente de Barra Móvil:** Reglas CSS `:has(input:focus)` y escuchadores JS `focusin`/`focusout` ocultan automáticamente la barra de navegación inferior cuando el operador escribe datos en teléfonos móviles.
+
+------------------------------------------------------------------------------
+5. CONTROL Y MECANISMO DE CIERRE DEL MODAL DE CAPTURA (crc/js/crc-controller.js & field-crc.html)
+------------------------------------------------------------------------------
+* **Corrección de Bug de Cierre:** Se eliminó la regla CSS `display: flex !important` que sobreescribía los comandos `style.display = 'none'` de JS y dejaba el modal congelado en pantalla.
+* **Control Determinista mediante Clase .active:** La visibilidad del modal depende de la clase `#panel-capture-form.active` o `body.capture-open`.
+* **Cierre Multi-Mecanismo:** El modal puede cerrarse mediante:
+  1. Clic en el botón `[✕]` (con handler JS e inline fallback `onclick` directo en HTML).
+  2. Clic en el fondo oscuro exterior (backdrop).
+  3. Presión de la tecla `Escape` (`Esc`).
+* **Reset de Estado al Guardar:** Al presionar "Guardar Pozo en Jornada", la función `saveWellReport()` resetea el formulario (`reset()`), borra `editingId`, quita la clase `.active`, oculta el modal y actualiza la lista de pozos visitados en tiempo real.
+
+==============================================================================
+VERIFICACIÓN DE SINTAXIS: TODOS LOS ARCHIVOS JS PASARON CON CÓDIGO DE SALIDA 0 (SIN ERRORES).
 ==============================================================================

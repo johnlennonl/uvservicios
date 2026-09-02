@@ -47,10 +47,10 @@
     --crc-font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
     /* Radios y sombras */
-    --crc-radius-sm: 10px;
-    --crc-radius-md: 16px;
-    --crc-radius-lg: 24px;
-    --crc-radius-pill: 999px;
+    --crc-radius-sm: 8px;
+    --crc-radius-md: 12px;
+    --crc-radius-lg: 12px;
+    --crc-radius-pill: 8px;
     --crc-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
     --crc-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
     --crc-shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
@@ -87,17 +87,18 @@ body {
    3. CONTENEDOR PRINCIPAL
    ───────────────────────────────────────────────────────────────────────────── */
 .crc-app-container {
-    max-width: 1000px;
+    width: 100%;
+    max-width: 1380px;
     margin: 0 auto;
     padding: 16px;
-    padding-bottom: 100px; /* Espacio para barra de navegación móvil */
+    padding-bottom: 100px;
+    box-sizing: border-box;
 }
 
 @media (min-width: 769px) {
     .crc-app-container {
-        max-width: 1080px;
-        margin: 28px auto;
-        padding: 0 24px 60px 24px;
+        padding: 12px 20px 60px 20px;
+        margin: 12px auto;
     }
 }
 
@@ -106,12 +107,13 @@ body {
    4. HEADER PREMIUM — Gradiente limpio corporativo
    ───────────────────────────────────────────────────────────────────────────── */
 .crc-header {
-    background: linear-gradient(135deg, #0f172a 0%, #1e40af 60%, #1e293b 100%);
-    padding: 24px 28px;
-    border-radius: var(--crc-radius-lg);
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    padding: 18px 24px;
+    border-radius: 12px;
     color: #ffffff;
-    box-shadow: 0 12px 32px rgba(30, 64, 175, 0.25);
-    margin-bottom: 24px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+    margin-bottom: 16px;
     position: relative;
     overflow: hidden;
 }
@@ -342,9 +344,7 @@ body {
    6. TARJETAS — Glassmorphism & Formularios
    ───────────────────────────────────────────────────────────────────────────── */
 .crc-form-wrapper {
-    background: var(--crc-card);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: #ffffff;
     border: 1px solid var(--crc-card-border);
     border-radius: var(--crc-radius-lg);
     padding: 28px 24px;
@@ -1021,9 +1021,10 @@ body {
 
 /* Barra de estado de jornada activa */
 .crc-active-status-bar {
-    background: #f0fdf4;
-    border: 1.5px solid #bbf7d0;
-    color: #166534;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #10b981;
+    color: #0f172a;
     margin-bottom: 20px;
     display: flex;
     justify-content: space-between;
@@ -1031,8 +1032,8 @@ body {
     flex-wrap: wrap;
     gap: 12px;
     padding: 14px 18px;
-    border-radius: var(--crc-radius-md);
-    box-shadow: 0 4px 12px rgba(22, 101, 52, 0.06);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .crc-active-status-info {
@@ -1180,16 +1181,24 @@ body {
     left: 0;
     right: 0;
     height: 72px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-top: 1px solid rgba(15, 23, 42, 0.06);
+    background: #ffffff;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
     display: none; /* Oculto en escritorio por defecto */
     justify-content: space-around;
     align-items: center;
     z-index: 1000;
     box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.04);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Ocultar barra inferior de navegación cuando el teclado móvil está activo o en formulario de captura */
+body.capture-open .crc-bottom-nav,
+body.hide-nav-keyboard .crc-bottom-nav,
+.crc-bottom-nav.hide-for-keyboard,
+body:has(input:focus) .crc-bottom-nav,
+body:has(select:focus) .crc-bottom-nav,
+body:has(textarea:focus) .crc-bottom-nav {
+    display: none !important;
 }
 
 .crc-nav-action {
@@ -1284,8 +1293,8 @@ body {
     }
 
     .crc-header {
-        padding: 22px 18px;
-        border-radius: 20px;
+        padding: 18px 16px;
+        border-radius: 12px;
     }
 
     .crc-brand h1 {
@@ -1293,8 +1302,8 @@ body {
     }
 
     .crc-form-wrapper {
-        padding: 22px 18px;
-        border-radius: 20px;
+        padding: 18px 16px;
+        border-radius: 12px;
     }
 
     .crc-journey-list {
@@ -1327,9 +1336,9 @@ body {
     }
 
     .crc-header {
-        padding: 16px 14px !important;
+        padding: 14px 14px !important;
         margin-bottom: 12px !important;
-        border-radius: 16px !important;
+        border-radius: 10px !important;
     }
 
     .crc-active-status-bar {
@@ -1642,46 +1651,209 @@ body {
         font-size: 0.8rem !important;
     }
 
-    /* Transformar tabla de historial en lista de tarjetas compactas en móviles */
+    /* Transformar tabla de historial en tarjetas de cuadrícula 2x2 limpia en móviles */
     .crc-history-table {
         display: block !important;
         width: 100% !important;
     }
 
+    .crc-history-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+
     .crc-history-table thead {
-        display: none !important;
+        display: table-header-group !important;
+    }
+
+    .crc-history-table thead th {
+        font-size: 0.72rem !important;
+        color: #64748b !important;
+        padding: 4px 6px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        border-bottom: 1px solid #e2e8f0 !important;
     }
 
     .crc-history-table tbody {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 8px !important;
+        display: table-row-group !important;
     }
 
     .crc-history-table tr {
-        display: flex !important;
-        flex-direction: column !important;
-        background: #f8fafc !important;
-        padding: 10px 12px !important;
-        border-radius: 10px !important;
-        border: 1px solid #e2e8f0 !important;
-        gap: 4px !important;
+        display: table-row !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
     }
 
     .crc-history-table td {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        padding: 4px 0 !important;
-        border: none !important;
-        font-size: 0.82rem !important;
+        display: table-cell !important;
+        padding: 6px 6px !important;
+        border-bottom: 1px dashed #f1f5f9 !important;
+        font-size: 0.8rem !important;
     }
 
     .crc-history-table td::before {
-        content: attr(data-label);
-        font-weight: 700;
-        color: #64748b;
-        font-size: 0.75rem;
-        text-transform: uppercase;
+        content: none !important;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   20. RESPONSIVE MOBILE OPTIMIZATION — Prevenir auto-zoom y desbordamientos
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    input, select, textarea,
+    .crc-input, .crc-select, .crc-textarea {
+        font-size: 16px !important; /* Previene auto-zoom en iOS Safari y Android Chrome */
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .crc-form-grid, .crc-well-row, .crc-journey-list, .crc-start-journey-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .crc-well-name {
+        font-size: 0.88rem !important;
+        flex-wrap: wrap;
+    }
+
+    .crc-well-row {
+        padding: 12px !important;
+        gap: 8px !important;
+    }
+}
+
+/* Chips de filtro ejecutivos */
+.crc-filter-chip {
+    padding: 5px 12px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #475569 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    transition: all 0.2s ease !important;
+    flex-shrink: 0 !important;
+}
+
+.crc-filter-chip:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.crc-filter-chip.active {
+    background: #0f172a !important;
+    border-color: #0f172a !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Modal Overlay para Formulario de Captura por Pasos */
+#panel-capture-form {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(15, 23, 42, 0.82) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 2500 !important;
+    overflow-y: auto !important;
+    padding: 16px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    align-items: center;
+    justify-content: center;
+    display: none !important; /* OCULTO POR DEFECTO */
+}
+
+#panel-capture-form.active,
+body.capture-open #panel-capture-form {
+    display: flex !important;
+}
+
+.crc-capture-modal-inner {
+    max-width: 780px;
+    width: 100%;
+    max-height: calc(100vh - 32px);
+    display: flex;
+    flex-direction: column;
+    margin: auto;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    padding: 20px 24px;
+    box-sizing: border-box;
+    position: relative;
+    animation: crc-modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.crc-capture-modal-inner form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.crc-capture-modal-inner .crc-form-step-content {
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(100vh - 260px);
+    min-height: unset !important;
+    padding-right: 6px;
+}
+
+.crc-capture-modal-inner .crc-form-step-content::-webkit-scrollbar {
+    width: 6px;
+}
+.crc-capture-modal-inner .crc-form-step-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.crc-capture-modal-inner .crc-form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    padding-top: 12px;
+    margin-top: 12px;
+    border-top: 1px solid #e2e8f0;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+@keyframes crc-modalPop {
+    from { opacity: 0; transform: scale(0.96) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@media (max-width: 640px) {
+    #panel-capture-form {
+        padding: 8px 4px 80px 4px !important;
+        align-items: flex-start !important;
+    }
+    .crc-capture-modal-inner {
+        max-height: calc(100vh - 90px) !important;
+        margin: 0 auto !important;
+        border-radius: 12px !important;
+        padding: 14px 12px !important;
+    }
+    .crc-capture-modal-inner .crc-form-step-content {
+        max-height: calc(100vh - 280px) !important;
     }
 }

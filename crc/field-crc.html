@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com http://127.0.0.1:* http://localhost:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:; connect-src 'self' https://ktfiglhhsqinvqvqynhg.supabase.co https://*.supabase.co wss://*.supabase.co ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#2563eb">
     <link rel="apple-touch-icon" href="../img/pwa-icon-192.png">
@@ -12,6 +13,7 @@
     <title>UV Servicios | Captura CCRC Lagunillas Lago</title>
     <meta name="description" content="Captura de parámetros para pozos BM y BCP del contrato CCRC Lagunillas Lago.">
     <link rel="icon" type="image/png" href="../img/pwa-icon-192.png">
+    <link rel="shortcut icon" href="../img/pwa-icon-192.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/dashboard-page.css">
@@ -53,12 +55,12 @@
             <div class="crc-app-container">
         
         <!-- Header -->
-        <header class="crc-header">
-            <div class="crc-header-flex">
-                <div class="crc-brand">
-                    <h1>Captura de Parámetros CCRC Lagunillas Lago</h1>
-                </div>
+        <header class="crc-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; color: #fff; display: flex; align-items: center; justify-content: space-between; border: 1px solid #1e293b;">
+            <div class="crc-brand">
+                <span style="font-size: 0.62rem; text-transform: uppercase; letter-spacing: 1.5px; color: #93c5fd; font-weight: 800; display: block;">Contrato Operativo</span>
+                <h1 style="font-size: 0.98rem; font-weight: 800; margin: 2px 0 0 0; color: #ffffff; letter-spacing: -0.01em;">CCRC Lagunillas Lago</h1>
             </div>
+            <div class="status-indicator" title="Sistema en Línea"></div>
         </header>
 
         <!-- Banner de Borrador Activo -->
@@ -121,29 +123,28 @@
         </section>
 
         <!-- PANEL DE HISTORIAL EMBEBIDO -->
-        <section id="panel-crc-history" class="crc-form-wrapper" style="margin-top: 24px; padding-bottom: 80px;">
-            <div class="crc-start-journey-panel" style="text-align: left;">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(226, 232, 240, 0.8); padding-bottom: 12px; margin-bottom: 16px;">
-                    <h2 style="margin:0; font-size:1.2rem; font-weight:800; color:var(--text-main); display: flex; align-items: center; gap: 8px;">
+        <section id="panel-crc-history" style="margin-top: 12px; padding: 0 0 80px 0;">
+            <div style="text-align: left;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                    <h2 style="margin:0; font-size:1.05rem; font-weight:800; color:var(--text-main); display: flex; align-items: center; gap: 8px;">
                         <i class="fa-solid fa-clock-rotate-left"></i> Historial de Jornadas CCRC LL
                     </h2>
                     <!-- Botón de Actualizar -->
-                    <button type="button" id="btn-refresh-history" class="crc-btn crc-btn-secondary" style="padding: 8px 12px; font-size:0.8rem; height: auto; min-height: unset; margin: 0;">
+                    <button type="button" id="btn-refresh-history" class="crc-btn crc-btn-secondary" style="padding: 5px 10px; font-size:0.75rem; height: auto; min-height: unset; margin: 0;">
                         <i class="fa-solid fa-arrow-rotate-right"></i> Actualizar
                     </button>
                 </div>
                 
                 <!-- Chips de Filtros -->
-                <div class="crc-history-filters" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+                <div class="crc-history-filters" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; -webkit-overflow-scrolling: touch;">
                     <button type="button" class="crc-filter-chip active" data-status="all">Todas</button>
                     <button type="button" class="crc-filter-chip" data-status="draft">En curso</button>
                     <button type="button" class="crc-filter-chip" data-status="submitted">Pendientes</button>
                     <button type="button" class="crc-filter-chip" data-status="approved">Aprobadas</button>
-                    <button type="button" class="crc-filter-chip" data-status="rejected">Rechazadas</button>
                 </div>
 
-                <div id="crc-history-status" style="color:var(--text-light); font-size:0.88rem; margin-bottom:12px;">Cargando historial de jornadas...</div>
-                <div id="crc-history-list" class="crc-history-list" style="display:grid; gap:16px;">
+                <div id="crc-history-status" style="color:var(--text-light); font-size:0.82rem; margin-bottom:8px;">Cargando historial de jornadas...</div>
+                <div id="crc-history-list" class="crc-history-list" style="display:grid; gap:10px;">
                     <!-- Se renderiza dinámicamente -->
                 </div>
             </div>
@@ -195,12 +196,13 @@
             </div>
         </main>
 
-        <!-- FORMULARIO DE CAPTURA POR PASOS (MODAL / PANTALLA SOBREPUESTA) -->
-        <section id="panel-capture-form" class="crc-form-wrapper" style="display:none; margin-top:20px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
-                <h2 style="margin:0; font-size:1.15rem; font-weight:800; color:var(--text-main);">Captura del Pozo</h2>
-                <button type="button" id="btn-close-capture" class="crc-action-icon" style="font-size:1.4rem;">✕</button>
-            </div>
+        <!-- FORMULARIO DE CAPTURA POR PASOS (MODAL SOBREPUESTO CON BACKDROP) -->
+        <section id="panel-capture-form" style="display:none;">
+            <div class="crc-capture-modal-inner">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
+                    <h2 style="margin:0; font-size:1.1rem; font-weight:800; color:var(--text-main);">Captura de Parámetros de Pozo</h2>
+                    <button type="button" id="btn-close-capture" class="crc-action-icon" onclick="document.body.classList.remove('capture-open'); const p = document.getElementById('panel-capture-form'); if(p){ p.classList.remove('active'); p.style.display='none'; }" style="font-size:1.1rem; background:#f1f5f9; border-radius:50%; width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #cbd5e1; cursor:pointer;" title="Cerrar ventana">✕</button>
+                </div>
 
             <!-- Indicador visual de pasos — Iconos temáticos -->
             <div class="crc-steps-indicator">
@@ -555,7 +557,8 @@
                     </button>
                 </div>
             </form>
-        </section>
+        </div>
+    </section>
 
         <!-- Barra inferior de acciones rápidas (Estilo Mobile Bottom Nav) -->
         <nav class="crc-bottom-nav">

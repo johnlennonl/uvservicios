@@ -3089,73 +3089,84 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             const hasTicketTag = d => String(d.descripcion || '').includes('[TICKET_ID:');
             const matchesTicket = d => reportId ? (hasTicketTag(d) ? String(d.descripcion || '').includes(`[TICKET_ID:${reportId}]`) : true) : true;
 
-            const existingEchoDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'REGISTROS_ECHOMETER' && matchesTicket(d));
-            const existingSensorDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'DATA_SENSOR_FONDO' && matchesTicket(d));
-            const existingVsdDoc = existingDocs.find(d => d.pozo_name === pozoName && d.categoria === 'VOLCADOS_VSD' && matchesTicket(d));
+            const existingEchoDocs = existingDocs.filter(d => d.pozo_name === pozoName && d.categoria === 'REGISTROS_ECHOMETER' && matchesTicket(d));
+            const existingSensorDocs = existingDocs.filter(d => d.pozo_name === pozoName && d.categoria === 'DATA_SENSOR_FONDO' && matchesTicket(d));
+            const existingVsdDocs = existingDocs.filter(d => d.pozo_name === pozoName && d.categoria === 'VOLCADOS_VSD' && matchesTicket(d));
+            
+            const isExtraWell = window._modalExtraWells && window._modalExtraWells.has(pozoName);
 
-            const echometerFieldHtml = (echometerYes || isManualTrigger) ? `
+            const echometerFieldHtml = (echometerYes || isManualTrigger || isExtraWell) ? `
                 <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; border-left: 4px solid #3b82f6;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📈 Archivo Echometer (.028, .twm, .zip)</span>
-                        ${existingEchoDoc ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ Subido</span>` : ''}
+                        <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📈 Archivos Echometer (.028, .twm, .029, .zip)</span>
+                        ${existingEchoDocs.length > 0 ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ ${existingEchoDocs.length} Subido(s)</span>` : ''}
                     </div>
-                    ${existingEchoDoc ? `
-                        <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px 14px; border-radius:10px; border:1px solid #cbd5e1; gap:10px;">
-                            <span style="font-size:0.8rem; font-weight:600; color:#0f172a; word-break:break-all;">${escapeHtml(existingEchoDoc.nombre_archivo)}</span>
-                            <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(existingEchoDoc.id)}" data-file-path="${escapeHtml(existingEchoDoc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:0.78rem; font-weight:700; cursor:pointer; flex-shrink:0;">
-                                🗑️ Eliminar
-                            </button>
-                        </div>
-                    ` : `
+                    ${existingEchoDocs.length > 0 ? `
                         <div style="display:flex; flex-direction:column; gap:6px;">
-                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-report-id="${escapeHtml(reportId)}" data-category="REGISTROS_ECHOMETER" accept=".028,.twm,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
-                            <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
+                            ${existingEchoDocs.map(doc => `
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px 12px; border-radius:10px; border:1px solid #cbd5e1; gap:10px;">
+                                    <span style="font-size:0.8rem; font-weight:600; color:#0f172a; word-break:break-all;">📄 ${escapeHtml(doc.nombre_archivo)}</span>
+                                    <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(doc.id)}" data-file-path="${escapeHtml(doc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:8px; padding:5px 10px; font-size:0.75rem; font-weight:700; cursor:pointer; flex-shrink:0;">
+                                        🗑️ Eliminar
+                                    </button>
+                                </div>
+                            `).join('')}
                         </div>
-                    `}
+                    ` : ''}
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-report-id="${escapeHtml(reportId)}" data-category="REGISTROS_ECHOMETER" accept=".028,.twm,.029,.zip,.rar,.pdf" multiple style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                        <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
+                    </div>
                 </div>
             ` : '';
 
-            const sensorFieldHtml = (isSensorDataYes || isManualTrigger) ? `
+            const sensorFieldHtml = (isSensorDataYes || isManualTrigger || isExtraWell) ? `
                 <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; border-left: 4px solid #14b8a6;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">📊 Data Sensor de Fondo (.dat, .raw, .zip, .txt)</span>
-                        ${existingSensorDoc ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ Subido</span>` : ''}
+                        ${existingSensorDocs.length > 0 ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ ${existingSensorDocs.length} Subido(s)</span>` : ''}
                     </div>
-                    ${existingSensorDoc ? `
-                        <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px 14px; border-radius:10px; border:1px solid #cbd5e1; gap:10px;">
-                            <span style="font-size:0.8rem; font-weight:600; color:#0f172a; word-break:break-all;">${escapeHtml(existingSensorDoc.nombre_archivo)}</span>
-                            <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(existingSensorDoc.id)}" data-file-path="${escapeHtml(existingSensorDoc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:0.78rem; font-weight:700; cursor:pointer; flex-shrink:0;">
-                                🗑️ Eliminar
-                            </button>
-                        </div>
-                    ` : `
+                    ${existingSensorDocs.length > 0 ? `
                         <div style="display:flex; flex-direction:column; gap:6px;">
-                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-report-id="${escapeHtml(reportId)}" data-category="DATA_SENSOR_FONDO" accept=".dat,.raw,.zip,.rar,.txt,.csv" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
-                            <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
+                            ${existingSensorDocs.map(doc => `
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px 12px; border-radius:10px; border:1px solid #cbd5e1; gap:10px;">
+                                    <span style="font-size:0.8rem; font-weight:600; color:#0f172a; word-break:break-all;">📊 ${escapeHtml(doc.nombre_archivo)}</span>
+                                    <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(doc.id)}" data-file-path="${escapeHtml(doc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:8px; padding:5px 10px; font-size:0.75rem; font-weight:700; cursor:pointer; flex-shrink:0;">
+                                        🗑️ Eliminar
+                                    </button>
+                                </div>
+                            `).join('')}
                         </div>
-                    `}
+                    ` : ''}
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-report-id="${escapeHtml(reportId)}" data-category="DATA_SENSOR_FONDO" accept=".dat,.raw,.zip,.rar,.txt,.csv" multiple style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                        <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
+                    </div>
                 </div>
             ` : '';
 
-            const vsdFieldHtml = (isVsdDataYes || isManualTrigger) ? `
+            const vsdFieldHtml = (isVsdDataYes || isManualTrigger || isExtraWell) ? `
                 <div style="background:#f8fafc; padding:14px; border-radius:12px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:10px; border-left: 4px solid #f59e0b;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.83rem; font-weight:700; color:#1e293b;">⚡ Descarga Data VSD (.dat, .raw, .zip)</span>
-                        ${existingVsdDoc ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ Subido</span>` : ''}
+                        ${existingVsdDocs.length > 0 ? `<span style="font-size:0.75rem; font-weight:700; color:#059669; background:#d1fae5; padding:3px 10px; border-radius:8px;">✓ ${existingVsdDocs.length} Subido(s)</span>` : ''}
                     </div>
-                    ${existingVsdDoc ? `
-                        <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px 14px; border-radius:10px; border:1px solid #cbd5e1; gap:10px;">
-                            <span style="font-size:0.8rem; font-weight:600; color:#0f172a; word-break:break-all;">${escapeHtml(existingVsdDoc.nombre_archivo)}</span>
-                            <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(existingVsdDoc.id)}" data-file-path="${escapeHtml(existingVsdDoc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:0.78rem; font-weight:700; cursor:pointer; flex-shrink:0;">
-                                🗑️ Eliminar
-                            </button>
-                        </div>
-                    ` : `
+                    ${existingVsdDocs.length > 0 ? `
                         <div style="display:flex; flex-direction:column; gap:6px;">
-                            <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-report-id="${escapeHtml(reportId)}" data-category="VOLCADOS_VSD" accept=".dat,.raw,.zip,.rar" style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
-                            <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
+                            ${existingVsdDocs.map(doc => `
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px 12px; border-radius:10px; border:1px solid #cbd5e1; gap:10px;">
+                                    <span style="font-size:0.8rem; font-weight:600; color:#0f172a; word-break:break-all;">⚡ ${escapeHtml(doc.nombre_archivo)}</span>
+                                    <button type="button" class="btn-delete-field-doc" data-doc-id="${escapeHtml(doc.id)}" data-file-path="${escapeHtml(doc.file_path)}" style="background:#ef4444; color:#fff; border:none; border-radius:8px; padding:5px 10px; font-size:0.75rem; font-weight:700; cursor:pointer; flex-shrink:0;">
+                                        🗑️ Eliminar
+                                    </button>
+                                </div>
+                            `).join('')}
                         </div>
-                    `}
+                    ` : ''}
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <input type="file" class="field-attachment-input" data-pozo="${escapeHtml(pozoName)}" data-report-id="${escapeHtml(reportId)}" data-category="VOLCADOS_VSD" accept=".dat,.raw,.zip,.rar" multiple style="font-size:0.8rem; background:#fff; padding:8px; border-radius:8px; border:1px solid #cbd5e1; width:100%; box-sizing:border-box;">
+                        <span class="upload-status-lbl" style="font-size:0.75rem; color:#64748b; font-weight:600; display:none; margin-top:2px;"></span>
+                    </div>
                 </div>
             ` : '';
 
@@ -3229,13 +3240,8 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
                 </div>
             `;
 
-            let attachedCount = 0;
-            if (existingEchoDoc) attachedCount++;
-            if (existingSensorDoc) attachedCount++;
-            if (existingVsdDoc) attachedCount++;
-            attachedCount += soportesCount;
+            let attachedCount = existingEchoDocs.length + existingSensorDocs.length + existingVsdDocs.length + soportesCount;
 
-            const isExtraWell = window._modalExtraWells && window._modalExtraWells.has(pozoName);
             const removeBtnHtml = isExtraWell
                 ? `<button type="button" class="btn-remove-extra-well" data-pozo="${escapeHtml(pozoName)}" style="background:rgba(239, 68, 68, 0.08); color:#ef4444; border:none; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; padding:6px 12px; border-radius:8px; transition: background 0.2s; margin-left:8px;">
                      <i class="fa-solid fa-circle-xmark"></i> Quitar Pozo
@@ -3311,6 +3317,8 @@ async function openFieldAttachmentsModal(reports, isManualTrigger = false) {
             if (!selectedPozo) return;
             if (!window._modalExtraWells) window._modalExtraWells = new Set();
             window._modalExtraWells.add(selectedPozo);
+            if (!window._expandedPozos) window._expandedPozos = new Set();
+            window._expandedPozos.add(selectedPozo);
             await openFieldAttachmentsModal(reports, isManualTrigger);
         };
 

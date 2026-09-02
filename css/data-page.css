@@ -2658,6 +2658,10 @@
     min-width: 0 !important;
 }
 
+.selected-pozo-profile-pill.hidden-esp-pill {
+    display: none !important;
+}
+
 .selected-pozo-profile-pill:hover {
     background: #FFFFFF !important;
     border-color: #CBD5E1 !important;

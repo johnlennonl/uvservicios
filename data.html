@@ -648,6 +648,30 @@
         </div>
     </div>
 
+    <!-- MODAL DE PREVISUALIZACIÓN DE DOCUMENTOS (PREVIEW MODAL) -->
+    <div id="document-preview-modal" class="upload-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div class="upload-modal-card" style="max-width: 920px; width: 95%; background: #ffffff; border-radius: 20px; padding: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); border: 1px solid #e2e8f0;">
+            <div style="display:flex; align-items:center; justify-space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #e2e8f0;">
+                <div style="flex:1;">
+                    <h2 id="preview-modal-title" style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">Previsualización de Documento</h2>
+                    <span id="preview-modal-subtitle" style="font-size:0.8rem; color:#64748b;">Visor Oficial de Expedientes Digitales</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <a id="btn-preview-download" href="#" target="_blank" download class="btn-download-doc" style="padding:8px 16px; border-radius:10px; background:#2563eb; color:#fff; font-weight:800; font-size:0.82rem; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="fa-solid fa-download"></i>
+                        <span>DESCARGAR</span>
+                    </a>
+                    <button type="button" id="btn-close-preview-modal" class="icon-btn" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b; padding:4px 8px;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="preview-modal-body" style="min-height: 480px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f8fafc; border-radius:14px; overflow:hidden; padding: 12px;">
+                <!-- iFrame o imagen inyectados dinámicamente -->
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="js/services/router.js"></script>
     <script type="module" src="js/field-admin-alert.js?v=20260810v3"></script>
 

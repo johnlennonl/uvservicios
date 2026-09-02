@@ -244,15 +244,18 @@ function restoreLocalJourneyState() {
         state.activeJourney = JSON.parse(cachedHeader);
         state.reports = cachedReports ? JSON.parse(cachedReports) : [];
         showActiveJourneyView();
+        syncDraftToSupabase().catch(e => console.warn('Error al auto-sincronizar borrador activo en CRC:', e));
     } else {
         showStartJourneyView();
     }
 }
 
 function showStartJourneyView() {
+    document.body.classList.remove('capture-open');
+    const pStart = document.getElementById('panel-capture-form');
+    if (pStart) { pStart.classList.remove('active'); pStart.style.display = 'none'; }
     document.getElementById('panel-start-journey').style.display = 'block';
     document.getElementById('panel-active-journey').style.display = 'none';
-    document.getElementById('panel-capture-form').style.display = 'none';
     
     const historyPanel = document.getElementById('panel-crc-history');
     if (historyPanel) historyPanel.style.display = 'block';
@@ -282,9 +285,11 @@ function showStartJourneyView() {
 }
 
 function showActiveJourneyView() {
+    document.body.classList.remove('capture-open');
+    const pActive = document.getElementById('panel-capture-form');
+    if (pActive) { pActive.classList.remove('active'); pActive.style.display = 'none'; }
     document.getElementById('panel-start-journey').style.display = 'none';
     document.getElementById('panel-active-journey').style.display = 'block';
-    document.getElementById('panel-capture-form').style.display = 'none';
     
     const historyPanel = document.getElementById('panel-crc-history');
     if (historyPanel) historyPanel.style.display = 'none';
@@ -373,16 +378,49 @@ function renderJourneyWellsList() {
     });
 }
 
+async function confirmDeleteWell(idx) {
+    const report = state.reports[idx];
+    if (!report) return;
+
+    const res = await Swal.fire({
+        title: `¿Eliminar pozo ${report.pozo}?`,
+        text: `Se eliminará el pozo ${report.pozo} de esta jornada. ¿Deseas proceder?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar pozo',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b'
+    });
+
+    if (!res.isConfirmed) return;
+
+    state.reports.splice(idx, 1);
+    localStorage.setItem(CRC_WELL_REPORTS_KEY, JSON.stringify(state.reports));
+    renderJourneyWellsList();
+    syncDraftToSupabase();
+    Swal.fire({
+        icon: 'success',
+        title: 'Pozo eliminado',
+        text: `El pozo ${report.pozo} fue removido de la jornada.`,
+        timer: 1500,
+        showConfirmButton: false
+    });
+}
+
 function initUIEvents() {
     // 1. Iniciar Jornada
     const startForm = document.getElementById('form-start-journey');
     if (startForm) {
-        startForm.addEventListener('submit', (e) => {
+        startForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const date = document.getElementById('journey-date').value;
             const startTime = document.getElementById('journey-start-time').value;
             const tech1 = document.getElementById('journey-tech1').value;
             const tech2 = document.getElementById('journey-tech2').value;
+
+            const session = await getSession();
+            const activeUser = session?.user || state.session?.user;
 
             const journeyId = generateUUID();
             state.activeJourney = {
@@ -417,10 +455,10 @@ function initUIEvents() {
                 .insert({
                     id: journeyId,
                     operational_scope: 'crc_ll',
-                    submitted_by_user_id: state.session?.user?.id || null,
-                    submitted_by_email: state.session?.user?.email || 'operador@uvservicios.com',
+                    submitted_by_user_id: activeUser?.id || null,
+                    submitted_by_email: activeUser?.email || null,
                     journey_date: date,
-                    jornada: 'Jornada Completa',
+                    jornada: 'Diurna',
                     equipo_guardia: 'Equipo CCRC',
                     locacion_jornada: 'Lagunillas Lago',
                     status: 'draft',
@@ -436,6 +474,7 @@ function initUIEvents() {
                             confirmButtonText: 'Entendido'
                         });
                     } else {
+                        loadJourneyHistory().catch(e => console.warn('History load error:', e));
                         Swal.fire({
                             icon: 'success',
                             title: '¡Jornada Iniciada!',
@@ -510,13 +549,48 @@ function initUIEvents() {
         });
     }
 
+    // Detectar teclado virtual o foco en campos de texto para ocultar la barra de navegación móvil
+    document.addEventListener('focusin', (e) => {
+        if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) {
+            document.body.classList.add('hide-nav-keyboard');
+        }
+    });
+    document.addEventListener('focusout', (e) => {
+        if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) {
+            document.body.classList.remove('hide-nav-keyboard');
+        }
+    });
+
     const closeCaptureBtn = document.getElementById('btn-close-capture');
+    const captureFormPanel = document.getElementById('panel-capture-form');
+
+    function closeCaptureModal() {
+        document.body.classList.remove('capture-open');
+        if (captureFormPanel) captureFormPanel.style.display = 'none';
+        if (state.activeJourney) {
+            showActiveJourneyView();
+        } else {
+            showStartJourneyView();
+        }
+    }
+
     if (closeCaptureBtn) {
-        closeCaptureBtn.addEventListener('click', () => {
-            document.getElementById('panel-capture-form').style.display = 'none';
-            document.getElementById('panel-active-journey').style.display = 'block';
+        closeCaptureBtn.addEventListener('click', closeCaptureModal);
+    }
+
+    if (captureFormPanel) {
+        captureFormPanel.addEventListener('click', (e) => {
+            if (e.target === captureFormPanel) {
+                closeCaptureModal();
+            }
         });
     }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && captureFormPanel && captureFormPanel.style.display !== 'none') {
+            closeCaptureModal();
+        }
+    });
 
     // Buscador en tiempo real para filtrar pozos mientras el operador escribe
     const wellSearchInput = document.getElementById('well-pozo-search');
@@ -744,6 +818,12 @@ function initUIEvents() {
 
     // Navegación Inferior (PWA / Mobile)
     document.getElementById('nav-capture-btn')?.addEventListener('click', () => {
+        const historyPanel = document.getElementById('panel-crc-history');
+        if (historyPanel) historyPanel.style.display = 'none';
+
+        document.querySelectorAll('.crc-nav-action').forEach(n => n.classList.remove('active'));
+        document.getElementById('nav-capture-btn')?.classList.add('active');
+
         if (state.activeJourney) {
             showActiveJourneyView();
         } else {
@@ -815,9 +895,15 @@ function initUIEvents() {
         });
     });
 
-    // 8. Desplazamiento suave y cambio de pestaña al historial
+    // 8. Cambio de pestaña al historial (Aislamiento de vista completa)
     const handleHistoryScroll = (e) => {
         if (e) e.preventDefault();
+        
+        // Ocultar paneles de captura para no apilar las vistas
+        document.getElementById('panel-start-journey').style.display = 'none';
+        document.getElementById('panel-active-journey').style.display = 'none';
+        document.getElementById('panel-capture-form').style.display = 'none';
+
         const historyPanel = document.getElementById('panel-crc-history');
         if (historyPanel) {
             historyPanel.style.display = 'block';
@@ -1008,40 +1094,51 @@ function renderEchoPreviews() {
     });
 }
 
+function setInputValue(id, val = '') {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+}
+
 function toggleTechnicalFields(method) {
     const bmSection = document.getElementById('section-bm-params');
     const bcpSection = document.getElementById('section-bcp-params');
 
     if (method === 'BM') {
-        bmSection.style.display = 'grid';
-        bcpSection.style.display = 'none';
+        if (bmSection) bmSection.style.display = 'grid';
+        if (bcpSection) bcpSection.style.display = 'none';
         
         // Reset BCP inputs
-        document.getElementById('bcp-rpm').value = '';
-        document.getElementById('bcp-torque').value = '';
-        document.getElementById('bcp-amperaje').value = '';
-        document.getElementById('bcp-modelo-cabezal').value = '';
-        document.getElementById('bcp-motorreductor').value = '';
-        document.getElementById('bcp-stuffing').value = '';
+        setInputValue('bcp-rpm');
+        setInputValue('bcp-torque');
+        setInputValue('bcp-amperaje');
+        setInputValue('bcp-modelo-cabezal');
+        setInputValue('bcp-motorreductor');
+        setInputValue('bcp-stuffing');
     } else if (method === 'BCP') {
-        bmSection.style.display = 'none';
-        bcpSection.style.display = 'grid';
+        if (bmSection) bmSection.style.display = 'none';
+        if (bcpSection) bcpSection.style.display = 'grid';
         
         // Reset BM inputs
-        document.getElementById('bm-marca').value = '';
-        document.getElementById('bm-modelo').value = '';
-        document.getElementById('bm-tiro').value = '';
-        document.getElementById('bm-recorrido').value = '';
-        document.getElementById('bm-spm').value = '';
-        document.getElementById('bm-estado-unidad').value = '';
+        setInputValue('bm-marca');
+        setInputValue('bm-modelo');
+        setInputValue('bm-tiro');
+        setInputValue('bm-recorrido');
+        setInputValue('bm-spm');
+        setInputValue('bm-estado-unidad');
     } else {
-        bmSection.style.display = 'none';
-        bcpSection.style.display = 'none';
+        if (bmSection) bmSection.style.display = 'none';
+        if (bcpSection) bcpSection.style.display = 'none';
     }
 }
 
 function goToStep(step) {
     state.currentStep = step;
+    
+    // Auto-scroll al inicio del formulario para comenzar siempre desde arriba
+    const captureFormPanel = document.getElementById('panel-capture-form');
+    if (captureFormPanel) {
+        captureFormPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     
     // Sincronizar clases de pestañas
     document.querySelectorAll('.crc-form-step-content').forEach((content, idx) => {
@@ -1201,8 +1298,11 @@ function renderStepSummary() {
 }
 
 function openCaptureFormForAdd() {
+    document.body.classList.add('capture-open');
+    const panelCapture = document.getElementById('panel-capture-form');
+    if (panelCapture) panelCapture.classList.add('active');
     document.getElementById('panel-active-journey').style.display = 'none';
-    document.getElementById('panel-capture-form').style.display = 'block';
+    document.getElementById('panel-capture-form').style.display = 'flex';
     
     // Resetear formulario y buscador de pozo
     const form = document.getElementById('form-well-capture');
@@ -1253,8 +1353,11 @@ async function openCaptureFormForEdit(index) {
     const report = state.reports[index];
     if (!report) return;
 
+    document.body.classList.add('capture-open');
+    const panelCapture = document.getElementById('panel-capture-form');
+    if (panelCapture) panelCapture.classList.add('active');
     document.getElementById('panel-active-journey').style.display = 'none';
-    document.getElementById('panel-capture-form').style.display = 'block';
+    document.getElementById('panel-capture-form').style.display = 'flex';
 
     const form = document.getElementById('form-well-capture');
     form.dataset.editingId = report.id;
@@ -1342,52 +1445,21 @@ async function openCaptureFormForEdit(index) {
     toggleTechnicalFields(report.lift_method);
     
     if (report.lift_method === 'BM') {
-        document.getElementById('bm-marca').value = report.bm_marca || '';
-        document.getElementById('bm-modelo').value = report.bm_modelo || '';
-        document.getElementById('bm-tiro').value = report.bm_tiro || '';
-        document.getElementById('bm-recorrido').value = report.bm_recorrido || '';
-        document.getElementById('bm-spm').value = report.bm_spm || '';
-        document.getElementById('bm-estado-unidad').value = report.bm_estado_unidad || '';
+        const marca = document.getElementById('bm-marca'); if (marca) marca.value = report.bm_marca || '';
+        const modelo = document.getElementById('bm-modelo'); if (modelo) modelo.value = report.bm_modelo || '';
+        const tiro = document.getElementById('bm-tiro'); if (tiro) tiro.value = report.bm_tiro || '';
+        const rec = document.getElementById('bm-recorrido'); if (rec) rec.value = report.bm_recorrido || '';
+        const spm = document.getElementById('bm-spm'); if (spm) spm.value = report.bm_spm || '';
+        const est = document.getElementById('bm-estado-unidad'); if (est) est.value = report.bm_estado_unidad || '';
     } else if (report.lift_method === 'BCP') {
-        document.getElementById('bcp-rpm').value = report.bcp_rpm || '';
-        document.getElementById('bcp-torque').value = report.bcp_torque || '';
-        document.getElementById('bcp-amperaje').value = report.bcp_amperaje || '';
-        document.getElementById('bcp-modelo-cabezal').value = report.bcp_modelo_cabezal || '';
-        document.getElementById('bcp-motorreductor').value = report.bcp_motorreductor || '';
+        const rpm = document.getElementById('bcp-rpm'); if (rpm) rpm.value = report.bcp_rpm || '';
+        const torque = document.getElementById('bcp-torque'); if (torque) torque.value = report.bcp_torque || '';
+        const amp = document.getElementById('bcp-amperaje'); if (amp) amp.value = report.bcp_amperaje || '';
+        const mod = document.getElementById('bcp-modelo-cabezal'); if (mod) mod.value = report.bcp_modelo_cabezal || '';
+        const mot = document.getElementById('bcp-motorreductor'); if (mot) mot.value = report.bcp_motorreductor || '';
     }
 
     goToStep(1);
-}
-
-function confirmDeleteWell(index) {
-    const report = state.reports[index];
-    if (!report) return;
-
-    Swal.fire({
-        title: `¿Eliminar pozo ${report.pozo}?`,
-        html: `<p style="font-size: 0.88rem; color: #64748b; margin: 0;">Se removerán los parámetros registrados para <strong>${report.pozo}</strong> de esta jornada activa.</p>`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar pozo',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#64748b'
-    }).then(result => {
-        if (result.isConfirmed) {
-            state.reports.splice(index, 1);
-            localStorage.setItem(CRC_WELL_REPORTS_KEY, JSON.stringify(state.reports));
-            renderJourneyWellsList();
-            syncDraftToSupabase();
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'success',
-                title: `Pozo ${report.pozo} eliminado`,
-                showConfirmButton: false,
-                timer: 2000
-            });
-        }
-    });
 }
 
 function saveWellReport() {
@@ -1510,6 +1582,15 @@ function saveWellReport() {
     renderPhotoPreviews();
     renderEchoPreviews();
 
+    const formWellCapture = document.getElementById('form-well-capture');
+    if (formWellCapture) {
+        formWellCapture.reset();
+        formWellCapture.dataset.editingId = '';
+    }
+
+    document.body.classList.remove('capture-open');
+    document.getElementById('panel-capture-form').style.display = 'none';
+
     // Persistir localmente
     localStorage.setItem(CRC_WELL_REPORTS_KEY, JSON.stringify(state.reports));
 
@@ -1524,6 +1605,19 @@ async function transmitJourneyToServer() {
         Swal.fire('Jornada Vacía', 'No has registrado ningún pozo para transmitir.', 'warning');
         return;
     }
+
+    const confirmSend = await Swal.fire({
+        title: '¿Enviar jornada a revisión?',
+        text: `Se enviará la jornada con ${state.reports.length} pozo(s) capturado(s). Una vez enviada, pasará a revisión administrativa y no se podrán agregar más pozos. ¿Deseas proceder?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, enviar jornada',
+        cancelButtonText: 'Continuar capturando',
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b'
+    });
+
+    if (!confirmSend.isConfirmed) return;
 
     Swal.fire({
         title: 'Enviando Jornada a Revisión',
@@ -1700,6 +1794,7 @@ async function syncDraftToSupabase() {
                 operationalScope: 'crc_ll'
             });
             console.log('Borrador de jornada sincronizado con Supabase.');
+            loadJourneyHistory().catch(e => console.warn('History refresh error:', e));
         }
 
         // Subir archivos adjuntos inmediatamente en tiempo real para el monitoreo en vivo
@@ -1826,38 +1921,37 @@ function renderHistoryTable(group) {
     const canContinue = ['draft', 'rejected'].includes(status);
 
     return `
-        <div class="crc-journey-item" style="border: 1px solid rgba(226, 232, 240, 0.9); border-radius: 14px; padding: 16px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-            <div class="crc-history-item-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom: 12px;">
+        <div class="crc-journey-item" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; background: #ffffff; box-shadow: 0 2px 8px rgba(15,23,42,0.04); margin-bottom: 12px;">
+            <div class="crc-history-item-header" style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9;">
                 <div>
-                    <h3 style="margin:0; font-size:1.02rem; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
+                    <h3 style="margin:0; font-size:0.92rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px; flex-wrap: wrap;">
                         Jornada ${escapeHtml(formatDate(firstRecord.report_date))}
                         <span class="${normalizeStatusClass(firstRecord.status)}">${normalizeStatusLabel(firstRecord.status)}</span>
                     </h3>
-                    <p style="margin: 4px 0 0; font-size: 0.82rem; color: var(--text-light);">
+                    <p style="margin: 2px 0 0; font-size: 0.75rem; color: #64748b; font-weight: 500;">
                         ${escapeHtml(firstRecord.locacion_jornada || 'Lagunillas Lago')} · ${escapeHtml(firstRecord.equipo_guardia || 'Equipo CCRC')}
                     </p>
                 </div>
-                <div class="crc-history-item-actions" style="display:flex; gap:8px;">
+                <div class="crc-history-item-actions" style="display:flex; gap:6px; flex-shrink:0;">
                     ${canContinue ? `
-                        <button type="button" class="crc-btn crc-btn-primary field-history-continue-btn" data-journey-key="${escapeHtml(group.key)}" style="padding: 8px 12px; font-size: 0.78rem; height: auto; min-height: auto; margin:0; display: inline-flex; align-items: center; gap: 4px;">
+                        <button type="button" class="field-history-continue-btn" data-journey-key="${escapeHtml(group.key)}" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 4px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Recuperar Jornada">
                             <i class="fa-solid fa-rotate-left"></i> Recuperar
                         </button>
-                        <button type="button" class="crc-btn crc-btn-danger field-history-delete-btn" data-journey-key="${escapeHtml(group.key)}" style="padding: 8px 12px; font-size: 0.78rem; height: auto; min-height: auto; margin:0; background-color:#ef4444; border-color:#ef4444; color:#fff; display: inline-flex; align-items: center; gap: 4px;">
-                            <i class="fa-solid fa-trash-can"></i> Eliminar
+                        <button type="button" class="field-history-delete-btn" data-journey-key="${escapeHtml(group.key)}" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 4px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Eliminar Jornada">
+                            <i class="fa-solid fa-trash-can"></i>
                         </button>
                     ` : ''}
                 </div>
             </div>
             
             <div class="crc-history-table-container">
-                <table class="crc-history-table" style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                <table class="crc-history-table" style="width:100%; border-collapse:collapse; font-size:0.78rem; text-align:left;">
                     <thead>
-                        <tr style="border-bottom: 1px solid rgba(226, 232, 240, 0.8); color: var(--text-light);">
-                            <th style="padding:6px 8px;">Pozo</th>
-                            <th style="padding:6px 8px;">Hora</th>
-                            <th style="padding:6px 8px;">Método</th>
-                            <th style="padding:6px 8px;">Estatus</th>
-                            <th style="padding:6px 8px;">Medidas / Comentario</th>
+                        <tr style="border-bottom: 1px solid #e2e8f0; color: #64748b;">
+                            <th style="padding:4px 6px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px;">Pozo</th>
+                            <th style="padding:4px 6px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px;">Hora</th>
+                            <th style="padding:4px 6px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px;">Método</th>
+                            <th style="padding:4px 6px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px;">Estatus</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1865,29 +1959,19 @@ function renderHistoryTable(group) {
                             if (rec.isEmptyJourney) {
                                 return `
                                     <tr>
-                                        <td colspan="5" style="padding:16px 8px; text-align:center; color:var(--text-light); font-style:italic;">
+                                        <td colspan="4" style="padding:12px 6px; text-align:center; color:#94a3b8; font-style:italic; font-size:0.75rem;">
                                             <i class="fa-solid fa-circle-info"></i> Sin pozos visitados en esta jornada
                                         </td>
                                     </tr>
                                 `;
                             }
                             const method = rec.lift_method || 'BM';
-                            let detailText = '';
-                            if (method === 'BM') {
-                                detailText = `SPM: ${rec.bm_spm || '--'} · Bruta/Neta: ${rec.bruta || '--'}/${rec.neta || '--'}`;
-                            } else {
-                                detailText = `RPM: ${rec.bcp_rpm || '--'} · Torque: ${rec.bcp_torque || '--'}`;
-                            }
-                            if (rec.comentario) {
-                                detailText += ` | ${rec.comentario}`;
-                            }
                             return `
-                                <tr style="border-bottom: 1px dashed rgba(241, 245, 249, 0.8);">
-                                    <td data-label="Pozo" style="padding:6px 8px; font-weight:700;">${escapeHtml(rec.pozo)}</td>
-                                    <td data-label="Hora" style="padding:6px 8px; color: var(--text-light);">${escapeHtml(String(rec.report_time || '').slice(0, 5))}</td>
-                                    <td data-label="Método" style="padding:6px 8px;"><span class="crc-well-type-tag ${method.toLowerCase()}">${method}</span></td>
-                                    <td data-label="Estatus" style="padding:6px 8px;"><strong style="color: ${rec.estatus === 'RUN' ? '#10b981' : '#ef4444'};">${escapeHtml(rec.estatus || 'RUN')}</strong></td>
-                                    <td data-label="Detalles" style="padding:6px 8px; color: var(--text-light); max-width: 250px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(detailText)}</td>
+                                <tr style="border-bottom: 1px solid #f8fafc;">
+                                    <td data-label="Pozo" style="padding:6px 6px; font-weight:800; color:#0f172a;">${escapeHtml(rec.pozo)}</td>
+                                    <td data-label="Hora" style="padding:6px 6px; color: #64748b; font-weight:500;">${escapeHtml(String(rec.report_time || '').slice(0, 5))}</td>
+                                    <td data-label="Método" style="padding:6px 6px;"><span class="crc-well-type-tag ${method.toLowerCase()}">${method}</span></td>
+                                    <td data-label="Estatus" style="padding:6px 6px;"><span style="color: ${rec.estatus === 'RUN' ? '#059669' : '#dc2626'}; font-weight:800; font-size:0.75rem;">${escapeHtml(rec.estatus || 'RUN')}</span></td>
                                 </tr>
                             `;
                         }).join('')}
@@ -2130,13 +2214,6 @@ function generateJourneySummaryText() {
             
             text += `  • *THP:* ${rep.thp_psi !== undefined && rep.thp_psi !== '' ? rep.thp_psi + ' PSI' : '--'}\n`;
             text += `  • *CHP:* ${rep.chp_psi !== undefined && rep.chp_psi !== '' ? rep.chp_psi + ' PSI' : '--'}\n`;
-            
-            if (rep.bruta || rep.neta) {
-                const bVal = parseFloat(rep.bruta) || 0;
-                const nVal = parseFloat(rep.neta) || 0;
-                const aysVal = bVal > 0 ? ((bVal - nVal) / bVal) * 100 : 0;
-                text += `  • *Prod. Bruta/Neta:* ${bVal}/${nVal} BPD (${aysVal.toFixed(1)}% AyS)\n`;
-            }
             
             if (rep.observaciones_pozo) {
                 text += `  • *Obs:* ${rep.observaciones_pozo}\n`;

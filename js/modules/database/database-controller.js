@@ -17,6 +17,7 @@ import {
     getWellDocumentSummaryCounts,
     uploadWellDocument,
     getDocumentDownloadUrl,
+    getDocumentInlineUrl,
     deleteWellDocument,
     updateWellDocumentMetadata,
     createFolder,
@@ -1857,13 +1858,14 @@ async function triggerGlobalSearch(queryText = '') {
             return;
         }
 
-        // Cargar URLs de descarga temporales
+        // Cargar URLs de descarga y entrega inline temporales
         const docsWithUrls = await Promise.all(results.map(async (doc) => {
             try {
                 const downloadUrl = await getDocumentDownloadUrl(doc.file_path);
-                return { ...doc, downloadUrl };
+                const inlineUrl = await getDocumentInlineUrl(doc.file_path);
+                return { ...doc, downloadUrl, inlineUrl };
             } catch {
-                return { ...doc, downloadUrl: '#' };
+                return { ...doc, downloadUrl: '#', inlineUrl: '#' };
             }
         }));
 
@@ -1936,7 +1938,7 @@ async function triggerGlobalSearch(queryText = '') {
                                     <td><span class="stats-date-cell">${docDate}</span></td>
                                     <td style="text-align:right;">
                                         <div style="display:inline-flex; align-items:center; justify-content:flex-end; gap:6px;">
-                                            <button type="button" class="btn-preview-doc" data-url="${escapeHtml(doc.downloadUrl)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" data-type="${escapeHtml(doc.file_type || '')}" style="padding:5px 8px; border-radius:6px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; font-size:0.75rem; font-weight:700; color:#334155; display:inline-flex; align-items:center; gap:4px;" title="Ver Previsualización">
+                                            <button type="button" class="btn-preview-doc" data-url="${escapeHtml(doc.inlineUrl || doc.downloadUrl)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" data-type="${escapeHtml(doc.file_type || '')}" style="padding:5px 8px; border-radius:6px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; font-size:0.75rem; font-weight:700; color:#334155; display:inline-flex; align-items:center; gap:4px;" title="Ver Previsualización">
                                                 <i class="fa-solid fa-eye"></i> <span>VER</span>
                                             </button>
                                             <a href="${escapeHtml(doc.downloadUrl)}" target="_blank" download style="padding:5px 8px; border-radius:6px; background:#eff6ff; border:1px solid #bfdbfe; color:#2563eb; font-size:0.75rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; gap:4px;" title="Descargar">
@@ -2256,10 +2258,11 @@ async function fetchAndRenderFiles() {
         const docsWithUrls = await Promise.all(state.activeDocuments.map(async (doc) => {
             try {
                 const downloadUrl = await getDocumentDownloadUrl(doc.file_path);
-                return { ...doc, downloadUrl };
+                const inlineUrl = await getDocumentInlineUrl(doc.file_path);
+                return { ...doc, downloadUrl, inlineUrl };
             } catch (err) {
-                console.error('[database-controller] Error resolviendo URL de descarga:', err);
-                return { ...doc, downloadUrl: '#' };
+                console.error('[database-controller] Error resolviendo URL de descarga/inline:', err);
+                return { ...doc, downloadUrl: '#', inlineUrl: '#' };
             }
         }));
 
@@ -2308,7 +2311,7 @@ async function fetchAndRenderFiles() {
                                     <td><span class="stats-date-cell">${docDate}</span></td>
                                     <td style="text-align:right;">
                                         <div style="display:inline-flex; align-items:center; justify-content:flex-end; gap:8px;">
-                                            <button type="button" class="btn-preview-doc" data-url="${escapeHtml(doc.downloadUrl)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" data-type="${escapeHtml(doc.file_type || '')}" title="Previsualizar documento">
+                                            <button type="button" class="btn-preview-doc" data-url="${escapeHtml(doc.inlineUrl || doc.downloadUrl)}" data-name="${escapeHtml(doc.nombre_archivo || 'Documento')}" data-type="${escapeHtml(doc.file_type || '')}" title="Previsualizar documento">
                                                 <i class="fa-solid fa-eye"></i>
                                                 <span>VER</span>
                                             </button>
@@ -3707,58 +3710,18 @@ function showSuccessToast(title = '¡Operación Exitosa!', message = '') {
  * @param {string} name - Nombre del archivo.
  * @param {string} type - Tipo o extensión del archivo.
  */
-function openDocumentPreview(url, name, type) {
+export function openDocumentPreview(url, name, type) {
     if (!url || url === '#') {
-        showSuccessToast('Error', 'La dirección del documento no es válida.');
+        if (window.Swal) {
+            Swal.fire({ icon: 'warning', title: 'Archivo', text: 'La dirección del documento no es válida.' });
+        } else {
+            alert('La dirección del documento no es válida.');
+        }
         return;
     }
 
-    // Abrir directamente en una pestaña limpia del navegador (Lector Nativo PDF/Imagen)
-    // Esto resuelve al 100% el error ERR_FAILED y bloqueos de seguridad del navegador
-    const newTab = window.open(url, '_blank', 'noopener,noreferrer');
-
-    const modal = document.getElementById('document-preview-modal');
-    const titleEl = document.getElementById('preview-modal-title');
-    const subtitleEl = document.getElementById('preview-modal-subtitle');
-    const downloadBtn = document.getElementById('btn-preview-download');
-    const bodyContainer = document.getElementById('preview-modal-body');
-    const closeBtn = document.getElementById('btn-close-preview-modal');
-
-    if (!modal || !bodyContainer) return;
-
-    const cleanType = String(type || '').toUpperCase();
-    if (titleEl) titleEl.textContent = name;
-    if (subtitleEl) subtitleEl.textContent = `Archivo ${cleanType} • Supabase Storage`;
-    if (downloadBtn) downloadBtn.href = url;
-
-    modal.hidden = false;
-    modal.style.display = 'flex';
-
-    if (closeBtn) {
-        closeBtn.onclick = () => {
-            modal.hidden = true;
-            modal.style.display = 'none';
-            bodyContainer.innerHTML = '';
-        };
-    }
-
-    bodyContainer.innerHTML = `
-        <div style="text-align:center; padding:36px 20px;">
-            <div style="width:64px; height:64px; border-radius:20px; background:#eff6ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:1.8rem;">
-                <i class="${cleanType === 'PDF' ? 'fa-solid fa-file-pdf' : 'fa-solid fa-file-lines'}"></i>
-            </div>
-            <h3 style="margin:0 0 6px; color:#0f172a; font-size:1.15rem; font-weight:800;">${name}</h3>
-            <p style="margin:0 0 20px; color:#64748b; font-size:0.88rem; max-width:420px; margin-left:auto; margin-right:auto;">
-                El visor nativo se ha abierto en una pestaña separada para brindarte máxima velocidad de navegación y herramientas de zoom/impresión.
-            </p>
-            <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
-                <a href="${url}" target="_blank" rel="noopener noreferrer" class="btn-download-doc" style="padding:10px 20px; background:linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%); color:#fff;">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                    <span>Volver a Abrir Documento</span>
-                </a>
-            </div>
-        </div>
-    `;
+    // Abrir directamente en una nueva pestaña del navegador para visor nativo (PDF / Imagen)
+    window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 /**

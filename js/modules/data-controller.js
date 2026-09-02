@@ -92,6 +92,38 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             title.textContent = `Pozo ${pozoName}`;
             pozoLabel.textContent = pozoName;
 
+            // Ocultar tarjetas exclusivas de BES si el contrato activo es CCRC (BM / BCP)
+            const isCrc = getActiveOperationalScope() === 'crc_ll';
+            const espPillIds = [
+                'selected-pozo-profile-multiphase',
+                'selected-pozo-profile-gas-separator',
+                'selected-pozo-profile-seals',
+                'selected-pozo-profile-motor',
+                'selected-pozo-profile-sensor',
+                'selected-pozo-profile-drain-valve',
+                'selected-pozo-profile-installed'
+            ];
+            espPillIds.forEach(id => {
+                const el = document.getElementById(id);
+                const pill = el ? el.closest('.selected-pozo-profile-pill') : null;
+                if (pill) {
+                    if (isCrc) {
+                        pill.classList.add('hidden-esp-pill');
+                        pill.style.setProperty('display', 'none', 'important');
+                    } else {
+                        pill.classList.remove('hidden-esp-pill');
+                        pill.style.removeProperty('display');
+                    }
+                }
+            });
+
+            const summarySubtitle = document.getElementById('selected-pozo-profile-summary');
+            if (summarySubtitle) {
+                summarySubtitle.textContent = isCrc
+                    ? 'Consulta rápida de la ficha de completación BM / BCP configurada para este pozo.'
+                    : 'Consulta rápida de la ficha BES configurada para este pozo.';
+            }
+
             try {
                 const profile = await getWellBESProfile(pozoName);
                 const pumpValue = cleanBESValue(profile?.pump_model) || cleanBESValue(profile?.pump_type) || cleanBESValue(profile?.multiphase_pump) || 'Pendiente por configurar';
@@ -435,82 +467,184 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             return escapeHtml(value === undefined || value === null || value === '' ? fallback : value);
         }
 
+        function getFieldValueFromRecord(record, ...fieldNames) {
+            if (!record) return null;
+            
+            // 1. Check nested JSON containers first if present
+            const containers = [
+                record.raw_payload,
+                record.payload,
+                record.row_data,
+                record.datos_tecnicos,
+                record.payload_json,
+                record.datos_medicion
+            ];
+
+            for (let raw of containers) {
+                if (!raw) continue;
+                if (typeof raw === 'string') {
+                    try { raw = JSON.parse(raw); } catch (e) { continue; }
+                }
+                if (raw && typeof raw === 'object') {
+                    for (const name of fieldNames) {
+                        if (raw[name] !== undefined && raw[name] !== null && raw[name] !== '') {
+                            return raw[name];
+                        }
+                    }
+                }
+            }
+
+            // 2. Check direct properties
+            for (const name of fieldNames) {
+                if (record[name] !== undefined && record[name] !== null && record[name] !== '') {
+                    return record[name];
+                }
+            }
+            
+            return null;
+        }
+
+        function getWellLiftMethod(pozoName, record = null) {
+            const targetRecord = record || (currentRecordData && currentRecordData.length > 0 ? currentRecordData[0] : null);
+            if (targetRecord) {
+                const liftMeth = getFieldValueFromRecord(targetRecord, 'lift_method', 'metodo', 'metodo_profesional');
+                if (liftMeth) {
+                    const normMeth = String(liftMeth).toUpperCase();
+                    if (normMeth.includes('BCP') || normMeth.includes('PCP') || normMeth.includes('CAVIDAD') || normMeth.includes('PROGRESIVA')) return 'BCP';
+                    if (normMeth.includes('BM') || normMeth.includes('BALANCIN') || normMeth.includes('MECANICO')) return 'BM';
+                }
+                const bcpTorque = getFieldValueFromRecord(targetRecord, 'bcp_torque', 'torque');
+                const bcpAmp = getFieldValueFromRecord(targetRecord, 'bcp_amperaje', 'amperaje');
+                const bcpRpm = getFieldValueFromRecord(targetRecord, 'bcp_rpm', 'rpm');
+                if (bcpTorque || bcpAmp || bcpRpm) return 'BCP';
+
+                const bmSpm = getFieldValueFromRecord(targetRecord, 'bm_spm', 'spm');
+                const bmTiro = getFieldValueFromRecord(targetRecord, 'bm_tiro', 'tiro', 'tiro_in', 'longitud_tiro');
+                const bmRecorrido = getFieldValueFromRecord(targetRecord, 'bm_recorrido', 'recorrido', 'recorrido_in', 'longitud_carrera', 'carrera');
+                if (bmSpm || bmTiro || bmRecorrido) return 'BM';
+            }
+            const normPozo = String(pozoName || activePozo || '').trim().toUpperCase();
+            const wellMeta = activeScopeWellCatalog.find(w => String(w.pozo_name || '').trim().toUpperCase() === normPozo);
+            const methodStr = String(wellMeta?.lift_method || wellMeta?.pump_type || wellMeta?.pump_model || '').toUpperCase();
+            if (methodStr.includes('BCP') || methodStr.includes('PCP') || methodStr.includes('CAVIDAD') || methodStr.includes('PROGRESIVA')) {
+                return 'BCP';
+            }
+            return 'BM';
+        }
+
         function buildOperationalRowHtml(record, includeActions = false) {
             const recordId = record.id || record.ID || null;
             const activeScope = getActiveOperationalScope();
 
             if (activeScope === 'crc_ll') {
-                const pozoName = String(record.pozo_name || record.pozo || '').trim().toUpperCase();
-                const wellMeta = activeScopeWellCatalog.find(w => w.pozo_name === pozoName);
-                const liftMethod = wellMeta?.lift_method || 'BM';
-                const speedUnit = liftMethod === 'BCP' ? 'RPM' : 'SPM';
+                const pozoName = String(record.pozo_name || record.pozo || activePozo || '').trim().toUpperCase();
+                const liftMethod = getWellLiftMethod(pozoName, record);
+                const isBcp = liftMethod === 'BCP';
 
-                return `
-                    <tr>
-                        <td class="cell-date">
-                            <span class="date-main">${formatMonitoringTextCell(record.fecha)}</span>
-                            <span class="time-sub">${formatMonitoringTextCell(record.hora)}</span>
-                        </td>
-                        <td class="cell-freq">
-                            <span class="value-highlight">${formatMonitoringNumberCell(record.frecuencia)}</span>
-                            <span class="unit-label">BPD</span>
-                        </td>
-                        <td class="cell-giro">
-                            <span class="value-highlight">${formatMonitoringNumberCell(record.corriente_motor)}</span>
-                            <span class="unit-label">BPD</span>
-                        </td>
-                        <td class="cell-current">
-                            <span class="value-highlight">${formatMonitoringNumberCell(record.pip, 2)}</span>
-                            <span class="unit-label">%</span>
-                        </td>
-                        <td class="cell-pip-tm">
-                            <span class="value-highlight">${formatMonitoringNumberCell(record.tm, 1)}</span>
-                            <span class="unit-label">${speedUnit}</span>
-                        </td>
-                        <td class="cell-presion">
-                            <div class="telemetry-block-group horizontal">
-                                <div class="telemetry-item thp">
-                                    <span class="lbl">THP</span>
-                                    <span class="val">${formatMonitoringTextCell(record.presion_thp, '--')}</span>
-                                    <span class="uni">PSI</span>
-                                </div>
-                                <div class="telemetry-item chp">
-                                    <span class="lbl">CHP</span>
-                                    <span class="val">${formatMonitoringTextCell(record.presion_chp, '--')}</span>
-                                    <span class="uni">PSI</span>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="cell-vsd">
-                            <span class="value-badge-plain">${formatMonitoringTextCell(record.sentido_giro, '--')}</span>
-                        </td>
-                        <td class="cell-status">
-                            ${(() => {
-                                const normEst = String(record.estatus || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-                                const isRun = normEst.includes('RUN') || normEst.includes('OPERANDO') || normEst.includes('ACTIVO');
-                                const statusClass = isRun ? 'status-run' : 'status-off';
-                                return `
-                                    <span class="status-badge-premium ${statusClass}">
-                                        <span class="status-dot"></span>
-                                        <span>${formatMonitoringTextCell(record.estatus)}</span>
-                                    </span>
-                                `;
-                            })()}
-                        </td>
-                        <td class="cell-actions" style="text-align: right; white-space: nowrap;">
-                            <button class="btn-action btn-view-premium" onclick="openFullDataModal('${escapeHtml(recordId)}')" aria-label="Ver detalles">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                </svg>
-                                <span>Ver</span>
-                            </button>
-                            ${includeActions && currentAccessProfile.canEditData ? `
-                            <button class="btn-action btn-edit-premium" data-id="${escapeHtml(recordId)}">Editar</button>
-                            <button class="btn-action btn-delete-premium" data-id="${escapeHtml(recordId)}">Borrar</button>` : ''}
-                        </td>
-                    </tr>
-                `;
+                const fechaVal = getFieldValueFromRecord(record, 'fecha', 'report_date');
+                const horaVal = getFieldValueFromRecord(record, 'hora', 'report_time');
+                const thpVal = getFieldValueFromRecord(record, 'presion_thp', 'thp', 'thp_psi');
+                const chpVal = getFieldValueFromRecord(record, 'presion_chp', 'chp', 'chp_psi');
+                const actividadVal = getFieldValueFromRecord(record, 'sentido_giro', 'actividad', 'observaciones_pozo', 'observaciones', 'estatus', 'diagnostico');
+
+                if (isBcp) {
+                    // BCP Columns: FECHA/HORA | RPM | TORQUE | AMPERAJE | THP | CHP | ACTIVIDAD
+                    const rpmVal = getFieldValueFromRecord(record, 'bcp_rpm', 'rpm', 'velocidad_rpm');
+                    const torqueVal = getFieldValueFromRecord(record, 'bcp_torque', 'torque', 'torque_ftlbs', 'bcp_torque_ftlbs');
+                    const ampVal = getFieldValueFromRecord(record, 'bcp_amperaje', 'amperaje', 'corriente_bcp', 'corriente_motor_bcp');
+
+                    return `
+                        <tr>
+                            <td class="cell-date">
+                                <span class="date-main">${formatMonitoringTextCell(fechaVal)}</span>
+                                <span class="time-sub">${formatMonitoringTextCell(horaVal)}</span>
+                            </td>
+                            <td class="cell-freq">
+                                <span class="value-highlight">${formatMonitoringTextCell(rpmVal, '--')}</span>
+                                <span class="unit-label">RPM</span>
+                            </td>
+                            <td class="cell-giro">
+                                <span class="value-highlight">${formatMonitoringTextCell(torqueVal, '--')}</span>
+                                <span class="unit-label">ft-lbs</span>
+                            </td>
+                            <td class="cell-current">
+                                <span class="value-highlight">${formatMonitoringTextCell(ampVal, '--')}</span>
+                                <span class="unit-label">A</span>
+                            </td>
+                            <td class="cell-presion">
+                                <span class="value-highlight">${formatMonitoringTextCell(thpVal, '--')}</span>
+                                <span class="unit-label">PSI</span>
+                            </td>
+                            <td class="cell-presion">
+                                <span class="value-highlight">${formatMonitoringTextCell(chpVal, '--')}</span>
+                                <span class="unit-label">PSI</span>
+                            </td>
+                            <td class="cell-status">
+                                <span class="value-badge-plain">${formatMonitoringTextCell(actividadVal, '--')}</span>
+                            </td>
+                            <td class="cell-actions" style="text-align: right; white-space: nowrap;">
+                                <button class="btn-action btn-view-premium" onclick="openFullDataModal('${escapeHtml(recordId)}')" aria-label="Ver detalles">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                    <span>Ver</span>
+                                </button>
+                                ${includeActions && currentAccessProfile.canEditData ? `
+                                <button class="btn-action btn-edit-premium" data-id="${escapeHtml(recordId)}">Editar</button>
+                                <button class="btn-action btn-delete-premium" data-id="${escapeHtml(recordId)}">Borrar</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    // BM Columns: FECHA/HORA | SPM | TIRO | RECORRIDO | THP | CHP | ACTIVIDAD
+                    const spmVal = getFieldValueFromRecord(record, 'bm_spm', 'spm', 'velocidad_spm');
+                    const tiroVal = getFieldValueFromRecord(record, 'bm_tiro', 'tiro', 'tiro_in', 'longitud_tiro');
+                    const recorridoVal = getFieldValueFromRecord(record, 'bm_recorrido', 'recorrido', 'recorrido_in', 'longitud_carrera', 'carrera');
+
+                    return `
+                        <tr>
+                            <td class="cell-date">
+                                <span class="date-main">${formatMonitoringTextCell(fechaVal)}</span>
+                                <span class="time-sub">${formatMonitoringTextCell(horaVal)}</span>
+                            </td>
+                            <td class="cell-freq">
+                                <span class="value-highlight">${formatMonitoringTextCell(spmVal, '--')}</span>
+                                <span class="unit-label">SPM</span>
+                            </td>
+                            <td class="cell-giro">
+                                <span class="value-highlight">${formatMonitoringTextCell(tiroVal, '--')}</span>
+                            </td>
+                            <td class="cell-current">
+                                <span class="value-highlight">${formatMonitoringTextCell(recorridoVal, '--')}</span>
+                                <span class="unit-label">in</span>
+                            </td>
+                            <td class="cell-presion">
+                                <span class="value-highlight">${formatMonitoringTextCell(thpVal, '--')}</span>
+                                <span class="unit-label">PSI</span>
+                            </td>
+                            <td class="cell-presion">
+                                <span class="value-highlight">${formatMonitoringTextCell(chpVal, '--')}</span>
+                                <span class="unit-label">PSI</span>
+                            </td>
+                            <td class="cell-status">
+                                <span class="value-badge-plain">${formatMonitoringTextCell(actividadVal, '--')}</span>
+                            </td>
+                            <td class="cell-actions" style="text-align: right; white-space: nowrap;">
+                                <button class="btn-action btn-view-premium" onclick="openFullDataModal('${escapeHtml(recordId)}')" aria-label="Ver detalles">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                    <span>Ver</span>
+                                </button>
+                                ${includeActions && currentAccessProfile.canEditData ? `
+                                <button class="btn-action btn-edit-premium" data-id="${escapeHtml(recordId)}">Editar</button>
+                                <button class="btn-action btn-delete-premium" data-id="${escapeHtml(recordId)}">Borrar</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                }
             }
 
             return `
@@ -1848,19 +1982,34 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
             const activeScope = getActiveOperationalScope();
             if (activeScope === 'crc_ll') {
-                thead.innerHTML = `
-                    <tr>
-                        <th>Fecha/Hora</th>
-                        <th>Caudal Bruto</th>
-                        <th>Caudal Neto</th>
-                        <th>Contenido Agua</th>
-                        <th>SPM / RPM</th>
-                        <th>Presiones (THP/CHP)</th>
-                        <th>Actividad</th>
-                        <th>Estatus</th>
-                        ${currentAccessProfile.canEditData ? '<th style="text-align: right;">Acciones</th>' : '<th style="text-align: right;"></th>'}
-                    </tr>
-                `;
+                const isBcp = getWellLiftMethod(activePozo) === 'BCP';
+                if (isBcp) {
+                    thead.innerHTML = `
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>RPM</th>
+                            <th>Torque</th>
+                            <th>Amperaje</th>
+                            <th>THP</th>
+                            <th>CHP</th>
+                            <th>Actividad</th>
+                            ${currentAccessProfile.canEditData ? '<th style="text-align: right;">Acciones</th>' : '<th style="text-align: right;"></th>'}
+                        </tr>
+                    `;
+                } else {
+                    thead.innerHTML = `
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>SPM</th>
+                            <th>Tiro</th>
+                            <th>Recorrido</th>
+                            <th>THP</th>
+                            <th>CHP</th>
+                            <th>Actividad</th>
+                            ${currentAccessProfile.canEditData ? '<th style="text-align: right;">Acciones</th>' : '<th style="text-align: right;"></th>'}
+                        </tr>
+                    `;
+                }
                 return;
             }
 
@@ -2460,7 +2609,51 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
                 const [data] = await Promise.all([fetchPromise, minTimePromise]);
 
+                const activeScope = getActiveOperationalScope();
+                if (activeScope === 'crc_ll' && activeHistoryMode === 'operational' && data && data.length > 0) {
+                    try {
+                        const pozoName = activePozo;
+                        const [ { data: fieldData }, { data: excelData } ] = await Promise.all([
+                            supabase
+                                .from('field_journey_records')
+                                .select('report_date, report_time, raw_payload')
+                                .eq('pozo', pozoName),
+                            supabase
+                                .from('consolidated_dashboard_operational')
+                                .select('report_date, report_time, row_data')
+                                .eq('pozo', pozoName)
+                        ]);
+
+                        data.forEach(rec => {
+                            let extraData = {};
+                            const cleanTime = String(rec.hora || '').substring(0, 5);
+
+                            if (fieldData && fieldData.length > 0) {
+                                const match = fieldData.find(f => f.report_date === rec.fecha && String(f.report_time || '').substring(0, 5) === cleanTime) || fieldData[0];
+                                if (match && match.raw_payload) extraData = match.raw_payload;
+                            }
+                            if (Object.keys(extraData).length === 0 && excelData && excelData.length > 0) {
+                                const match = excelData.find(r => r.report_date === rec.fecha && String(r.report_time || '').substring(0, 5) === cleanTime) || excelData[0];
+                                if (match && match.row_data) extraData = match.row_data;
+                            }
+
+                            if (extraData && typeof extraData === 'object') {
+                                rec.raw_payload = { ...(typeof rec.raw_payload === 'object' ? rec.raw_payload : {}), ...extraData };
+                                for (const [k, v] of Object.entries(extraData)) {
+                                    if (v !== undefined && v !== null && v !== '' && (rec[k] === undefined || rec[k] === null || rec[k] === '')) {
+                                        rec[k] = v;
+                                    }
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.warn('Field/Consolidated records enrichment warning:', e);
+                    }
+                }
+
                 currentRecordData = data;
+                renderHistoryHead();
+
                 document.getElementById('record-count').textContent = `${data.length} Registros`;
                 document.getElementById('table-title').textContent = activeHistoryMode === 'technical'
                     ? `Historial de Medición Técnica: ${activePozo}`
@@ -2495,7 +2688,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 let docs = await getWellDocuments({ pozoName, category: categoryFilter });
 
                 if (mode === 'echometer') {
-                    // Filtrar para excluir reportes en PDF/Imágenes que corresponden al soporte de la prueba de nivel
+                    // Filtrar para mostrar ÚNICAMENTE archivos de medición Echómetro (.028, .twm, .029, etc.) y no soportes PDF/imágenes
                     docs = (docs || []).filter(doc => {
                         const name = doc.nombre_archivo || doc.file_name || '';
                         const ext = name.split('.').pop()?.toLowerCase() || '';
@@ -2553,7 +2746,6 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
 
                     const userEmail = doc.uploaded_by_email || doc.usuario || 'Técnico de Campo';
                     const sizeMb = doc.tamaño_bytes ? `${(doc.tamaño_bytes / (1024 * 1024)).toFixed(2)} MB` : '--';
-                    const actionLabel = mode === 'soportes' ? '👁️ Ver Foto' : '⬇️ Descargar';
 
                     tr.innerHTML = `
                         <td style="padding: 12px 16px;"><strong>${escapeHtml(createdDate)}</strong></td>
@@ -2565,36 +2757,62 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         <td style="padding: 12px 16px;"><span style="font-size:0.85rem; color:#475569;">${escapeHtml(userEmail)}</span></td>
                         <td style="text-align:center; padding: 12px 16px;"><small style="color:#64748b; font-weight:700;">${escapeHtml(sizeMb)}</small></td>
                         <td style="text-align:right; padding: 12px 16px;">
-                            <button type="button" class="btn-download-doc-inline" data-file-path="${escapeHtml(doc.file_path || doc.ruta_storage || '')}" style="padding:8px 16px; border-radius:10px; background:#10b981; color:#fff; font-weight:800; font-size:0.82rem; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition: background 0.2s;">
-                                ${escapeHtml(actionLabel)}
-                            </button>
+                            <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
+                                <button type="button" class="btn-preview-doc-inline" data-file-path="${escapeHtml(doc.file_path || doc.ruta_storage || '')}" data-file-name="${escapeHtml(fileName)}" style="padding:7px 12px; border-radius:8px; background:#2563eb; color:#fff; font-weight:800; font-size:0.8rem; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition: background 0.2s;">
+                                    👁️ Ver
+                                </button>
+                                <button type="button" class="btn-download-doc-inline" data-file-path="${escapeHtml(doc.file_path || doc.ruta_storage || '')}" style="padding:7px 12px; border-radius:8px; background:#10b981; color:#fff; font-weight:800; font-size:0.8rem; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition: background 0.2s;">
+                                    ⬇️ Descargar
+                                </button>
+                            </div>
                         </td>
                     `;
                     tbody.appendChild(tr);
                 }
 
-                // Handler para botones de descarga directa
+                // Handlers para botones de Previsualización (Ver en pestaña nativa sin forzar descarga)
+                tbody.querySelectorAll('.btn-preview-doc-inline').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const path = e.currentTarget.dataset.filePath;
+                        if (!path) return;
+                        try {
+                            btn.disabled = true;
+                            btn.innerHTML = 'Cargando...';
+                            const { getDocumentInlineUrl } = await import('../services/well-documents-service.js');
+                            const url = await getDocumentInlineUrl(path);
+                            if (url && url !== '#') {
+                                window.open(url, '_blank', 'noopener,noreferrer');
+                            }
+                        } catch (err) {
+                            console.error('Error al abrir archivo:', err);
+                        } finally {
+                            btn.disabled = false;
+                            btn.innerHTML = '👁️ Ver';
+                        }
+                    });
+                });
+
+                // Handlers para botones de Descarga Directa
                 tbody.querySelectorAll('.btn-download-doc-inline').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const path = e.currentTarget.dataset.filePath;
-                        if (!path) {
-                            if (window.Swal) Swal.fire({ icon: 'warning', title: 'Archivo', text: 'No se encontró la ruta del archivo.' });
-                            return;
-                        }
+                        if (!path) return;
                         try {
                             btn.disabled = true;
-                            btn.innerHTML = 'Generando...';
+                            btn.innerHTML = 'Descargando...';
+                            const { getDocumentDownloadUrl } = await import('../services/well-documents-service.js');
                             const url = await getDocumentDownloadUrl(path);
-                            if (url) {
-                                window.open(url, '_blank');
-                            } else {
-                                throw new Error('No se pudo generar el enlace de descarga.');
+                            if (url && url !== '#') {
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.target = '_blank';
+                                a.download = '';
+                                document.body.appendChild(a);
+                                a.click();
+                                a.remove();
                             }
                         } catch (err) {
                             console.error('Error al descargar archivo:', err);
-                            if (window.Swal) {
-                                Swal.fire({ icon: 'error', title: 'Error al descargar', text: err.message || 'No se pudo obtener el archivo.' });
-                            }
                         } finally {
                             btn.disabled = false;
                             btn.innerHTML = '⬇️ Descargar';
@@ -2792,7 +3010,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                     tbody.appendChild(tr);
                 });
 
-                // Handler para abrir soporte
+                // Handler para abrir soporte de prueba de nivel en pestaña nativa (entrega INLINE)
                 tbody.querySelectorAll('.btn-view-soporte-level').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const path = e.currentTarget.dataset.filePath;
@@ -2800,15 +3018,19 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         try {
                             btn.disabled = true;
                             const originalHtml = btn.innerHTML;
-                            btn.innerHTML = 'Generando...';
-                            const { getDocumentDownloadUrl } = await import('../services/well-documents-service.js');
-                            const url = await getDocumentDownloadUrl(path);
-                            window.open(url, '_blank');
+                            btn.innerHTML = 'Abriendo...';
+                            const { getDocumentInlineUrl } = await import('../services/well-documents-service.js');
+                            const url = await getDocumentInlineUrl(path);
+                            if (url && url !== '#') {
+                                window.open(url, '_blank', 'noopener,noreferrer');
+                            } else {
+                                if (window.Swal) Swal.fire({ icon: 'warning', title: 'Soporte', text: 'No se encontró el enlace del soporte.' });
+                            }
                             btn.innerHTML = originalHtml;
                             btn.disabled = false;
                         } catch (err) {
                             console.error('Error al obtener URL del soporte:', err);
-                            if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo abrir el soporte.' });
+                            if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo abrir el soporte de nivel.' });
                             btn.disabled = false;
                         }
                     });

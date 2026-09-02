@@ -4231,10 +4231,10 @@ async function renderDetail(detail) {
                 try {
                     btn.disabled = true;
                     btn.innerHTML = btn.tagName === 'BUTTON' && btn.innerText.length > 5 ? 'Abriendo...' : '⏳';
-                    const { getDocumentDownloadUrl } = await import('./services/well-documents-service.js');
-                    const url = await getDocumentDownloadUrl(path);
-                    if (url) {
-                        window.open(url, '_blank');
+                    const { getDocumentInlineUrl } = await import('./services/well-documents-service.js');
+                    const url = await getDocumentInlineUrl(path);
+                    if (url && url !== '#') {
+                        window.open(url, '_blank', 'noopener,noreferrer');
                     } else {
                         alert('No se pudo obtener la imagen.');
                     }

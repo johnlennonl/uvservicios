@@ -979,10 +979,10 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
 
             if (levelData?.file_path) {
                 try {
-                    const { getDocumentDownloadUrl } = await import('../services/well-documents-service.js');
-                    const url = await getDocumentDownloadUrl(levelData.file_path);
+                    const { getDocumentInlineUrl } = await import('../services/well-documents-service.js');
+                    const url = await getDocumentInlineUrl(levelData.file_path);
                     if (fileNameSpan) {
-                        fileNameSpan.innerHTML = `<a href="${url}" target="_blank" style="color: #2563eb; font-weight: 700; text-decoration: underline;">👁️ Ver Soporte Echometer.</a>`;
+                        fileNameSpan.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; font-weight: 700; text-decoration: underline;">👁️ Ver Soporte Echometer.</a>`;
                     }
                     if (clearBtn) {
                         clearBtn.style.display = 'inline-block';
