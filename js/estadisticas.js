@@ -143,12 +143,18 @@ export async function initEstadisticas() {
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             tabButtons.forEach(b => b.classList.remove('active'));
-            tabContents.forEach(c => c.hidden = true);
+            tabContents.forEach(c => {
+                c.hidden = true;
+                c.style.display = 'none';
+            });
 
             btn.classList.add('active');
             const targetId = btn.dataset.target;
             const targetContent = document.getElementById(targetId);
-            if (targetContent) targetContent.hidden = false;
+            if (targetContent) {
+                targetContent.hidden = false;
+                targetContent.style.removeProperty('display');
+            }
         });
     });
 
@@ -1027,40 +1033,52 @@ function applyCrcEstadisticasView() {
     if (rowDiurno) rowDiurno.style.display = isCrc ? 'none' : '';
     if (rowNocturno) rowNocturno.style.display = isCrc ? 'none' : '';
 
-    // 7. Ocultar SOLO el botón de la pestaña "Reportes Personalizados" para CCRC
+    // 7. Manejo de Pestaña "Reportes Personalizados" según Contrato
     const customReportsTabBtn = document.getElementById('tab-btn-custom-reports');
     const customReportsSection = document.getElementById('custom-reports-section');
     const overviewSection = document.getElementById('overview-section');
     const overviewBtn = document.getElementById('tab-btn-overview');
 
-    if (customReportsTabBtn) {
-        if (isCrc) {
+    const activeTabBtn = document.querySelector('.stats-tab-btn.active');
+    const activeTargetId = activeTabBtn ? activeTabBtn.dataset.target : 'overview-section';
+
+    if (isCrc) {
+        if (customReportsTabBtn) {
             customReportsTabBtn.style.setProperty('display', 'none', 'important');
-        } else {
-            customReportsTabBtn.style.removeProperty('display');
+            customReportsTabBtn.classList.remove('active');
+            customReportsTabBtn.setAttribute('aria-selected', 'false');
         }
-    }
-
-    // Garantizar que la sección principal de Resumen General esté visible
-    if (overviewSection) {
-        overviewSection.style.removeProperty('display');
-        overviewSection.hidden = false;
-    }
-
-    if (customReportsSection) {
-        if (isCrc) {
+        if (customReportsSection) {
             customReportsSection.style.setProperty('display', 'none', 'important');
             customReportsSection.hidden = true;
-            if (overviewBtn) {
-                overviewBtn.classList.add('active');
-                overviewBtn.setAttribute('aria-selected', 'true');
-            }
-            if (customReportsTabBtn) {
-                customReportsTabBtn.classList.remove('active');
-                customReportsTabBtn.setAttribute('aria-selected', 'false');
-            }
-        } else {
+        }
+        if (overviewBtn) {
+            overviewBtn.classList.add('active');
+            overviewBtn.setAttribute('aria-selected', 'true');
+        }
+        if (overviewSection) {
+            overviewSection.style.removeProperty('display');
+            overviewSection.hidden = false;
+        }
+    } else {
+        if (customReportsTabBtn) {
+            customReportsTabBtn.style.removeProperty('display');
+        }
+        if (customReportsSection) {
             customReportsSection.style.removeProperty('display');
+        }
+        if (overviewSection) {
+            overviewSection.style.removeProperty('display');
+        }
+
+        const isCustomActive = activeTargetId === 'custom-reports-section';
+        if (overviewSection) {
+            overviewSection.hidden = isCustomActive;
+            if (isCustomActive) overviewSection.style.display = 'none';
+        }
+        if (customReportsSection) {
+            customReportsSection.hidden = !isCustomActive;
+            if (!isCustomActive) customReportsSection.style.display = 'none';
         }
     }
 }

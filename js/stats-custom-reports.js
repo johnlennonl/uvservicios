@@ -90,7 +90,13 @@ function setupTabNavigation() {
 
             const targetId = btn.dataset.target;
             document.querySelectorAll('.stats-tab-pane').forEach(pane => {
-                pane.hidden = pane.id !== targetId;
+                const isTarget = pane.id === targetId;
+                pane.hidden = !isTarget;
+                if (isTarget) {
+                    pane.style.removeProperty('display');
+                } else {
+                    pane.style.display = 'none';
+                }
             });
         });
     });
