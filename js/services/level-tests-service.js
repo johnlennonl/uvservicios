@@ -37,12 +37,27 @@ export function buildLevelTestKey(record = {}) {
  * Normaliza un registro de prueba de nivel antes de guardarlo en Supabase
  */
 export function normalizeLevelTestRecord(record = {}) {
+    const rawTipo = String(record?.tipo_nivel || '').trim().toLowerCase();
+    const tipo_nivel = rawTipo === 'estatico' ? 'estatico' : 'dinamico';
+
+    let numero_reporte = String(record?.numero_reporte || '').trim();
+    if (numero_reporte && !numero_reporte.toUpperCase().startsWith('UVS-RN-BES-')) {
+        numero_reporte = `UVS-RN-BES-${numero_reporte.toUpperCase().replace(/^UVS-RN-BES-?/, '')}`;
+    } else if (numero_reporte) {
+        numero_reporte = numero_reporte.toUpperCase();
+    } else {
+        numero_reporte = null;
+    }
+
     return {
         pozo_name: String(record?.pozo_name || '').trim().toUpperCase(),
         fecha: record?.fecha || null,
+        tipo_nivel,
         nivel_dinamico: record?.nivel_dinamico !== undefined && record?.nivel_dinamico !== null ? parseFloat(record.nivel_dinamico) : 0,
+        nivel_estatico: record?.nivel_estatico !== undefined && record?.nivel_estatico !== null ? parseFloat(record.nivel_estatico) : 0,
         sumergencia: record?.sumergencia !== undefined && record?.sumergencia !== null ? parseFloat(record.sumergencia) : 0,
         presion_pip: record?.presion_pip !== undefined && record?.presion_pip !== null ? parseFloat(record.presion_pip) : 0,
+        numero_reporte,
         operational_scope: String(record?.operational_scope || '').trim().toLowerCase() || null,
         file_path: record?.file_path || null
     };

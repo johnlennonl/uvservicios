@@ -1869,7 +1869,9 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 thead.innerHTML = `
                     <tr>
                         <th>Fecha Prueba</th>
-                        <th>Nivel Dinámico</th>
+                        <th>Nº Reporte</th>
+                        <th>Tipo</th>
+                        <th>Nivel Fluido</th>
                         <th>Sumergencia</th>
                         <th>Presión PIP Echometer</th>
                         <th>Soporte</th>
@@ -2979,7 +2981,7 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             const formatTextCell = (value, fallback = '--') => formatMonitoringTextCell(value, fallback);
 
             if (currentRecordData.length === 0) {
-                const emptyColumns = activeHistoryMode === 'technical' ? 5 : (activeHistoryMode === 'level' ? 6 : 9);
+                const emptyColumns = activeHistoryMode === 'technical' ? 5 : (activeHistoryMode === 'level' ? 8 : 9);
                 tbody.innerHTML = `<tr><td colspan="${emptyColumns}" style="text-align: center; color: #9CA3AF; padding: 40px;">No hay registros históricos</td></tr>`;
                 return;
             }
@@ -2998,6 +3000,23 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                         `;
                     }
 
+                    const isEstatico = String(record.tipo_nivel || '').toLowerCase() === 'estatico';
+                    const tipoBadge = isEstatico
+                        ? '<span style="background: #FEE2E2; color: #991B1B; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;">🔴 Estático</span>'
+                        : '<span style="background: #D1FAE5; color: #065F46; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;">🟢 Dinámico</span>';
+
+                    const reporteBadge = record.numero_reporte
+                        ? `<span style="font-family: monospace; font-weight: 800; color: #1e293b; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;">${escapeHtml(record.numero_reporte)}</span>`
+                        : '<span style="color:#9ca3af; font-size:0.85rem;">--</span>';
+
+                    const nivelVal = isEstatico
+                        ? (record.nivel_estatico || record.nivel_dinamico)
+                        : record.nivel_dinamico;
+
+                    const pipCellHtml = isEstatico
+                        ? '<span style="color:#9ca3af; font-size: 0.85rem;">N/A (Parado)</span>'
+                        : `<div style="font-weight: 700; color: #0f172a;">${formatNumberCell(record.presion_pip, 0)} psi</div>`;
+
                     tr.innerHTML = `
                         <td>
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -3006,13 +3025,19 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                             </div>
                         </td>
                         <td>
-                            <div style="font-weight: 700; color: #0f172a;">${formatNumberCell(record.nivel_dinamico, 0)} ft</div>
+                            ${reporteBadge}
+                        </td>
+                        <td>
+                            ${tipoBadge}
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; color: #0f172a;">${formatNumberCell(nivelVal, 0)} ft ${isEstatico ? '<small style="color:#991B1B;">(Estático)</small>' : ''}</div>
                         </td>
                         <td>
                             <div style="font-weight: 700; color: #0f172a;">${formatNumberCell(record.sumergencia, 0)} ft</div>
                         </td>
                         <td>
-                            <div style="font-weight: 700; color: #0f172a;">${formatNumberCell(record.presion_pip, 0)} psi</div>
+                            ${pipCellHtml}
                         </td>
                         <td>
                             ${soporteHtml}

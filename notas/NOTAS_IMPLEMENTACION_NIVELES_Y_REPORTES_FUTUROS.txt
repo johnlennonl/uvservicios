@@ -1,0 +1,59 @@
+================================================================================
+NOTAS DE IMPLEMENTACIÓN: MÓDULO DE NIVELES / ECHOMETER Y CONTENEDORES FUTUROS
+Fecha: 2026-09-03
+Proyecto: UV Servicios - Sistema de Monitoreo BES
+================================================================================
+
+1. NIVELES Y ECHÓMETRO (ESTÁTICO VS DINÁMICO)
+--------------------------------------------------------------------------------
+- Tabla Supabase: public.well_level_tests
+- Columnas agregadas (Script: supabase/add_level_type_and_report_number.sql):
+  * tipo_nivel text DEFAULT 'dinamico' CHECK (tipo_nivel IN ('dinamico', 'estatico'))
+  * nivel_estatico numeric(12,3) DEFAULT 0
+  * numero_reporte text
+- Formulario de Carga (Modal 4 - dashboard-data.html):
+  * Selector de Tipo de Nivel: 🟢 Dinámico (RUN) vs 🔴 Estático (OFF).
+  * Prefijo predeterminado fijo: UVS-RN-BES- donde el usuario ingresa YYYY-XXXX (ej: 2026-0001).
+  * Auto-traspaso de Nivel: Si un pozo tenía registrado nivel_dinamico (ej: 2517 ft) y se clasifica como Estático, el sistema auto-copia la cifra al Nivel Estático evitando 0 indeseados.
+  * Preservación de Datos: Sumergencia y Presión PIP permanecen 100% editables y no se borran al alternar.
+- Visualización en Historial (data.html):
+  * Nuevas columnas: "Nº Reporte" y "Tipo".
+  * Badges visuales: 🟢 Dinámico / 🔴 Estático y código en estilo fuente monospace.
+
+2. CONTENEDORES FUTUROS AÑADIDOS EN GESTIÓN DE DATOS (dashboard-data.html)
+--------------------------------------------------------------------------------
+Se agregaron 5 contenedores en la retícula Bento con estado "🛠️ En Construcción":
+
+1. Simulaciones
+   - Código Reporte: UVS-RS-BES-2026-XXXX
+   - Descripción: Carga y gestión de reportes de simulaciones BES y modelado nodal de pozos.
+
+2. Parámetros Eléctricos
+   - Código Reporte: UVS-PE-BES-2026-XXXX
+   - Descripción: Análisis de parámetros eléctricos, armónicos, consumo de corriente y tendencias VSD.
+
+3. Reporte de Pozo
+   - Código Reporte: UVS-RP-BES-2026-XXXX
+   - Descripción: Expediente técnico consolidado e historial ejecutivo integral por pozo.
+
+4. Programa de Arranque
+   - Código Reporte: UVS-PA-BES-2026-XXXX
+   - Descripción: Planificación de rampa de frecuencia, secuencias operativas y protocolos previos al arranque.
+
+5. Arranque y Monitoreo
+   - Código Reporte: UVS-AM-BES-2026-XXXX
+   - Descripción: Seguimiento en tiempo real durante la puesta en marcha inicial y estabilización de pozo.
+
+3. INSTRUCCIONES PARA LA BASE DE DATOS SUPABASE
+--------------------------------------------------------------------------------
+Ejecutar el siguiente script en Supabase SQL Editor:
+
+ALTER TABLE public.well_level_tests
+    ADD COLUMN IF NOT EXISTS tipo_nivel text DEFAULT 'dinamico' CHECK (tipo_nivel IN ('dinamico', 'estatico')),
+    ADD COLUMN IF NOT EXISTS nivel_estatico numeric(12,3) DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS numero_reporte text;
+
+CREATE INDEX IF NOT EXISTS idx_well_level_tests_numero_reporte
+    ON public.well_level_tests (numero_reporte)
+    WHERE numero_reporte IS NOT NULL;
+================================================================================

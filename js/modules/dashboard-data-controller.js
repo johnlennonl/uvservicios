@@ -470,6 +470,40 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             document.getElementById('level_pozo_name')?.addEventListener('change', () => syncLevelPozoContext());
             document.getElementById('fecha_level')?.addEventListener('change', () => syncLevelDateContext());
 
+            const tipoNivelSelect = document.getElementById('tipo_nivel_select');
+
+            const updateLevelFieldsVisibility = () => {
+                const isEstatico = tipoNivelSelect?.value === 'estatico';
+                const groupDinamico = document.getElementById('group-nivel-dinamico');
+                const groupEstatico = document.getElementById('group-nivel-estatico');
+                const inputDinamico = document.getElementById('nivel_dinamico_val');
+                const inputEstatico = document.getElementById('nivel_estatico_val');
+
+                if (isEstatico) {
+                    if (groupDinamico) groupDinamico.style.display = 'none';
+                    if (groupEstatico) groupEstatico.style.display = 'block';
+
+                    // Si nivel estático es 0 o vacío y nivel dinámico tiene un valor, copiarlo como inicial
+                    const estVal = parseFloat(inputEstatico?.value) || 0;
+                    const dinVal = parseFloat(inputDinamico?.value) || 0;
+                    if (estVal === 0 && dinVal > 0 && inputEstatico) {
+                        inputEstatico.value = inputDinamico.value;
+                    }
+                } else {
+                    if (groupDinamico) groupDinamico.style.display = 'block';
+                    if (groupEstatico) groupEstatico.style.display = 'none';
+
+                    // Si nivel dinámico es 0 o vacío y nivel estático tiene un valor, copiarlo como inicial
+                    const estVal = parseFloat(inputEstatico?.value) || 0;
+                    const dinVal = parseFloat(inputDinamico?.value) || 0;
+                    if (dinVal === 0 && estVal > 0 && inputDinamico) {
+                        inputDinamico.value = inputEstatico.value;
+                    }
+                }
+            };
+
+            tipoNivelSelect?.addEventListener('change', updateLevelFieldsVisibility);
+
 
             // Eventos para el soporte del echometer
             const btnSelectLevelFile = document.getElementById('btn-select-level-file');
@@ -684,16 +718,24 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
                     await populateLevelForm(matchingTest, { pozo_name: pozoName });
                     document.getElementById('fecha_level').value = selectedDate;
                 } else {
+                    const suffixInput = document.getElementById('numero_reporte_suffix');
+                    if (suffixInput) suffixInput.value = '';
+                    const tipoSelect = document.getElementById('tipo_nivel_select');
+                    if (tipoSelect) {
+                        tipoSelect.value = 'dinamico';
+                        tipoSelect.dispatchEvent(new Event('change'));
+                    }
                     document.getElementById('nivel_dinamico_val').value = '';
+                    document.getElementById('nivel_estatico_val').value = '';
                     document.getElementById('sumergencia_val').value = '';
                     document.getElementById('presion_pip_val').value = '';
-                    
+
                     const fileInput = document.getElementById('level_file_soporte');
                     if (fileInput) fileInput.value = '';
-                    
+
                     const fileNameSpan = document.getElementById('level-file-name');
                     if (fileNameSpan) fileNameSpan.textContent = 'Ningún archivo seleccionado';
-                    
+
                     const clearBtn = document.getElementById('btn-clear-level-file');
                     if (clearBtn) {
                         clearBtn.style.display = 'none';
@@ -967,7 +1009,32 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             const pozoName = context.pozo_name || levelData?.pozo_name || '';
             document.getElementById('level_pozo_name').value = pozoName;
             document.getElementById('fecha_level').value = levelData?.fecha || '';
-            document.getElementById('nivel_dinamico_val').value = levelData?.nivel_dinamico ?? '';
+
+            // Tipo de nivel y actualización de campos
+            const tipoNivel = String(levelData?.tipo_nivel || '').toLowerCase() === 'estatico' ? 'estatico' : 'dinamico';
+            const tipoSelect = document.getElementById('tipo_nivel_select');
+            if (tipoSelect) {
+                tipoSelect.value = tipoNivel;
+                tipoSelect.dispatchEvent(new Event('change'));
+            }
+
+            // Sufijo de número de reporte
+            const rawReporte = String(levelData?.numero_reporte || '').trim();
+            const suffixInput = document.getElementById('numero_reporte_suffix');
+            if (suffixInput) {
+                suffixInput.value = rawReporte ? rawReporte.replace(/^UVS-RN-BES-?/i, '') : '';
+            }
+
+            const dinVal = levelData?.nivel_dinamico ?? '';
+            const estVal = levelData?.nivel_estatico ?? '';
+            const numDin = parseFloat(dinVal) || 0;
+            const numEst = parseFloat(estVal) || 0;
+
+            const finalDin = numDin > 0 ? dinVal : (numEst > 0 ? estVal : '');
+            const finalEst = numEst > 0 ? estVal : (numDin > 0 ? dinVal : '');
+
+            document.getElementById('nivel_dinamico_val').value = finalDin;
+            document.getElementById('nivel_estatico_val').value = finalEst;
             document.getElementById('sumergencia_val').value = levelData?.sumergencia ?? '';
             document.getElementById('presion_pip_val').value = levelData?.presion_pip ?? '';
 
@@ -1006,7 +1073,15 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
         function resetLevelForm() {
             document.getElementById('level-data-form').reset();
             document.getElementById('fecha_level').value = '';
+            const suffixInput = document.getElementById('numero_reporte_suffix');
+            if (suffixInput) suffixInput.value = '';
+            const tipoSelect = document.getElementById('tipo_nivel_select');
+            if (tipoSelect) {
+                tipoSelect.value = 'dinamico';
+                tipoSelect.dispatchEvent(new Event('change'));
+            }
             document.getElementById('nivel_dinamico_val').value = '';
+            document.getElementById('nivel_estatico_val').value = '';
             document.getElementById('sumergencia_val').value = '';
             document.getElementById('presion_pip_val').value = '';
 
@@ -1205,13 +1280,20 @@ import { logout, getAccessProfile, getDefaultRouteForAccessProfile, getSession }
             btn.disabled = true;
 
             try {
+                const tipoNivel = document.getElementById('tipo_nivel_select')?.value || 'dinamico';
+                const reportSuffix = document.getElementById('numero_reporte_suffix')?.value.trim() || '';
+                const isEstatico = tipoNivel === 'estatico';
+
                 const levelData = {
                     operational_scope: activeOperationalScope,
                     pozo_name: document.getElementById('level_pozo_name').value.trim(),
                     fecha: document.getElementById('fecha_level').value || null,
-                    nivel_dinamico: parseFloat(document.getElementById('nivel_dinamico_val').value) || 0,
+                    tipo_nivel: tipoNivel,
+                    nivel_dinamico: !isEstatico ? (parseFloat(document.getElementById('nivel_dinamico_val').value) || 0) : 0,
+                    nivel_estatico: isEstatico ? (parseFloat(document.getElementById('nivel_estatico_val').value) || 0) : 0,
                     sumergencia: parseFloat(document.getElementById('sumergencia_val').value) || 0,
                     presion_pip: parseFloat(document.getElementById('presion_pip_val').value) || 0,
+                    numero_reporte: reportSuffix ? `UVS-RN-BES-${reportSuffix}` : null,
                     file_path: document.getElementById('btn-clear-level-file')?.dataset.filePath || null
                 };
 
