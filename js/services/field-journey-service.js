@@ -169,12 +169,16 @@ function buildJourneyPreviewSummary(journey = {}, records = []) {
         return leftTime.localeCompare(rightTime) || String(left.pozo || '').localeCompare(String(right.pozo || ''));
     });
 
+    const pozoNamesFromRecords = sortedRecords.map(record => String(record.pozo || record.raw_payload?.pozo || '').trim().toUpperCase()).filter(Boolean);
+    const fallbackPozoNames = Array.isArray(journey.pozo_names) ? journey.pozo_names : (journey.pozo_name ? [journey.pozo_name] : (journey.raw_payload?.pozo ? [journey.raw_payload.pozo] : []));
+    const pozoNames = pozoNamesFromRecords.length > 0 ? pozoNamesFromRecords : fallbackPozoNames;
+
     return {
         ...journey,
-        pozoNames: sortedRecords.map(record => String(record.pozo || '').trim().toUpperCase()).filter(Boolean),
+        pozoNames: pozoNames,
         first_report_time: journey.first_report_time || sortedRecords[0]?.report_time || null,
         last_report_time: journey.last_report_time || sortedRecords[sortedRecords.length - 1]?.report_time || null,
-        total_reports: Number(journey.total_reports || sortedRecords.length || 0)
+        total_reports: Number(journey.total_reports || sortedRecords.length || pozoNames.length || 0)
     };
 }
 
@@ -1625,11 +1629,7 @@ export async function getFieldSubmittedJourneys(options = {}) {
     const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 80;
     const scopeGuard = await resolveActiveScopeGuard(options);
 
-    if (!scopeGuard.pozoNames.length) return [];
-
     // Paso 1: Obtener las jornadas del usuario (resultado siempre pequeño, ≤safeLimit)
-    // Se consulta primero field_journeys por email para evitar el límite de 1000 filas
-    // que Supabase impone sobre field_journey_records cuando hay muchos registros históricos.
     let journeyQuery = supabase
         .from('field_journeys')
         .select('*')
@@ -1654,13 +1654,12 @@ export async function getFieldSubmittedJourneys(options = {}) {
         const journeyList = Array.isArray(journeys) ? journeys : [];
         if (journeyList.length === 0) return [];
 
-        // Paso 2: Obtener registros de pozos para esas jornadas, filtrados por el scope activo
+        // Paso 2: Obtener registros de pozos para esas jornadas
         const journeyIds = journeyList.map(journey => journey.id).filter(Boolean);
         const { data: records, error: recordsError } = await supabase
             .from('field_journey_records')
             .select('journey_id, pozo, report_time')
             .in('journey_id', journeyIds)
-            .in('pozo', scopeGuard.pozoNames)
             .order('report_time', { ascending: true })
             .order('pozo', { ascending: true });
 
@@ -1675,9 +1674,21 @@ export async function getFieldSubmittedJourneys(options = {}) {
             recordsByJourney.get(key).push(record);
         });
 
-        // Paso 3: Solo incluir jornadas que tengan al menos un registro en el scope activo
+        // Paso 3: Filtrar jornadas por alcance operativo activo o por pozos pertenecientes
+        const activeScope = normalizeOperationalScopeValue(scopeGuard.operationalScope);
         return journeyList
-            .filter(journey => (recordsByJourney.get(journey.id) || []).length > 0)
+            .filter(journey => {
+                const jScope = normalizeOperationalScopeValue(journey.operational_scope);
+                const jRecords = recordsByJourney.get(journey.id) || [];
+
+                if (jScope === activeScope) return true;
+
+                if (scopeGuard.pozoSet?.size > 0) {
+                    return jRecords.some(r => scopeGuard.pozoSet.has(String(r.pozo || '').trim().toUpperCase()));
+                }
+
+                return jRecords.length > 0;
+            })
             .map(journey => buildJourneyPreviewSummary(journey, recordsByJourney.get(journey.id) || []))
             .filter(journey => matchesJourneySearch(journey, options.searchTerm));
     } catch (error) {

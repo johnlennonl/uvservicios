@@ -1964,7 +1964,7 @@ function normalizeWorkflowRecordForDraft(record = {}) {
 }
 
 async function restoreRemoteDraftIfNeeded() {
-    if (getJourneyReports().length > 0 || getFieldStorageItem(DRAFT_STORAGE_KEY)) return;
+    if (getJourneyReports().length > 0) return;
 
     try {
         const draft = await getLatestFieldJourneyDraft();
