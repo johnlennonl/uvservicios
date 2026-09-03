@@ -169,16 +169,24 @@ function buildJourneyPreviewSummary(journey = {}, records = []) {
         return leftTime.localeCompare(rightTime) || String(left.pozo || '').localeCompare(String(right.pozo || ''));
     });
 
-    const pozoNamesFromRecords = sortedRecords.map(record => String(record.pozo || record.raw_payload?.pozo || '').trim().toUpperCase()).filter(Boolean);
-    const fallbackPozoNames = Array.isArray(journey.pozo_names) ? journey.pozo_names : (journey.pozo_name ? [journey.pozo_name] : (journey.raw_payload?.pozo ? [journey.raw_payload.pozo] : []));
-    const pozoNames = pozoNamesFromRecords.length > 0 ? pozoNamesFromRecords : fallbackPozoNames;
+    let pozoNames = sortedRecords.map(record => String(record.pozo || '').trim().toUpperCase()).filter(Boolean);
+
+    // Fallback: si no hay records (RLS bloqueó la lectura), leer los nombres desde admin_notes
+    if (pozoNames.length === 0 && journey.admin_notes) {
+        try {
+            const parsed = JSON.parse(journey.admin_notes);
+            if (Array.isArray(parsed?.pozos)) {
+                pozoNames = parsed.pozos.map(p => String(p || '').trim().toUpperCase()).filter(Boolean);
+            }
+        } catch (_) { /* admin_notes no es JSON, ignorar */ }
+    }
 
     return {
         ...journey,
-        pozoNames: pozoNames,
+        pozoNames,
         first_report_time: journey.first_report_time || sortedRecords[0]?.report_time || null,
         last_report_time: journey.last_report_time || sortedRecords[sortedRecords.length - 1]?.report_time || null,
-        total_reports: Number(journey.total_reports || sortedRecords.length || pozoNames.length || 0)
+        total_reports: Number(journey.total_reports || sortedRecords.length || 0)
     };
 }
 
@@ -1629,11 +1637,15 @@ export async function getFieldSubmittedJourneys(options = {}) {
     const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 80;
     const scopeGuard = await resolveActiveScopeGuard(options);
 
-    // Paso 1: Obtener las jornadas del usuario (resultado siempre pequeño, ≤safeLimit)
+    if (!scopeGuard.pozoNames.length) return [];
+
+    // Paso 1: Obtener las jornadas del usuario filtradas por operational_scope
+    const activeScope = normalizeOperationalScopeValue(scopeGuard.operationalScope);
     let journeyQuery = supabase
         .from('field_journeys')
         .select('*')
         .ilike('submitted_by_email', session.user.email)
+        .eq('operational_scope', activeScope)
         .order('journey_date', { ascending: false })
         .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
@@ -1674,21 +1686,8 @@ export async function getFieldSubmittedJourneys(options = {}) {
             recordsByJourney.get(key).push(record);
         });
 
-        // Paso 3: Filtrar jornadas por alcance operativo activo o por pozos pertenecientes
-        const activeScope = normalizeOperationalScopeValue(scopeGuard.operationalScope);
+        // Paso 3: Incluir TODAS las jornadas del scope (incluyendo drafts sin records aún)
         return journeyList
-            .filter(journey => {
-                const jScope = normalizeOperationalScopeValue(journey.operational_scope);
-                const jRecords = recordsByJourney.get(journey.id) || [];
-
-                if (jScope === activeScope) return true;
-
-                if (scopeGuard.pozoSet?.size > 0) {
-                    return jRecords.some(r => scopeGuard.pozoSet.has(String(r.pozo || '').trim().toUpperCase()));
-                }
-
-                return jRecords.length > 0;
-            })
             .map(journey => buildJourneyPreviewSummary(journey, recordsByJourney.get(journey.id) || []))
             .filter(journey => matchesJourneySearch(journey, options.searchTerm));
     } catch (error) {
@@ -1936,6 +1935,23 @@ export async function autosaveFieldJourneyDraft(reports = [], options = {}) {
             .insert(recordRows);
 
         if (recordsError) throw recordsError;
+
+        // Actualizar rollup: total_reports, tiempos y nombres de pozos en admin_notes
+        const times = recordRows
+            .map(r => String(r.report_time || '').trim())
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b));
+        const pozoNamesList = recordRows.map(r => String(r.pozo || '').trim().toUpperCase()).filter(Boolean);
+
+        await supabase
+            .from('field_journeys')
+            .update({
+                total_reports: recordRows.length,
+                first_report_time: times[0] || null,
+                last_report_time: times[times.length - 1] || null,
+                admin_notes: JSON.stringify({ pozos: pozoNamesList })
+            })
+            .eq('id', journeyId);
 
         // Sincronizar los reportes de apoyo si se pasan en las opciones
         if (options.supportReports !== undefined) {
