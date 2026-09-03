@@ -258,12 +258,11 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
                 if (ticketToolsSection) ticketToolsSection.style.display = 'block';
                 if (ticketContainer) ticketContainer.style.display = 'block';
 
-                const ticketDate = document.getElementById('ticket-date')?.value || '';
-                if (ticketDate) {
-                    loadDailyTicketData();
-                } else {
-                    renderDailyTicket();
+                const ticketDateEl = document.getElementById('ticket-date');
+                if (ticketDateEl && !ticketDateEl.value) {
+                    ticketDateEl.value = new Date().toISOString().slice(0, 10);
                 }
+                loadDailyTicketData();
                 return;
             }
 
@@ -1637,7 +1636,16 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
         }
 
         async function loadDailyTicketData() {
-            const ticketDate = document.getElementById('ticket-date')?.value;
+            let ticketDate = document.getElementById('ticket-date')?.value;
+            if (!ticketDate) {
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const dateInput = document.getElementById('ticket-date');
+                if (dateInput) {
+                    dateInput.value = todayIso;
+                    ticketDate = todayIso;
+                }
+            }
+
             if (!ticketDate) {
                 currentRecordData = [];
                 currentTicketGroups = [];
@@ -1652,10 +1660,18 @@ import { applyNavigationAccessProfile, logout, getAccessProfile, getSession } fr
             }
 
             try {
+                let targetPozoNames = activeScopePozoNames;
+                if (!Array.isArray(targetPozoNames) || targetPozoNames.length === 0) {
+                    if (Array.isArray(activeScopeWellCatalog) && activeScopeWellCatalog.length > 0) {
+                        targetPozoNames = activeScopeWellCatalog.map(w => w.pozo_name).filter(Boolean);
+                    }
+                }
+                if (!Array.isArray(targetPozoNames) || targetPozoNames.length === 0) {
+                    targetPozoNames = await getActiveOperationalScopeWellNames().catch(() => []);
+                }
+
                 const nextDate = addDaysToIsoDate(ticketDate, 1);
-                const data = activeScopePozoNames.length > 0
-                    ? await getMonitoringData(activeScopePozoNames, ticketDate, nextDate)
-                    : [];
+                const data = await getMonitoringData(targetPozoNames, ticketDate, nextDate);
                 const journeyMap = await getJornadaMapForDate(ticketDate);
                 const operationalRecords = filterRecordsByOperationalDate(data, ticketDate, journeyMap);
                 const selectedShiftGroup = getSelectedTicketShiftGroup(operationalRecords);
