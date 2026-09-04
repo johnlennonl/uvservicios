@@ -1616,8 +1616,8 @@ async function updateDashboard() {
         return;
     }
 
-    let start = document.getElementById('filter-start').value || null;
-    let end = document.getElementById('filter-end').value || null;
+    let start = document.getElementById('filter-start')?.value || null;
+    let end = document.getElementById('filter-end')?.value || null;
 
     if (trendWindowMode === TREND_WINDOW_MODES.customRange) {
         const customStart = document.getElementById('trend-filter-start')?.value;
@@ -1660,10 +1660,11 @@ async function updateDashboard() {
                 updateDataRibbon(ribbonData);
             } else {
                 if (welcomeView) welcomeView.style.display = 'block';
+                if (dataRibbon) dataRibbon.style.display = 'grid';
             }
 
-            if (!ribbonData && dataRibbon) {
-                dataRibbon.style.display = 'none';
+            if (dataRibbon) {
+                dataRibbon.style.display = 'grid';
             }
             if (brutalGrid) brutalGrid.style.display = 'none';
 
@@ -1731,7 +1732,7 @@ async function updateDashboard() {
             ? data.find(record => `${record.fecha}T${record.hora}` === selectedRecordValue) || data[0]
             : data[0];
 
-        renderKPIs(activeRecord);
+        renderKPIs(activeRecord, data);
         renderStatusDonut(data, activeRecord);
         await loadTrendAnnotations(selectedPozos, timelineData);
         renderCoreTrends(timelineData, selectedPozos, {
@@ -1759,8 +1760,9 @@ function clearDashboard() {
     const brutalGrid = document.getElementById('brutal-grid');
     
     if (welcomeView) welcomeView.style.display = 'block';
-    if (dataRibbon) dataRibbon.style.display = 'none';
+    if (dataRibbon) dataRibbon.style.display = 'grid';
     if (brutalGrid) brutalGrid.style.display = 'none';
+    updateDataRibbon(null);
     syncTrendWindowControl(false);
 
     const rotationBadge = document.getElementById('rotation-badge');
@@ -1779,50 +1781,107 @@ function clearDashboard() {
 /**
  * Indicadores rapidos y gauges del encabezado operativo.
  */
-function renderKPIs(latest) {
+function applyDeltaBadge(id, current, prev, decimalCount = 1) {
+    const badge = document.getElementById(id);
+    if (!badge || prev === undefined || prev === null || isNaN(prev) || isNaN(current)) {
+        if (badge) badge.style.display = 'none';
+        return;
+    }
+    const diff = Number(current) - Number(prev);
+    if (Math.abs(diff) < 0.05) {
+        badge.className = 'kpi-delta-badge flat';
+        badge.textContent = `0.0 =`;
+        badge.style.display = 'inline-flex';
+    } else if (diff > 0) {
+        badge.className = 'kpi-delta-badge up';
+        badge.textContent = `+${diff.toFixed(decimalCount)} ▲`;
+        badge.style.display = 'inline-flex';
+    } else {
+        badge.className = 'kpi-delta-badge down';
+        badge.textContent = `${diff.toFixed(decimalCount)} ▼`;
+        badge.style.display = 'inline-flex';
+    }
+}
+
+let latestRecordsListSnapshot = [];
+
+function renderKPIs(latest, recordsList = []) {
     latestKpiSnapshot = latest || null;
+    if (Array.isArray(recordsList) && recordsList.length > 0) {
+        latestRecordsListSnapshot = recordsList;
+    } else if (latestRecordsListSnapshot.length > 0) {
+        recordsList = latestRecordsListSnapshot;
+    }
+
     const activeScope = getActiveOperationalScope();
     const isCrc = activeScope === 'crc_ll' || activeScope === 'ccrc_ll' || latest?.operational_scope === 'crc_ll';
 
     const card1Title = document.getElementById('card1-title');
     const card1Min = document.getElementById('card1-min');
+    const card1Avg = document.getElementById('card1-avg');
     const card1Max = document.getElementById('card1-max');
 
     const card2Title = document.getElementById('card2-title');
     const card2Min = document.getElementById('card2-min');
+    const card2Avg = document.getElementById('card2-avg');
     const card2Max = document.getElementById('card2-max');
 
     const card3Title = document.getElementById('card3-title');
     const card3Min = document.getElementById('card3-min');
+    const card3Avg = document.getElementById('card3-avg');
     const card3Max = document.getElementById('card3-max');
 
     const card4Title = document.getElementById('card4-title');
     const card4BadgeLabel = document.getElementById('card4-badge-label');
 
+    const list = Array.isArray(recordsList) && recordsList.length > 0 ? recordsList : (latest ? [latest] : []);
+    const prevRecord = list.length >= 2 ? list[list.length - 2] : null;
+
     if (isCrc) {
         // CCRC BM/BCP Mode
         const rawPayload = latest?.raw_payload || {};
+        const prevPayload = prevRecord?.raw_payload || {};
         const liftMethod = latest?.lift_method || rawPayload.lift_method || (latest?.bcp_rpm ? 'BCP' : 'BM');
         
         const thpVal = Number(latest?.thp_psi ?? latest?.presion_thp ?? latest?.thp ?? rawPayload.thp_psi ?? rawPayload.presion_thp ?? rawPayload.thp ?? 0);
+        const prevThp = prevRecord ? Number(prevRecord?.thp_psi ?? prevRecord?.presion_thp ?? prevRecord?.thp ?? prevPayload.thp_psi ?? prevPayload.presion_thp ?? prevPayload.thp ?? 0) : null;
+
         const chpVal = Number(latest?.chp_psi ?? latest?.presion_chp ?? latest?.chp ?? rawPayload.chp_psi ?? rawPayload.presion_chp ?? rawPayload.chp ?? 0);
-        
+        const prevChp = prevRecord ? Number(prevRecord?.chp_psi ?? prevRecord?.presion_chp ?? prevRecord?.chp ?? prevPayload.chp_psi ?? prevPayload.presion_chp ?? prevPayload.chp ?? 0) : null;
+
         const rawSpeed = latest?.bm_spm ?? latest?.bcp_rpm ?? latest?.spm ?? latest?.rpm ?? latest?.frecuencia ?? rawPayload.bm_spm ?? rawPayload.bcp_rpm ?? rawPayload.spm ?? rawPayload.frecuencia ?? 0;
         const speedVal = Number(rawSpeed || 0);
+        const prevSpeed = prevRecord ? Number(prevRecord?.bm_spm ?? prevRecord?.bcp_rpm ?? prevRecord?.spm ?? prevRecord?.rpm ?? prevRecord?.frecuencia ?? prevPayload.bm_spm ?? prevPayload.bcp_rpm ?? prevPayload.spm ?? prevPayload.frecuencia ?? 0) : null;
+
         const speedUnit = liftMethod === 'BCP' ? 'RPM' : 'SPM';
         const speedMax = liftMethod === 'BCP' ? 500 : 50;
 
+        // Dynamic averages for CCRC
+        const thpList = list.map(r => Number(r?.thp_psi ?? r?.presion_thp ?? r?.thp ?? r?.raw_payload?.thp_psi ?? r?.raw_payload?.presion_thp ?? r?.raw_payload?.thp)).filter(v => !isNaN(v) && v > 0);
+        const chpList = list.map(r => Number(r?.chp_psi ?? r?.presion_chp ?? r?.chp ?? r?.raw_payload?.chp_psi ?? r?.raw_payload?.presion_chp ?? r?.raw_payload?.chp)).filter(v => !isNaN(v) && v > 0);
+        const speedList = list.map(r => Number(r?.bm_spm ?? r?.bcp_rpm ?? r?.spm ?? r?.rpm ?? r?.frecuencia ?? r?.raw_payload?.bm_spm ?? r?.raw_payload?.bcp_rpm ?? r?.raw_payload?.spm ?? r?.raw_payload?.frecuencia)).filter(v => !isNaN(v) && v > 0);
+
+        const thpAvg = thpList.length ? (thpList.reduce((a, b) => a + b, 0) / thpList.length) : thpVal;
+        const chpAvg = chpList.length ? (chpList.reduce((a, b) => a + b, 0) / chpList.length) : chpVal;
+        const speedAvg = speedList.length ? (speedList.reduce((a, b) => a + b, 0) / speedList.length) : speedVal;
+
         if (card1Title) card1Title.textContent = 'Presión THP';
         if (card1Min) card1Min.textContent = 'Min: 0';
+        if (card1Avg) card1Avg.textContent = `Prom: ${Math.round(thpAvg)} PSI`;
         if (card1Max) card1Max.textContent = 'Max: 2000';
+        applyDeltaBadge('card1-delta', thpVal, prevThp, 0);
 
         if (card2Title) card2Title.textContent = 'Presión CHP';
         if (card2Min) card2Min.textContent = 'Min: 0';
+        if (card2Avg) card2Avg.textContent = `Prom: ${Math.round(chpAvg)} PSI`;
         if (card2Max) card2Max.textContent = 'Max: 2000';
+        applyDeltaBadge('card2-delta', chpVal, prevChp, 0);
 
         if (card3Title) card3Title.textContent = `Velocidad (${speedUnit})`;
         if (card3Min) card3Min.textContent = 'Min: 0';
+        if (card3Avg) card3Avg.textContent = `Prom: ${speedAvg.toFixed(1)} ${speedUnit}`;
         if (card3Max) card3Max.textContent = `Max: ${speedMax}`;
+        applyDeltaBadge('card3-delta', speedVal, prevSpeed, 1);
 
         if (card4Title) card4Title.textContent = 'Estatus Pozo';
         if (card4BadgeLabel) card4BadgeLabel.textContent = 'Actividad';
@@ -1840,18 +1899,32 @@ function renderKPIs(latest) {
             rotationBadge.style.display = 'inline-flex';
         }
     } else {
-        // Standard BES Mode
+        // Standard BES Mode - Dynamic averages & Delta
+        const frecList = list.map(r => Number(r?.frecuencia)).filter(v => !isNaN(v) && v > 0);
+        const pipList = list.map(r => Number(r?.pip)).filter(v => !isNaN(v) && v > 0);
+        const tmList = list.map(r => Number(r?.tm)).filter(v => !isNaN(v) && v > 0);
+
+        const frecAvg = frecList.length ? (frecList.reduce((a, b) => a + b, 0) / frecList.length) : (Number(latest?.frecuencia) || 0);
+        const pipAvg = pipList.length ? (pipList.reduce((a, b) => a + b, 0) / pipList.length) : (Number(latest?.pip) || 0);
+        const tmAvg = tmList.length ? (tmList.reduce((a, b) => a + b, 0) / tmList.length) : (Number(latest?.tm) || 0);
+
         if (card1Title) card1Title.textContent = 'Frecuencia';
         if (card1Min) card1Min.textContent = 'Min: 0';
+        if (card1Avg) card1Avg.textContent = `Prom: ${frecAvg.toFixed(1)} Hz`;
         if (card1Max) card1Max.textContent = 'Max: 60';
+        applyDeltaBadge('card1-delta', latest?.frecuencia, prevRecord?.frecuencia, 1);
 
         if (card2Title) card2Title.textContent = 'Presión PIP';
         if (card2Min) card2Min.textContent = 'Min: 0';
+        if (card2Avg) card2Avg.textContent = `Prom: ${Math.round(pipAvg)} PSI`;
         if (card2Max) card2Max.textContent = 'Max: 5000';
+        applyDeltaBadge('card2-delta', latest?.pip, prevRecord?.pip, 0);
 
         if (card3Title) card3Title.textContent = 'Temp. TM';
         if (card3Min) card3Min.textContent = 'Min: 0';
+        if (card3Avg) card3Avg.textContent = `Prom: ${tmAvg.toFixed(1)} °F`;
         if (card3Max) card3Max.textContent = 'Max: 450';
+        applyDeltaBadge('card3-delta', latest?.tm, prevRecord?.tm, 1);
 
         if (card4Title) card4Title.textContent = 'Estatus BES';
         if (card4BadgeLabel) card4BadgeLabel.textContent = 'Giro';
@@ -2160,7 +2233,18 @@ function renderCoreTrends(timeline, requestedPozos, options = {}) {
             toolbar: { show: trendChartInteractionEnabled },
             zoom: { enabled: trendChartInteractionEnabled },
             selection: { enabled: trendChartInteractionEnabled },
-            animations: { enabled: true, easing: 'easeinout', speed: 800 },
+            animations: {
+                enabled: true,
+                easing: 'easeinout',
+                speed: 400,
+                animateFromStart: {
+                    enabled: true,
+                    delay: 0
+                },
+                dynamicAnimation: {
+                    enabled: false
+                }
+            },
             background: 'transparent',
             fontFamily: 'Outfit, Inter, sans-serif',
             events: {
@@ -2653,7 +2737,7 @@ function renderOrUpdate(id, options) {
         if (charts[id]) {
             const isAttached = el.contains(charts[id].el) || charts[id].el === el;
             if (isAttached) {
-                charts[id].updateOptions(options);
+                charts[id].updateOptions(options, true, true, false);
                 return;
             }
             try { charts[id].destroy(); } catch (e) {}
@@ -2698,10 +2782,20 @@ function updateDataRibbon(data) {
         const el = document.getElementById(id);
         if (el) {
             el.textContent = value;
-            // Add a small animation for the update
-            el.parentElement.style.animation = 'none';
-            void el.parentElement.offsetWidth; // trigger reflow
-            el.parentElement.style.animation = 'fadeIn 0.5s ease';
+            // Measure text overflow for automatic marquee ticker effect
+            setTimeout(() => {
+                const parent = el.parentElement;
+                if (parent) {
+                    const overflowDiff = el.scrollWidth - parent.clientWidth;
+                    if (overflowDiff > 2) {
+                        el.style.setProperty('--ribbon-scroll-dist', `-${overflowDiff + 10}px`);
+                        el.classList.add('animate-marquee');
+                    } else {
+                        el.classList.remove('animate-marquee');
+                        el.style.removeProperty('--ribbon-scroll-dist');
+                    }
+                }
+            }, 60);
         }
     });
 }

@@ -36,11 +36,50 @@ export function getOperationalScopeFileTag(scopeKey = '') {
     return 'CEIBA_TOMOPORO';
 }
 
+const PUMPJACK_BALANCIN_SVG = `<svg viewBox="0 0 64 48" width="22" height="18" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 44 L42 44 M32 44 L32 18 M26 44 L32 18 L38 44" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" /><g><circle cx="12" cy="38" r="6" fill="none" stroke="#2563eb" stroke-width="1" stroke-dasharray="2,2" opacity="0.4" /><g><rect x="10" y="32" width="4" height="12" rx="2" fill="#2563eb" stroke="none" /><circle cx="12" cy="38" r="1.5" fill="#ffffff" stroke="none" /></g></g><g><path d="M8 16 L52 16 L52 20 L8 20 Z" fill="#2563eb" stroke="none" /><path d="M52 14 L58 14 C63 14 64 20 64 34 C64 35 62 35 61 34 L52 20 Z" fill="#2563eb" stroke="none" /><line x1="62" y1="34" x2="62" y2="46" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="1.5,1.5" /><line x1="12" y1="20" x2="12" y2="34" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" /><circle cx="32" cy="18" r="2.8" fill="#ffffff" stroke="#2563eb" stroke-width="1" /></g></svg>`;
+const BES_PUMP_SVG = `<svg viewBox="0 0 28 36" width="22" height="26" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10" stroke="#2563eb" stroke-width="2"/><path d="M6 6h12" stroke="#2563eb" stroke-width="2"/><path d="M6 4v4M18 4v4" stroke="#2563eb" stroke-width="2"/><circle cx="12" cy="10" r="1.8" fill="#2563eb" stroke="none"/><path d="M7 12h10" stroke="#2563eb" stroke-width="2"/><circle cx="21" cy="5" r="4.5" fill="#fff" stroke="#f59e0b" stroke-width="1.2"/><path d="M21.5 2.5l-2 3h2l-1 2.5 3-3.5h-2l1-2z" fill="#f59e0b" stroke="none"/><line x1="12" y1="12" x2="12" y2="22" stroke="#2563eb" stroke-width="1.8" stroke-dasharray="2 2"/><rect x="9" y="22" width="6" height="11" rx="1" fill="#2563eb" stroke="none"/><path d="M7 25h10M7 28h10M7 31h10" stroke="#ffffff" stroke-width="1.2"/></svg>`;
+
+export function updateScopeIconsAndText(scopeKey) {
+    const normalizedScope = normalizeOperationalScope(scopeKey);
+    const isCrc = normalizedScope === 'crc_ll' || normalizedScope === 'ccrc_ll';
+    
+    // Update Pozo Input Prefix Icon
+    const pozoPrefixIcon = document.querySelector('.pozo-selector-input-wrap .input-icon-prefix');
+    if (pozoPrefixIcon) {
+        pozoPrefixIcon.innerHTML = isCrc ? PUMPJACK_BALANCIN_SVG : BES_PUMP_SVG;
+    }
+
+    // Update Ribbon Pozo Card Icon
+    const ribbonPozoIcon = document.querySelector('#rb-pozo')?.closest('.ribbon-card')?.querySelector('.ribbon-icon');
+    if (ribbonPozoIcon) {
+        ribbonPozoIcon.innerHTML = isCrc ? PUMPJACK_BALANCIN_SVG : BES_PUMP_SVG;
+    }
+
+    // Update Welcome Central Icon
+    const welcomeIcon = document.getElementById('welcome-central-icon');
+    if (welcomeIcon) {
+        const targetSvg = isCrc ? PUMPJACK_BALANCIN_SVG : BES_PUMP_SVG;
+        welcomeIcon.outerHTML = targetSvg
+            .replace('width="18" height="18"', 'id="welcome-central-icon" style="width: 75px; height: 75px; color: #2563eb;"')
+            .replace('width="22" height="26"', 'id="welcome-central-icon" style="width: 65px; height: 75px; color: #2563eb;"')
+            .replace('width="22" height="18"', 'id="welcome-central-icon" style="width: 85px; height: 75px; color: #2563eb;"');
+    }
+
+    // Update Welcome Subtitle Text
+    const welcomeSubtitle = document.getElementById('welcome-subtitle');
+    if (welcomeSubtitle) {
+        welcomeSubtitle.textContent = isCrc
+            ? 'Monitoreo, diagnóstico y optimización en tiempo real para sistemas de Bombeo Cavidad Progresiva (BCP) y Bombeo Mecánico (BM). Selecciona un pozo en la barra superior para visualizar sus gráficas de tendencia, KPIs de control y contexto operativo.'
+            : 'Monitoreo, diagnóstico y optimización en tiempo real para sistemas de Levantamiento Artificial (BES · BCP · BM). Selecciona un pozo en la barra superior para visualizar sus gráficas de tendencia, KPIs de control y contexto operativo.';
+    }
+}
+
 function applyOperationalScopeTheme(scopeKey) {
     const normalizedScope = normalizeOperationalScope(scopeKey);
     document.body.classList.remove('operational-scope-ct', 'operational-scope-bmm');
     document.body.dataset.operationalScope = normalizedScope;
     document.body.classList.add(normalizedScope === 'bmm' ? 'operational-scope-bmm' : 'operational-scope-ct');
+    updateScopeIconsAndText(normalizedScope);
 }
 
 function startOperationalScopeTransition(contract = {}) {
