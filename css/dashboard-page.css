@@ -1616,7 +1616,59 @@ body.is-role-base-datos a[href="base-datos.html"] {
 }
 
 .historical-nav-btn,
-.historical-date-btn,
+.historical-date-btn,.trend-annotations-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 16px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-card);
+    color: var(--text-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.trend-annotations-count {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 800;
+    margin-left: 2px;
+}
+
+.trend-explore-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-card);
+    color: var(--text-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
 .btn-icon-action {
     width: 42px;
     min-width: 42px;
@@ -3180,10 +3232,11 @@ body.is-role-base-datos a[href="base-datos.html"] {
     color: #2563eb !important;
 }
 
-/* 3. INTERACCIÓN & 4. ANOTACIONES Unified Action Pills */
+/* 3. INTERACCIÓN & 4. ANOTACIONES & 5. REPORTES Unified Action Pills */
 .trend-explore-btn,
 .trend-annotations-btn {
     height: 44px !important;
+    width: 100% !important;
     background: #F8FAFC !important;
     border: 1.5px solid #E2E8F0 !important;
     border-radius: 12px !important;
@@ -3193,7 +3246,9 @@ body.is-role-base-datos a[href="base-datos.html"] {
     color: #0f172a !important;
     display: inline-flex !important;
     align-items: center !important;
+    justify-content: center !important;
     gap: 8px !important;
+    text-align: center !important;
     cursor: pointer !important;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
     box-sizing: border-box !important;
@@ -3214,9 +3269,10 @@ body.is-role-base-datos a[href="base-datos.html"] {
     color: #2563eb !important;
 }
 
-/* 5. REFRESCAR Primary Action Button (Cobalt Gradient Hero) */
+/* 6. REFRESCAR Primary Action Button (Cobalt Gradient Hero) */
 .premium-refresh-btn {
     height: 44px !important;
+    width: 100% !important;
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
     border: none !important;
     border-radius: 12px !important;
@@ -3229,7 +3285,9 @@ body.is-role-base-datos a[href="base-datos.html"] {
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
     display: inline-flex !important;
     align-items: center !important;
+    justify-content: center !important;
     gap: 8px !important;
+    text-align: center !important;
     cursor: pointer !important;
 }
 
